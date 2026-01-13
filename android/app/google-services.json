@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "851087972500",
+    "project_id": "gradeflow-20260113",
+    "storage_bucket": "gradeflow-20260113.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:851087972500:android:5d338f2689c117b21bbc81",
+        "android_client_info": {
+          "package_name": "com.gradeflow.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAO84c5hmXVnK7ONPNKy8KRhr9XtlkcvgU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

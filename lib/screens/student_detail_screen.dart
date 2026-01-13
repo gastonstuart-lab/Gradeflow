@@ -12,7 +12,6 @@ import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
-import 'dart:typed_data';
 
 class StudentDetailScreen extends StatefulWidget {
   final String classId;
@@ -53,7 +52,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final gradeItemIds =
         gradeItemService.gradeItems.map((g) => g.gradeItemId).toList();
     await scoreService.loadScores(widget.classId, gradeItemIds);
-    await examService.loadExams([widget.studentId]);
+    await examService.loadExams(widget.classId, [widget.studentId]);
 
     final exam = examService.getExam(widget.studentId);
     final grades = _calcService.calculateStudentGrades(
@@ -116,15 +115,17 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       final updated =
           student.copyWith(photoBase64: base64, updatedAt: DateTime.now());
       await studentService.updateStudent(updated);
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profile photo updated')));
+      }
     } catch (e) {
       debugPrint('Failed to set profile photo: $e');
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: const Text('Could not set photo'),
             backgroundColor: Theme.of(context).colorScheme.error));
+      }
     } finally {
       if (mounted) setState(() => _updatingPhoto = false);
     }

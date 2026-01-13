@@ -22,8 +22,15 @@ class AppProviders extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthService()),
         Provider(create: (_) => GoogleAuthService()),
+        ChangeNotifierProxyProvider<GoogleAuthService, AuthService>(
+          create: (_) => AuthService(),
+          update: (_, googleAuth, auth) {
+            auth ??= AuthService();
+            auth.setGoogleAuthService(googleAuth);
+            return auth;
+          },
+        ),
         ProxyProvider<GoogleAuthService, GoogleDriveService>(
           update: (_, auth, __) => GoogleDriveService(authService: auth),
         ),

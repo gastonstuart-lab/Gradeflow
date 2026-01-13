@@ -1,4 +1,4 @@
-package com.mycompany.CounterApp
+package com.gradeflow.app
 
 import io.flutter.embedding.android.FlutterActivity
 

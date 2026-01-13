@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:csv/csv.dart';
@@ -110,8 +109,9 @@ class FileImportService {
             'Roster parse: total=${roster.length} valid=${roster.where((r) => r.isValid).length} invalid=${roster.where((r) => !r.isValid).length}');
         final firstErr = roster.firstWhere((r) => !r.isValid,
             orElse: () => ImportedStudent(isValid: true));
-        if (firstErr.isValid == false)
+        if (firstErr.isValid == false) {
           lines.add('First error: ${firstErr.error ?? ""}');
+        }
       } else {
         final rows = rowsFromAnyBytes(bytes);
         lines.add('Rows extracted: ${rows.length}');
@@ -130,8 +130,9 @@ class FileImportService {
             'Roster parse: total=${roster.length} valid=${roster.where((r) => r.isValid).length} invalid=${roster.where((r) => !r.isValid).length}');
         final firstErr = roster.firstWhere((r) => !r.isValid,
             orElse: () => ImportedStudent(isValid: true));
-        if (firstErr.isValid == false)
+        if (firstErr.isValid == false) {
           lines.add('First error: ${firstErr.error ?? ""}');
+        }
       }
     } catch (e) {
       lines.add('Diagnostics error: $e');
@@ -316,17 +317,17 @@ class FileImportService {
       for (int i = headerRowIndex + 1; i < rows.length; i++) {
         final row = rows[i];
         if (row.every((c) => c.trim().isEmpty)) continue;
-        String? _cell(int idx) =>
+        String? cell(int idx) =>
             idx != -1 && idx < row.length ? row[idx].toString().trim() : null;
 
-        final studentId = _cell(studentIdIndex);
-        String? chineseName = _cell(chineseNameIndex);
-        String? firstName = _cell(firstNameIndex);
-        String? lastName = _cell(lastNameIndex);
+        final studentId = cell(studentIdIndex);
+        String? chineseName = cell(chineseNameIndex);
+        String? firstName = cell(firstNameIndex);
+        String? lastName = cell(lastNameIndex);
         // Fallback: combined English name
         if ((firstName == null || firstName.isEmpty) ||
             (lastName == null || lastName.isEmpty)) {
-          final englishName = _cell(englishNameIndex);
+          final englishName = cell(englishNameIndex);
           if (englishName != null && englishName.isNotEmpty) {
             final parts = englishName
                 .split(RegExp(r'\s+'))
@@ -341,9 +342,9 @@ class FileImportService {
             }
           }
         }
-        final seatNo = _cell(seatNoIndex);
-        String? classCode = _cell(classCodeIndex);
-        final form = _cell(formIndex);
+        final seatNo = cell(seatNoIndex);
+        String? classCode = cell(classCodeIndex);
+        final form = cell(formIndex);
         if (form != null && form.isNotEmpty) {
           if (classCode != null && classCode.isNotEmpty) {
             classCode =
@@ -431,7 +432,6 @@ class FileImportService {
   // Smart auto-detection: analyze actual data to find columns
   Map<String, int> _autoDetectColumns(
       List<String> headers, List<List<String>> rows) {
-    final normalized = headers.map(_normalizeName).toList();
     final result = <String, int>{};
 
     // First try header matching
@@ -562,16 +562,18 @@ class FileImportService {
       if (result['englishName'] == -1 &&
           (result['firstName'] == -1 || result['lastName'] == -1)) {
         for (int col = 0; col < headers.length; col++) {
-          if (col == result['studentId'] || col == result['chineseName'])
+          if (col == result['studentId'] || col == result['chineseName']) {
             continue;
+          }
           int englishCount = 0;
           for (int row = 1; row <= scannedRows; row++) {
             if (col >= rows[row].length) continue;
             final val =
                 col < rows[row].length ? rows[row][col].toString().trim() : '';
             if (val.isEmpty) continue;
-            if (RegExp(r"^[a-zA-Z\s\.\-']+$").hasMatch(val) && val.length > 1)
+            if (RegExp(r"^[a-zA-Z\s\.\-']+$").hasMatch(val) && val.length > 1) {
               englishCount++;
+            }
           }
           if (englishCount > scannedRows * 0.5) {
             result['englishName'] = col;
@@ -836,9 +838,9 @@ class FileImportService {
       for (int i = 1; i < rows.length; i++) {
         final row = rows[i];
         if (studentIdIndex < row.length && scoreIndex < row.length) {
-          final studentId = row[studentIdIndex]?.toString().trim();
-          final scoreStr = row[scoreIndex]?.toString().trim();
-          if (studentId != null && scoreStr != null) {
+          final studentId = row[studentIdIndex].toString().trim();
+          final scoreStr = row[scoreIndex].toString().trim();
+          if (studentId.isNotEmpty && scoreStr.isNotEmpty) {
             final score = double.tryParse(scoreStr);
             if (score != null && score >= 0 && score <= 100) {
               scores[studentId] = score;
@@ -1028,7 +1030,7 @@ extension FileImportServiceClasses on FileImportService {
         final row = rows[i];
         if (row.every((c) => c.trim().isEmpty)) continue;
         String? cell(int idx) =>
-            idx != -1 && idx < row.length ? row[idx]?.toString().trim() : null;
+          idx != -1 && idx < row.length ? row[idx].toString().trim() : null;
 
         String? name = cell(nameIdx);
         String? subject = cell(subjectIdx);
@@ -1206,7 +1208,6 @@ extension FileImportServiceClasses on FileImportService {
           if (s == null) continue;
           bool hasContent = false;
           for (final row in s.rows) {
-            if (row == null) continue;
             for (final cell in row) {
               final v = cell?.value;
               if ((v?.toString().trim().isNotEmpty ?? false)) {
@@ -1231,7 +1232,7 @@ extension FileImportServiceClasses on FileImportService {
         return [];
       }
 
-      final s = sheet!;
+      final s = sheet;
       int derivedCols = 0;
       try {
         for (final r in s.rows) {

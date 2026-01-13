@@ -31,7 +31,9 @@ Future<void> main(List<String> args) async {
   if (!isZip) {
     final text = importer.decodeTextFromBytes(bytes);
     final firstLine = text.split(RegExp(r'\r?\n')).firstWhere((l) => l.trim().isNotEmpty, orElse: () => '');
-    stdout.writeln('Text sample (first non-empty line): ${firstLine.length > 200 ? firstLine.substring(0, 200) + '…' : firstLine}');
+    stdout.writeln(
+      'Text sample (first non-empty line): ${firstLine.length > 200 ? '${firstLine.substring(0, 200)}…' : firstLine}',
+    );
   }
 
   // Raw rows

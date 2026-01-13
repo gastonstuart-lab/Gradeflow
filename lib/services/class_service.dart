@@ -1,10 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'package:gradeflow/models/class.dart';
+import 'package:gradeflow/repositories/repository_factory.dart';
 
 class ClassService extends ChangeNotifier {
-  static const String _classesKey = 'classes';
   List<Class> _classes = [];
   bool _isLoading = false;
 
@@ -19,18 +17,9 @@ class ClassService extends ChangeNotifier {
     // Removed early notify to avoid setState/markNeedsBuild during build
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final classesJson = prefs.getString(_classesKey);
-      
-      if (classesJson != null) {
-        final List<dynamic> classList = json.decode(classesJson) as List;
-        debugPrint('ClassService.loadClasses: total stored=${classList.length} for teacher=$teacherId');
-        _classes = classList
-            .map((c) => Class.fromJson(c as Map<String, dynamic>))
-            .where((c) => c.teacherId == teacherId)
-            .toList();
-        debugPrint('ClassService.loadClasses: filtered count=${_classes.length}');
-      }
+      final repo = RepositoryFactory.instance;
+      final all = await repo.loadClasses();
+      _classes = all.where((c) => c.teacherId == teacherId).toList();
     } catch (e) {
       debugPrint('Failed to load classes: $e');
     } finally {
@@ -41,20 +30,9 @@ class ClassService extends ChangeNotifier {
 
   Future<void> addClass(Class newClass) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final classesJson = prefs.getString(_classesKey);
-      List<Map<String, dynamic>> classList = [];
-      
-      if (classesJson != null) {
-        classList = (json.decode(classesJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      debugPrint('ClassService.addClass: before add total stored=${classList.length}');
-      classList.add(newClass.toJson());
-      await prefs.setString(_classesKey, json.encode(classList));
-      
       _classes.add(newClass);
-      debugPrint('ClassService.addClass: added ${newClass.className} (teacher=${newClass.teacherId}), now local=${_classes.length}');
+      final repo = RepositoryFactory.instance;
+      await repo.saveClasses(_classes);
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to add class: $e');
@@ -63,24 +41,12 @@ class ClassService extends ChangeNotifier {
 
   Future<void> updateClass(Class updatedClass) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final classesJson = prefs.getString(_classesKey);
-      
-      if (classesJson != null) {
-        List<Map<String, dynamic>> classList = (json.decode(classesJson) as List).cast<Map<String, dynamic>>();
-        final index = classList.indexWhere((c) => c['classId'] == updatedClass.classId);
-        
-        if (index != -1) {
-          classList[index] = updatedClass.toJson();
-          await prefs.setString(_classesKey, json.encode(classList));
-          
-          final localIndex = _classes.indexWhere((c) => c.classId == updatedClass.classId);
-          if (localIndex != -1) {
-            _classes[localIndex] = updatedClass;
-            notifyListeners();
-          }
-        }
-      }
+      final localIndex = _classes.indexWhere((c) => c.classId == updatedClass.classId);
+      if (localIndex == -1) return;
+      _classes[localIndex] = updatedClass;
+      final repo = RepositoryFactory.instance;
+      await repo.saveClasses(_classes);
+      notifyListeners();
     } catch (e) {
       debugPrint('Failed to update class: $e');
     }
@@ -110,17 +76,10 @@ class ClassService extends ChangeNotifier {
 
   Future<void> deleteClass(String classId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final classesJson = prefs.getString(_classesKey);
-      
-      if (classesJson != null) {
-        List<Map<String, dynamic>> classList = (json.decode(classesJson) as List).cast<Map<String, dynamic>>();
-        classList.removeWhere((c) => c['classId'] == classId);
-        await prefs.setString(_classesKey, json.encode(classList));
-        
-        _classes.removeWhere((c) => c.classId == classId);
-        notifyListeners();
-      }
+      final repo = RepositoryFactory.instance;
+      await repo.deleteClass(classId);
+      _classes.removeWhere((c) => c.classId == classId);
+      notifyListeners();
     } catch (e) {
       debugPrint('Failed to delete class: $e');
     }
@@ -136,39 +95,37 @@ class ClassService extends ChangeNotifier {
 
   Future<void> seedDemoClasses(String teacherId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final classesJson = prefs.getString(_classesKey);
-      
-      if (classesJson == null) {
-        final now = DateTime.now();
-        final demoClasses = [
-          Class(
-            classId: 'demo-class-1',
-            className: 'Grade 10A',
-            subject: 'Mathematics',
-            groupNumber: 'A',
-            schoolYear: '2024-2025',
-            term: 'Fall',
-            teacherId: teacherId,
-            createdAt: now,
-            updatedAt: now,
-          ),
-          Class(
-            classId: 'demo-class-2',
-            className: 'Grade 11B',
-            subject: 'English',
-            groupNumber: 'B',
-            schoolYear: '2024-2025',
-            term: 'Fall',
-            teacherId: teacherId,
-            createdAt: now,
-            updatedAt: now,
-          ),
-        ];
-        
-        await prefs.setString(_classesKey, json.encode(demoClasses.map((c) => c.toJson()).toList()));
-        debugPrint('Demo classes seeded successfully');
-      }
+      final repo = RepositoryFactory.instance;
+      final existing = await repo.loadClasses();
+      if (existing.any((c) => c.teacherId == teacherId)) return;
+
+      final now = DateTime.now();
+      final demoClasses = [
+        Class(
+          classId: 'demo-class-1',
+          className: 'Grade 10A',
+          subject: 'Mathematics',
+          groupNumber: 'A',
+          schoolYear: '2024-2025',
+          term: 'Fall',
+          teacherId: teacherId,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        Class(
+          classId: 'demo-class-2',
+          className: 'Grade 11B',
+          subject: 'English',
+          groupNumber: 'B',
+          schoolYear: '2024-2025',
+          term: 'Fall',
+          teacherId: teacherId,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ];
+      await repo.saveClasses([...existing, ...demoClasses]);
+      debugPrint('Demo classes seeded successfully');
     } catch (e) {
       debugPrint('Failed to seed demo classes: $e');
     }

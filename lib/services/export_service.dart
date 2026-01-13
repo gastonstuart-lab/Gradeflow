@@ -1,17 +1,13 @@
 import 'package:csv/csv.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/models/grading_category.dart';
-import 'package:gradeflow/services/calculation_service.dart';
 import 'package:excel/excel.dart';
-import 'dart:typed_data';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
 class ExportService {
-  final CalculationService _calculationService = CalculationService();
-
   // Cache fonts so we only fetch once per session
   static pw.Font? _fontBase;
   static pw.Font? _fontBold;
@@ -385,7 +381,6 @@ class ExportService {
 
     // Estimate table width in points to compute a safe scale factor (no NaN/Inf)
     // A4 landscape total width is ~842pt. We set page margin to 12pt on each side.
-    final portraitWidth = PdfPageFormat.a4.width; // ~595pt
     final portraitHeight = PdfPageFormat.a4.height; // ~842pt
     final landscapeWidth = portraitHeight; // 842pt when landscape
     const horizontalMargin = 24.0; // 12pt left + 12pt right

@@ -100,13 +100,14 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
           gradeItemService.gradeItems.map((g) => g.gradeItemId).toList();
 
       await scoreService.loadScores(widget.classId, gradeItemIds);
-      await examService.loadExams(studentIds);
+      await examService.loadExams(widget.classId, studentIds);
 
       if (scoreService.scores.isEmpty && gradeItemIds.isNotEmpty) {
-        await scoreService.seedDemoScores(studentIds, gradeItemIds);
-        await examService.seedDemoExams(studentIds);
+        await scoreService.seedDemoScores(
+            widget.classId, studentIds, gradeItemIds);
+        await examService.seedDemoExams(widget.classId, studentIds);
         await scoreService.loadScores(widget.classId, gradeItemIds);
-        await examService.loadExams(studentIds);
+        await examService.loadExams(widget.classId, studentIds);
       }
     }
   }
@@ -146,7 +147,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${classItem.subject}',
+                            Text(classItem.subject,
                                 style:
                                     context.textStyles.headlineSmall?.semiBold),
                             const SizedBox(height: AppSpacing.sm),
@@ -436,17 +437,20 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
         return;
       }
 
+      final dialogNavigator = Navigator.of(dialogCtx);
+      final messenger = ScaffoldMessenger.of(context);
+
       await scheduleService.save(widget.classId, items);
+      if (!mounted) return;
+
       setState(() {
         _scheduleItems = items;
       });
 
-      if (mounted) {
-        Navigator.pop(dialogCtx);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Uploaded ${items.length} schedule items')),
-        );
-      }
+      dialogNavigator.pop();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Uploaded ${items.length} schedule items')),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -479,17 +483,20 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     if (confirm != true) return;
 
     final scheduleService = ClassScheduleService();
+    final dialogNavigator = Navigator.of(dialogCtx);
+    final messenger = ScaffoldMessenger.of(context);
+
     await scheduleService.save(widget.classId, []);
+    if (!mounted) return;
+
     setState(() {
       _scheduleItems = [];
     });
 
-    if (mounted) {
-      Navigator.pop(dialogCtx);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Schedule cleared')),
-      );
-    }
+    dialogNavigator.pop();
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Schedule cleared')),
+    );
   }
 
   Future<String?> _ensureDriveAccessToken() async {

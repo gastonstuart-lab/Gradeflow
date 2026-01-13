@@ -2,6 +2,7 @@ class ChangeHistory {
   final String changeId;
   final String studentId;
   final String gradeItemId;
+  final String? classId;
   final double? oldScore;
   final double? newScore;
   final String teacherId;
@@ -11,6 +12,7 @@ class ChangeHistory {
     required this.changeId,
     required this.studentId,
     required this.gradeItemId,
+    this.classId,
     this.oldScore,
     this.newScore,
     required this.teacherId,
@@ -21,6 +23,7 @@ class ChangeHistory {
     'changeId': changeId,
     'studentId': studentId,
     'gradeItemId': gradeItemId,
+    'classId': classId,
     'oldScore': oldScore,
     'newScore': newScore,
     'teacherId': teacherId,
@@ -31,6 +34,7 @@ class ChangeHistory {
     changeId: json['changeId'] as String,
     studentId: json['studentId'] as String,
     gradeItemId: json['gradeItemId'] as String,
+    classId: json['classId'] as String?,
     oldScore: (json['oldScore'] as num?)?.toDouble(),
     newScore: (json['newScore'] as num?)?.toDouble(),
     teacherId: json['teacherId'] as String,

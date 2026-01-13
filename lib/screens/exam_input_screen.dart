@@ -13,7 +13,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:gradeflow/components/drive_file_picker_dialog.dart';
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 
@@ -46,7 +45,6 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
   final Map<String, GlobalKey> _itemKeys = {};
   bool _didScrollToHighlight = false;
   final Map<String, Timer> _saveDebouncers = {};
-  bool _hasPendingSaves = false;
 
   void _showPersistentMessage(String message) {
     if (!mounted) return;
@@ -94,7 +92,9 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     await studentService.loadStudents(widget.classId);
 
     final studentIds = studentService.students.map((s) => s.studentId).toList();
-    await context.read<FinalExamService>().loadExams(studentIds);
+    await context
+        .read<FinalExamService>()
+        .loadExams(widget.classId, studentIds);
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _scrollToHighlightIfNeeded());
   }
@@ -127,13 +127,11 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
       }
     }
 
-    final saved = await examService.upsertManyExams(changes);
-    _hasPendingSaves = false;
+    final saved = await examService.upsertManyExams(widget.classId, changes);
     return saved;
   }
 
   void _scheduleSave(String studentId) {
-    _hasPendingSaves = true;
     _saveDebouncers[studentId]?.cancel();
     _saveDebouncers[studentId] =
         Timer(const Duration(milliseconds: 500), () async {
@@ -263,6 +261,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
 
     try {
       final resp = await http.get(uri, headers: headers);
+      if (!mounted) return null;
       if (resp.statusCode >= 400) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Download failed (${resp.statusCode})')));
@@ -272,6 +271,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
           uri.pathSegments.isNotEmpty ? uri.pathSegments.last : 'drive_file';
       return _PickedExamBytes(filename: filename, bytes: resp.bodyBytes);
     } catch (e) {
+      if (!mounted) return null;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Error downloading: $e')));
       return null;
@@ -330,8 +330,9 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     );
     if (source == null) return null;
     if (source == _ImportSource.local) return _pickLocalExamBytes();
-    if (source == _ImportSource.driveBrowse)
+    if (source == _ImportSource.driveBrowse) {
       return _pickExamBytesFromDriveBrowse();
+    }
     return _pickExamBytesFromLink();
   }
 
@@ -344,7 +345,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
       updatedAt: now,
     );
 
-    await context.read<FinalExamService>().updateExam(exam);
+    await context.read<FinalExamService>().updateExam(widget.classId, exam);
   }
 
   Future<void> _showImportDialog() async {
@@ -379,7 +380,9 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     );
 
     if (confirm == true && mounted) {
-      await context.read<FinalExamService>().bulkUpdateExams(examScores);
+      await context
+          .read<FinalExamService>()
+          .bulkUpdateExams(widget.classId, examScores);
       _showSuccess('Imported ${examScores.length} exam scores');
       await _loadData();
     }
@@ -398,52 +401,46 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _handleExit() async {
+    // Prevent getting stuck on slow storage by timing out
+    try {
+      final saved = await _flushAllPendingSaves()
+          .timeout(const Duration(milliseconds: 1200));
+      if (saved > 0 && mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Saved $saved changes')));
+      }
+    } on TimeoutException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Saving in background…')));
+      }
+      // Fire and forget in background
+      unawaited(_flushAllPendingSaves());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final studentService = context.watch<StudentService>();
     final examService = context.watch<FinalExamService>();
 
-    return WillPopScope(
-      onWillPop: () async {
-        // Prevent getting stuck on slow storage by timing out
-        try {
-          final saved = await _flushAllPendingSaves()
-              .timeout(const Duration(milliseconds: 1200));
-          if (saved > 0 && mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text('Saved $saved changes')));
-          }
-        } on TimeoutException {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Saving in background…')));
-          }
-          // Fire and forget in background
-          unawaited(_flushAllPendingSaves());
-        }
-        return true;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _handleExit();
+        if (!context.mounted) return;
+        Navigator.of(context).pop(result);
       },
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () async {
-              try {
-                final saved = await _flushAllPendingSaves()
-                    .timeout(const Duration(milliseconds: 1200));
-                if (saved > 0 && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Saved $saved changes')));
-                }
-              } on TimeoutException {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Saving in background…')));
-                }
-                unawaited(_flushAllPendingSaves());
-              } finally {
-                if (mounted) context.pop();
-              }
+              await _handleExit();
+              if (!context.mounted) return;
+              context.pop();
             },
           ),
           title: const Text('Final Exam Scores'),
@@ -468,7 +465,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
               tooltip: 'Save all',
               onPressed: () async {
                 final saved = await _flushAllPendingSaves();
-                if (saved > 0 && mounted) {
+                if (saved > 0 && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Saved $saved changes')));
                 }

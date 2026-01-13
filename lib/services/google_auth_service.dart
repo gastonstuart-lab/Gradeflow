@@ -5,16 +5,19 @@ import 'package:flutter/services.dart';
 class GoogleAuthResult {
   GoogleAuthResult._(
       {this.accessToken,
+      this.idToken,
       this.error,
       this.stackTrace,
       this.wasCanceled = false});
 
   final String? accessToken;
+  final String? idToken;
   final Object? error;
   final StackTrace? stackTrace;
   final bool wasCanceled;
 
   bool get ok => accessToken != null && accessToken!.isNotEmpty;
+  bool get hasIdToken => idToken != null && idToken!.isNotEmpty;
 
   String userMessage() {
     if (ok) return 'Signed in.';
@@ -95,10 +98,11 @@ class GoogleAuthService {
     try {
       final auth = await user.authentication;
       final token = auth.accessToken;
+      final idToken = auth.idToken;
       if (token == null || token.isEmpty) {
         return GoogleAuthResult._(error: 'No access token returned by Google.');
       }
-      return GoogleAuthResult._(accessToken: token);
+      return GoogleAuthResult._(accessToken: token, idToken: idToken);
     } catch (e, st) {
       return GoogleAuthResult._(error: e, stackTrace: st);
     }

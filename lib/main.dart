@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/services/firebase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (kIsWeb) {
+    // Makes the web app accessible (and allows Playwright to use role/text selectors).
+    RendererBinding.instance.ensureSemantics();
+  }
+
+  // Initialize Firebase if configured (safe even if firebase_options.dart missing)
+  await FirebaseService.maybeInitialize();
+
   runApp(const MyApp());
 }
 
@@ -27,7 +39,9 @@ class _MyAppState extends State<MyApp> {
         builder: (context, themeModeNotifier, _) {
           final authService = context.watch<AuthService>();
 
-          if (!_authInitScheduled && !authService.isInitialized && !authService.isLoading) {
+          if (!_authInitScheduled &&
+              !authService.isInitialized &&
+              !authService.isLoading) {
             _authInitScheduled = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               try {

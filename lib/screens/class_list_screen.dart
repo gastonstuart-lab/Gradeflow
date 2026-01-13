@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'dart:typed_data';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/services/auth_service.dart';
@@ -80,8 +79,9 @@ class _ClassListScreenState extends State<ClassListScreen> {
     if (lower.contains('bio')) return 'Biology';
     if (lower.contains('art')) return 'Art';
     if (lower.contains('music')) return 'Music';
-    if (lower.contains('pe') || lower.contains('phys ed'))
+    if (lower.contains('pe') || lower.contains('phys ed')) {
       return 'Physical Education';
+    }
     return 'General';
   }
 
@@ -101,8 +101,9 @@ class _ClassListScreenState extends State<ClassListScreen> {
   String _applyGroupSuffixToClassName(String className, String groupDigits) {
     final g = _extractGroupDigits(groupDigits);
     if (g.isEmpty) return className;
-    if (RegExp(r'\(g\d+\)\s*$', caseSensitive: false).hasMatch(className))
+    if (RegExp(r'\(g\d+\)\s*$', caseSensitive: false).hasMatch(className)) {
       return className;
+    }
     return '${className.trim()} (G$g)';
   }
 
@@ -290,6 +291,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
     }
     if (useAuth) {
       await _ensureDriveAccessToken();
+      if (!mounted) return null;
     }
     return raw;
   }

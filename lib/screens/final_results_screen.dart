@@ -44,7 +44,7 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
     final gradeItemIds = items.gradeItems.map((g) => g.gradeItemId).toList();
 
     await scores.loadScores(widget.classId, gradeItemIds);
-    await exams.loadExams(studentIds);
+    await exams.loadExams(widget.classId, studentIds);
 
     final map = <String, Map<String, double?>>{};
     for (final s in students.students) {
@@ -90,17 +90,26 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(s.chineseName, style: context.textStyles.titleMedium),
-                                    Text(s.englishFullName, style: context.textStyles.bodySmall),
-                                    Text('ID: ${s.studentId}', style: context.textStyles.labelSmall),
+                                    Text(s.chineseName,
+                                        style: context.textStyles.titleMedium),
+                                    Text(s.englishFullName,
+                                        style: context.textStyles.bodySmall),
+                                    Text('ID: ${s.studentId}',
+                                        style: context.textStyles.labelSmall),
                                   ],
                                 ),
                               ),
-                              _ScorePill(label: 'Process 40%', value: g['processScore']),
+                              _ScorePill(
+                                  label: 'Process 40%',
+                                  value: g['processScore']),
                               const SizedBox(width: AppSpacing.md),
-                              _ScorePill(label: 'Exam 60%', value: g['examScore']),
+                              _ScorePill(
+                                  label: 'Exam 60%', value: g['examScore']),
                               const SizedBox(width: AppSpacing.md),
-                              _ScorePill(label: 'Final', value: g['finalGrade'], highlight: true),
+                              _ScorePill(
+                                  label: 'Final',
+                                  value: g['finalGrade'],
+                                  highlight: true),
                             ],
                           ),
                         ),
@@ -116,20 +125,27 @@ class _ScorePill extends StatelessWidget {
   final String label;
   final double? value;
   final bool highlight;
-  const _ScorePill({required this.label, required this.value, this.highlight = false});
+  const _ScorePill(
+      {required this.label, required this.value, this.highlight = false});
 
   @override
   Widget build(BuildContext context) {
-    final bg = highlight ? Theme.of(context).colorScheme.primaryContainer : Theme.of(context).colorScheme.surfaceContainerHighest;
-    final fg = highlight ? Theme.of(context).colorScheme.onPrimaryContainer : Theme.of(context).colorScheme.onSurface;
+    final bg = highlight
+        ? Theme.of(context).colorScheme.primaryContainer
+        : Theme.of(context).colorScheme.surfaceContainerHighest;
+    final fg = highlight
+        ? Theme.of(context).colorScheme.onPrimaryContainer
+        : Theme.of(context).colorScheme.onSurface;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(label, style: context.textStyles.labelSmall?.withColor(fg)),
-          Text(value == null ? 'N/A' : value!.toStringAsFixed(1), style: context.textStyles.titleMedium?.bold.withColor(fg)),
+          Text(value == null ? 'N/A' : value!.toStringAsFixed(1),
+              style: context.textStyles.titleMedium?.bold.withColor(fg)),
         ],
       ),
     );

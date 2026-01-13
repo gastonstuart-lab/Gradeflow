@@ -10,6 +10,7 @@ import 'package:gradeflow/services/export_service.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:html' as html;
 import 'dart:convert';
 import 'dart:typed_data';
@@ -80,7 +81,7 @@ class _ExportScreenState extends State<ExportScreen> {
         gradeItemService.gradeItems.map((g) => g.gradeItemId).toList();
 
     await scoreService.loadScores(widget.classId, gradeItemIds);
-    await examService.loadExams(studentIds);
+    await examService.loadExams(widget.classId, studentIds);
 
     final grades = <String, Map<String, double?>>{};
     final issues = <_Issue>[];
@@ -285,7 +286,7 @@ class _ExportScreenState extends State<ExportScreen> {
       await scoreService.loadScores(c.classId, gradeItemIds);
       final studentIds =
           studentService.students.map((s) => s.studentId).toList();
-      await examService.loadExams(studentIds);
+      await examService.loadExams(widget.classId, studentIds);
 
       final catNames = categoryService.categories.map((e) => e.name).toList();
       final finalsHeaders = [
@@ -727,7 +728,7 @@ class _ExportScreenState extends State<ExportScreen> {
       await scoreService.loadScores(c.classId, gradeItemIds);
       final studentIds =
           studentService.students.map((s) => s.studentId).toList();
-      await examService.loadExams(studentIds);
+      await examService.loadExams(widget.classId, studentIds);
 
       // ensure category name headers present
       final catNames = categoryService.categories.map((e) => e.name).toList();

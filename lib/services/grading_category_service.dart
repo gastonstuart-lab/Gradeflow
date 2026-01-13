@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
-import 'dart:convert';
 import 'package:gradeflow/models/grading_category.dart';
+import 'package:gradeflow/repositories/repository_factory.dart';
 
 class GradingCategoryService extends ChangeNotifier {
-  static const String _categoriesKey = 'grading_categories';
   List<GradingCategory> _categories = [];
   bool _isLoading = false;
 
@@ -17,16 +15,9 @@ class GradingCategoryService extends ChangeNotifier {
     notifyListeners();
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final categoriesJson = prefs.getString(_categoriesKey);
-      
-      if (categoriesJson != null) {
-        final List<dynamic> categoryList = json.decode(categoriesJson) as List;
-        _categories = categoryList
-            .map((c) => GradingCategory.fromJson(c as Map<String, dynamic>))
-            .where((c) => c.classId == classId && c.isActive)
-            .toList();
-      }
+      final repo = RepositoryFactory.instance;
+      final all = await repo.loadCategories(classId);
+      _categories = all.where((c) => c.isActive).toList();
     } catch (e) {
       debugPrint('Failed to load categories: $e');
     } finally {
@@ -37,18 +28,9 @@ class GradingCategoryService extends ChangeNotifier {
 
   Future<void> addCategory(GradingCategory newCategory) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final categoriesJson = prefs.getString(_categoriesKey);
-      List<Map<String, dynamic>> categoryList = [];
-      
-      if (categoriesJson != null) {
-        categoryList = (json.decode(categoriesJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      categoryList.add(newCategory.toJson());
-      await prefs.setString(_categoriesKey, json.encode(categoryList));
-      
       _categories.add(newCategory);
+      final repo = RepositoryFactory.instance;
+      await repo.saveCategories(newCategory.classId, _categories);
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to add category: $e');
@@ -57,24 +39,12 @@ class GradingCategoryService extends ChangeNotifier {
 
   Future<void> updateCategory(GradingCategory updatedCategory) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final categoriesJson = prefs.getString(_categoriesKey);
-      
-      if (categoriesJson != null) {
-        List<Map<String, dynamic>> categoryList = (json.decode(categoriesJson) as List).cast<Map<String, dynamic>>();
-        final index = categoryList.indexWhere((c) => c['categoryId'] == updatedCategory.categoryId);
-        
-        if (index != -1) {
-          categoryList[index] = updatedCategory.toJson();
-          await prefs.setString(_categoriesKey, json.encode(categoryList));
-          
-          final localIndex = _categories.indexWhere((c) => c.categoryId == updatedCategory.categoryId);
-          if (localIndex != -1) {
-            _categories[localIndex] = updatedCategory;
-            notifyListeners();
-          }
-        }
-      }
+      final localIndex = _categories.indexWhere((c) => c.categoryId == updatedCategory.categoryId);
+      if (localIndex == -1) return;
+      _categories[localIndex] = updatedCategory;
+      final repo = RepositoryFactory.instance;
+      await repo.saveCategories(updatedCategory.classId, _categories);
+      notifyListeners();
     } catch (e) {
       debugPrint('Failed to update category: $e');
     }
@@ -82,23 +52,15 @@ class GradingCategoryService extends ChangeNotifier {
 
   Future<void> deleteCategory(String categoryId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final categoriesJson = prefs.getString(_categoriesKey);
-      
-      if (categoriesJson != null) {
-        List<Map<String, dynamic>> categoryList = (json.decode(categoriesJson) as List).cast<Map<String, dynamic>>();
-        final index = categoryList.indexWhere((c) => c['categoryId'] == categoryId);
-        
-        if (index != -1) {
-          var category = GradingCategory.fromJson(categoryList[index]);
-          category = category.copyWith(isActive: false, updatedAt: DateTime.now());
-          categoryList[index] = category.toJson();
-          await prefs.setString(_categoriesKey, json.encode(categoryList));
-          
-          _categories.removeWhere((c) => c.categoryId == categoryId);
-          notifyListeners();
-        }
-      }
+      final idx = _categories.indexWhere((c) => c.categoryId == categoryId);
+      if (idx == -1) return;
+      final classId = _categories[idx].classId;
+      final updated = _categories[idx].copyWith(isActive: false, updatedAt: DateTime.now());
+      _categories[idx] = updated;
+      final repo = RepositoryFactory.instance;
+      await repo.saveCategories(classId, _categories);
+      _categories.removeWhere((c) => c.categoryId == categoryId);
+      notifyListeners();
     } catch (e) {
       debugPrint('Failed to delete category: $e');
     }
@@ -128,17 +90,9 @@ class GradingCategoryService extends ChangeNotifier {
 
   Future<void> seedDefaultCategories(String classId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final categoriesJson = prefs.getString(_categoriesKey);
-      List<Map<String, dynamic>> categoryList = [];
-      
-      if (categoriesJson != null) {
-        categoryList = (json.decode(categoriesJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      final existingCategories = categoryList.where((c) => c['classId'] == classId).toList();
-      
-      if (existingCategories.isEmpty) {
+      final repo = RepositoryFactory.instance;
+      final existing = await repo.loadCategories(classId);
+      if (existing.isEmpty) {
         final now = DateTime.now();
         final defaultCategories = [
           GradingCategory(
@@ -183,11 +137,7 @@ class GradingCategoryService extends ChangeNotifier {
           ),
         ];
         
-        for (var category in defaultCategories) {
-          categoryList.add(category.toJson());
-        }
-        
-        await prefs.setString(_categoriesKey, json.encode(categoryList));
+        await repo.saveCategories(classId, defaultCategories);
         debugPrint('Default categories seeded for class $classId');
       }
     } catch (e) {

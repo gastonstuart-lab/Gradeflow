@@ -1,31 +1,22 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'package:gradeflow/models/final_exam.dart';
+import 'package:gradeflow/repositories/repository_factory.dart';
 
 class FinalExamService extends ChangeNotifier {
-  static const String _examsKey = 'final_exams';
   List<FinalExam> _exams = [];
   bool _isLoading = false;
 
   List<FinalExam> get exams => _exams;
   bool get isLoading => _isLoading;
 
-  Future<void> loadExams(List<String> studentIds) async {
+  Future<void> loadExams(String classId, List<String> studentIds) async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final examsJson = prefs.getString(_examsKey);
-      
-      if (examsJson != null) {
-        final List<dynamic> examList = json.decode(examsJson) as List;
-        _exams = examList
-            .map((e) => FinalExam.fromJson(e as Map<String, dynamic>))
-            .where((e) => studentIds.contains(e.studentId))
-            .toList();
-      }
+      final repo = RepositoryFactory.instance;
+      final all = await repo.loadExams(classId);
+      _exams = all.where((e) => studentIds.contains(e.studentId)).toList();
     } catch (e) {
       debugPrint('Failed to load exams: $e');
     } finally {
@@ -34,71 +25,52 @@ class FinalExamService extends ChangeNotifier {
     }
   }
 
-  Future<void> updateExam(FinalExam exam) async {
+  Future<void> updateExam(String classId, FinalExam exam) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final examsJson = prefs.getString(_examsKey);
-      List<Map<String, dynamic>> examList = [];
-      
-      if (examsJson != null) {
-        examList = (json.decode(examsJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      final index = examList.indexWhere((e) => e['studentId'] == exam.studentId);
-      
+      final repo = RepositoryFactory.instance;
+      final existing = await repo.loadExams(classId);
+      final index = existing.indexWhere((e) => e.studentId == exam.studentId);
+
       if (index != -1) {
-        examList[index] = exam.toJson();
+        existing[index] = exam;
       } else {
-        examList.add(exam.toJson());
+        existing.add(exam);
       }
-      
-      await prefs.setString(_examsKey, json.encode(examList));
-      
-      final localIndex = _exams.indexWhere((e) => e.studentId == exam.studentId);
+
+      await repo.saveExams(classId, existing);
+
+      final localIndex =
+          _exams.indexWhere((e) => e.studentId == exam.studentId);
       if (localIndex != -1) {
         _exams[localIndex] = exam;
       } else {
         _exams.add(exam);
       }
-      
+
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to update exam: $e');
     }
   }
 
-  Future<void> bulkUpdateExams(Map<String, double> examScores) async {
-    for (var entry in examScores.entries) {
-      final now = DateTime.now();
-      await updateExam(FinalExam(
-        studentId: entry.key,
-        examScore: entry.value,
-        createdAt: now,
-        updatedAt: now,
-      ));
-    }
+  Future<void> bulkUpdateExams(
+      String classId, Map<String, double> examScores) async {
+    await upsertManyExams(classId, examScores.map((k, v) => MapEntry(k, v)));
   }
 
   /// Efficiently upsert many exam scores in a single storage write.
   /// Pass null to remove a student's exam record.
   /// Returns the number of items that were changed.
-  Future<int> upsertManyExams(Map<String, double?> changes) async {
+  Future<int> upsertManyExams(
+      String classId, Map<String, double?> changes) async {
     if (changes.isEmpty) return 0;
     int changed = 0;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final examsJson = prefs.getString(_examsKey);
-      List<Map<String, dynamic>> examList = [];
-      if (examsJson != null) {
-        examList = (json.decode(examsJson) as List).cast<Map<String, dynamic>>();
-      }
-
-      // Build an index for quick lookups
-      final indexById = <String, int>{};
-      for (var i = 0; i < examList.length; i++) {
-        final id = examList[i]['studentId'] as String?;
-        if (id != null) indexById[id] = i;
-      }
+      final repo = RepositoryFactory.instance;
+      final existing = await repo.loadExams(classId);
+      final indexById = <String, int>{
+        for (var i = 0; i < existing.length; i++) existing[i].studentId: i,
+      };
 
       final now = DateTime.now();
       for (final entry in changes.entries) {
@@ -108,13 +80,15 @@ class FinalExamService extends ChangeNotifier {
         if (val == null) {
           // remove if exists
           if (idx != null) {
-            examList.removeAt(idx);
-            // re-build index lazily for correctness
-            indexById.clear();
-            for (var i = 0; i < examList.length; i++) {
-              final id = examList[i]['studentId'] as String?;
-              if (id != null) indexById[id] = i;
-            }
+            existing.removeAt(idx);
+            indexById
+              ..clear()
+              ..addEntries(
+                [
+                  for (var i = 0; i < existing.length; i++)
+                    MapEntry(existing[i].studentId, i),
+                ],
+              );
             _exams.removeWhere((e) => e.studentId == sid);
             changed++;
           }
@@ -126,11 +100,10 @@ class FinalExamService extends ChangeNotifier {
             updatedAt: now,
           );
           if (idx != null) {
-            examList[idx] = exam.toJson();
+            existing[idx] = exam;
           } else {
-            examList.add(exam.toJson());
-            // update index for subsequent ops
-            indexById[sid] = examList.length - 1;
+            existing.add(exam);
+            indexById[sid] = existing.length - 1;
           }
           final localIdx = _exams.indexWhere((e) => e.studentId == sid);
           if (localIdx != -1) {
@@ -142,7 +115,7 @@ class FinalExamService extends ChangeNotifier {
         }
       }
 
-      await prefs.setString(_examsKey, json.encode(examList));
+      await repo.saveExams(classId, existing);
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to upsert many exams: $e');
@@ -159,36 +132,32 @@ class FinalExamService extends ChangeNotifier {
   }
 
   /// Delete the final exam record for a specific student, if it exists.
-  Future<void> deleteExamForStudent(String studentId) async {
+  Future<void> deleteExamForStudent(String classId, String studentId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final examsJson = prefs.getString(_examsKey);
-      if (examsJson != null) {
-        List<Map<String, dynamic>> examList = (json.decode(examsJson) as List).cast<Map<String, dynamic>>();
-        final before = examList.length;
-        examList.removeWhere((e) => e['studentId'] == studentId);
-        await prefs.setString(_examsKey, json.encode(examList));
-        _exams.removeWhere((e) => e.studentId == studentId);
-        notifyListeners();
-        debugPrint('Deleted ${before - examList.length} exam entries for student $studentId');
-      }
+      final repo = RepositoryFactory.instance;
+      final existing = await repo.loadExams(classId);
+      final before = existing.length;
+      existing.removeWhere((e) => e.studentId == studentId);
+      await repo.saveExams(classId, existing);
+      _exams.removeWhere((e) => e.studentId == studentId);
+      notifyListeners();
+      debugPrint(
+          'Deleted ${before - existing.length} exam entries for student $studentId');
     } catch (e) {
       debugPrint('Failed to delete exam for student $studentId: $e');
     }
   }
 
   /// Removes and returns the student's exam, to support undo.
-  Future<FinalExam?> removeAndReturnExamForStudent(String studentId) async {
+  Future<FinalExam?> removeAndReturnExamForStudent(
+      String classId, String studentId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final examsJson = prefs.getString(_examsKey);
-      if (examsJson == null) return null;
-      List<Map<String, dynamic>> examList = (json.decode(examsJson) as List).cast<Map<String, dynamic>>();
-      final idx = examList.indexWhere((e) => e['studentId'] == studentId);
+      final repo = RepositoryFactory.instance;
+      final existing = await repo.loadExams(classId);
+      final idx = existing.indexWhere((e) => e.studentId == studentId);
       if (idx == -1) return null;
-      final removedMap = examList.removeAt(idx);
-      await prefs.setString(_examsKey, json.encode(examList));
-      final removed = FinalExam.fromJson(removedMap);
+      final removed = existing.removeAt(idx);
+      await repo.saveExams(classId, existing);
       _exams.removeWhere((e) => e.studentId == studentId);
       notifyListeners();
       debugPrint('Temporarily removed final exam for $studentId');
@@ -200,18 +169,13 @@ class FinalExamService extends ChangeNotifier {
   }
 
   /// Restores a student's exam back into storage.
-  Future<void> restoreExam(FinalExam exam) async {
+  Future<void> restoreExam(String classId, FinalExam exam) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final examsJson = prefs.getString(_examsKey);
-      List<Map<String, dynamic>> examList = [];
-      if (examsJson != null) {
-        examList = (json.decode(examsJson) as List).cast<Map<String, dynamic>>();
-      }
-      // Ensure unique per studentId
-      examList.removeWhere((e) => e['studentId'] == exam.studentId);
-      examList.add(exam.toJson());
-      await prefs.setString(_examsKey, json.encode(examList));
+      final repo = RepositoryFactory.instance;
+      final existing = await repo.loadExams(classId);
+      existing.removeWhere((e) => e.studentId == exam.studentId);
+      existing.add(exam);
+      await repo.saveExams(classId, existing);
       final localIdx = _exams.indexWhere((e) => e.studentId == exam.studentId);
       if (localIdx != -1) {
         _exams[localIdx] = exam;
@@ -225,20 +189,15 @@ class FinalExamService extends ChangeNotifier {
     }
   }
 
-  Future<void> seedDemoExams(List<String> studentIds) async {
+  Future<void> seedDemoExams(String classId, List<String> studentIds) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final examsJson = prefs.getString(_examsKey);
-      List<Map<String, dynamic>> examList = [];
-      
-      if (examsJson != null) {
-        examList = (json.decode(examsJson) as List).cast<Map<String, dynamic>>();
-      }
-      
+      final repo = RepositoryFactory.instance;
+      final existing = await repo.loadExams(classId);
+
       final now = DateTime.now();
       for (var studentId in studentIds) {
-        final exists = examList.any((e) => e['studentId'] == studentId);
-        
+        final exists = existing.any((e) => e.studentId == studentId);
+
         if (!exists) {
           final exam = FinalExam(
             studentId: studentId,
@@ -246,11 +205,11 @@ class FinalExamService extends ChangeNotifier {
             createdAt: now,
             updatedAt: now,
           );
-          examList.add(exam.toJson());
+          existing.add(exam);
         }
       }
-      
-      await prefs.setString(_examsKey, json.encode(examList));
+
+      await repo.saveExams(classId, existing);
       debugPrint('Demo final exams seeded successfully');
     } catch (e) {
       debugPrint('Failed to seed demo exams: $e');

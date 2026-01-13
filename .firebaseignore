@@ -1,0 +1,16 @@
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+*.log
+*.iml
+*.class
+*.lock
+*.so
+*.zip
+*.tar.gz
+*.rar
+.firebaserc

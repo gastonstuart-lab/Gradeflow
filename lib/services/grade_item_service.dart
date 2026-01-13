@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
-import 'dart:convert';
 import 'package:gradeflow/models/grade_item.dart';
+import 'package:gradeflow/repositories/repository_factory.dart';
 
 class GradeItemService extends ChangeNotifier {
-  static const String _gradeItemsKey = 'grade_items';
   List<GradeItem> _gradeItems = [];
   bool _isLoading = false;
 
@@ -17,16 +15,9 @@ class GradeItemService extends ChangeNotifier {
     notifyListeners();
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final gradeItemsJson = prefs.getString(_gradeItemsKey);
-      
-      if (gradeItemsJson != null) {
-        final List<dynamic> gradeItemList = json.decode(gradeItemsJson) as List;
-        _gradeItems = gradeItemList
-            .map((g) => GradeItem.fromJson(g as Map<String, dynamic>))
-            .where((g) => g.classId == classId && g.isActive)
-            .toList();
-      }
+      final repo = RepositoryFactory.instance;
+      final all = await repo.loadGradeItems(classId);
+      _gradeItems = all.where((g) => g.isActive).toList();
     } catch (e) {
       debugPrint('Failed to load grade items: $e');
     } finally {
@@ -37,18 +28,9 @@ class GradeItemService extends ChangeNotifier {
 
   Future<void> addGradeItem(GradeItem newGradeItem) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final gradeItemsJson = prefs.getString(_gradeItemsKey);
-      List<Map<String, dynamic>> gradeItemList = [];
-      
-      if (gradeItemsJson != null) {
-        gradeItemList = (json.decode(gradeItemsJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      gradeItemList.add(newGradeItem.toJson());
-      await prefs.setString(_gradeItemsKey, json.encode(gradeItemList));
-      
       _gradeItems.add(newGradeItem);
+      final repo = RepositoryFactory.instance;
+      await repo.saveGradeItems(newGradeItem.classId, _gradeItems);
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to add grade item: $e');
@@ -57,24 +39,12 @@ class GradeItemService extends ChangeNotifier {
 
   Future<void> updateGradeItem(GradeItem updatedGradeItem) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final gradeItemsJson = prefs.getString(_gradeItemsKey);
-      
-      if (gradeItemsJson != null) {
-        List<Map<String, dynamic>> gradeItemList = (json.decode(gradeItemsJson) as List).cast<Map<String, dynamic>>();
-        final index = gradeItemList.indexWhere((g) => g['gradeItemId'] == updatedGradeItem.gradeItemId);
-        
-        if (index != -1) {
-          gradeItemList[index] = updatedGradeItem.toJson();
-          await prefs.setString(_gradeItemsKey, json.encode(gradeItemList));
-          
-          final localIndex = _gradeItems.indexWhere((g) => g.gradeItemId == updatedGradeItem.gradeItemId);
-          if (localIndex != -1) {
-            _gradeItems[localIndex] = updatedGradeItem;
-            notifyListeners();
-          }
-        }
-      }
+      final localIndex = _gradeItems.indexWhere((g) => g.gradeItemId == updatedGradeItem.gradeItemId);
+      if (localIndex == -1) return;
+      _gradeItems[localIndex] = updatedGradeItem;
+      final repo = RepositoryFactory.instance;
+      await repo.saveGradeItems(updatedGradeItem.classId, _gradeItems);
+      notifyListeners();
     } catch (e) {
       debugPrint('Failed to update grade item: $e');
     }
@@ -82,23 +52,15 @@ class GradeItemService extends ChangeNotifier {
 
   Future<void> deleteGradeItem(String gradeItemId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final gradeItemsJson = prefs.getString(_gradeItemsKey);
-      
-      if (gradeItemsJson != null) {
-        List<Map<String, dynamic>> gradeItemList = (json.decode(gradeItemsJson) as List).cast<Map<String, dynamic>>();
-        final index = gradeItemList.indexWhere((g) => g['gradeItemId'] == gradeItemId);
-        
-        if (index != -1) {
-          var gradeItem = GradeItem.fromJson(gradeItemList[index]);
-          gradeItem = gradeItem.copyWith(isActive: false, updatedAt: DateTime.now());
-          gradeItemList[index] = gradeItem.toJson();
-          await prefs.setString(_gradeItemsKey, json.encode(gradeItemList));
-          
-          _gradeItems.removeWhere((g) => g.gradeItemId == gradeItemId);
-          notifyListeners();
-        }
-      }
+      final idx = _gradeItems.indexWhere((g) => g.gradeItemId == gradeItemId);
+      if (idx == -1) return;
+      final classId = _gradeItems[idx].classId;
+      final updated = _gradeItems[idx].copyWith(isActive: false, updatedAt: DateTime.now());
+      _gradeItems[idx] = updated;
+      final repo = RepositoryFactory.instance;
+      await repo.saveGradeItems(classId, _gradeItems);
+      _gradeItems.removeWhere((g) => g.gradeItemId == gradeItemId);
+      notifyListeners();
     } catch (e) {
       debugPrint('Failed to delete grade item: $e');
     }
@@ -110,16 +72,8 @@ class GradeItemService extends ChangeNotifier {
 
   Future<void> seedDemoGradeItems(String classId, List<String> categoryIds) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final gradeItemsJson = prefs.getString(_gradeItemsKey);
-      List<Map<String, dynamic>> gradeItemList = [];
-      
-      if (gradeItemsJson != null) {
-        gradeItemList = (json.decode(gradeItemsJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      final existingItems = gradeItemList.where((g) => g['classId'] == classId).toList();
-      
+      final repo = RepositoryFactory.instance;
+      final existingItems = await repo.loadGradeItems(classId);
       if (existingItems.isEmpty && categoryIds.isNotEmpty) {
         final now = DateTime.now();
         final demoItems = <GradeItem>[];
@@ -150,11 +104,7 @@ class GradeItemService extends ChangeNotifier {
           ]);
         }
         
-        for (var item in demoItems) {
-          gradeItemList.add(item.toJson());
-        }
-        
-        await prefs.setString(_gradeItemsKey, json.encode(gradeItemList));
+        await repo.saveGradeItems(classId, demoItems);
         debugPrint('Demo grade items seeded for class $classId');
       }
     } catch (e) {

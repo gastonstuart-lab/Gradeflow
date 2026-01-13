@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 // ignore: depend_on_referenced_packages
 import 'dart:ui_web' as ui;
-// ignore: avoid_web_libraries_in_flutter
+// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
 import 'dart:html' as html;
 
 /// A simple in-app PDF viewer for Flutter Web that embeds an <iframe>

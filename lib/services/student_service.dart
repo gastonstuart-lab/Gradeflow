@@ -1,10 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'package:gradeflow/models/student.dart';
+import 'package:gradeflow/repositories/repository_factory.dart';
 
 class StudentService extends ChangeNotifier {
-  static const String _studentsKey = 'students';
   List<Student> _students = [];
   bool _isLoading = false;
 
@@ -16,16 +14,8 @@ class StudentService extends ChangeNotifier {
     notifyListeners();
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final studentsJson = prefs.getString(_studentsKey);
-      
-      if (studentsJson != null) {
-        final List<dynamic> studentList = json.decode(studentsJson) as List;
-        _students = studentList
-            .map((s) => Student.fromJson(s as Map<String, dynamic>))
-            .where((s) => s.classId == classId)
-            .toList();
-      }
+      final repo = RepositoryFactory.instance;
+      _students = await repo.loadStudents(classId);
     } catch (e) {
       debugPrint('Failed to load students: $e');
     } finally {
@@ -36,18 +26,9 @@ class StudentService extends ChangeNotifier {
 
   Future<void> addStudent(Student newStudent) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final studentsJson = prefs.getString(_studentsKey);
-      List<Map<String, dynamic>> studentList = [];
-      
-      if (studentsJson != null) {
-        studentList = (json.decode(studentsJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      studentList.add(newStudent.toJson());
-      await prefs.setString(_studentsKey, json.encode(studentList));
-      
       _students.add(newStudent);
+      final repo = RepositoryFactory.instance;
+      await repo.saveStudents(newStudent.classId, _students);
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to add student: $e');
@@ -56,20 +37,11 @@ class StudentService extends ChangeNotifier {
 
   Future<void> addStudents(List<Student> newStudents) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final studentsJson = prefs.getString(_studentsKey);
-      List<Map<String, dynamic>> studentList = [];
-      
-      if (studentsJson != null) {
-        studentList = (json.decode(studentsJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      for (var student in newStudents) {
-        studentList.add(student.toJson());
-      }
-      
-      await prefs.setString(_studentsKey, json.encode(studentList));
       _students.addAll(newStudents);
+      if (newStudents.isNotEmpty) {
+        final repo = RepositoryFactory.instance;
+        await repo.saveStudents(newStudents.first.classId, _students);
+      }
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to add students: $e');
@@ -78,24 +50,12 @@ class StudentService extends ChangeNotifier {
 
   Future<void> updateStudent(Student updatedStudent) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final studentsJson = prefs.getString(_studentsKey);
-      
-      if (studentsJson != null) {
-        List<Map<String, dynamic>> studentList = (json.decode(studentsJson) as List).cast<Map<String, dynamic>>();
-        final index = studentList.indexWhere((s) => s['studentId'] == updatedStudent.studentId);
-        
-        if (index != -1) {
-          studentList[index] = updatedStudent.toJson();
-          await prefs.setString(_studentsKey, json.encode(studentList));
-          
-          final localIndex = _students.indexWhere((s) => s.studentId == updatedStudent.studentId);
-          if (localIndex != -1) {
-            _students[localIndex] = updatedStudent;
-            notifyListeners();
-          }
-        }
-      }
+      final localIndex = _students.indexWhere((s) => s.studentId == updatedStudent.studentId);
+      if (localIndex == -1) return;
+      _students[localIndex] = updatedStudent;
+      final repo = RepositoryFactory.instance;
+      await repo.saveStudents(updatedStudent.classId, _students);
+      notifyListeners();
     } catch (e) {
       debugPrint('Failed to update student: $e');
     }
@@ -103,17 +63,11 @@ class StudentService extends ChangeNotifier {
 
   Future<void> deleteStudent(String studentId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final studentsJson = prefs.getString(_studentsKey);
-      
-      if (studentsJson != null) {
-        List<Map<String, dynamic>> studentList = (json.decode(studentsJson) as List).cast<Map<String, dynamic>>();
-        studentList.removeWhere((s) => s['studentId'] == studentId);
-        await prefs.setString(_studentsKey, json.encode(studentList));
-        
-        _students.removeWhere((s) => s.studentId == studentId);
-        notifyListeners();
-      }
+      final classId = _students.firstWhere((s) => s.studentId == studentId).classId;
+      final repo = RepositoryFactory.instance;
+      await repo.deleteStudent(classId, studentId);
+      _students.removeWhere((s) => s.studentId == studentId);
+      notifyListeners();
     } catch (e) {
       debugPrint('Failed to delete student: $e');
     }
@@ -129,17 +83,9 @@ class StudentService extends ChangeNotifier {
 
   Future<void> seedDemoStudents(String classId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final studentsJson = prefs.getString(_studentsKey);
-      List<Map<String, dynamic>> studentList = [];
-      
-      if (studentsJson != null) {
-        studentList = (json.decode(studentsJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      final existingStudents = studentList.where((s) => s['classId'] == classId).toList();
-      
-      if (existingStudents.isEmpty) {
+      final repo = RepositoryFactory.instance;
+      final existing = await repo.loadStudents(classId);
+      if (existing.isEmpty) {
         final now = DateTime.now();
         final demoStudents = [
           Student(
@@ -203,12 +149,7 @@ class StudentService extends ChangeNotifier {
             updatedAt: now,
           ),
         ];
-        
-        for (var student in demoStudents) {
-          studentList.add(student.toJson());
-        }
-        
-        await prefs.setString(_studentsKey, json.encode(studentList));
+        await repo.saveStudents(classId, demoStudents);
         debugPrint('Demo students seeded for class $classId');
       }
     } catch (e) {

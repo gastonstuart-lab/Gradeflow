@@ -1,27 +1,57 @@
 {
-  "hosting": {
-    "public": "build/web",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ],
-    "headers": [
-      {
-        "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|js|css|eot|otf|ttf|ttc|woff|woff2|font.css)",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "max-age=604800"
-          }
-        ]
-      }
-    ]
-  }
+	"firestore": {
+		"rules": "firestore.rules",
+		"indexes": "firestore.indexes.json"
+	},
+	"hosting": {
+		"public": "build/web",
+		"ignore": [
+			"firebase.json",
+			"**/.*",
+			"**/node_modules/**"
+		],
+		"rewrites": [
+			{
+				"source": "**",
+				"destination": "/index.html"
+			}
+		],
+		"headers": [
+			{
+				"source": "**/*.@(jpg|jpeg|gif|png|svg|webp|js|css|eot|otf|ttf|ttc|woff|woff2|font.css)",
+				"headers": [
+					{
+						"key": "Cache-Control",
+						"value": "max-age=604800"
+					}
+				]
+			}
+		]
+	},
+	"flutter": {
+		"platforms": {
+			"android": {
+				"default": {
+					"projectId": "gradeflow-20260113",
+					"appId": "1:851087972500:android:5d338f2689c117b21bbc81",
+					"fileOutput": "android/app/google-services.json"
+				},
+				"buildConfigurations": {
+					".": {
+						"projectId": "gradeflow-20260113",
+						"appId": "1:851087972500:android:5d338f2689c117b21bbc81",
+						"fileOutput": "android/app/google-services.json"
+					}
+				}
+			},
+			"dart": {
+				"lib/firebase_options.dart": {
+					"projectId": "gradeflow-20260113",
+					"configurations": {
+						"ios": "1:851087972500:ios:c468bbe668be3fa41bbc81"
+					}
+				}
+			}
+		}
+	}
 }

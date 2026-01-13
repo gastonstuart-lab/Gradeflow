@@ -1,35 +1,61 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'package:gradeflow/models/student_score.dart';
 import 'package:gradeflow/models/change_history.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:async';
+import 'package:gradeflow/repositories/repository_factory.dart';
 
 class StudentScoreService extends ChangeNotifier {
-  static const String _scoresKey = 'student_scores';
-  static const String _historyKey = 'change_history';
   List<StudentScore> _scores = [];
   List<ChangeHistory> _history = [];
   bool _isLoading = false;
 
+  Future<void> _writeQueue = Future.value();
+  int _pendingWrites = 0;
+
   List<StudentScore> get scores => _scores;
   bool get isLoading => _isLoading;
+  bool get hasPendingWrites => _pendingWrites > 0;
+
+  Future<void> flushPendingWrites() => _writeQueue;
+
+  Future<T> _enqueueWrite<T>(Future<T> Function() fn) {
+    _pendingWrites++;
+    if (_pendingWrites == 1) notifyListeners();
+
+    final completer = Completer<T>();
+
+    _writeQueue = _writeQueue
+        .then((_) async {
+          try {
+            final result = await fn();
+            completer.complete(result);
+          } catch (e, st) {
+            completer.completeError(e, st);
+          }
+        })
+        // Never let one failure break the queue
+        .catchError((_) {})
+        .whenComplete(() {
+          _pendingWrites = (_pendingWrites - 1).clamp(0, 1 << 30);
+          if (_pendingWrites == 0) notifyListeners();
+        });
+
+    return completer.future;
+  }
 
   Future<void> loadScores(String classId, List<String> gradeItemIds) async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final scoresJson = prefs.getString(_scoresKey);
-      
-      if (scoresJson != null) {
-        final List<dynamic> scoreList = json.decode(scoresJson) as List;
-        _scores = scoreList
-            .map((s) => StudentScore.fromJson(s as Map<String, dynamic>))
-            .where((s) => gradeItemIds.contains(s.gradeItemId))
-            .toList();
+      final repo = RepositoryFactory.instance;
+      final out = <StudentScore>[];
+      for (final gid in gradeItemIds) {
+        final list = await repo.loadScores(classId, gid);
+        out.addAll(list);
       }
+      _scores = out;
     } catch (e) {
       debugPrint('Failed to load scores: $e');
     } finally {
@@ -38,115 +64,135 @@ class StudentScoreService extends ChangeNotifier {
     }
   }
 
-  Future<void> updateScore(StudentScore score, String teacherId) async {
+  Future<void> updateScore(
+    StudentScore score,
+    String teacherId,
+    String classId, {
+    bool recordHistory = true,
+  }) async {
+    await _enqueueWrite(() async => _updateScoreInternal(
+          score,
+          teacherId,
+          classId,
+          recordHistory: recordHistory,
+        ));
+  }
+
+  Future<void> _updateScoreInternal(
+    StudentScore score,
+    String teacherId,
+    String classId, {
+    required bool recordHistory,
+  }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final scoresJson = prefs.getString(_scoresKey);
-      List<Map<String, dynamic>> scoreList = [];
-      
-      if (scoresJson != null) {
-        scoreList = (json.decode(scoresJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      final index = scoreList.indexWhere(
-        (s) => s['studentId'] == score.studentId && s['gradeItemId'] == score.gradeItemId,
+      final repo = RepositoryFactory.instance;
+      final existing = await repo.loadScores(classId, score.gradeItemId);
+
+      final idx = existing.indexWhere(
+        (s) =>
+            s.studentId == score.studentId &&
+            s.gradeItemId == score.gradeItemId,
       );
-      
-      double? oldScore;
-      if (index != -1) {
-        oldScore = (scoreList[index]['score'] as num?)?.toDouble();
-        scoreList[index] = score.toJson();
+      final oldScore = idx == -1 ? null : existing[idx].score;
+      if (idx == -1) {
+        existing.add(score);
       } else {
-        scoreList.add(score.toJson());
+        existing[idx] = score;
       }
-      
-      await prefs.setString(_scoresKey, json.encode(scoreList));
-      
-      await _addHistory(score.studentId, score.gradeItemId, oldScore, score.score, teacherId);
-      
+
+      await repo.saveScores(classId, score.gradeItemId, existing);
+      if (recordHistory) {
+        await _addHistory(
+          classId,
+          score.studentId,
+          score.gradeItemId,
+          oldScore,
+          score.score,
+          teacherId,
+        );
+      }
+
       final localIndex = _scores.indexWhere(
-        (s) => s.studentId == score.studentId && s.gradeItemId == score.gradeItemId,
+        (s) =>
+            s.studentId == score.studentId &&
+            s.gradeItemId == score.gradeItemId,
       );
-      
+
       if (localIndex != -1) {
         _scores[localIndex] = score;
       } else {
         _scores.add(score);
       }
-      
+
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to update score: $e');
     }
   }
 
-  Future<void> setAllScoresForGradeItem(String gradeItemId, List<String> studentIds, double? score, String teacherId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final scoresJson = prefs.getString(_scoresKey);
-      List<Map<String, dynamic>> scoreList = [];
-      if (scoresJson != null) {
-        scoreList = (json.decode(scoresJson) as List).cast<Map<String, dynamic>>();
-      }
+  Future<void> setAllScoresForGradeItem(String classId, String gradeItemId,
+      List<String> studentIds, double? score, String teacherId) async {
+    await _enqueueWrite(() async {
+      try {
+        final repo = RepositoryFactory.instance;
+        final existing = await repo.loadScores(classId, gradeItemId);
 
-      final now = DateTime.now();
-      for (final studentId in studentIds) {
-        final idx = scoreList.indexWhere((s) => s['studentId'] == studentId && s['gradeItemId'] == gradeItemId);
-        double? oldScore;
-        final entry = StudentScore(studentId: studentId, gradeItemId: gradeItemId, score: score, createdAt: now, updatedAt: now);
-        if (idx != -1) {
-          oldScore = (scoreList[idx]['score'] as num?)?.toDouble();
-          scoreList[idx] = entry.toJson();
-        } else {
-          scoreList.add(entry.toJson());
+        final now = DateTime.now();
+        for (final studentId in studentIds) {
+          final entry = StudentScore(
+              studentId: studentId,
+              gradeItemId: gradeItemId,
+              score: score,
+              createdAt: now,
+              updatedAt: now);
+          final idx = existing.indexWhere(
+              (s) => s.studentId == studentId && s.gradeItemId == gradeItemId);
+          final oldScore = idx == -1 ? null : existing[idx].score;
+          if (idx == -1) {
+            existing.add(entry);
+          } else {
+            existing[idx] = entry;
+          }
+          await _addHistory(
+              classId, studentId, gradeItemId, oldScore, score, teacherId);
+
+          final localIndex = _scores.indexWhere(
+              (s) => s.studentId == studentId && s.gradeItemId == gradeItemId);
+          if (localIndex != -1) {
+            _scores[localIndex] = entry;
+          } else {
+            _scores.add(entry);
+          }
         }
-        await _addHistory(studentId, gradeItemId, oldScore, score, teacherId);
 
-        final localIndex = _scores.indexWhere((s) => s.studentId == studentId && s.gradeItemId == gradeItemId);
-        if (localIndex != -1) {
-          _scores[localIndex] = entry;
-        } else {
-          _scores.add(entry);
-        }
+        await repo.saveScores(classId, gradeItemId, existing);
+        notifyListeners();
+        debugPrint(
+            'Applied score ${score?.toStringAsFixed(0)} to ${studentIds.length} students for item=$gradeItemId');
+      } catch (e) {
+        debugPrint('Failed to apply score to all: $e');
       }
-
-      await prefs.setString(_scoresKey, json.encode(scoreList));
-      notifyListeners();
-      debugPrint('Applied score ${score?.toStringAsFixed(0)} to ${studentIds.length} students for item=$gradeItemId');
-    } catch (e) {
-      debugPrint('Failed to apply score to all: $e');
-    }
+    });
   }
 
-  Future<void> _addHistory(String studentId, String gradeItemId, double? oldScore, double? newScore, String teacherId) async {
+  Future<void> _addHistory(String classId, String studentId, String gradeItemId,
+      double? oldScore, double? newScore, String teacherId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final historyJson = prefs.getString(_historyKey);
-      List<Map<String, dynamic>> historyList = [];
-      
-      if (historyJson != null) {
-        historyList = (json.decode(historyJson) as List).cast<Map<String, dynamic>>();
-      }
-      
       final change = ChangeHistory(
         changeId: const Uuid().v4(),
         studentId: studentId,
         gradeItemId: gradeItemId,
+        classId: classId,
         oldScore: oldScore,
         newScore: newScore,
         teacherId: teacherId,
         timestamp: DateTime.now(),
       );
-      
-      historyList.add(change.toJson());
-      
-      if (historyList.length > 100) {
-        historyList = historyList.sublist(historyList.length - 100);
-      }
-      
-      await prefs.setString(_historyKey, json.encode(historyList));
+
+      final repo = RepositoryFactory.instance;
+      await repo.addScoreHistory(classId, change, maxEntries: 100);
       _history.insert(0, change);
-      
+
       if (_history.length > 100) {
         _history = _history.sublist(0, 100);
       }
@@ -156,114 +202,135 @@ class StudentScoreService extends ChangeNotifier {
   }
 
   /// Delete all scores associated with a specific student across all grade items.
-  Future<void> deleteScoresForStudent(String studentId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final scoresJson = prefs.getString(_scoresKey);
-      if (scoresJson != null) {
-        List<Map<String, dynamic>> scoreList = (json.decode(scoresJson) as List).cast<Map<String, dynamic>>();
-        final before = scoreList.length;
-        scoreList.removeWhere((s) => s['studentId'] == studentId);
-        await prefs.setString(_scoresKey, json.encode(scoreList));
+  Future<void> deleteScoresForStudent(
+      String classId, String studentId, List<String> gradeItemIds) async {
+    await _enqueueWrite(() async {
+      try {
+        final repo = RepositoryFactory.instance;
+        for (final gid in gradeItemIds) {
+          final existing = await repo.loadScores(classId, gid);
+          existing.removeWhere((s) => s.studentId == studentId);
+          await repo.saveScores(classId, gid, existing);
+        }
         _scores.removeWhere((s) => s.studentId == studentId);
         notifyListeners();
-        debugPrint('Deleted ${before - scoreList.length} score entries for student $studentId');
+      } catch (e) {
+        debugPrint('Failed to delete scores for student $studentId: $e');
       }
-    } catch (e) {
-      debugPrint('Failed to delete scores for student $studentId: $e');
-    }
+    });
   }
 
   /// Removes and returns all scores for a student. Useful for implementing undo.
-  Future<List<StudentScore>> removeAndReturnScoresForStudent(String studentId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final scoresJson = prefs.getString(_scoresKey);
-      if (scoresJson == null) return [];
-      List<Map<String, dynamic>> scoreList = (json.decode(scoresJson) as List).cast<Map<String, dynamic>>();
-      // Collect removed scores
-      final removed = scoreList
-          .where((s) => s['studentId'] == studentId)
-          .map((m) => StudentScore.fromJson(m))
-          .toList();
-      if (removed.isEmpty) return [];
-      // Remove and persist
-      scoreList.removeWhere((s) => s['studentId'] == studentId);
-      await prefs.setString(_scoresKey, json.encode(scoreList));
-      _scores.removeWhere((s) => s.studentId == studentId);
-      notifyListeners();
-      debugPrint('Temporarily removed ${removed.length} scores for student $studentId');
-      return removed;
-    } catch (e) {
-      debugPrint('Failed to remove and return scores for $studentId: $e');
-      return [];
-    }
+  Future<List<StudentScore>> removeAndReturnScoresForStudent(
+      String classId, String studentId, List<String> gradeItemIds) async {
+    return _enqueueWrite(() async {
+      try {
+        final repo = RepositoryFactory.instance;
+        final removed = <StudentScore>[];
+
+        for (final gid in gradeItemIds) {
+          final existing = await repo.loadScores(classId, gid);
+          final take = existing.where((s) => s.studentId == studentId).toList();
+          if (take.isNotEmpty) {
+            removed.addAll(take);
+            existing.removeWhere((s) => s.studentId == studentId);
+            await repo.saveScores(classId, gid, existing);
+          }
+        }
+
+        if (removed.isEmpty) return <StudentScore>[];
+        _scores.removeWhere((s) => s.studentId == studentId);
+        notifyListeners();
+        debugPrint(
+            'Temporarily removed ${removed.length} scores for student $studentId');
+        return removed;
+      } catch (e) {
+        debugPrint('Failed to remove and return scores for $studentId: $e');
+        return <StudentScore>[];
+      }
+    });
   }
 
   /// Restores a list of scores back into storage without adding history entries.
-  Future<void> restoreScoresForStudent(List<StudentScore> scoresToRestore) async {
+  Future<void> restoreScoresForStudent(
+      String classId, List<StudentScore> scoresToRestore) async {
     if (scoresToRestore.isEmpty) return;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final scoresJson = prefs.getString(_scoresKey);
-      List<Map<String, dynamic>> scoreList = [];
-      if (scoresJson != null) {
-        scoreList = (json.decode(scoresJson) as List).cast<Map<String, dynamic>>();
-      }
-      // Remove any duplicates for the same (studentId, gradeItemId) then add
-      for (final sc in scoresToRestore) {
-        scoreList.removeWhere((m) => m['studentId'] == sc.studentId && m['gradeItemId'] == sc.gradeItemId);
-        scoreList.add(sc.toJson());
-        final localIdx = _scores.indexWhere((s) => s.studentId == sc.studentId && s.gradeItemId == sc.gradeItemId);
-        if (localIdx != -1) {
-          _scores[localIdx] = sc;
-        } else {
-          _scores.add(sc);
+    await _enqueueWrite(() async {
+      try {
+        final repo = RepositoryFactory.instance;
+        final byItem = <String, List<StudentScore>>{};
+        for (final sc in scoresToRestore) {
+          byItem.putIfAbsent(sc.gradeItemId, () => []).add(sc);
         }
+
+        for (final entry in byItem.entries) {
+          final gid = entry.key;
+          final existing = await repo.loadScores(classId, gid);
+          for (final sc in entry.value) {
+            final idx = existing.indexWhere((s) =>
+                s.studentId == sc.studentId && s.gradeItemId == sc.gradeItemId);
+            if (idx == -1) {
+              existing.add(sc);
+            } else {
+              existing[idx] = sc;
+            }
+            final localIdx = _scores.indexWhere((s) =>
+                s.studentId == sc.studentId && s.gradeItemId == sc.gradeItemId);
+            if (localIdx != -1) {
+              _scores[localIdx] = sc;
+            } else {
+              _scores.add(sc);
+            }
+          }
+          await repo.saveScores(classId, gid, existing);
+        }
+
+        notifyListeners();
+        debugPrint('Restored ${scoresToRestore.length} scores from undo');
+      } catch (e) {
+        debugPrint('Failed to restore scores: $e');
       }
-      await prefs.setString(_scoresKey, json.encode(scoreList));
-      notifyListeners();
-      debugPrint('Restored ${scoresToRestore.length} scores from undo');
-    } catch (e) {
-      debugPrint('Failed to restore scores: $e');
-    }
+    });
   }
 
-  Future<bool> undoLastChange(String teacherId) async {
-    try {
-      if (_history.isEmpty) return false;
-      
-      final lastChange = _history.first;
-      if (lastChange.teacherId != teacherId) return false;
-      
-      final now = DateTime.now();
-      final revertedScore = StudentScore(
-        studentId: lastChange.studentId,
-        gradeItemId: lastChange.gradeItemId,
-        score: lastChange.oldScore,
-        createdAt: now,
-        updatedAt: now,
-      );
-      
-      await updateScore(revertedScore, teacherId);
-      
-      _history.removeAt(0);
-      
-      final prefs = await SharedPreferences.getInstance();
-      final historyJson = prefs.getString(_historyKey);
-      if (historyJson != null) {
-        List<Map<String, dynamic>> historyList = (json.decode(historyJson) as List).cast<Map<String, dynamic>>();
-        if (historyList.isNotEmpty) {
-          historyList.removeAt(historyList.length - 1);
-          await prefs.setString(_historyKey, json.encode(historyList));
-        }
+  Future<bool> undoLastChange(String teacherId, String classId) async {
+    return _enqueueWrite(() async {
+      try {
+        final repo = RepositoryFactory.instance;
+        final latest = await repo.loadScoreHistory(classId, limit: 1);
+        if (latest.isEmpty) return false;
+        final lastChange = latest.first;
+        if (lastChange.teacherId != teacherId) return false;
+
+        final now = DateTime.now();
+        final revertedScore = StudentScore(
+          studentId: lastChange.studentId,
+          gradeItemId: lastChange.gradeItemId,
+          score: lastChange.oldScore,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        final effectiveClassId = lastChange.classId ?? classId;
+        await _updateScoreInternal(
+          revertedScore,
+          teacherId,
+          effectiveClassId,
+          recordHistory: false,
+        );
+
+        await repo.deleteScoreHistoryEntry(
+            effectiveClassId, lastChange.changeId);
+
+        // Best-effort keep in-memory cache aligned.
+        _history.removeWhere((h) => h.changeId == lastChange.changeId);
+
+        return true;
+      } catch (e) {
+        debugPrint('Failed to undo last change: $e');
+        return false;
       }
-      
-      return true;
-    } catch (e) {
-      debugPrint('Failed to undo last change: $e');
-      return false;
-    }
+    });
   }
 
   StudentScore? getScore(String studentId, String gradeItemId) {
@@ -280,40 +347,40 @@ class StudentScoreService extends ChangeNotifier {
     return _scores.where((s) => s.studentId == studentId).toList();
   }
 
-  Future<void> seedDemoScores(List<String> studentIds, List<String> gradeItemIds) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final scoresJson = prefs.getString(_scoresKey);
-      List<Map<String, dynamic>> scoreList = [];
-      
-      if (scoresJson != null) {
-        scoreList = (json.decode(scoresJson) as List).cast<Map<String, dynamic>>();
-      }
-      
-      final now = DateTime.now();
-      for (var studentId in studentIds) {
-        for (var gradeItemId in gradeItemIds) {
-          final exists = scoreList.any(
-            (s) => s['studentId'] == studentId && s['gradeItemId'] == gradeItemId,
-          );
-          
-          if (!exists) {
-            final score = StudentScore(
-              studentId: studentId,
-              gradeItemId: gradeItemId,
-              score: 70.0 + (studentId.hashCode % 30).toDouble(),
-              createdAt: now,
-              updatedAt: now,
+  Future<void> seedDemoScores(String classId, List<String> studentIds,
+      List<String> gradeItemIds) async {
+    await _enqueueWrite(() async {
+      try {
+        final repo = RepositoryFactory.instance;
+        final now = DateTime.now();
+        for (final gradeItemId in gradeItemIds) {
+          final existing = await repo.loadScores(classId, gradeItemId);
+          final existingStudentIds = existing.map((s) => s.studentId).toSet();
+
+          bool changed = false;
+          for (final studentId in studentIds) {
+            if (existingStudentIds.contains(studentId)) continue;
+            existing.add(
+              StudentScore(
+                studentId: studentId,
+                gradeItemId: gradeItemId,
+                score: 70.0 + (studentId.hashCode % 30).toDouble(),
+                createdAt: now,
+                updatedAt: now,
+              ),
             );
-            scoreList.add(score.toJson());
+            changed = true;
+          }
+
+          if (changed) {
+            await repo.saveScores(classId, gradeItemId, existing);
           }
         }
+
+        debugPrint('Demo scores seeded successfully');
+      } catch (e) {
+        debugPrint('Failed to seed demo scores: $e');
       }
-      
-      await prefs.setString(_scoresKey, json.encode(scoreList));
-      debugPrint('Demo scores seeded successfully');
-    } catch (e) {
-      debugPrint('Failed to seed demo scores: $e');
-    }
+    });
   }
 }

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/theme.dart';
-import 'package:flutter/foundation.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -62,6 +61,30 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleGoogleLogin() async {
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final errorColor = Theme.of(context).colorScheme.error;
+    setState(() => _isLoading = true);
+
+    final authService = context.read<AuthService>();
+    final success = await authService.signInWithGoogle();
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (success) {
+      router.go('/dashboard');
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Google sign-in failed.'),
+          backgroundColor: errorColor,
+        ),
+      );
+    }
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Theme.of(context).colorScheme.error),
@@ -71,9 +94,13 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
+    final router = GoRouter.of(context);
     debugPrint('LoginScreen.build | isAuth=${auth.isAuthenticated} isLoading=${auth.isLoading} isInit=${auth.isInitialized}');
     if (auth.isAuthenticated) {
-      Future.microtask(() => context.go('/dashboard'));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        router.go('/dashboard');
+      });
     }
     return Scaffold(
       body: Center(
@@ -128,6 +155,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: _isLoading
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Sign In'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _handleGoogleLogin,
+                  icon: const Icon(Icons.login),
+                  label: const Text('Continue with Google'),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 OutlinedButton(

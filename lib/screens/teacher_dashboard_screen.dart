@@ -23,7 +23,6 @@ import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 
@@ -75,11 +74,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   // Summary range for reminders panel (Week or Month)
   _SummaryRange _summaryRange = _SummaryRange.week;
-
-  // Attendance (in-memory, per class+date)
-  final Map<String, Map<String, String>> _attendance =
-      {}; // key: classId|yyyy-mm-dd -> { name: 'P'|'L'|'A' }
-  DateTime _attendanceDate = DateTime.now();
 
   // Seating designer: freeform tables with multiple seats, per class
   final Map<String, List<_SeatTable>> _seatingByClass = {}; // classId -> tables
@@ -139,10 +133,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         actions: [
           TextButton(
             onPressed: () async {
+              final nav = Navigator.of(ctx);
+              final messenger = ScaffoldMessenger.of(context);
               await Clipboard.setData(ClipboardData(text: diagnostics));
-              if (!mounted) return;
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
+              if (!context.mounted) return;
+              nav.pop();
+              messenger.showSnackBar(
                   const SnackBar(content: Text('Diagnostics copied')));
             },
             child: const Text('Copy diagnostics'),
@@ -208,9 +204,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               ? null
               : () async {
                   await Clipboard.setData(ClipboardData(text: text));
-                  if (mounted)
+                  if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Text copied')));
+                  }
                 },
           icon: const Icon(Icons.copy_all_outlined),
           label: const Text('Copy text'),
@@ -278,9 +275,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     tooltip: 'Copy text',
                     onPressed: () async {
                       await Clipboard.setData(ClipboardData(text: text));
-                      if (mounted)
+                      if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Text copied')));
+                      }
                     }),
                 if (_isLikelyUrl(text))
                   IconButton(
@@ -405,8 +403,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         type: FileType.custom,
         allowedExtensions: ['xlsx', 'csv'],
       );
-      if (picked == null || picked.files.single.bytes == null || !mounted)
+      if (picked == null || picked.files.single.bytes == null || !mounted) {
         return;
+      }
 
       final bytes = picked.files.single.bytes!;
       final filename = picked.files.single.name;
@@ -465,12 +464,15 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       ? _formatDate(i.date!)
                       : (i.week != null ? 'Week ${i.week}' : '');
                   final subtitleParts = <String>[];
-                  if (i.details['Book']?.isNotEmpty == true)
+                  if (i.details['Book']?.isNotEmpty == true) {
                     subtitleParts.add(i.details['Book']!);
-                  if (i.details['Chapter/Unit']?.isNotEmpty == true)
+                  }
+                  if (i.details['Chapter/Unit']?.isNotEmpty == true) {
                     subtitleParts.add(i.details['Chapter/Unit']!);
-                  if (i.details['Homework']?.isNotEmpty == true)
+                  }
+                  if (i.details['Homework']?.isNotEmpty == true) {
                     subtitleParts.add('HW: ${i.details['Homework']!}');
+                  }
                   final subtitle =
                       subtitleParts.isEmpty ? null : subtitleParts.join(' • ');
                   return ListTile(
@@ -504,9 +506,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
       if (confirm == true && mounted) {
         await _saveClassSchedule(_selectedClassId!, items);
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text('Saved schedule (${items.length} items)')));
+        }
       }
     } catch (e) {
       debugPrint('Import class schedule failed: $e');
@@ -600,7 +603,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             onPressed: () async {
               await context.read<GoogleAuthService>().signOut();
               await context.read<AuthService>().logout();
-              if (!mounted) return;
+              if (!context.mounted) return;
               context.go(AppRoutes.home);
             },
           ),
@@ -948,7 +951,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             onSelectionChanged: (s) =>
                                 setState(() => _summaryRange = s.first),
                             style: const ButtonStyle(
-                              padding: MaterialStatePropertyAll(
+                              padding: WidgetStatePropertyAll(
                                   EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 6)),
                               tapTargetSize:
@@ -1546,10 +1549,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     final assess = item.details['Assessment'];
     if (book != null && book.trim().isNotEmpty) subtitleParts.add(book.trim());
     if (unit != null && unit.trim().isNotEmpty) subtitleParts.add(unit.trim());
-    if (hw != null && hw.trim().isNotEmpty)
+    if (hw != null && hw.trim().isNotEmpty) {
       subtitleParts.add('HW: ${hw.trim()}');
-    if (assess != null && assess.trim().isNotEmpty)
+    }
+    if (assess != null && assess.trim().isNotEmpty) {
       subtitleParts.add('Assess: ${assess.trim()}');
+    }
 
     return ListTile(
       dense: true,
@@ -2469,7 +2474,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$label  (${v})'),
+                Text('$label  ($v)'),
                 const SizedBox(height: 4),
                 Stack(children: [
                   Container(
@@ -2655,9 +2660,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       await _importScheduleFromBytes(bytes, filename);
     } catch (e) {
       debugPrint('Import schedule failed: $e');
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Failed to import schedule')));
+      }
     }
   }
 
@@ -2740,7 +2746,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             if (row.isEmpty) continue;
 
             String cellAt(int idx) => (idx != -1 && idx < row.length
-                    ? (row[idx] ?? '').toString()
+                  ? row[idx].toString()
                     : '')
                 .trim();
             final monthToken = cellAt(monthIdx);
@@ -2777,10 +2783,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               setState(() => _reminders.addAll(remindersToAdd));
             }
             await _saveReminders();
-            if (mounted)
+            if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text(
                       'Imported $imported calendar event${imported == 1 ? '' : 's'}')));
+            }
             return;
           }
         }
@@ -2800,7 +2807,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         final row = rows[i];
         if (row.isEmpty) continue;
         String getCell(int idx) =>
-            (idx != -1 && idx < row.length ? (row[idx] ?? '').toString() : '')
+          (idx != -1 && idx < row.length ? row[idx].toString() : '')
                 .trim();
         final dateStr = getCell(dateIdx);
         final title = getCell(titleIdx);
@@ -2827,9 +2834,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         imported++;
       }
       await _saveReminders();
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Imported $imported reminders')));
+      }
   }
 
   int? _inferYearFromFilename(String filename) {
@@ -3164,16 +3172,17 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       }
       if (bytes == null) return;
       final base64 = base64Encode(bytes);
+
+      if (!context.mounted) return;
       final auth = context.read<AuthService>();
       final u = auth.currentUser;
       if (u == null) return;
       final updated =
           u.copyWith(photoBase64: base64, updatedAt: DateTime.now());
       await auth.updateCurrentUser(updated);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile photo updated')));
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile photo updated')));
     } catch (e) {
       debugPrint('Failed to set teacher photo: $e');
       if (mounted) {
@@ -3186,26 +3195,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     }
   }
 
-  // ===== Class Tools helpers =====
-  String _attendanceKey(String classId, DateTime d) =>
-      '$classId|${_formatDate(DateTime(d.year, d.month, d.day))}';
-
-  Map<String, String> _currentAttendance() {
-    if (_selectedClassId == null) return {};
-    final key = _attendanceKey(_selectedClassId!, _attendanceDate);
-    return _attendance.putIfAbsent(key, () => {});
-  }
-
-  void _copyAttendanceFromYesterday() => setState(() {
-        if (_selectedClassId == null) return;
-        final yesterday = _attendanceDate.subtract(const Duration(days: 1));
-        final yKey = _attendanceKey(_selectedClassId!, yesterday);
-        final tKey = _attendanceKey(_selectedClassId!, _attendanceDate);
-        if (_attendance.containsKey(yKey)) {
-          _attendance[tKey] = Map<String, String>.from(_attendance[yKey]!);
-        }
-      });
-
   // Seating helpers
   List<_SeatTable> _seatingForClass() {
     if (_selectedClassId == null) return [];
@@ -3216,7 +3205,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     if (_selectedClassId == null) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString('seating_layout_${_selectedClassId}');
+      final raw = prefs.getString('seating_layout_$_selectedClassId');
       if (raw == null || raw.isEmpty) return;
       final list = jsonDecode(raw) as List<dynamic>;
       final parsed = list
@@ -3234,7 +3223,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       final prefs = await SharedPreferences.getInstance();
       final tables = _seatingForClass();
       final jsonStr = jsonEncode(tables.map((t) => t.toJson()).toList());
-      await prefs.setString('seating_layout_${_selectedClassId}', jsonStr);
+      await prefs.setString('seating_layout_$_selectedClassId', jsonStr);
     } catch (e) {
       debugPrint('Failed to save seating layout: $e');
     }
@@ -3436,9 +3425,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       if (data.fromSeatIndex >= 0 &&
           data.fromSeatIndex < srcTable.assigned.length) {
         if (data.fromTableIndex == tableIndex &&
-            data.fromSeatIndex == seatIndex) return;
+            data.fromSeatIndex == seatIndex) {
+          return;
+        }
         setState(() {
-          final srcCurrent = srcTable.assigned[data.fromSeatIndex];
           if (targetCurrent != null && targetCurrent.isNotEmpty) {
             // Swap
             srcTable.assigned[data.fromSeatIndex] = targetCurrent;
@@ -3464,7 +3454,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     final tables = _seatingForClass();
     setState(() {
       for (final t in tables) {
-        for (int i = 0; i < t.assigned.length; i++) t.assigned[i] = null;
+        for (int i = 0; i < t.assigned.length; i++) {
+          t.assigned[i] = null;
+        }
       }
     });
     unawaited(_saveSeatingLayoutForClass());
@@ -3655,7 +3647,7 @@ class _SeatTable {
       cap = 2;
     }
     final assigned = (map['assigned'] as List?)
-            ?.map((e) => e == null ? null : e.toString())
+            ?.map((e) => e?.toString())
             .toList() ??
         List<String?>.filled(cap, null);
     // Ensure list length equals capacity
@@ -3964,18 +3956,13 @@ class _SeatCell extends StatelessWidget {
 
 class _StudentChip extends StatelessWidget {
   final String name;
-  final bool dragging;
 
-  const _StudentChip({required this.name, this.dragging = false});
+  const _StudentChip({required this.name});
 
   @override
   Widget build(BuildContext context) {
-    final bg = dragging
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.primaryContainer;
-    final fg = dragging
-        ? Theme.of(context).colorScheme.onPrimary
-        : Theme.of(context).colorScheme.onPrimaryContainer;
+    final bg = Theme.of(context).colorScheme.primaryContainer;
+    final fg = Theme.of(context).colorScheme.onPrimaryContainer;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration:

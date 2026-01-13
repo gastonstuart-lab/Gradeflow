@@ -3,6 +3,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:convert';
 import 'package:gradeflow/models/user.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:gradeflow/services/firebase_service.dart';
+import 'package:gradeflow/repositories/repository_factory.dart';
+import 'package:gradeflow/services/google_auth_service.dart';
+import 'package:gradeflow/services/migration_service.dart';
 
 class AuthService extends ChangeNotifier {
   static const String _currentUserKey = 'current_user';
@@ -10,11 +15,16 @@ class AuthService extends ChangeNotifier {
   User? _currentUser;
   bool _isLoading = false;
   bool _initialized = false;
+  GoogleAuthService? _googleAuth;
 
   User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _currentUser != null;
   bool get isInitialized => _initialized;
+
+  void setGoogleAuthService(GoogleAuthService service) {
+    _googleAuth ??= service;
+  }
 
   Future<void> initialize() async {
     if (_initialized || _isLoading) return;
@@ -22,6 +32,16 @@ class AuthService extends ChangeNotifier {
     // Do not notify here to avoid setState/markNeedsBuild during build
     
     try {
+      if (FirebaseService.isAvailable) {
+        final u = fb.FirebaseAuth.instance.currentUser;
+        if (u != null) {
+          _currentUser = _userFromFirebase(u);
+          await RepositoryFactory.initialize(userId: u.uid);
+          await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+          return;
+        }
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString(_currentUserKey);
       if (userJson != null) {
@@ -36,11 +56,83 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  User _userFromFirebase(fb.User u) {
+    return User(
+      userId: u.uid,
+      email: u.email ?? '',
+      fullName: (u.displayName?.trim().isNotEmpty ?? false)
+          ? u.displayName!.trim()
+          : (u.email ?? ''),
+      schoolName: null,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  Future<bool> signInWithGoogle() async {
+    _isLoading = true;
+    notifyListeners();
+
+    if (!FirebaseService.isAvailable) {
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    try {
+      final googleAuth = _googleAuth ?? GoogleAuthService();
+      final result = await googleAuth.ensureAccessTokenDetailed(interactive: true);
+      if (!result.ok) {
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+      if (!result.hasIdToken) {
+        debugPrint('Google sign-in did not return an idToken; cannot sign into FirebaseAuth.');
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final credential = fb.GoogleAuthProvider.credential(
+        accessToken: result.accessToken,
+        idToken: result.idToken,
+      );
+      final cred = await fb.FirebaseAuth.instance.signInWithCredential(credential);
+
+      final u = cred.user;
+      if (u == null) {
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      _currentUser = _userFromFirebase(u);
+      await RepositoryFactory.initialize(userId: u.uid);
+      await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_currentUserKey, json.encode(_currentUser!.toJson()));
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Google sign-in failed: $e');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     notifyListeners();
     
     try {
+      // Email/password is local-only for now.
+      RepositoryFactory.useLocal();
+
       final prefs = await SharedPreferences.getInstance();
       final usersJson = prefs.getString(_usersKey);
       
@@ -76,6 +168,9 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
     
     try {
+      // Local-only account creation (demo/offline mode).
+      RepositoryFactory.useLocal();
+
       final prefs = await SharedPreferences.getInstance();
       final usersJson = prefs.getString(_usersKey);
       List<Map<String, dynamic>> usersList = [];
@@ -122,9 +217,24 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
     
     try {
+      if (FirebaseService.isAvailable) {
+        try {
+          await fb.FirebaseAuth.instance.signOut();
+        } catch (e) {
+          debugPrint('Firebase signOut failed: $e');
+        }
+      }
+
+      try {
+        await _googleAuth?.signOut();
+      } catch (_) {
+        // Ignore
+      }
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_currentUserKey);
       _currentUser = null;
+      RepositoryFactory.useLocal();
     } catch (e) {
       debugPrint('Logout failed: $e');
     } finally {
