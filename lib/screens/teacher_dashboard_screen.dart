@@ -1188,20 +1188,23 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       ),
                     ]),
                     const SizedBox(height: 12),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(children: [
-                        for (int i = 0; i < _toolTabs.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              label: Text(_toolTabs[i]),
-                              selected: _selectedToolTab == i,
-                              onSelected: (_) =>
-                                  setState(() => _selectedToolTab = i),
+                    Scrollbar(
+                      thumbVisibility: true,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(children: [
+                          for (int i = 0; i < _toolTabs.length; i++)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(_toolTabs[i]),
+                                selected: _selectedToolTab == i,
+                                onSelected: (_) =>
+                                    setState(() => _selectedToolTab = i),
+                              ),
                             ),
-                          ),
-                      ]),
+                        ]),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _buildClassToolsBody(context),

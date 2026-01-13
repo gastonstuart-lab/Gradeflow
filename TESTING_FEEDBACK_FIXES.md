@@ -33,15 +33,18 @@ January 13, 2026
 - **Workaround**: Demo account login works perfectly
 - **Action**: Monitor for patterns; may be environment-specific
 
-#### 4. **CSV Student Import Fails**
-**Status**: ⏳ Needs Investigation
-- Reported: "Could not read this file" error when uploading valid CSV (Name, StudentID, Email)
+#### 4. **CSV Student Import Fails** → **Import System Needs AI-Assisted Categorization**
+**Status**: 🔄 Feature Enhancement Required
+- **Current Issue**: File type detection works, but upload locations are confusing
+- **Root Problem**: Different import types scattered across different screens without clear guidance
+- **Required Enhancement**:
+  - **Calendar uploads** → Schedule tool (with AI to parse any calendar format)
+  - **Timetable uploads** → Timetable tool (with AI to extract schedule patterns)
+  - **Class/roster uploads** → Student List screen (with AI to map Name/StudentID/Email columns)
+  - **Exam results uploads** → Gradebook (with AI to match students and extract scores)
+  - Each upload should have AI button: "Let AI figure out this file" with instructions based on sample files
 - **File**: [lib/screens/student_list_screen.dart](lib/screens/student_list_screen.dart#L50-L150)
-- **Possible Causes**:
-  - CSV encoding issues (UTF-8 vs others)
-  - Column header mismatch
-  - File format variations
-- **Recommendation**: Test with specific CSV samples to identify pattern
+- **Priority**: High - significantly improves UX
 
 #### 5. **Grade Export Not Downloading**
 **Status**: ⏳ Needs Investigation

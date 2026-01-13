@@ -8,6 +8,26 @@ import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:uuid/uuid.dart';
 
+enum ImportFileType {
+  roster,        // Student names/IDs
+  calendar,      // School calendar with dates/events
+  timetable,     // Weekly class schedule
+  examResults,   // Scores/grades
+  unknown,
+}
+
+class FileTypeDetection {
+  final ImportFileType type;
+  final String message;
+  final String suggestion;
+
+  const FileTypeDetection({
+    required this.type,
+    required this.message,
+    required this.suggestion,
+  });
+}
+
 class ImportedStudent {
   final String? studentId;
   final String? chineseName;
@@ -439,6 +459,129 @@ class FileImportService {
         normalized.any((h) => h.contains('date') || h.contains('event'));
 
     return dayCount >= 5 && hasDateOrEvent;
+  }
+
+  /// Intelligently detect what type of file this is based on headers and content
+  FileTypeDetection detectFileType(Uint8List bytes, {required String filename}) {
+    try {
+      final isZip = bytes.length > 3 && bytes[0] == 0x50 && bytes[1] == 0x4B;
+      List<String> headers = [];
+      
+      if (isZip) {
+        final rows = rowsFromAnyBytes(bytes);
+        if (rows.isNotEmpty) {
+          final headerIdx = _pickHeaderRowIndex(rows);
+          headers = (headerIdx >= 0 && headerIdx < rows.length)
+              ? rows[headerIdx].map(_normalizeName).toList()
+              : rows.first.map(_normalizeName).toList();
+        }
+      } else {
+        final text = decodeTextFromBytes(bytes);
+        final rows = _parseDelimitedText(text);
+        if (rows.isNotEmpty) {
+          final headerIdx = _pickHeaderRowIndex(rows);
+          headers = (headerIdx >= 0 && headerIdx < rows.length)
+              ? rows[headerIdx].map(_normalizeName).toList()
+              : rows.first.map(_normalizeName).toList();
+        }
+      }
+
+      // Calendar detection
+      if (_looksLikeCalendarScheduleHeaders(headers)) {
+        return const FileTypeDetection(
+          type: ImportFileType.calendar,
+          message: 'This looks like a school calendar or schedule.',
+          suggestion: 'Import this in Teacher Dashboard → Select Class → Schedule tab → Upload button',
+        );
+      }
+
+      // Timetable detection (weekly class periods)
+      if (_looksLikeTimetable(headers)) {
+        return const FileTypeDetection(
+          type: ImportFileType.timetable,
+          message: 'This looks like a weekly timetable/schedule.',
+          suggestion: 'Import this in Teacher Dashboard → Select Class → Schedule tab',
+        );
+      }
+
+      // Exam results detection (has score/grade columns)
+      if (_looksLikeExamResults(headers)) {
+        return const FileTypeDetection(
+          type: ImportFileType.examResults,
+          message: 'This looks like exam results or gradebook data.',
+          suggestion: 'Import this in Class → Gradebook → Import button',
+        );
+      }
+
+      // Roster detection (has student name/ID fields)
+      if (_looksLikeRoster(headers)) {
+        return const FileTypeDetection(
+          type: ImportFileType.roster,
+          message: 'This looks like a student roster.',
+          suggestion: 'You\'re in the right place! Use the import function on this screen.',
+        );
+      }
+
+      return const FileTypeDetection(
+        type: ImportFileType.unknown,
+        message: 'Could not determine file type.',
+        suggestion: 'Make sure the file has clear column headers like: Name, Student ID, Email',
+      );
+    } catch (e) {
+      return FileTypeDetection(
+        type: ImportFileType.unknown,
+        message: 'Error analyzing file: $e',
+        suggestion: 'Try re-saving the file as CSV (UTF-8)',
+      );
+    }
+  }
+
+  bool _looksLikeTimetable(List<String> headers) {
+    final normalized = headers.where((h) => h.isNotEmpty).toList();
+    
+    // Look for period/time indicators
+    final hasPeriod = normalized.any((h) => 
+      h.contains('period') || h.contains('time') || h.contains('class'));
+    
+    // Look for weekday columns
+    const weekdays = {'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 
+                      'mon', 'tue', 'wed', 'thu', 'fri'};
+    final weekdayCount = normalized.where((h) => weekdays.any(h.contains)).length;
+    
+    return hasPeriod && weekdayCount >= 3;
+  }
+
+  bool _looksLikeExamResults(List<String> headers) {
+    final normalized = headers.where((h) => h.isNotEmpty).toList();
+    
+    // Look for score/grade indicators
+    final hasScores = normalized.any((h) => 
+      h.contains('score') || h.contains('grade') || h.contains('mark') ||
+      h.contains('result') || h.contains('exam') || h.contains('test'));
+    
+    // Look for student identifier
+    final hasStudent = normalized.any((h) => 
+      h.contains('name') || h.contains('student') || h.contains('id'));
+    
+    return hasScores && hasStudent;
+  }
+
+  bool _looksLikeRoster(List<String> headers) {
+    final normalized = headers.where((h) => h.isNotEmpty).toList();
+    
+    // Must have name field
+    final hasName = normalized.any((h) => 
+      h.contains('name') || h.contains('student'));
+    
+    // Should have ID or email
+    final hasIdentifier = normalized.any((h) => 
+      h.contains('id') || h.contains('email') || h.contains('number'));
+    
+    // Should NOT look like scores/exams
+    final looksLikeScores = normalized.any((h) => 
+      h.contains('score') || h.contains('exam') || h.contains('test'));
+    
+    return hasName && hasIdentifier && !looksLikeScores;
   }
 
   /// Best-effort decode for CSV-ish text exported from Excel.

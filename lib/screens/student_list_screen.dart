@@ -56,14 +56,70 @@ class _StudentListScreenState extends State<StudentListScreen> {
     );
 
     if (result != null && result.files.single.bytes != null && mounted) {
-      final fileName = result.files.single.name.toLowerCase();
+      final fileName = result.files.single.name;
       final bytes = result.files.single.bytes!;
-      final imported = fileName.endsWith('.xlsx')
+      
+      // First, detect what type of file this is
+      final detection = _importService.detectFileType(bytes, filename: fileName);
+      
+      // If it's not a roster, show helpful message
+      if (detection.type != ImportFileType.roster && detection.type != ImportFileType.unknown) {
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Row(children: [
+              Icon(Icons.info_outline, 
+                color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              const Text('Wrong import location'),
+            ]),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(detection.message, 
+                  style: Theme.of(context).textTheme.bodyLarge),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.lightbulb_outline,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(detection.suggestion,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          )),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Got it'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+      
+      final fileNameLower = fileName.toLowerCase();
+      final imported = fileNameLower.endsWith('.xlsx')
           ? _importService.parseXlsxRoster(bytes)
           : _importService.parseCSV(_importService.decodeTextFromBytes(bytes));
 
       // Fallback: some ".xlsx" files are actually CSV; try CSV if XLSX yields nothing
-      var parsed = (imported.isEmpty && fileName.endsWith('.xlsx'))
+      var parsed = (imported.isEmpty && fileNameLower.endsWith('.xlsx'))
           ? _importService.parseCSV(_importService.decodeTextFromBytes(bytes))
           : imported;
 
