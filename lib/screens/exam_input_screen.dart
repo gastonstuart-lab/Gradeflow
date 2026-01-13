@@ -12,6 +12,9 @@ import 'package:gradeflow/theme.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:gradeflow/components/drive_file_picker_dialog.dart';
+import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
+import 'package:gradeflow/openai/openai_config.dart';
+import 'package:gradeflow/services/ai_import_service.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -354,13 +357,84 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
 
     final name = picked.filename.toLowerCase();
     final bytes = picked.bytes;
-    final examScores = name.endsWith('.xlsx')
-        ? _importService.parseExamScoresXlsx(bytes)
-        : _importService.parseExamScores(String.fromCharCodes(bytes));
+    Map<String, double> examScores = const {};
+    Object? parseError;
+    try {
+      examScores = name.endsWith('.xlsx')
+          ? _importService.parseExamScoresXlsx(bytes)
+          : _importService.parseExamScores(String.fromCharCodes(bytes));
+    } catch (e) {
+      parseError = e;
+      examScores = const {};
+    }
 
     if (examScores.isEmpty) {
-      _showError('Failed to parse file');
-      return;
+      final action = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Could not parse exam scores'),
+          content: Text(
+            parseError == null
+                ? 'No exam scores were detected in "${picked.filename}".'
+                : 'Gradeflow could not read "${picked.filename}".\n\nError: $parseError',
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, 'close'),
+                child: const Text('Close')),
+            TextButton(
+              onPressed: OpenAIConfig.isConfigured
+                  ? () => Navigator.pop(ctx, 'ai')
+                  : null,
+              child: const Text('Analyze with AI'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || action != 'ai') return;
+
+      if (!OpenAIConfig.isConfigured) {
+        _showError(
+            'AI is not configured. Set OPENAI_PROXY_ENDPOINT and OPENAI_PROXY_API_KEY.');
+        return;
+      }
+
+      final rows = _importService.rowsFromAnyBytes(bytes);
+      final jsonObj = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (ctx) => AiAnalyzeImportDialog(
+          title: 'Analyze exam scores',
+          filename: picked.filename,
+          analyze: () => AiImportService()
+              .analyzeExamScoresFromRows(rows, filename: picked.filename),
+          confirmLabel: 'Use these scores',
+        ),
+      );
+      if (!mounted || jsonObj == null) return;
+
+      final extracted = <String, double>{};
+      final rawScores = jsonObj['scores'];
+      if (rawScores is List) {
+        for (final e in rawScores) {
+          if (e is Map) {
+            final sid = (e['studentId'] ?? '').toString().trim();
+            final raw = e['score'];
+            final score = raw is num
+                ? raw.toDouble()
+                : double.tryParse(raw?.toString() ?? '');
+            if (sid.isNotEmpty && score != null) {
+              extracted[sid] = score;
+            }
+          }
+        }
+      }
+
+      if (extracted.isEmpty) {
+        _showError('AI did not return any usable exam scores.');
+        return;
+      }
+
+      examScores = extracted;
     }
 
     final confirm = await showDialog<bool>(

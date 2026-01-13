@@ -1,0 +1,16 @@
+{
+  // Fix VS Code Gradle/Java tooling warning by pointing it at Android Studio's bundled JDK.
+  // This does NOT affect Flutter itself (Flutter already finds the JDK via Android Studio).
+  "java.jdt.ls.java.home": "C:\\Program Files\\Android\\Android Studio1\\jbr",
+  "java.import.gradle.java.home": "C:\\Program Files\\Android\\Android Studio1\\jbr",
+
+  // Optional: keep Java tooling quieter in Flutter-first workspace.
+  "java.autobuild.enabled": false,
+
+  // ============================================
+  // 🤖 AI SETUP - CONFIGURED ✅
+  // ============================================
+  "terminal.integrated.env.windows": {
+    "OPENAI_API_KEY": "REDACTED"
+  }
+}

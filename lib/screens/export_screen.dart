@@ -315,9 +315,9 @@ class _ExportScreenState extends State<ExportScreen> {
           s.englishFullName
         ];
         for (final h in headers.skip(7)) {
-          if (h == 'Process Score (40%)')
+          if (h == 'Process Score (40%)') {
             row.add(_formatCell(grades['processScore']));
-          else if (h == 'Exam Score (60%)')
+          } else if (h == 'Exam Score (60%)')
             row.add(_formatCell(grades['examScore']));
           else if (h == 'Final Grade')
             row.add(_formatCell(grades['finalGrade']));
@@ -799,7 +799,9 @@ class _ExportScreenState extends State<ExportScreen> {
           .appendRow(headers.map<CellValue?>((e) => TextCellValue(e)).toList());
       for (final r in allRows) {
         final padded = [...r];
-        while (padded.length < headers.length) padded.add('');
+        while (padded.length < headers.length) {
+          padded.add('');
+        }
         sheet.appendRow(
             padded.map<CellValue?>((e) => TextCellValue(e)).toList());
       }

@@ -14,66 +14,102 @@ class SchoolBannerBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final String primaryLogo = 'assets/images/school_logo2.png';
     final String fallbackLogo = 'assets/images/school_logo2.png';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       height: height,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [
-            Color(0xFF3B5998), // Muted blue
-            Color(0xFF4A6FA5), // Softer blue
-            Color(0xFFEAB308), // Muted gold
-            Color(0xFF2D3E50), // Soft charcoal
-          ],
-          stops: [0.0, 0.35, 0.65, 1.0],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: isDark
+              ? [
+                  const Color(0xFF1A2332), // Deep navy
+                  const Color(0xFF243447), // Slate blue
+                  const Color(0xFF2A4A5A), // Muted teal-blue
+                ]
+              : [
+                  const Color(0xFF1E3A5F), // Professional navy
+                  const Color(0xFF2B5876), // Ocean blue
+                  const Color(0xFF4E7B9B), // Soft steel blue
+                ],
         ),
-        border: Border(
-          bottom: BorderSide(
-            color: Color(0x332D3E50),
-            width: 1,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x15000000),
+            offset: Offset(0, 2),
+            blurRadius: 4,
           ),
-        ),
+        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                primaryLogo,
-                height: 36,
-                errorBuilder: (context, error, stack) =>
-                    Image.asset(fallbackLogo, height: 36),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              const Icon(Icons.circle, size: 4, color: Color(0xFFFFFFFF)),
-              const SizedBox(width: AppSpacing.sm),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 700),
-                child: Text(
-                  'The Affiliated High School of Tunghai University',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(0.5, 0.5),
-                        blurRadius: 3,
-                        color: Color(0x40000000),
-                      ),
-                    ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo with subtle glow effect
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      width: 1,
+                    ),
                   ),
-                  softWrap: false,
-                  overflow: TextOverflow.ellipsis,
+                  child: Image.asset(
+                    primaryLogo,
+                    height: 32,
+                    errorBuilder: (context, error, stack) =>
+                        Image.asset(fallbackLogo, height: 32),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.md),
+                // Elegant separator
+                Container(
+                  height: 24,
+                  width: 1.5,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.0),
+                        Colors.white.withValues(alpha: 0.6),
+                        Colors.white.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                // School name with improved typography
+                Flexible(
+                  child: Text(
+                    'The Affiliated High School of Tunghai University',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                      shadows: [
+                        Shadow(
+                          offset: const Offset(0, 1),
+                          blurRadius: 2,
+                          color: Colors.black.withValues(alpha: 0.25),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

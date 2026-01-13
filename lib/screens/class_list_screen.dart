@@ -23,6 +23,9 @@ import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/models/deleted_class_entry.dart';
 import 'package:gradeflow/services/class_trash_service.dart';
+import 'package:gradeflow/services/ai_import_service.dart';
+import 'package:gradeflow/openai/openai_config.dart';
+import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 
 enum _ImportSource { local, driveLink, driveBrowse }
 
@@ -766,17 +769,17 @@ class _ClassListScreenState extends State<ClassListScreen> {
             'Imported ${valid.length} students across ${effectiveMap.length} classes')));
   }
 
-  Future<void> _showImportDiagnosticsDialog({
+  Future<String?> _showImportDiagnosticsDialog({
     required String title,
     required String filename,
     required Uint8List bytes,
     String? hint,
   }) async {
-    if (!mounted) return;
+    if (!mounted) return null;
     final diagnostics =
         _importService.diagnosticsForFile(bytes, filename: filename);
 
-    await showDialog<void>(
+    return await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),
@@ -795,14 +798,20 @@ class _ClassListScreenState extends State<ClassListScreen> {
           TextButton(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: diagnostics));
-              Navigator.pop(context);
+              Navigator.pop(context, 'close');
               ScaffoldMessenger.of(this.context).showSnackBar(
                   const SnackBar(content: Text('Diagnostics copied')));
             },
             child: const Text('Copy diagnostics'),
           ),
+          TextButton(
+            onPressed: OpenAIConfig.isConfigured
+                ? () => Navigator.pop(context, 'ai')
+                : null,
+            child: const Text('Analyze with AI'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, 'close'),
               child: const Text('Close')),
         ],
       ),
@@ -1008,54 +1017,120 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final termController = TextEditingController(text: 'Fall');
     final groupController = TextEditingController();
 
+    ClassSyllabus? pickedSyllabus;
+    String? pickedSyllabusFilename;
+    String? pickedSyllabusError;
+
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create New Class'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                    labelText: 'Class Name', hintText: 'e.g., Grade 10A'),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: subjectController,
-                decoration: const InputDecoration(
-                    labelText: 'Subject', hintText: 'e.g., Mathematics'),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: groupController,
-                decoration: const InputDecoration(
-                    labelText: 'Group Number', hintText: 'e.g., A or 1'),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: yearController,
-                decoration: const InputDecoration(labelText: 'School Year'),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: termController,
-                decoration: const InputDecoration(labelText: 'Term'),
-              ),
-            ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('Create New Class'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                      labelText: 'Class Name', hintText: 'e.g., Grade 10A'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: subjectController,
+                  decoration: const InputDecoration(
+                      labelText: 'Subject', hintText: 'e.g., Mathematics'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: groupController,
+                  decoration: const InputDecoration(
+                      labelText: 'Group Number', hintText: 'e.g., A or 1'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: yearController,
+                  decoration: const InputDecoration(labelText: 'School Year'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: termController,
+                  decoration: const InputDecoration(labelText: 'Term'),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Schedule / syllabus (optional)',
+                      style: context.textStyles.titleSmall?.semiBold),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        pickedSyllabusFilename == null
+                            ? 'No schedule uploaded'
+                            : pickedSyllabusFilename!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.textStyles.bodyMedium?.withColor(
+                            Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Upload'),
+                      onPressed: () async {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.custom,
+                          allowedExtensions: const ['xlsx', 'csv'],
+                          withData: true,
+                        );
+                        if (result == null || result.files.single.bytes == null) {
+                          return;
+                        }
+                        final bytes = result.files.single.bytes!;
+                        final filename = result.files.single.name;
+                        final parsed = _importService.parseClassSyllabusFromBytes(
+                          bytes,
+                          filename: filename,
+                        );
+                        setLocalState(() {
+                          pickedSyllabusFilename = filename;
+                          pickedSyllabus = parsed;
+                          pickedSyllabusError =
+                              parsed == null ? 'Could not detect a Week/Date/Lesson Content table.' : null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                if (pickedSyllabusError != null) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      pickedSyllabusError!,
+                      style: context.textStyles.bodySmall?.withColor(
+                          Theme.of(context).colorScheme.error),
+                    ),
+                  ),
+                ]
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Create'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Create'),
-          ),
-        ],
       ),
     );
 
@@ -1074,6 +1149,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
         teacherId: authService.currentUser!.userId,
         createdAt: now,
         updatedAt: now,
+        syllabus: pickedSyllabus,
       );
 
       debugPrint(
@@ -1133,7 +1209,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
         : _importService
             .parseClassesCsv(_importService.decodeTextFromBytes(bytes));
 
-    final parsed = (imported.isEmpty && name.endsWith('.xlsx'))
+    var parsed = (imported.isEmpty && name.endsWith('.xlsx'))
         ? _importService
             .parseClassesCsv(_importService.decodeTextFromBytes(bytes))
         : imported;
@@ -1160,13 +1236,57 @@ class _ClassListScreenState extends State<ClassListScreen> {
         // ignore; fall through to diagnostics
       }
 
-      await _showImportDiagnosticsDialog(
+      final action = await _showImportDiagnosticsDialog(
         title: 'Could not read this file',
         filename: filename,
         bytes: bytes,
         hint: 'Tip: Export as CSV (UTF-8) and retry.',
       );
-      return;
+      
+      if (!mounted || action != 'ai') return;
+      
+      // Use AI to parse classes
+      final rows = _importService.rowsFromAnyBytes(bytes);
+      final aiResult = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (ctx) => AiAnalyzeImportDialog(
+          title: 'Analyze class list with AI',
+          filename: filename,
+          analyze: () => AiImportService().analyzeClassesFromRows(rows, filename: filename),
+          confirmLabel: 'Use these classes',
+        ),
+      );
+      
+      if (!mounted || aiResult == null) return;
+      
+      // Convert AI output to ImportedClass list
+      final aiClasses = <ImportedClass>[];
+      final rawClasses = aiResult['classes'];
+      if (rawClasses is List) {
+        for (final c in rawClasses) {
+          if (c is Map) {
+            final className = (c['className'] ?? '').toString().trim();
+            if (className.isNotEmpty) {
+              aiClasses.add(ImportedClass(
+                className: className,
+                subject: (c['subject'] ?? '').toString().trim(),
+                schoolYear: (c['schoolYear'] ?? '').toString().trim(),
+                term: (c['term'] ?? '').toString().trim(),
+                isValid: true,
+              ));
+            }
+          }
+        }
+      }
+      
+      if (aiClasses.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('AI did not return any classes.')));
+        return;
+      }
+      
+      // Replace parsed with AI result and continue with normal flow
+      parsed = aiClasses;
     }
 
     final valid = parsed.where((i) => i.isValid).toList();

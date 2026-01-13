@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/student_service.dart';
-import 'package:gradeflow/services/file_import_service.dart';
 import 'package:gradeflow/services/class_schedule_service.dart';
 import 'package:gradeflow/models/class_schedule_item.dart';
 import 'package:gradeflow/theme.dart';
@@ -18,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:gradeflow/services/file_import_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/nav.dart';
@@ -25,6 +25,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:math' as math;
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
+import 'package:gradeflow/services/ai_import_service.dart';
+import 'package:gradeflow/openai/openai_config.dart';
+import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 
 class TeacherDashboardScreen extends StatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -51,6 +54,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   // Quick Links (default + user-added)
   final List<_QuickLink> _customLinks = [];
+
+  // Timetable uploads (per user; stored locally)
+  final List<_Timetable> _timetables = [];
+  String? _selectedTimetableId;
 
   // Name picker / group maker
   List<String> _currentNames = [];
@@ -131,6 +138,79 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           ),
         ),
         actions: [
+          if (OpenAIConfig.isConfigured)
+            TextButton(
+              onPressed: () async {
+                final rows = FileImportService().rowsFromAnyBytes(bytes);
+                
+                try {
+                  final result = await showDialog<Map<String, dynamic>>(
+                    context: context,
+                    builder: (_) => AiAnalyzeImportDialog(
+                      title: 'Analyze calendar with AI',
+                      filename: filename,
+                      confirmLabel: 'Import events',
+                      hint:
+                          'If this looks correct, press Import events to add reminders.',
+                      analyze: () => AiImportService().analyzeSchoolCalendarFromRows(
+                        rows,
+                        filename: filename,
+                      ),
+                    ),
+                  );
+                  if (result == null || !context.mounted) return;
+
+                  final events = result['events'];
+                  if (events is! List) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('AI did not return valid events. Please try a different file format.')));
+                    }
+                    return;
+                  }
+
+                  final remindersToAdd = <_Reminder>[];
+                  for (final e in events) {
+                    if (e is! Map) continue;
+                    final dateStr = (e['date'] ?? '').toString().trim();
+                    final titleStr = (e['title'] ?? '').toString().trim();
+                    if (dateStr.isEmpty || titleStr.isEmpty) continue;
+                    final d = DateTime.tryParse(dateStr);
+                    if (d == null) continue;
+                    final details = (e['details'] ?? '').toString().trim();
+                    final t = details.isEmpty ? titleStr : '$titleStr — $details';
+                    remindersToAdd.add(_Reminder(t, d, done: false));
+                  }
+
+                  if (remindersToAdd.isEmpty) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('No valid events found. Try a file with Date and Title columns.')));
+                    }
+                    return;
+                  }
+
+                  if (mounted) {
+                    setState(() => _reminders.addAll(remindersToAdd));
+                  }
+                  await _saveReminders();
+                  if (!context.mounted) return;
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content:
+                          Text('Imported ${remindersToAdd.length} events from AI')));
+                } catch (e) {
+                  // AI failed - show helpful error message
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('AI analysis failed: ${e.toString().contains('quota') ? 'API quota exceeded' : 'Connection error'}'),
+                      duration: const Duration(seconds: 4),
+                    ));
+                  }
+                }
+              },
+              child: const Text('Analyze with AI'),
+            ),
           TextButton(
             onPressed: () async {
               final nav = Navigator.of(ctx);
@@ -164,6 +244,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     unawaited(_loadReminders());
     // Load quick links (attendance URL and custom)
     unawaited(_loadQuickLinks());
+
+    // Load timetables (upload + select)
+    unawaited(_loadTimetables());
     // Do not prefill QR text; leave empty so teacher enters student-targeted content
     // _qrCtrl.text = _attendanceUrlCtrl.text;
   }
@@ -621,77 +704,92 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             if (isNarrow)
               Column(children: [
                 _Card(
-                  child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Stack(children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primaryContainer,
-                            backgroundImage: (user?.photoBase64 != null &&
-                                    user!.photoBase64!.isNotEmpty)
-                                ? MemoryImage(const Base64Decoder()
-                                    .convert(user.photoBase64!))
-                                : null,
-                            child: (user?.photoBase64 == null ||
-                                    (user?.photoBase64?.isEmpty ?? true))
-                                ? Text(
-                                    (user?.fullName.isNotEmpty ?? false)
-                                        ? user!.fullName[0].toUpperCase()
-                                        : 'T',
-                                    style: context.textStyles.titleLarge
-                                        ?.withColor(Theme.of(context)
-                                            .colorScheme
-                                            .onPrimaryContainer),
-                                  )
-                                : null,
-                          ),
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: InkWell(
-                              onTap: _updatingTeacherPhoto
-                                  ? null
-                                  : _changeTeacherPhoto,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                    color:
-                                        Theme.of(context).colorScheme.surface,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: Theme.of(context).dividerColor,
-                                        width: 0.5)),
-                                padding: const EdgeInsets.all(6),
-                                child: Icon(Icons.camera_alt,
-                                    size: 18,
-                                    color:
-                                        Theme.of(context).colorScheme.primary),
-                              ),
-                            ),
-                          ),
-                        ]),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                    'Welcome, ${user?.fullName ?? 'Teacher'} 👋',
-                                    style: context
-                                        .textStyles.titleLarge?.semiBold),
-                                const SizedBox(height: 8),
-                                ValueListenableBuilder<DateTime>(
-                                  valueListenable: _nowNotifier,
-                                  builder: (context, now, _) => Text(
-                                    '${_formatDate(now)} • ${_formatTime(now)}',
-                                    style: context.textStyles.bodyMedium
-                                        ?.withColor(Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant),
+                        Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Stack(children: [
+                                CircleAvatar(
+                                  radius: 28,
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primaryContainer,
+                                  backgroundImage: (user?.photoBase64 != null &&
+                                          user!.photoBase64!.isNotEmpty)
+                                      ? MemoryImage(const Base64Decoder()
+                                          .convert(user.photoBase64!))
+                                      : null,
+                                  child: (user?.photoBase64 == null ||
+                                          (user?.photoBase64?.isEmpty ?? true))
+                                      ? Text(
+                                          (user?.fullName.isNotEmpty ?? false)
+                                              ? user!.fullName[0].toUpperCase()
+                                              : 'T',
+                                          style: context.textStyles.titleLarge
+                                              ?.withColor(Theme.of(context)
+                                                  .colorScheme
+                                                  .onPrimaryContainer),
+                                        )
+                                      : null,
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: InkWell(
+                                    onTap: _updatingTeacherPhoto
+                                        ? null
+                                        : _changeTeacherPhoto,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                          color:
+                                              Theme.of(context).colorScheme.surface,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                              color: Theme.of(context).dividerColor,
+                                              width: 0.5)),
+                                      padding: const EdgeInsets.all(6),
+                                      child: Icon(Icons.camera_alt,
+                                          size: 18,
+                                          color:
+                                              Theme.of(context).colorScheme.primary),
+                                    ),
                                   ),
                                 ),
                               ]),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                          'Welcome, ${user?.fullName ?? 'Teacher'} 👋',
+                                          style: context
+                                              .textStyles.titleMedium?.semiBold,
+                                          overflow: TextOverflow.ellipsis),
+                                      const SizedBox(height: 6),
+                                      ValueListenableBuilder<DateTime>(
+                                        valueListenable: _nowNotifier,
+                                        builder: (context, now, _) => Text(
+                                          '${_formatDate(now)} • ${_formatTime(now)}',
+                                          style: context.textStyles.bodySmall
+                                              ?.withColor(Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant),
+                                        ),
+                                      ),
+                                    ]),
+                              ),
+                            ]),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          icon: Icon(_selectedTimetableId == null 
+                              ? Icons.upload_file 
+                              : Icons.table_chart),
+                          label: Text(_selectedTimetableId == null
+                              ? 'Upload Timetable'
+                              : 'Timetable'),
+                          onPressed: _openTimetableDialog,
                         ),
                       ]),
                 ),
@@ -701,19 +799,34 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Quick Stats',
-                            style: context.textStyles.titleLarge?.semiBold),
+                            style: context.textStyles.titleMedium?.semiBold),
                         const SizedBox(height: 8),
-                        Row(children: [
-                          Icon(Icons.class_,
-                              color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 6),
-                          Text('${_classes.length} classes'),
-                          const SizedBox(width: 16),
-                          Icon(Icons.people_alt,
-                              color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 6),
-                          Text('$_totalStudents students'),
-                        ]),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 6,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.class_,
+                                    size: 20,
+                                    color: Theme.of(context).colorScheme.primary),
+                                const SizedBox(width: 6),
+                                Text('${_classes.length} classes'),
+                              ],
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.people_alt,
+                                    size: 20,
+                                    color: Theme.of(context).colorScheme.primary),
+                                const SizedBox(width: 6),
+                                Text('$_totalStudents students'),
+                              ],
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 12),
                         Center(
                           child: OutlinedButton.icon(
@@ -787,6 +900,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
+                                  mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
@@ -802,6 +916,18 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                                             ?.withColor(Theme.of(context)
                                                 .colorScheme
                                                 .onSurfaceVariant),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Center(
+                                      child: OutlinedButton.icon(
+                                        icon: Icon(_selectedTimetableId == null 
+                                            ? Icons.upload_file 
+                                            : Icons.table_chart),
+                                        label: Text(_selectedTimetableId == null
+                                            ? 'Upload Timetable'
+                                            : 'Timetable'),
+                                        onPressed: _openTimetableDialog,
                                       ),
                                     ),
                                   ]),
@@ -857,9 +983,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                           style: context.textStyles.titleMedium?.semiBold),
                       const Spacer(),
                       IconButton(
-                        tooltip: 'Edit attendance link',
+                        tooltip: 'Manage links',
                         icon: const Icon(Icons.edit_outlined),
-                        onPressed: _promptEditAttendanceUrl,
+                        onPressed: _promptEditCustomLinks,
                       ),
                     ]),
                     const SizedBox(height: 8),
@@ -1025,19 +1151,34 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     Row(children: [
                       const Icon(Icons.widgets_outlined),
                       const SizedBox(width: 8),
-                      Text('Class Tools',
-                          style: context.textStyles.titleMedium?.semiBold),
-                      const Spacer(),
-                      DropdownButton<String>(
-                        value: _selectedClassId,
-                        onChanged: (v) {
-                          setState(() => _selectedClassId = v);
-                          _refreshNames();
-                        },
-                        items: _classes
-                            .map((c) => DropdownMenuItem(
-                                value: c.id, child: Text(c.name)))
-                            .toList(),
+                      Flexible(
+                        child: Text('Class Tools',
+                            style: context.textStyles.titleMedium?.semiBold,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 280, minWidth: 120),
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedClassId,
+                            isDense: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Class',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            items: _classes
+                                .map((c) => DropdownMenuItem(
+                                    value: c.id, child: Text(c.name)))
+                                .toList(),
+                            onChanged: (id) {
+                              if (id == null) return;
+                              setState(() => _selectedClassId = id);
+                              _refreshNames();
+                            },
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       IconButton(
@@ -1416,9 +1557,660 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     }
   }
 
+  String _timetablePrefsKey() {
+    final userId = context.read<AuthService>().currentUser?.userId ?? 'local';
+    return 'dashboard_timetables_v1:$userId';
+  }
+
+  String _selectedTimetablePrefsKey() {
+    final userId = context.read<AuthService>().currentUser?.userId ?? 'local';
+    return 'dashboard_selected_timetable_v1:$userId';
+  }
+
+  Future<void> _loadTimetables() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_timetablePrefsKey());
+      final selectedId = prefs.getString(_selectedTimetablePrefsKey());
+
+      final parsed = <_Timetable>[];
+      if (raw != null && raw.isNotEmpty) {
+        final list = jsonDecode(raw) as List<dynamic>;
+        for (final e in list) {
+          parsed.add(_Timetable.fromJson(Map<String, dynamic>.from(e as Map)));
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _timetables
+          ..clear()
+          ..addAll(parsed);
+        _selectedTimetableId = selectedId;
+        if (_selectedTimetableId != null &&
+            !_timetables.any((t) => t.id == _selectedTimetableId)) {
+          _selectedTimetableId = null;
+        }
+      });
+    } catch (e) {
+      debugPrint('Failed to load timetables: $e');
+    }
+  }
+
+  Future<void> _saveTimetables() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final data = _timetables.map((t) => t.toJson()).toList();
+      await prefs.setString(_timetablePrefsKey(), jsonEncode(data));
+      if (_selectedTimetableId == null) {
+        await prefs.remove(_selectedTimetablePrefsKey());
+      } else {
+        await prefs.setString(
+            _selectedTimetablePrefsKey(), _selectedTimetableId!);
+      }
+    } catch (e) {
+      debugPrint('Failed to save timetables: $e');
+    }
+  }
+
+  Future<void> _openTimetableDialog() async {
+    // If user has a selected timetable, open it directly
+    if (_selectedTimetableId != null) {
+      final timetable = _timetables.firstWhere(
+        (t) => t.id == _selectedTimetableId,
+        orElse: () => _timetables.first,
+      );
+      if (timetable.grid != null && timetable.grid!.isNotEmpty) {
+        await _openTimetableViewer(timetable);
+        return;
+      }
+    }
+    
+    // Otherwise show management/upload dialog
+    await _showTimetableManagementDialog();
+  }
+
+  Future<void> _showTimetableManagementDialog() async {
+    final theme = Theme.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocalState) {
+          final currentSelectedId = _selectedTimetableId;
+          return AlertDialog(
+            title: const Text('Timetable Management'),
+            content: SizedBox(
+              width: 560,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Upload section - always visible
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.upload_file,
+                                color: theme.colorScheme.primary, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Upload New Timetable',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Supports DOCX files with table structures',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          icon: const Icon(Icons.add),
+                          label: const Text('Choose File'),
+                          onPressed: () async {
+                            final picked = await FilePicker.platform.pickFiles(
+                              withData: true,
+                              type: FileType.custom,
+                              allowedExtensions: [
+                                'xlsx',
+                                'csv',
+                                'pdf',
+                                'png',
+                                'jpg',
+                                'jpeg',
+                                'docx'
+                              ],
+                            );
+                            if (picked == null ||
+                                picked.files.single.bytes == null) {
+                              return;
+                            }
+                            final bytes = picked.files.single.bytes!;
+                            final name = picked.files.single.name;
+                            final mimeType = picked.files.single.extension;
+                            final id = DateTime.now()
+                                .microsecondsSinceEpoch
+                                .toString();
+
+                            List<List<String>>? grid;
+                            if ((mimeType ?? '').toLowerCase() == 'docx') {
+                              try {
+                                final rawGrid = FileImportService()
+                                    .extractDocxBestTableGrid(bytes);
+                                // Clean up the grid to remove duplicates and merge periods
+                                grid = FileImportService().cleanTimetableGrid(rawGrid);
+                              } catch (e) {
+                                grid = null;
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content: Text(
+                                            'Could not parse DOCX timetable: $e')),
+                                  );
+                                }
+                              }
+                            }
+
+                            final timetable = _Timetable(
+                              id: id,
+                              name: name,
+                              base64: base64Encode(bytes),
+                              mimeType: mimeType,
+                              uploadedAt: DateTime.now(),
+                              grid: grid,
+                            );
+
+                            if (!mounted) return;
+                            setState(() {
+                              _timetables.add(timetable);
+                              _selectedTimetableId = id;
+                            });
+                            await _saveTimetables();
+                            if (!mounted) return;
+                            setLocalState(() {});
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'Timetable "$name" uploaded.')),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_timetables.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    Text(
+                      'My Timetables',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _timetables.length,
+                        itemBuilder: (context, index) {
+                          final t = _timetables[index];
+                          final isSelected = t.id == currentSelectedId;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? theme.colorScheme.primaryContainer
+                                      .withValues(alpha: 0.4)
+                                  : theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected
+                                    ? theme.colorScheme.primary
+                                    : Colors.transparent,
+                                width: 2,
+                              ),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              leading: Icon(
+                                isSelected
+                                    ? Icons.check_circle
+                                    : Icons.table_chart_outlined,
+                                color: isSelected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                              title: Text(
+                                t.name,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Uploaded ${_formatDate(t.uploadedAt)}${t.mimeType == null ? '' : ' • ${t.mimeType}'}',
+                                style: theme.textTheme.bodySmall,
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (t.grid != null)
+                                    IconButton(
+                                      icon: const Icon(Icons.visibility),
+                                      tooltip: 'View/Edit',
+                                      onPressed: () async {
+                                        Navigator.pop(ctx);
+                                        await _openTimetableViewer(t);
+                                      },
+                                    ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline),
+                                    tooltip: 'Delete',
+                                    onPressed: () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: ctx,
+                                        builder: (ctx2) => AlertDialog(
+                                          title: const Text('Delete Timetable'),
+                                          content: Text(
+                                              'Are you sure you want to delete "${t.name}"?'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx2, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            FilledButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx2, true),
+                                              child: const Text('Delete'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        setState(() {
+                                          _timetables.removeAt(index);
+                                          if (_selectedTimetableId == t.id) {
+                                            _selectedTimetableId = null;
+                                          }
+                                        });
+                                        await _saveTimetables();
+                                        setLocalState(() {});
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                              onTap: () {
+                                setState(() => _selectedTimetableId = t.id);
+                                unawaited(_saveTimetables());
+                                setLocalState(() {});
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openTimetableViewer(_Timetable timetable) async {
+    final initialGrid = timetable.grid;
+    if (initialGrid == null || initialGrid.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('This timetable has no readable table grid yet.')));
+      return;
+    }
+
+    // Build controllers for editing.
+    final controllers = <List<TextEditingController>>[];
+    for (final row in initialGrid) {
+      controllers.add(
+          row.map((cell) => TextEditingController(text: cell)).toList());
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Container(
+          width: MediaQuery.of(ctx).size.width * 0.9,
+          height: MediaQuery.of(ctx).size.height * 0.85,
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: StatefulBuilder(
+            builder: (ctx, setLocalState) {
+              Widget cellField(int r, int c) {
+                // Bounds check to prevent IndexError
+                if (r >= controllers.length || c >= controllers[r].length) {
+                  return const SizedBox.shrink();
+                }
+                final isHeader = r == 0;
+                final isFirstCol = c == 0;
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isHeader
+                        ? Theme.of(ctx).colorScheme.primaryContainer.withValues(alpha: 0.6)
+                        : isFirstCol
+                            ? Theme.of(ctx).colorScheme.surfaceContainerHighest
+                            : null,
+                    border: Border(
+                      right: BorderSide(
+                        color: Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
+                      bottom: BorderSide(
+                        color: Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: controllers[r][c],
+                    maxLines: isFirstCol ? 1 : 3,
+                    minLines: 1,
+                    textAlign: isHeader || isFirstCol ? TextAlign.center : TextAlign.center,
+                    style: isHeader
+                        ? Theme.of(ctx).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(ctx).colorScheme.onPrimaryContainer,
+                            fontSize: 13,
+                          )
+                        : isFirstCol
+                            ? Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              )
+                            : Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                fontSize: 11,
+                                height: 1.3,
+                              ),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      hintText: isHeader ? 'Day' : isFirstCol ? 'Time' : 'Class',
+                      hintStyle: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                            fontSize: 10,
+                          ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                );
+              }
+
+              final rows = controllers.length;
+              final cols = controllers.isEmpty
+                  ? 0
+                  : controllers.map((r) => r.length).reduce((a, b) => a > b ? a : b);
+
+              return Column(
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Theme.of(ctx).colorScheme.outlineVariant,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.table_chart,
+                          color: Theme.of(ctx).colorScheme.primary,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                timetable.name,
+                                style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Edit your timetable by clicking any cell',
+                                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx),
+                          tooltip: 'Close',
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Timetable content
+                  Expanded(
+                    child: Container(
+                      color: Theme.of(ctx).colorScheme.surface,
+                      padding: const EdgeInsets.all(20),
+                      child: Card(
+                        elevation: 2,
+                        clipBehavior: Clip.antiAlias,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth: MediaQuery.of(ctx).size.width * 0.8,
+                            ),
+                            child: SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Header row with day names
+                                  if (cols > 1)
+                                    IntrinsicHeight(
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          for (var c = 0; c < cols; c++)
+                                            SizedBox(
+                                              width: c == 0 ? 100 : 180,
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                                                  border: Border.all(
+                                                    color: Theme.of(ctx).colorScheme.outlineVariant,
+                                                  ),
+                                                ),
+                                                padding: const EdgeInsets.all(8),
+                                                child: Center(
+                                                  child: Text(
+                                                    c == 0
+                                                        ? 'Time'
+                                                        : _getDayName(c - 1),
+                                                    style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  for (var r = 0; r < rows; r++)
+                                    IntrinsicHeight(
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          for (var c = 0; c < cols; c++)
+                                            SizedBox(
+                                              width: c == 0 ? 100 : 180,
+                                              child: cellField(r, c),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Actions
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                      border: Border(
+                        top: BorderSide(
+                          color: Theme.of(ctx).colorScheme.outlineVariant,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$rows rows × $cols columns',
+                              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        Wrap(
+                          spacing: 6,
+                          alignment: WrapAlignment.end,
+                          children: [
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.settings, size: 18),
+                              label: const Text('Manage'),
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                await _showTimetableManagementDialog();
+                              },
+                            ),
+                            TextButton.icon(
+                              icon: const Icon(Icons.close, size: 18),
+                              label: const Text('Cancel'),
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
+                            FilledButton.icon(
+                              icon: const Icon(Icons.save, size: 18),
+                              label: const Text('Save'),
+                              onPressed: () async {
+                                final newGrid = <List<String>>[];
+                                for (final rowCtrls in controllers) {
+                                  newGrid.add(rowCtrls.map((c) => c.text).toList());
+                                }
+                                if (!mounted) return;
+                                setState(() {
+                                  final idx = _timetables
+                                      .indexWhere((t) => t.id == timetable.id);
+                                  if (idx != -1) {
+                                    _timetables[idx] = _Timetable(
+                                      id: _timetables[idx].id,
+                                      name: _timetables[idx].name,
+                                      base64: _timetables[idx].base64,
+                                      mimeType: _timetables[idx].mimeType,
+                                      uploadedAt: _timetables[idx].uploadedAt,
+                                      grid: newGrid,
+                                    );
+                                  }
+                                });
+                                await _saveTimetables();
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Timetable saved successfully')),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    for (final rowCtrls in controllers) {
+      for (final c in rowCtrls) {
+        c.dispose();
+      }
+    }
+  }
+
   String _weekdayLabel(DateTime d) {
     const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return names[(d.weekday + 6) % 7];
+  }
+
+  String _getDayName(int columnIndex) {
+    const names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    if (columnIndex >= 0 && columnIndex < names.length) {
+      return names[columnIndex];
+    }
+    return 'Day ${columnIndex + 1}';
   }
 
   bool _isSameDate(DateTime a, DateTime b) =>
@@ -1946,6 +2738,20 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                         icon: const Icon(Icons.add),
                         label: const Text('Add'),
                       ),
+                      const SizedBox(width: 4),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            final current = part[n] ?? 0;
+                            if (current > 0) {
+                              part[n] = current - 1;
+                            }
+                          });
+                          setDialogState(() {});
+                        },
+                        icon: const Icon(Icons.remove),
+                        label: const Text('Remove'),
+                      ),
                     ]),
                   ),
               ]),
@@ -2095,64 +2901,64 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           final r = s % 60;
           return '${_two(m)}:${_two(r)}';
         }
-        return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          Row(children: [
-            const Icon(Icons.timer_outlined),
-            const SizedBox(width: 8),
-            Text('Timer & Stopwatch', style: Theme.of(ctx).textTheme.titleLarge)
-          ]),
-          const SizedBox(height: 24),
-          Text('Stopwatch', style: Theme.of(ctx).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Text(fmt(_stopwatchSeconds),
-              style: Theme.of(ctx)
-                  .textTheme
-                  .displaySmall
-                  ?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, children: [
-            if (!_stopwatchRunning)
+        return SingleChildScrollView(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            Row(children: [
+              const Icon(Icons.timer_outlined),
+              const SizedBox(width: 8),
+              Text('Timer & Stopwatch', style: Theme.of(ctx).textTheme.titleLarge)
+            ]),
+            const SizedBox(height: 24),
+            Text('Stopwatch', style: Theme.of(ctx).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Text(fmt(_stopwatchSeconds),
+                style: Theme.of(ctx)
+                    .textTheme
+                    .displaySmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
+              if (!_stopwatchRunning)
+                FilledButton.icon(
+                    onPressed: _startStopwatch,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Start'))
+              else
+                FilledButton.icon(
+                    onPressed: _stopStopwatch,
+                    icon: const Icon(Icons.pause),
+                    label: const Text('Pause')),
+              OutlinedButton.icon(
+                  onPressed: _resetStopwatch,
+                  icon: const Icon(Icons.restart_alt),
+                  label: const Text('Reset')),
+            ]),
+            const SizedBox(height: 28),
+            Text('Countdown', style: Theme.of(ctx).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Text(fmt(_countdownSeconds),
+                style: Theme.of(ctx)
+                    .textTheme
+                    .displaySmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
               FilledButton.icon(
-                  onPressed: _startStopwatch,
+                  onPressed: _startCountdown,
                   icon: const Icon(Icons.play_arrow),
-                  label: const Text('Start'))
-            else
-              FilledButton.icon(
-                  onPressed: _stopStopwatch,
-                  icon: const Icon(Icons.pause),
-                  label: const Text('Pause')),
-            OutlinedButton.icon(
-                onPressed: _resetStopwatch,
-                icon: const Icon(Icons.restart_alt),
-                label: const Text('Reset')),
+                  label: const Text('Start')),
+              OutlinedButton.icon(
+                  onPressed: _stopCountdown,
+                  icon: const Icon(Icons.stop),
+                  label: const Text('Stop')),
+            ]),
+            const SizedBox(height: 24),
+            TextButton.icon(
+                onPressed: () => Navigator.of(ctx).pop(),
+                icon: const Icon(Icons.close),
+                label: const Text('Close')),
           ]),
-          const SizedBox(height: 28),
-          Text('Countdown', style: Theme.of(ctx).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Text(fmt(_countdownSeconds),
-              style: Theme.of(ctx)
-                  .textTheme
-                  .displaySmall
-                  ?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
-            FilledButton.icon(
-                onPressed: _startCountdown,
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Start')),
-            OutlinedButton.icon(
-                onPressed: _stopCountdown,
-                icon: const Icon(Icons.stop),
-                label: const Text('Stop')),
-          ]),
-          const Spacer(),
-          Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  icon: const Icon(Icons.close),
-                  label: const Text('Close'))),
-        ]);
+        );
 
       // QR: present large QR if available
       case 7:
@@ -2304,9 +3110,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       // Toolbar
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Row(children: [
+        child: Wrap(spacing: 8, runSpacing: 4, children: [
           // Seat count selector + single Add button
-          Row(children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
             Text('Seats per table:',
                 style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(width: 8),
@@ -2324,17 +3130,14 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 icon: const Icon(Icons.add),
                 label: const Text('Add table')),
           ]),
-          const SizedBox(width: 8),
           OutlinedButton.icon(
               onPressed: _randomizeAssignments,
               icon: const Icon(Icons.shuffle),
               label: const Text('Randomize')),
-          const SizedBox(width: 8),
           OutlinedButton.icon(
               onPressed: _clearAssignments,
               icon: const Icon(Icons.clear_all),
               label: const Text('Clear assignments')),
-          const SizedBox(width: 8),
           IconButton(
               onPressed: _autoLayoutGrid,
               icon: const Icon(Icons.auto_awesome_mosaic_outlined),
@@ -2413,28 +3216,52 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         Text('Participation', style: context.textStyles.titleSmall?.semiBold)
       ]),
       const SizedBox(height: 8),
-      Wrap(spacing: 8, runSpacing: 8, children: [
+      Wrap(spacing: 4, runSpacing: 8, children: [
         for (final n in _currentNames)
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
             decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainer,
                 borderRadius: BorderRadius.circular(12)),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(n, overflow: TextOverflow.ellipsis),
-              const SizedBox(width: 8),
+              Flexible(
+                child: Text(n, overflow: TextOverflow.ellipsis, maxLines: 1),
+              ),
+              const SizedBox(width: 4),
               Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(8)),
-                  child: Text('${part[n] ?? 0}')),
-              const SizedBox(width: 6),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline),
-                color: Theme.of(context).colorScheme.primary,
-                onPressed: () => setState(() => part[n] = (part[n] ?? 0) + 1),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: Text(
+                    '${part[n] ?? 0}',
+                    style: context.textStyles.labelSmall,
+                  )),
+              SizedBox(
+                width: 28,
+                child: IconButton(
+                  icon: const Icon(Icons.add_circle_outline, size: 16),
+                  color: Theme.of(context).colorScheme.primary,
+                  onPressed: () => setState(() => part[n] = (part[n] ?? 0) + 1),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ),
+              SizedBox(
+                width: 28,
+                child: IconButton(
+                  icon: const Icon(Icons.remove_circle_outline, size: 16),
+                  color: Theme.of(context).colorScheme.error,
+                  onPressed: () => setState(() {
+                    final current = part[n] ?? 0;
+                    if (current > 0) {
+                      part[n] = current - 1;
+                    }
+                  }),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
               ),
             ]),
           ),
@@ -2499,7 +3326,93 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         const SizedBox(width: 8),
         Text('Quick Poll', style: context.textStyles.titleSmall?.semiBold)
       ]),
-      const SizedBox(height: 8),
+      const SizedBox(height: 12),
+      // Question display/input
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Question:',
+                style: context.textStyles.bodySmall?.semiBold),
+            const SizedBox(height: 6),
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Enter poll question...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                isDense: true,
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            Text('Answer Options:',
+                style: context.textStyles.bodySmall?.semiBold),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Option A',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Option B',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Option C',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Option D',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
       Wrap(spacing: 8, children: [
         FilledButton(onPressed: () => _vote('A'), child: const Text('A')),
         FilledButton(onPressed: () => _vote('B'), child: const Text('B')),
@@ -2510,7 +3423,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             icon: const Icon(Icons.refresh),
             label: const Text('Reset')),
       ]),
-      const SizedBox(height: 8),
+      const SizedBox(height: 12),
       bar('A'),
       const SizedBox(height: 6),
       bar('B'),
@@ -3008,29 +3921,86 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     return out;
   }
 
-  Future<void> _promptEditAttendanceUrl() async {
-    final ctrl = TextEditingController(text: _attendanceUrlCtrl.text);
-    final result = await showDialog<String>(
+  Future<void> _promptEditCustomLinks() async {
+    await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Set Attendance URL'),
-        content: TextField(
-            controller: ctrl,
-            decoration: const InputDecoration(
-                labelText: 'Attendance portal URL', hintText: 'https://...')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel')),
-          FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
-              child: const Text('Save')),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Manage Quick Links'),
+          content: SizedBox(
+            width: 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Attendance URL
+                TextField(
+                  controller: _attendanceUrlCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Attendance Portal URL',
+                    hintText: 'https://...',
+                    helperText: 'URL for the Attendance link',
+                  ),
+                  onChanged: (_) {
+                    _saveQuickLinks();
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                Text('Custom Links',
+                    style: Theme.of(ctx).textTheme.titleSmall),
+                const SizedBox(height: 8),
+                if (_customLinks.isEmpty)
+                  Text('No custom links yet. Add one below.',
+                      style: Theme.of(ctx).textTheme.bodySmall)
+                else
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _customLinks.length,
+                      itemBuilder: (context, i) {
+                        final link = _customLinks[i];
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(link.label),
+                          subtitle: Text(link.url,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () async {
+                              setState(() => _customLinks.removeAt(i));
+                              await _saveQuickLinks();
+                              setDialogState(() {});
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Custom Link'),
+                  onPressed: () async {
+                    await _promptAddQuickLink();
+                    setDialogState(() {});
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
       ),
     );
-    if (result == null) return;
-    setState(() => _attendanceUrlCtrl.text = result);
-    await _saveQuickLinks();
   }
 
   Future<void> _promptAddQuickLink() async {
@@ -3586,6 +4556,50 @@ class _Reminder {
   _Reminder(this.text, this.timestamp, {this.done = false, this.classIds});
 }
 
+class _Timetable {
+  final String id;
+  final String name;
+  final String base64;
+  final String? mimeType;
+  final DateTime uploadedAt;
+  final List<List<String>>? grid;
+
+  _Timetable({
+    required this.id,
+    required this.name,
+    required this.base64,
+    required this.uploadedAt,
+    this.mimeType,
+    this.grid,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'base64': base64,
+        'mimeType': mimeType,
+      'grid': grid,
+        'uploadedAt': uploadedAt.toIso8601String(),
+      };
+
+  factory _Timetable.fromJson(Map<String, dynamic> json) => _Timetable(
+        id: (json['id'] ?? '') as String,
+        name: (json['name'] ?? '') as String,
+        base64: (json['base64'] ?? '') as String,
+        mimeType: json['mimeType'] as String?,
+      grid: (json['grid'] is List)
+        ? (json['grid'] as List)
+          .map((r) => (r as List?)
+              ?.map((c) => c?.toString() ?? '')
+              .toList() ??
+            const <String>[])
+          .toList()
+        : null,
+        uploadedAt: DateTime.tryParse(json['uploadedAt'] as String? ?? '') ??
+            DateTime.now(),
+      );
+}
+
 // Seating data model and widgets
 class _SeatTable {
   final String id;
@@ -3717,73 +4731,108 @@ class _TableWidget extends StatelessWidget {
               border: Border.all(
                   color: Theme.of(context).colorScheme.outlineVariant)),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(children: [
-              // Force a clean single-line header label at the top of each table card.
-              // This avoids legacy saved labels like "T a b l e" with newlines/spaces from older versions.
-              Expanded(
-                child: Row(
-                  children: [
-                    Text(
-                      'Table ${tableIndex + 1}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelLarge
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                      overflow: TextOverflow.ellipsis,
-                      softWrap: false,
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(10),
+            // Header row with table info
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Table name and seat count
+                Expanded(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Table ${tableIndex + 1}',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
                       ),
-                      child: Text(
-                        '${table.assigned.where((s) => s != null && s.isNotEmpty).length}/${table.capacity}',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer,
-                            ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${table.assigned.where((s) => s != null && s.isNotEmpty).length}/${table.capacity}',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer,
+                              ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              // Drag handle that works in both modes
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanUpdate: (d) => onMove(d.delta),
-                onPanEnd: (_) => onMoveEnd(),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Control buttons row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                // Drag handle
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanUpdate: (d) => onMove(d.delta),
+                  onPanEnd: (_) => onMoveEnd(),
                   child: Icon(Icons.drag_indicator,
                       size: 18,
                       color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
-              ),
-              if (designMode)
-                Row(children: [
-                  IconButton(
-                      tooltip: 'Decrease seats',
-                      icon: const Icon(Icons.remove_circle_outline),
-                      onPressed: table.capacity > 1
-                          ? () => onCapacityChanged(table.capacity - 1)
-                          : null),
-                  Text('${table.capacity}'),
-                  IconButton(
-                      tooltip: 'Increase seats',
-                      icon: const Icon(Icons.add_circle_outline),
-                      onPressed: () => onCapacityChanged(table.capacity + 1)),
-                  IconButton(
-                      tooltip: 'Remove table',
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: onRemove),
-                ]),
-            ]),
+                // Capacity controls in design mode
+                if (designMode)
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 28,
+                          child: IconButton(
+                              tooltip: 'Decrease seats',
+                              icon: const Icon(Icons.remove_circle_outline,
+                                  size: 16),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: table.capacity > 1
+                                  ? () => onCapacityChanged(table.capacity - 1)
+                                  : null),
+                        ),
+                        Text('${table.capacity}',
+                            style: Theme.of(context).textTheme.labelSmall),
+                        SizedBox(
+                          width: 28,
+                          child: IconButton(
+                              tooltip: 'Increase seats',
+                              icon: const Icon(Icons.add_circle_outline,
+                                  size: 16),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () =>
+                                  onCapacityChanged(table.capacity + 1)),
+                        ),
+                        SizedBox(
+                          width: 28,
+                          child: IconButton(
+                              tooltip: 'Remove table',
+                              icon: const Icon(Icons.delete_outline, size: 16),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: onRemove),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 6),
             _SeatGrid(
               capacity: table.capacity,

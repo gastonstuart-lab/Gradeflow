@@ -16,7 +16,7 @@ class ExportService {
   Future<void> _ensureUnicodeFonts() async {
     if (_fontBase != null && _fontBold != null) return;
     if (_fontLoadAttempted) return; // Don't retry if already failed
-    
+
     _fontLoadAttempted = true;
     try {
       // Noto Sans SC (Simplified Chinese) - smaller file size, better compatibility
@@ -24,34 +24,44 @@ class ExportService {
       final sources = [
         {
           'name': 'Google Fonts API (SC)',
-          'regular': 'https://fonts.gstatic.com/s/notosanssc/v36/k3kXo84MPvpLmixcA63oeALhL4iJ-Q7m8w.woff2',
-          'bold': 'https://fonts.gstatic.com/s/notosanssc/v36/k3k6o84MPvpLmixcA63oeALZJamO_duX.woff2',
+          'regular':
+              'https://fonts.gstatic.com/s/notosanssc/v36/k3kXo84MPvpLmixcA63oeALhL4iJ-Q7m8w.woff2',
+          'bold':
+              'https://fonts.gstatic.com/s/notosanssc/v36/k3k6o84MPvpLmixcA63oeALZJamO_duX.woff2',
         },
         {
           'name': 'jsDelivr CDN (SC)',
-          'regular': 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.0.0/files/noto-sans-sc-chinese-simplified-400-normal.woff2',
-          'bold': 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.0.0/files/noto-sans-sc-chinese-simplified-700-normal.woff2',
+          'regular':
+              'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.0.0/files/noto-sans-sc-chinese-simplified-400-normal.woff2',
+          'bold':
+              'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.0.0/files/noto-sans-sc-chinese-simplified-700-normal.woff2',
         },
         {
           'name': 'GitHub (TC OTF)',
-          'regular': 'https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansSC-Regular.otf',
-          'bold': 'https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansSC-Bold.otf',
+          'regular':
+              'https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansSC-Regular.otf',
+          'bold':
+              'https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansSC-Bold.otf',
         },
       ];
-      
+
       for (final source in sources) {
         try {
-          debugPrint('Attempting CJK fonts: ${source['name']} (${source['regular']})');
+          debugPrint(
+              'Attempting CJK fonts: ${source['name']} (${source['regular']})');
           final regularUrl = Uri.parse(source['regular']!);
           final boldUrl = Uri.parse(source['bold']!);
-          
-          final regRes = await http.get(regularUrl).timeout(const Duration(seconds: 15));
-          final boldRes = await http.get(boldUrl).timeout(const Duration(seconds: 15));
-          
+
+          final regRes =
+              await http.get(regularUrl).timeout(const Duration(seconds: 15));
+          final boldRes =
+              await http.get(boldUrl).timeout(const Duration(seconds: 15));
+
           if (regRes.statusCode == 200 && boldRes.statusCode == 200) {
             _fontBase = pw.Font.ttf(regRes.bodyBytes.buffer.asByteData());
             _fontBold = pw.Font.ttf(boldRes.bodyBytes.buffer.asByteData());
-            debugPrint('✓ CJK fonts loaded successfully from ${source['name']}');
+            debugPrint(
+                '✓ CJK fonts loaded successfully from ${source['name']}');
             return;
           }
         } catch (e) {
@@ -59,8 +69,9 @@ class ExportService {
           continue;
         }
       }
-      
-      debugPrint('⚠ All font sources failed. PDFs will use fallback fonts (Chinese characters may appear as ▯).');
+
+      debugPrint(
+          '⚠ All font sources failed. PDFs will use fallback fonts (Chinese characters may appear as ▯).');
     } catch (e) {
       debugPrint('Failed to load CJK fonts for PDF: $e');
     }
@@ -110,7 +121,7 @@ class ExportService {
       'Student ID',
       'Chinese Name',
       'English Name',
-      ...categories.map((c) => c.name).toList(),
+      ...categories.map((c) => c.name),
       'Process Score (40%)',
       'Exam Score (60%)',
       'Final Grade',
@@ -124,7 +135,7 @@ class ExportService {
         student.studentId,
         student.chineseName,
         student.englishFullName,
-        ...categories.map((c) => _formatScore(grades[c.categoryId])).toList(),
+        ...categories.map((c) => _formatScore(grades[c.categoryId])),
         _formatScore(grades['processScore']),
         _formatScore(grades['examScore']),
         _formatScore(grades['finalGrade']),
@@ -154,19 +165,20 @@ class ExportService {
     buffer.writeln('');
     buffer.writeln('Category Scores:');
     buffer.writeln('-' * 50);
-    
+
     for (var category in categories) {
       final score = grades[category.categoryId];
       buffer.writeln('${category.name}: ${_formatScore(score)}');
     }
-    
+
     buffer.writeln('');
     buffer.writeln('Final Calculation:');
     buffer.writeln('-' * 50);
-    buffer.writeln('Process Score (40%): ${_formatScore(grades['processScore'])}');
+    buffer.writeln(
+        'Process Score (40%): ${_formatScore(grades['processScore'])}');
     buffer.writeln('Exam Score (60%): ${_formatScore(grades['examScore'])}');
     buffer.writeln('Final Grade: ${_formatScore(grades['finalGrade'])}');
-    
+
     return buffer.toString();
   }
 
@@ -179,7 +191,8 @@ class ExportService {
     await _ensureUnicodeFonts();
     final theme = (_fontBase != null && _fontBold != null)
         ? pw.ThemeData.withFont(base: _fontBase!, bold: _fontBold!)
-        : pw.ThemeData.withFont(base: pw.Font.helvetica(), bold: pw.Font.helveticaBold());
+        : pw.ThemeData.withFont(
+            base: pw.Font.helvetica(), bold: pw.Font.helveticaBold());
     final doc = pw.Document(theme: theme);
     doc.addPage(
       pw.Page(
@@ -190,35 +203,64 @@ class ExportService {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text('Student Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Student Report',
+                    style: pw.TextStyle(
+                        fontSize: 22, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 12),
                 pw.Text('Student ID: ${student.studentId}'),
-                pw.Text('Name: ${student.chineseName} (${student.englishFullName})'),
+                pw.Text(
+                    'Name: ${student.chineseName} (${student.englishFullName})'),
                 pw.SizedBox(height: 16),
-                pw.Text('Category Scores', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Category Scores',
+                    style: pw.TextStyle(
+                        fontSize: 16, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 8),
                 pw.Table(
-                  border: pw.TableBorder.all(width: 0.5, color: PdfColors.grey300),
-                  columnWidths: {0: const pw.FlexColumnWidth(2), 1: const pw.FlexColumnWidth(1)},
+                  border:
+                      pw.TableBorder.all(width: 0.5, color: PdfColors.grey300),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(2),
+                    1: const pw.FlexColumnWidth(1)
+                  },
                   children: [
                     pw.TableRow(children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Category', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Score', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                      pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Category',
+                              style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold))),
+                      pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Score',
+                              style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold))),
                     ]),
                     ...categories.map((c) => pw.TableRow(children: [
-                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(c.name)),
-                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(_formatScore(grades[c.categoryId]))),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(c.name)),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child:
+                                  pw.Text(_formatScore(grades[c.categoryId]))),
                         ])),
                   ],
                 ),
                 pw.SizedBox(height: 16),
-                pw.Text('Final Calculation', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Final Calculation',
+                    style: pw.TextStyle(
+                        fontSize: 16, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 8),
                 pw.Table(
-                  border: pw.TableBorder.all(width: 0.5, color: PdfColors.grey300),
-                  columnWidths: {0: const pw.FlexColumnWidth(2), 1: const pw.FlexColumnWidth(1)},
+                  border:
+                      pw.TableBorder.all(width: 0.5, color: PdfColors.grey300),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(2),
+                    1: const pw.FlexColumnWidth(1)
+                  },
                   children: [
-                    _kv('Process Score (40%)', _formatScore(grades['processScore'])),
+                    _kv('Process Score (40%)',
+                        _formatScore(grades['processScore'])),
                     _kv('Exam Score (60%)', _formatScore(grades['examScore'])),
                     _kv('Final Grade', _formatScore(grades['finalGrade'])),
                   ],
@@ -246,7 +288,8 @@ class ExportService {
     await _ensureUnicodeFonts();
     final theme = (_fontBase != null && _fontBold != null)
         ? pw.ThemeData.withFont(base: _fontBase!, bold: _fontBold!)
-        : pw.ThemeData.withFont(base: pw.Font.helvetica(), bold: pw.Font.helveticaBold());
+        : pw.ThemeData.withFont(
+            base: pw.Font.helvetica(), bold: pw.Font.helveticaBold());
     final doc = pw.Document(theme: theme);
 
     if (students.isEmpty) {
@@ -255,7 +298,9 @@ class ExportService {
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           build: (context) => pw.Center(
-            child: pw.Text('No students found for this class', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            child: pw.Text('No students found for this class',
+                style:
+                    pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
           ),
         ),
       );
@@ -275,37 +320,67 @@ class ExportService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('Class Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-                    pw.Text('Student ID: ${student.studentId}', style: const pw.TextStyle(fontSize: 12)),
+                    pw.Text('Class Report',
+                        style: pw.TextStyle(
+                            fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Student ID: ${student.studentId}',
+                        style: const pw.TextStyle(fontSize: 12)),
                   ],
                 ),
                 pw.SizedBox(height: 6),
-                pw.Text('${student.chineseName} (${student.englishFullName})', style: const pw.TextStyle(fontSize: 14)),
+                pw.Text('${student.chineseName} (${student.englishFullName})',
+                    style: const pw.TextStyle(fontSize: 14)),
                 pw.SizedBox(height: 16),
-                pw.Text('Category Scores', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Category Scores',
+                    style: pw.TextStyle(
+                        fontSize: 16, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 8),
                 pw.Table(
-                  border: pw.TableBorder.all(width: 0.5, color: PdfColors.grey300),
-                  columnWidths: {0: const pw.FlexColumnWidth(2), 1: const pw.FlexColumnWidth(1)},
+                  border:
+                      pw.TableBorder.all(width: 0.5, color: PdfColors.grey300),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(2),
+                    1: const pw.FlexColumnWidth(1)
+                  },
                   children: [
                     pw.TableRow(children: [
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Category', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                      pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text('Score', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                      pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Category',
+                              style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold))),
+                      pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text('Score',
+                              style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold))),
                     ]),
                     ...categories.map((c) => pw.TableRow(children: [
-                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(c.name)),
-                          pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(_formatScore(grades[c.categoryId]))),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child: pw.Text(c.name)),
+                          pw.Padding(
+                              padding: const pw.EdgeInsets.all(6),
+                              child:
+                                  pw.Text(_formatScore(grades[c.categoryId]))),
                         ])),
                   ],
                 ),
                 pw.SizedBox(height: 16),
-                pw.Text('Final Calculation', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Final Calculation',
+                    style: pw.TextStyle(
+                        fontSize: 16, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 8),
                 pw.Table(
-                  border: pw.TableBorder.all(width: 0.5, color: PdfColors.grey300),
-                  columnWidths: {0: const pw.FlexColumnWidth(2), 1: const pw.FlexColumnWidth(1)},
+                  border:
+                      pw.TableBorder.all(width: 0.5, color: PdfColors.grey300),
+                  columnWidths: {
+                    0: const pw.FlexColumnWidth(2),
+                    1: const pw.FlexColumnWidth(1)
+                  },
                   children: [
-                    _kv('Process Score (40%)', _formatScore(grades['processScore'])),
+                    _kv('Process Score (40%)',
+                        _formatScore(grades['processScore'])),
                     _kv('Exam Score (60%)', _formatScore(grades['examScore'])),
                     _kv('Final Grade', _formatScore(grades['finalGrade'])),
                   ],
@@ -328,7 +403,8 @@ class ExportService {
     await _ensureUnicodeFonts();
     final theme = (_fontBase != null && _fontBold != null)
         ? pw.ThemeData.withFont(base: _fontBase!, bold: _fontBold!)
-        : pw.ThemeData.withFont(base: pw.Font.helvetica(), bold: pw.Font.helveticaBold());
+        : pw.ThemeData.withFont(
+            base: pw.Font.helvetica(), bold: pw.Font.helveticaBold());
     final doc = pw.Document(theme: theme);
 
     // Build header labels
@@ -343,16 +419,20 @@ class ExportService {
     ];
 
     // Helper to cell
-    pw.Widget _cell(String text, {bool bold = false}) => pw.Padding(
+    pw.Widget cell(String text, {bool bold = false}) => pw.Padding(
           padding: const pw.EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-          child: pw.Text(text, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+          child: pw.Text(text,
+              style: pw.TextStyle(
+                  fontSize: 8,
+                  fontWeight:
+                      bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
         );
 
     // Table rows
     final rows = <pw.TableRow>[
       pw.TableRow(
         decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFEFEFEF)),
-        children: headers.map((h) => _cell(h, bold: true)).toList(),
+        children: headers.map((h) => cell(h, bold: true)).toList(),
       ),
       ...students.map((s) {
         final g = studentGrades[s.studentId] ?? const {};
@@ -365,7 +445,7 @@ class ExportService {
           _formatScore(g['examScore']),
           _formatScore(g['finalGrade']),
         ];
-        return pw.TableRow(children: values.map((v) => _cell(v)).toList());
+        return pw.TableRow(children: values.map((v) => cell(v)).toList());
       }),
     ];
 
@@ -392,7 +472,8 @@ class ExportService {
     const enNameW = 140.0;
     const scoreW = 56.0; // categories + process/exam/final
 
-    final estimatedWidth = idW + zhNameW + enNameW + (scoreW * (categories.length + 3));
+    final estimatedWidth =
+        idW + zhNameW + enNameW + (scoreW * (categories.length + 3));
     double scale = availableWidth / (estimatedWidth <= 0 ? 1 : estimatedWidth);
     if (!scale.isFinite || scale <= 0) scale = 1.0;
     if (scale > 1.0) scale = 1.0; // never upscale
@@ -407,8 +488,11 @@ class ExportService {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('Class Scores (All Students)', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                pw.Text('Landscape - Total: ${students.length}', style: const pw.TextStyle(fontSize: 9)),
+                pw.Text('Class Scores (All Students)',
+                    style: pw.TextStyle(
+                        fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Landscape - Total: ${students.length}',
+                    style: const pw.TextStyle(fontSize: 9)),
               ],
             ),
             pw.SizedBox(height: 6),
@@ -416,14 +500,19 @@ class ExportService {
               child: pw.Transform.scale(
                 scale: scale,
                 child: pw.Container(
-                  decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey300, width: 0.5)),
+                  decoration: pw.BoxDecoration(
+                      border:
+                          pw.Border.all(color: PdfColors.grey300, width: 0.5)),
                   child: pw.Table(
                     border: pw.TableBorder.symmetric(
-                      inside: const pw.BorderSide(color: PdfColors.grey300, width: 0.25),
-                      outside: const pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+                      inside: const pw.BorderSide(
+                          color: PdfColors.grey300, width: 0.25),
+                      outside: const pw.BorderSide(
+                          color: PdfColors.grey300, width: 0.5),
                     ),
                     columnWidths: widths,
-                    defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+                    defaultVerticalAlignment:
+                        pw.TableCellVerticalAlignment.middle,
                     children: rows,
                   ),
                 ),
@@ -432,7 +521,9 @@ class ExportService {
             pw.SizedBox(height: 4),
             pw.Align(
               alignment: pw.Alignment.centerRight,
-              child: pw.Text('Auto-scaled to fit on one landscape page', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+              child: pw.Text('Auto-scaled to fit on one landscape page',
+                  style: const pw.TextStyle(
+                      fontSize: 8, color: PdfColors.grey700)),
             ),
           ],
         ),

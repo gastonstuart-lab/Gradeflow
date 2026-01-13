@@ -31,6 +31,416 @@ class ImportedStudent {
 }
 
 class FileImportService {
+  /// Extract the "best" table from a DOCX file as a 2D grid of cell text.
+  /// Heuristic-based: prefers tables that contain weekday headers (Mon/Tue/一/二/...).
+  List<List<String>> extractDocxBestTableGrid(Uint8List bytes) {
+    if (bytes.isEmpty) return const [];
+
+    final archive = ZipDecoder().decodeBytes(bytes);
+    final docFile = archive.files
+        .where((f) => f.name.replaceAll('\\', '/') == 'word/document.xml')
+        .cast<ArchiveFile?>()
+        .firstWhere((f) => f != null, orElse: () => null);
+    if (docFile == null) return const [];
+
+    final xmlStr = utf8.decode(docFile.content as List<int>, allowMalformed: true);
+    final doc = XmlDocument.parse(xmlStr);
+
+    final weekdayTokens = <String>{
+      'mon',
+      'tue',
+      'wed',
+      'thu',
+      'fri',
+      'sat',
+      'sun',
+      // Chinese weekday columns commonly used in TW schedules
+      '一',
+      '二',
+      '三',
+      '四',
+      '五',
+      '六',
+      '日',
+    };
+
+    int scoreTable(List<List<String>> grid) {
+      int score = 0;
+      for (final row in grid.take(3)) {
+        for (final cell in row) {
+          final t = cell.trim();
+          if (t.isEmpty) continue;
+          final lower = t.toLowerCase();
+          if (weekdayTokens.contains(t) || weekdayTokens.contains(lower)) {
+            score += 3;
+          }
+          if (lower.contains('semester') || lower.contains('fall') || lower.contains('spring')) {
+            score += 1;
+          }
+        }
+      }
+      // Prefer moderately sized grids (typical timetable)
+      if (grid.length >= 6) score += 1;
+      if (grid.isNotEmpty && grid.first.length >= 5) score += 1;
+      return score;
+    }
+
+    List<List<String>>? best;
+    int bestScore = -1;
+
+    for (final tbl in doc.findAllElements('tbl', namespace: '*')) {
+      final grid = <List<String>>[];
+      for (final tr in tbl.findElements('tr', namespace: '*')) {
+        final row = <String>[];
+        for (final tc in tr.findElements('tc', namespace: '*')) {
+          final texts = tc
+              .findAllElements('t', namespace: '*')
+              .map((e) => e.innerText)
+              .where((s) => s.trim().isNotEmpty)
+              .toList();
+          row.add(texts.join(' ').trim());
+        }
+        // Keep empty rows if they contain some structure
+        if (row.isNotEmpty) grid.add(row);
+      }
+      if (grid.isEmpty) continue;
+
+      final s = scoreTable(grid);
+      if (s > bestScore) {
+        bestScore = s;
+        best = grid;
+      }
+    }
+
+    return best ?? const [];
+  }
+
+  /// Cleans up a timetable grid by removing duplicate/empty rows and merging period blocks.
+  /// Typical school timetable: Header + 4 class periods + lunch = 6-7 rows
+  List<List<String>> cleanTimetableGrid(List<List<String>> rawGrid) {
+    if (rawGrid.isEmpty) return rawGrid;
+
+    final cleaned = <List<String>>[];
+    
+    // Always keep the header row (first row with weekday names)
+    if (rawGrid.isNotEmpty) {
+      cleaned.add(rawGrid.first);
+    }
+
+    // Helper: check if a row is meaningful (has actual class/time data)
+    bool isMeaningfulRow(List<String> row) {
+      if (row.length <= 1) return false;
+      
+      // Skip the first column (period/time), check if any other cell has meaningful content
+      for (int i = 1; i < row.length; i++) {
+        final cell = row[i].trim().toLowerCase();
+        
+        // Skip if empty or just the word "class"
+        if (cell.isEmpty || cell == 'class') continue;
+        
+        // Has actual content (class name, subject code, etc.)
+        return true;
+      }
+      return false;
+    }
+
+    // Helper: check if row looks like a lunch period
+    bool isLunchRow(List<String> row) {
+      if (row.isEmpty) return false;
+      final firstCell = row.first.toLowerCase();
+      return firstCell.contains('lunch') || 
+             firstCell.contains('12:') || 
+             firstCell.contains('13:');
+    }
+
+    // Helper: extract hour:minute from time string
+    List<int>? parseTime(String timeStr) {
+      final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(timeStr);
+      if (match != null) {
+        final h = int.tryParse(match.group(1) ?? '');
+        final m = int.tryParse(match.group(2) ?? '');
+        return h != null && m != null ? [h, m] : null;
+      }
+      return null;
+    }
+
+    // Helper: check if two times are consecutive (45-55 minutes apart, typical for class periods)
+    bool areConsecutiveTimes(String time1, String time2) {
+      final t1 = parseTime(time1);
+      final t2 = parseTime(time2);
+      if (t1 == null || t2 == null) return false;
+      
+      final mins1 = t1[0] * 60 + t1[1];
+      final mins2 = t2[0] * 60 + t2[1];
+      final diff = mins2 - mins1;
+      
+      // Consecutive if 45-55 minutes apart (typical 50-min class)
+      return diff >= 45 && diff <= 55;
+    }
+
+    // Track previous meaningful row to detect consecutive periods
+    List<String>? previousRow;
+    
+    for (int i = 1; i < rawGrid.length; i++) {
+      final row = rawGrid[i];
+      
+      // Detect lunch period - always keep it
+      if (isLunchRow(row)) {
+        cleaned.add(row);
+        previousRow = null; // Reset merging
+        continue;
+      }
+
+      // Skip non-meaningful rows (empty or just "Class" placeholders)
+      if (!isMeaningfulRow(row)) {
+        continue;
+      }
+
+      // Check if this row is a continuation of the previous period (50+50 min blocks)
+      if (previousRow != null && 
+          row.length == previousRow.length &&
+          previousRow.isNotEmpty &&
+          row.isNotEmpty &&
+          areConsecutiveTimes(previousRow[0], row[0])) {
+        
+        bool isSameClass = true;
+        
+        // Compare class cells (skip first column which is time)
+        for (int col = 1; col < row.length; col++) {
+          final prevCell = previousRow[col].trim();
+          final currCell = row[col].trim();
+          
+          // If both cells have content, they should match for it to be the same period
+          if (prevCell.isNotEmpty && currCell.isNotEmpty) {
+            if (prevCell != currCell) {
+              isSameClass = false;
+              break;
+            }
+          }
+        }
+
+        // If it's the same class continuing, merge the time labels
+        if (isSameClass) {
+          final mergedRow = List<String>.from(previousRow);
+          
+          // Merge time column (e.g., "08:00" + "08:50" → "08:00-09:40")
+          if (row.isNotEmpty && previousRow.isNotEmpty) {
+            final prevTime = previousRow[0].trim();
+            final currTime = row[0].trim();
+            final t1 = parseTime(prevTime);
+            final t2 = parseTime(currTime);
+            
+            if (t1 != null && t2 != null) {
+              // Calculate end time (previous time + ~50 minutes for first block, + 50 for second)
+              final endMins = t2[0] * 60 + t2[1] + 50;
+              final endH = (endMins ~/ 60) % 24;
+              final endM = endMins % 60;
+              mergedRow[0] = '$prevTime-${endH.toString().padLeft(2, '0')}:${endM.toString().padLeft(2, '0')}';
+            }
+          }
+          
+          // Fill in any empty cells from the second period
+          for (int col = 1; col < row.length; col++) {
+            if (mergedRow[col].trim().isEmpty && row[col].trim().isNotEmpty) {
+              mergedRow[col] = row[col];
+            }
+          }
+          
+          // Replace the previous row with merged version
+          cleaned[cleaned.length - 1] = mergedRow;
+          continue;
+        }
+      }
+
+      // Add this as a new row
+      cleaned.add(row);
+      previousRow = row;
+    }
+
+    return cleaned;
+  }
+
+  ClassSyllabus? parseClassSyllabusFromBytes(Uint8List bytes,
+      {required String filename}) {
+    final rows = rowsFromAnyBytes(bytes);
+    return parseClassSyllabusFromRows(rows, filename: filename);
+  }
+
+  ClassSyllabus? parseClassSyllabusFromRows(List<List<String>> rows,
+      {String? filename}) {
+    if (rows.isEmpty) return null;
+
+    String norm(String s) => _normalizeName(s);
+    bool hasAll(List<String> row, List<String> keys) {
+      final set = row.map(norm).where((e) => e.isNotEmpty).toSet();
+      return keys.every(set.contains);
+    }
+
+    int? headerIdx;
+    for (var i = 0; i < rows.length; i++) {
+      final r = rows[i];
+      if (r.isEmpty) continue;
+      if (hasAll(r, const ['week', 'date', 'lessoncontent'])) {
+        headerIdx = i;
+        break;
+      }
+      // Common variant: "Lesson Content" split across cells or different spacing
+      final normalized = r.map(norm).toList();
+      final hasWeek = normalized.contains('week');
+      final hasDate = normalized.contains('date');
+      final hasLesson = normalized.any((c) => c.contains('lesson')) &&
+          normalized.any((c) => c.contains('content'));
+      if (hasWeek && hasDate && hasLesson) {
+        headerIdx = i;
+        break;
+      }
+    }
+
+    if (headerIdx == null) return null;
+
+    final headerLines = <String>[];
+    for (var i = 0; i < headerIdx; i++) {
+      final text = rows[i].join(' ').trim();
+      if (text.isEmpty) continue;
+      headerLines.add(text);
+      if (headerLines.length >= 12) break;
+    }
+
+    int idxWeek = -1;
+    int idxDate = -1;
+    int idxLesson = -1;
+    int idxEvent = -1;
+
+    String? currentSection;
+    final entries = <ClassSyllabusEntry>[];
+
+    void readHeader(List<String> r) {
+      final normalized = r.map(norm).toList();
+      idxWeek = normalized.indexOf('week');
+      idxDate = normalized.indexOf('date');
+      // lesson content may appear as one cell or two adjacent cells
+      idxLesson = normalized.indexWhere((c) => c == 'lessoncontent');
+      if (idxLesson == -1) {
+        // best-effort: cell containing both words
+        idxLesson = normalized.indexWhere((c) => c.contains('lesson') && c.contains('content'));
+      }
+      idxEvent = normalized.indexWhere((c) => c.contains('event'));
+      if (idxEvent == -1) {
+        idxEvent = normalized.indexWhere((c) => c.contains('dateevent'));
+      }
+    }
+
+    readHeader(rows[headerIdx]);
+
+    bool looksLikeBookSection(String s) {
+      final t = s.trim();
+      if (t.isEmpty) return false;
+      return RegExp(r'^book\s*\d+\s*:', caseSensitive: false)
+              .hasMatch(t) ||
+          RegExp(r'^book\s*\d+\b', caseSensitive: false).hasMatch(t);
+    }
+
+    bool looksLikeHeaderRow(List<String> r) {
+      if (r.isEmpty) return false;
+      final normalized = r.map(norm).toList();
+      return normalized.contains('week') &&
+          normalized.contains('date') &&
+          (normalized.contains('lessoncontent') ||
+              (normalized.any((c) => c.contains('lesson')) &&
+                  normalized.any((c) => c.contains('content'))));
+    }
+
+    bool looksLikeWeek(String s) {
+      final t = s.trim();
+      if (t.isEmpty) return false;
+      return RegExp(r'^\d{1,2}$').hasMatch(t) ||
+          RegExp(r'^w\d{1,2}$', caseSensitive: false).hasMatch(t);
+    }
+
+    for (var i = headerIdx + 1; i < rows.length; i++) {
+      final r = rows[i];
+      if (r.isEmpty) continue;
+
+      final first = (r.isNotEmpty ? r[0] : '').trim();
+      if (looksLikeBookSection(first)) {
+        currentSection = first;
+        continue;
+      }
+
+      if (looksLikeHeaderRow(r)) {
+        readHeader(r);
+        continue;
+      }
+
+      if (idxWeek < 0 || idxDate < 0 || idxLesson < 0) {
+        continue;
+      }
+      if (idxWeek >= r.length) continue;
+
+      final week = r[idxWeek].trim();
+      if (!looksLikeWeek(week)) {
+        continue;
+      }
+
+      final dateRange = (idxDate >= 0 && idxDate < r.length) ? r[idxDate].trim() : '';
+      final lessonContent = (idxLesson >= 0 && idxLesson < r.length) ? r[idxLesson].trim() : '';
+      final dateEvents = (idxEvent >= 0 && idxEvent < r.length) ? r[idxEvent].trim() : '';
+
+      if (dateRange.isEmpty && lessonContent.isEmpty && dateEvents.isEmpty) {
+        continue;
+      }
+
+      entries.add(ClassSyllabusEntry(
+        section: currentSection,
+        week: week,
+        dateRange: dateRange,
+        lessonContent: lessonContent,
+        dateEvents: dateEvents.isEmpty ? null : dateEvents,
+      ));
+    }
+
+    if (entries.isEmpty) return null;
+    return ClassSyllabus(
+      sourceFilename: filename,
+      headerLines: headerLines,
+      entries: entries,
+      extractedAt: DateTime.now(),
+    );
+  }
+
+  bool _looksLikeCalendarScheduleHeaders(List<String> headers) {
+    final normalized = headers
+        .map(_normalizeName)
+        .where((h) => h.isNotEmpty)
+        .toList(growable: false);
+
+    if (!normalized.contains('month') || !normalized.contains('week')) {
+      return false;
+    }
+
+    const dayKeys = {
+      'sun',
+      'mon',
+      'tue',
+      'wed',
+      'thu',
+      'fri',
+      'sat',
+      // Some templates use single-letter day columns.
+      's',
+      'm',
+      't',
+      'w',
+      'f',
+    };
+
+    final dayCount = normalized.where(dayKeys.contains).length;
+    final hasDateOrEvent =
+        normalized.any((h) => h.contains('date') || h.contains('event'));
+
+    return dayCount >= 5 && hasDateOrEvent;
+  }
+
   /// Best-effort decode for CSV-ish text exported from Excel.
   /// Handles UTF-8 (with/without BOM) and UTF-16LE/BE.
   String decodeTextFromBytes(Uint8List bytes) {
@@ -103,6 +513,13 @@ class FileImportService {
               ? rows[headerIdx]
               : rows.first;
           lines.add('Header sample: ${hdr.take(12).toList()}');
+
+          if (_looksLikeCalendarScheduleHeaders(hdr)) {
+            lines.add(
+                'Detected file type: calendar/schedule (not a student roster)');
+            lines.add(
+                'Tip: Import schedules via Teacher Dashboard / Class Details schedule import.');
+          }
         }
         final roster = parseCSV(text);
         lines.add(
@@ -124,6 +541,13 @@ class FileImportService {
           lines.add('Header sample: ${hdr.take(12).toList()}');
           lines.add(
               'First data row sample: ${(rows.length > headerIdx + 1 ? rows[headerIdx + 1] : const <String>[]).take(12).toList()}');
+
+          if (_looksLikeCalendarScheduleHeaders(hdr)) {
+          lines.add(
+            'Detected file type: calendar/schedule (not a student roster)');
+          lines.add(
+            'Tip: Import schedules via Teacher Dashboard / Class Details schedule import.');
+          }
         }
         final roster = parseXlsxRoster(bytes);
         lines.add(
@@ -152,6 +576,16 @@ class FileImportService {
       final headerRowIndex = _pickHeaderRowIndex(rows);
       if (headerRowIndex < 0 || headerRowIndex >= rows.length) return [];
       final headers = rows[headerRowIndex].map(_normalizeName).toList();
+
+      if (_looksLikeCalendarScheduleHeaders(headers)) {
+        return [
+          ImportedStudent(
+            isValid: false,
+            error:
+                'This file looks like a calendar/schedule, not a student roster. Use the Schedule import in Teacher Dashboard / Class Details.',
+          ),
+        ];
+      }
 
       final analysisRows = rows.sublist(headerRowIndex);
 
@@ -298,6 +732,16 @@ class FileImportService {
       final headerRowIndex = _pickHeaderRowIndex(rows);
       if (headerRowIndex < 0 || headerRowIndex >= rows.length) return [];
       final headers = rows[headerRowIndex].map(_normalizeName).toList();
+
+      if (_looksLikeCalendarScheduleHeaders(headers)) {
+        return [
+          ImportedStudent(
+            isValid: false,
+            error:
+                'This file looks like a calendar/schedule, not a student roster. Use the Schedule import in Teacher Dashboard / Class Details.',
+          ),
+        ];
+      }
 
       final analysisRows = rows.sublist(headerRowIndex);
 

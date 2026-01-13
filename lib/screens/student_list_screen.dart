@@ -15,6 +15,8 @@ import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/student_trash_service.dart';
 import 'package:gradeflow/models/deleted_student_entry.dart';
 import 'package:flutter/services.dart';
+import 'package:gradeflow/services/ai_import_service.dart';
+import 'package:gradeflow/openai/openai_config.dart';
 
 enum _SortBy { seat, chinese, english }
 
@@ -61,14 +63,14 @@ class _StudentListScreenState extends State<StudentListScreen> {
           : _importService.parseCSV(_importService.decodeTextFromBytes(bytes));
 
       // Fallback: some ".xlsx" files are actually CSV; try CSV if XLSX yields nothing
-      final parsed = (imported.isEmpty && fileName.endsWith('.xlsx'))
+      var parsed = (imported.isEmpty && fileName.endsWith('.xlsx'))
           ? _importService.parseCSV(_importService.decodeTextFromBytes(bytes))
           : imported;
 
       if (parsed.isEmpty) {
         final diag = _importService.diagnosticsForFile(bytes,
             filename: result.files.single.name);
-        await showDialog(
+        final action = await showDialog<String>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Could not read this file'),
@@ -104,12 +106,18 @@ class _StudentListScreenState extends State<StudentListScreen> {
             ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx),
+                  onPressed: () => Navigator.pop(ctx, 'close'),
                   child: const Text('Close')),
+              TextButton(
+                onPressed: OpenAIConfig.isConfigured
+                    ? () => Navigator.pop(ctx, 'ai')
+                    : null,
+                child: const Text('Analyze with AI'),
+              ),
               TextButton(
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: diag));
-                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (ctx.mounted) Navigator.pop(ctx, 'close');
                   _showSuccess('Copied diagnostics to clipboard');
                 },
                 child: const Text('Copy diagnostics'),
@@ -117,7 +125,75 @@ class _StudentListScreenState extends State<StudentListScreen> {
             ],
           ),
         );
-        return;
+        
+        if (!mounted || action != 'ai') return;
+
+        // Use AI to parse the roster
+        final rows = _importService.rowsFromAnyBytes(bytes);
+        
+        // Show loading dialog
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Analyzing with AI…'),
+              ],
+            ),
+          ),
+        );
+        
+        AiImportOutput? aiResult;
+        try {
+          aiResult = await AiImportService().inferFromRows(rows, filename: result.files.single.name);
+        } catch (e) {
+          if (mounted) Navigator.pop(context); // Close loading dialog
+          _showError('AI analysis failed: $e');
+          return;
+        }
+        
+        if (mounted) Navigator.pop(context); // Close loading dialog
+        if (!mounted || aiResult == null) return;
+        
+        // Convert AI output to ImportedStudent list
+        final aiStudents = <ImportedStudent>[];
+        for (final entry in aiResult.byClass.entries) {
+          aiStudents.addAll(entry.value);
+        }
+        
+        if (aiStudents.isEmpty) {
+          _showError('AI did not return any students.');
+          return;
+        }
+        
+        // Show AI result for confirmation
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('AI Analysis Complete'),
+            content: Text('AI found ${aiStudents.where((s) => s.isValid).length} valid students. Import them?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Import'),
+              ),
+            ],
+          ),
+        );
+        
+        if (!mounted || confirm != true) return;
+        
+        // Replace parsed with AI result and continue with normal flow
+        parsed = aiStudents;
       }
 
       final valid = parsed.where((s) => s.isValid).toList();
