@@ -1309,6 +1309,25 @@ class FileImportService {
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
 
+  /// Find best matching column index for a field name.
+  /// Handles variations like "Student ID", "StudentID", "student-id", "ID", etc.
+  int _findColumnIndex(List<String> normalizedHeaders, List<String> possibleNames) {
+    for (final name in possibleNames) {
+      final normalized = _normalizeName(name);
+      final idx = normalizedHeaders.indexOf(normalized);
+      if (idx >= 0) return idx;
+      
+      // Also try fuzzy matching for partial matches
+      for (int i = 0; i < normalizedHeaders.length; i++) {
+        if (normalizedHeaders[i].contains(normalized) || 
+            normalized.contains(normalizedHeaders[i])) {
+          return i;
+        }
+      }
+    }
+    return -1;
+  }
+
   List<Student> convertToStudents(
       List<ImportedStudent> importedStudents, String classId) {
     final now = DateTime.now();
