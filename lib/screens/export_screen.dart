@@ -883,17 +883,19 @@ class _ExportScreenState extends State<ExportScreen> {
       final blob = html.Blob([bytes], mime);
       final url = html.Url.createObjectUrlFromBlob(blob);
 
-      // Use a hidden anchor to trigger a download. Avoid any tab navigation in Preview.
+      // Use a hidden anchor to trigger a download. Must be in DOM, clicked directly in user gesture context.
       final anchor = html.AnchorElement(href: url)
         ..style.display = 'none'
         ..download = filename;
       anchor.setAttribute('download', filename);
-      html.document.body?.append(anchor);
+      html.document.body!.children.add(anchor);
       anchor.click();
       anchor.remove();
 
-      await Future.delayed(const Duration(milliseconds: 800));
+      // Delay revoke to ensure download completes (Chrome/Firefox/Safari need this).
+      await Future.delayed(const Duration(seconds: 1));
       html.Url.revokeObjectUrl(url);
+      debugPrint('Download triggered successfully for $filename');
       return true;
     } catch (e) {
       debugPrint('Export download failed for $filename: $e');

@@ -237,8 +237,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       if (!mounted) return;
       _nowNotifier.value = DateTime.now();
     });
-    // Prefill constant attendance portal URL
-    _attendanceUrlCtrl.text = 'https://fsis.hn.thu.edu.tw/csn1t/permain.asp';
+    // Initialize attendance portal URL (customizable by teacher - empty by default)
+    _attendanceUrlCtrl.text = '';
     _loadData();
     // Load saved reminders so weekly panel reflects calendar changes immediately
     unawaited(_loadReminders());
