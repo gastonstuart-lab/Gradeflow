@@ -8,9 +8,9 @@
   "java.autobuild.enabled": false,
 
   // ============================================
-  // 🤖 AI SETUP - CONFIGURED ✅
+  // 🤖 AI SETUP - SET VIA ENVIRONMENT
   // ============================================
-  "terminal.integrated.env.windows": {
-    "OPENAI_API_KEY": "REDACTED"
-  }
+  // IMPORTANT: API key is now set via system environment variable, NOT here!
+  // To set up: Set-Item -Path Env:OPENAI_API_KEY -Value "your-key-here"
+  // Never commit actual API keys to version control!
 }
