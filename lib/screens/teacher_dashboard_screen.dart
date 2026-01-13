@@ -1123,7 +1123,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         OutlinedButton.icon(
             onPressed: _importSchedule,
             icon: const Icon(Icons.file_upload_outlined),
-            label: const Text('Import schedule')),
+          label: const Text('Import calendar')),
         OutlinedButton.icon(
             onPressed: _importScheduleFromDrive,
             icon: const Icon(Icons.drive_folder_upload_outlined),
@@ -1174,16 +1174,16 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             child: Container(
                               height: 44,
                               decoration: BoxDecoration(
-                                color: isSelected
-                                    ? Theme.of(context)
-                                        .colorScheme
-                                        .primaryContainer
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerHighest,
+                              color: isSelected || isToday
+                                ? Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer
+                                : Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.sm),
-                                border: isToday
+                              border: isToday && !isSelected
                                     ? Border.all(
                                         color: Theme.of(context)
                                             .colorScheme
@@ -2670,7 +2670,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         builder: (ctx) => DriveFilePickerDialog(
           driveService: drive,
           allowedExtensions: const ['xlsx', 'csv'],
-          title: 'Import schedule from Google Drive',
+          title: 'Import calendar from Google Drive',
         ),
       );
       if (picked == null || !mounted) return;
