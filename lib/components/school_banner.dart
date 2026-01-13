@@ -54,10 +54,10 @@ class SchoolBannerBar extends StatelessWidget implements PreferredSizeWidget {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white,
                       width: 1,
                     ),
                   ),
