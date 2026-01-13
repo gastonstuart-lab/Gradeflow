@@ -123,6 +123,17 @@ class ClassService extends ChangeNotifier {
           createdAt: now,
           updatedAt: now,
         ),
+        Class(
+          classId: 'demo-class-3',
+          className: 'Grade 12C',
+          subject: 'Physics',
+          groupNumber: 'C',
+          schoolYear: '2024-2025',
+          term: 'Fall',
+          teacherId: teacherId,
+          createdAt: now,
+          updatedAt: now,
+        ),
       ];
       await repo.saveClasses([...existing, ...demoClasses]);
       debugPrint('Demo classes seeded successfully');

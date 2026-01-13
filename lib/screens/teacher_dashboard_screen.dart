@@ -2558,13 +2558,22 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           ]),
           const SizedBox(height: 12),
           Wrap(spacing: 8, runSpacing: 8, children: [
+            SizedBox(
+              width: 120,
+              child: TextField(
+                decoration: const InputDecoration(
+                    labelText: 'Group Size', isDense: true),
+                keyboardType: TextInputType.number,
+                onChanged: (v) => setState(() => _groupSize = int.tryParse(v) ?? 2),
+              ),
+            ),
             FilledButton.icon(
               onPressed: () {
                 _makeGroups();
                 setDialogState(() {});
               },
               icon: const Icon(Icons.grid_view),
-              label: const Text('Regenerate'),
+              label: const Text('Generate'),
             ),
             OutlinedButton.icon(
               onPressed: () {
