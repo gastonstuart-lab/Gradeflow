@@ -343,6 +343,8 @@ class _ExportScreenState extends State<ExportScreen> {
 
   Future<void> _showCsvPreview(String csv,
       {required String title, required String filename}) async {
+    final horizontalController = ScrollController();
+    final verticalController = ScrollController();
     final rows = const CsvToListConverter().convert(csv);
     final head = rows.isNotEmpty
         ? rows.first.map((e) => e?.toString() ?? '').toList()
@@ -388,27 +390,38 @@ class _ExportScreenState extends State<ExportScreen> {
                   Expanded(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(AppRadius.md),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minWidth: 600),
-                          child: SingleChildScrollView(
-                            child: DataTable(
-                              columns: head
-                                  .map((h) => DataColumn(
-                                      label: Text(h,
-                                          style: ctx.textStyles.labelSmall
-                                              ?.semiBold)))
-                                  .toList(),
-                              rows: data
-                                  .take(50)
-                                  .map((r) => DataRow(
-                                      cells: r
-                                          .map((c) => DataCell(Text(
-                                              '${c ?? ''}',
-                                              softWrap: false)))
-                                          .toList()))
-                                  .toList(),
+                      child: Scrollbar(
+                        controller: horizontalController,
+                        thumbVisibility: true,
+                        scrollbarOrientation: ScrollbarOrientation.bottom,
+                        child: SingleChildScrollView(
+                          controller: horizontalController,
+                          scrollDirection: Axis.horizontal,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 600),
+                            child: Scrollbar(
+                              controller: verticalController,
+                              thumbVisibility: true,
+                              child: SingleChildScrollView(
+                                controller: verticalController,
+                                child: DataTable(
+                                  columns: head
+                                      .map((h) => DataColumn(
+                                          label: Text(h,
+                                              style: ctx.textStyles.labelSmall
+                                                  ?.semiBold)))
+                                      .toList(),
+                                  rows: data
+                                      .take(50)
+                                      .map((r) => DataRow(
+                                          cells: r
+                                              .map((c) => DataCell(Text(
+                                                  '${c ?? ''}',
+                                                  softWrap: false)))
+                                              .toList()))
+                                      .toList(),
+                                ),
+                              ),
                             ),
                           ),
                         ),

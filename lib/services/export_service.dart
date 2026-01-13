@@ -19,25 +19,13 @@ class ExportService {
 
     _fontLoadAttempted = true;
     try {
-      // Noto Sans SC (Simplified Chinese) - smaller file size, better compatibility
-      // Try multiple CDN sources with wider availability
+      // NOTE: The pdf package expects TrueType/OpenType font bytes.
+      // Some CDNs serve WOFF2, which can appear to load but later throws:
+      //   FormatException: Unexpected extension byte
+      // Keep sources strictly to .ttf/.otf to avoid runtime failures.
       final sources = [
         {
-          'name': 'Google Fonts API (SC)',
-          'regular':
-              'https://fonts.gstatic.com/s/notosanssc/v36/k3kXo84MPvpLmixcA63oeALhL4iJ-Q7m8w.woff2',
-          'bold':
-              'https://fonts.gstatic.com/s/notosanssc/v36/k3k6o84MPvpLmixcA63oeALZJamO_duX.woff2',
-        },
-        {
-          'name': 'jsDelivr CDN (SC)',
-          'regular':
-              'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.0.0/files/noto-sans-sc-chinese-simplified-400-normal.woff2',
-          'bold':
-              'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc@5.0.0/files/noto-sans-sc-chinese-simplified-700-normal.woff2',
-        },
-        {
-          'name': 'GitHub (TC OTF)',
+          'name': 'GitHub (Noto Sans SC OTF)',
           'regular':
               'https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansSC-Regular.otf',
           'bold':
