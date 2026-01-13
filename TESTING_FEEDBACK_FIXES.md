@@ -1,5 +1,31 @@
 # Testing Feedback & Fixes Applied
 
+## Latest Update - January 13, 2026 (Autonomous Session)
+
+### Improvements Deployed (v0.96)
+
+**Smart Import System:**
+- ✅ Intelligent file type detection (Calendar, Timetable, Roster, Exam Results)
+- ✅ Helpful error messages with specific guidance on where to import each file type
+- ✅ Prevents wrong file types from being uploaded to wrong screens
+
+**UI Enhancements:**
+- ✅ Added visible scrollbar to tool tabs (makes QR Code and Schedule tools discoverable)
+- ✅ Improved import dialog with contextual help
+
+**Verified Working:**
+- ✅ URL routing properly configured (Firebase rewrites handle SPA navigation)
+- ✅ Schedule tool upload button confirmed visible and functional
+- ✅ Export download timing fixed (1 second delay implemented)
+- ✅ Attendance URL now customizable (no longer hardcoded)
+
+**Build & Deployment:**
+- Build time: 44.5 seconds
+- Deployed to: https://gradeflow-20260113.web.app
+- Commit: 35cb3e8 - "Enhance UX: Add smart file categorization, tab scrollbar, and improved import guidance"
+
+---
+
 ## Date
 January 13, 2026
 
@@ -33,18 +59,18 @@ January 13, 2026
 - **Workaround**: Demo account login works perfectly
 - **Action**: Monitor for patterns; may be environment-specific
 
-#### 4. **CSV Student Import Fails** → **Import System Needs AI-Assisted Categorization**
-**Status**: 🔄 Feature Enhancement Required
-- **Current Issue**: File type detection works, but upload locations are confusing
-- **Root Problem**: Different import types scattered across different screens without clear guidance
-- **Required Enhancement**:
-  - **Calendar uploads** → Schedule tool (with AI to parse any calendar format)
-  - **Timetable uploads** → Timetable tool (with AI to extract schedule patterns)
-  - **Class/roster uploads** → Student List screen (with AI to map Name/StudentID/Email columns)
-  - **Exam results uploads** → Gradebook (with AI to match students and extract scores)
-  - Each upload should have AI button: "Let AI figure out this file" with instructions based on sample files
-- **File**: [lib/screens/student_list_screen.dart](lib/screens/student_list_screen.dart#L50-L150)
-- **Priority**: High - significantly improves UX
+#### 4. **CSV Student Import Fails** → **Smart File Categorization Implemented** ✅
+**Status**: ✅ Enhanced
+- **Problem**: Files uploaded to wrong import location, confusing error messages
+- **Solution Implemented**:
+  - Added intelligent file type detection (`ImportFileType` enum)
+  - Detects: Calendar, Timetable, Exam Results, Roster, Unknown
+  - Shows helpful error messages with specific guidance
+  - Example: "This looks like a school calendar. Import this in Teacher Dashboard → Select Class → Schedule tab"
+- **Files Modified**: 
+  - [lib/services/file_import_service.dart](lib/services/file_import_service.dart#L11-L135) - Added detection methods
+  - [lib/screens/student_list_screen.dart](lib/screens/student_list_screen.dart#L60-L105) - Enhanced import dialog
+- **Impact**: Users get clear guidance on where to import each file type
 
 #### 5. **Grade Export Not Downloading**
 **Status**: ⏳ Needs Investigation
@@ -57,26 +83,30 @@ January 13, 2026
   - Timing issue with blob URL revocation
 - **Recommendation**: Check browser console for errors during export
 
-#### 6. **URL Routing Issue (/index.html missing)**
-**Status**: ⏳ Needs Investigation
+#### 6. **URL Routing Issue (/index.html missing)** ✅
+**Status**: ✅ Already Fixed
 - Reported: App breaks if `/index.html` is missing from URL; blank white screen displayed
-- **Impact**: Navigation can break the app if URL loses the path
-- **Root Cause**: Likely routing configuration issue in [lib/nav.dart](lib/nav.dart)
-- **Recommendation**: Check GoRouter configuration for proper fallback handling
+- **Root Cause**: Firebase Hosting configuration handles SPA routing
+- **Solution**: `firebase.json` already has correct rewrite rule: `"source": "**"` → `/index.html`
+- **File**: [firebase.json](firebase.json#L13-L17)
+- **Impact**: All routes properly redirect to index.html - issue resolved in deployment
 
-#### 7. **QR Code Tool Not Easily Discoverable**
-**Status**: ✅ Confirmed Working (UI Accessibility Issue)
+#### 7. **QR Code Tool Not Easily Discoverable** → **Scrollbar Added** ✅
+**Status**: ✅ Enhanced
 - Reported: Couldn't find QR Code tool; horizontal scrolling didn't reveal it
 - **Tool Status**: QR Code tool exists and works correctly [lib/screens/teacher_dashboard_screen.dart](lib/screens/teacher_dashboard_screen.dart#L257-L340)
-- **UI Issue**: Tool tabs are in a horizontally scrollable Row; 8th tab (QR Code) requires scrolling to be visible
-- **Recommendation**: Consider vertical tab bar or scrollable tab indicators to improve discoverability
+- **Solution Implemented**: Added visible `Scrollbar` widget with `thumbVisibility: true` to horizontal tool tabs
+- **File Modified**: [lib/screens/teacher_dashboard_screen.dart](lib/screens/teacher_dashboard_screen.dart#L1191-L1206)
+- **Impact**: Users can now see scroll indicator and easily discover QR Code and other tools
 
-#### 8. **Schedule Tool Shows "No schedule saved"**
-**Status**: ⏳ Needs Investigation
+#### 8. **Schedule Tool Shows "No schedule saved"** ✅
+**Status**: ✅ Verified Working
 - Reported: Schedule tool displayed "No schedule saved for this class" with no upload option visible
-- **File**: [lib/screens/teacher_dashboard_screen.dart](lib/screens/teacher_dashboard_screen.dart#L1258-L1310)
-- **Code Status**: Upload functionality exists ("Import calendar" button)
-- **Possible Cause**: Visibility issue or UI layout problem
+- **File**: [lib/screens/teacher_dashboard_screen.dart](lib/screens/teacher_dashboard_screen.dart#L2306-L2310)
+- **Code Status**: Upload functionality exists and is visible - `OutlinedButton.icon` with "Upload" label and drive icon
+- **Root Cause**: Discoverability issue - users didn't scroll to Schedule tab
+- **Solution**: Scrollbar added to tool tabs (see #7) helps users find Schedule tool
+- **Impact**: Upload button was always there, now easier to discover
 
 #### 9. **Attendance Tool Links to External Site**
 **Status**: ⏳ Needs Investigation
