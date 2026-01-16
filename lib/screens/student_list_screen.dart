@@ -187,38 +187,147 @@ class _StudentListScreenState extends State<StudentListScreen> {
         // Use AI to parse the roster
         final rows = _importService.rowsFromAnyBytes(bytes);
         
-        // Show loading dialog
-        if (!mounted) return;
-        showDialog(
+        // Show AI analysis dialog with AiAnalyzeImportDialog pattern
+        final aiOutput = await showDialog<AiImportOutput>(
           context: context,
-          barrierDismissible: false,
-          builder: (ctx) => const AlertDialog(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Analyzing with AI…'),
-              ],
-            ),
-          ),
+          builder: (ctx) {
+            // Wrap inferFromRows to return proper format
+            return FutureBuilder<AiImportOutput?>(
+              future: AiImportService().inferFromRows(rows, filename: result.files.single.name),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const AlertDialog(
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(height: 8),
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Analyzing student roster with AI…'),
+                      ],
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return AlertDialog(
+                    title: const Text('AI Analysis Failed'),
+                    content: Text(snapshot.error.toString()),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  );
+                }
+
+                final aiOutput = snapshot.data;
+                if (aiOutput == null) {
+                  return AlertDialog(
+                    title: const Text('No Results'),
+                    content: const Text('AI did not return any data.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  );
+                }
+
+                // Convert to ImportedStudent list
+                final aiStudents = <ImportedStudent>[];
+                for (final entry in aiOutput.byClass.entries) {
+                  aiStudents.addAll(entry.value);
+                }
+
+                final valid = aiStudents.where((s) => s.isValid).toList();
+                final invalid = aiStudents.where((s) => !s.isValid).toList();
+
+                return AlertDialog(
+                  title: const Text('AI Analysis Complete'),
+                  content: SizedBox(
+                    width: 600,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.check_circle,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 20),
+                            const SizedBox(width: 8),
+                            Text('Valid students: ${valid.length}',
+                                style: const TextStyle(fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        if (invalid.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(Icons.warning,
+                                  color: Theme.of(context).colorScheme.error,
+                                  size: 20),
+                              const SizedBox(width: 8),
+                              Text('Issues: ${invalid.length}',
+                                  style: TextStyle(
+                                      color: Theme.of(context).colorScheme.error,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ],
+                        if (valid.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          const Divider(),
+                          const SizedBox(height: 8),
+                          const Text('Sample (first 3):',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 8),
+                          ...valid.take(3).map((s) => Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.person, size: 16),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        "${s.chineseName} (${s.englishFirstName} ${s.englishLastName})${s.seatNo != null ? '  • Seat ${s.seatNo}' : ''}",
+                                        style: const TextStyle(fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )),
+                        ],
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: valid.isEmpty
+                          ? null
+                          : () => Navigator.pop(ctx, aiOutput),
+                      child: const Text('Import students'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
         );
         
-        AiImportOutput? aiResult;
-        try {
-          aiResult = await AiImportService().inferFromRows(rows, filename: result.files.single.name);
-        } catch (e) {
-          if (mounted) Navigator.pop(context); // Close loading dialog
-          _showError('AI analysis failed: $e');
-          return;
-        }
-        
-        if (mounted) Navigator.pop(context); // Close loading dialog
-        if (!mounted || aiResult == null) return;
+        if (!mounted || aiOutput == null) return;
         
         // Convert AI output to ImportedStudent list
         final aiStudents = <ImportedStudent>[];
-        for (final entry in aiResult.byClass.entries) {
+        for (final entry in aiOutput.byClass.entries) {
           aiStudents.addAll(entry.value);
         }
         
@@ -226,27 +335,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
           _showError('AI did not return any students.');
           return;
         }
-        
-        // Show AI result for confirmation
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('AI Analysis Complete'),
-            content: Text('AI found ${aiStudents.where((s) => s.isValid).length} valid students. Import them?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Import'),
-              ),
-            ],
-          ),
-        );
-        
-        if (!mounted || confirm != true) return;
         
         // Replace parsed with AI result and continue with normal flow
         parsed = aiStudents;
@@ -539,6 +627,22 @@ class _StudentListScreenState extends State<StudentListScreen> {
       );
 
       await context.read<StudentService>().addStudent(student);
+
+      // Default all non-exam grade items to full marks for the new student.
+      final gradeItemSvc = context.read<GradeItemService>();
+      if (gradeItemSvc.gradeItems.isEmpty) {
+        await gradeItemSvc.loadGradeItems(widget.classId);
+      }
+      final scoreSvc = context.read<StudentScoreService>();
+      for (final item in gradeItemSvc.gradeItems) {
+        await scoreSvc.ensureDefaultScoresForGradeItem(
+          widget.classId,
+          item.gradeItemId,
+          [student.studentId],
+          item.maxScore,
+        );
+      }
+
       _showSuccess('Student added successfully');
     }
   }

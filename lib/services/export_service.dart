@@ -4,6 +4,7 @@ import 'package:gradeflow/models/grading_category.dart';
 import 'package:excel/excel.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart' show PdfGoogleFonts;
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
@@ -19,6 +20,17 @@ class ExportService {
 
     _fontLoadAttempted = true;
     try {
+      // Prefer Google Fonts TTFs (reliable, smaller, good CJK coverage).
+      try {
+        debugPrint('Attempting CJK fonts: Google Fonts (Noto Sans TC)');
+        _fontBase = await PdfGoogleFonts.notoSansTCRegular();
+        _fontBold = await PdfGoogleFonts.notoSansTCBold();
+        debugPrint('✓ CJK fonts loaded successfully from Google Fonts (TC)');
+        return;
+      } catch (e) {
+        debugPrint('✗ Failed Google Fonts (TC): $e');
+      }
+
       // NOTE: The pdf package expects TrueType/OpenType font bytes.
       // Some CDNs serve WOFF2, which can appear to load but later throws:
       //   FormatException: Unexpected extension byte

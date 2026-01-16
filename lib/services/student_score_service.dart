@@ -347,6 +347,93 @@ class StudentScoreService extends ChangeNotifier {
     return _scores.where((s) => s.studentId == studentId).toList();
   }
 
+  /// Ensures every student has a stored score entry for the given grade item.
+  ///
+  /// This supports the “default to 100 (full marks) until changed” behavior by
+  /// creating missing `StudentScore` rows (and optionally filling null scores)
+  /// without overwriting any existing non-null scores.
+  Future<void> ensureDefaultScoresForGradeItem(
+    String classId,
+    String gradeItemId,
+    List<String> studentIds,
+    double defaultScore, {
+    bool fillNulls = true,
+  }) async {
+    if (studentIds.isEmpty) return;
+    await _enqueueWrite(() async {
+      try {
+        final repo = RepositoryFactory.instance;
+        final existing = await repo.loadScores(classId, gradeItemId);
+        final byStudent = <String, StudentScore>{
+          for (final s in existing) s.studentId: s,
+        };
+
+        final now = DateTime.now();
+        bool changed = false;
+
+        for (final studentId in studentIds) {
+          final cur = byStudent[studentId];
+          if (cur == null) {
+            final entry = StudentScore(
+              studentId: studentId,
+              gradeItemId: gradeItemId,
+              score: defaultScore,
+              createdAt: now,
+              updatedAt: now,
+            );
+            existing.add(entry);
+            byStudent[studentId] = entry;
+            changed = true;
+
+            final localIdx = _scores.indexWhere(
+              (s) => s.studentId == studentId && s.gradeItemId == gradeItemId,
+            );
+            if (localIdx != -1) {
+              _scores[localIdx] = entry;
+            } else {
+              _scores.add(entry);
+            }
+            continue;
+          }
+
+          if (fillNulls && cur.score == null) {
+            final updated = StudentScore(
+              studentId: cur.studentId,
+              gradeItemId: cur.gradeItemId,
+              score: defaultScore,
+              createdAt: cur.createdAt,
+              updatedAt: now,
+            );
+            final idx = existing.indexWhere(
+              (s) => s.studentId == studentId && s.gradeItemId == gradeItemId,
+            );
+            if (idx != -1) existing[idx] = updated;
+            byStudent[studentId] = updated;
+            changed = true;
+
+            final localIdx = _scores.indexWhere(
+              (s) => s.studentId == studentId && s.gradeItemId == gradeItemId,
+            );
+            if (localIdx != -1) {
+              _scores[localIdx] = updated;
+            } else {
+              _scores.add(updated);
+            }
+          }
+        }
+
+        if (changed) {
+          await repo.saveScores(classId, gradeItemId, existing);
+          notifyListeners();
+          debugPrint(
+              'Ensured default scores for item=$gradeItemId (${studentIds.length} students)');
+        }
+      } catch (e) {
+        debugPrint('Failed to ensure default scores for $gradeItemId: $e');
+      }
+    });
+  }
+
   Future<void> seedDemoScores(String classId, List<String> studentIds,
       List<String> gradeItemIds) async {
     await _enqueueWrite(() async {

@@ -58,7 +58,7 @@ Download a CSV export of grades on three browsers
 ## 2. Google Sign-In Investigation
 
 ### What to Check:
-Firebase console OAuth configuration
+Firebase Auth Google provider + authorized domains (no extra Google APIs required for basic login)
 
 ### Step 1: Verify Authorized Domains
 
@@ -90,6 +90,11 @@ Google ✓ Enabled
 
 ### Step 3: Verify Google Cloud Console
 
+> Note: For **basic Google login via Firebase Auth**, you typically do **not** need to manually create/maintain a Web OAuth client ID in Google Cloud.
+> Firebase manages the OAuth client(s) it needs when the Google provider is enabled.
+>
+> You only need to care about Google Cloud “APIs & Services” (OAuth consent screen, Drive API, etc.) if you are using **Google Drive features** (import/export from Drive), which is a separate “Connect Google Drive” flow in the app.
+
 1. Go to: https://console.cloud.google.com
 2. Select Project: **Gradeflow** (should match Firebase project)
 3. Navigate: **APIs & Services** → **OAuth 2.0 Client IDs**
@@ -101,9 +106,10 @@ Google ✓ Enabled
 ### Step 4: Test the Sign-In
 
 1. Open https://gradeflow-20260113.web.app in incognito/private window
-2. Click **"Sign in with Google"** button
-3. Complete Google sign-in flow
-4. Expected: Redirected to dashboard
+2. If you land on dashboard immediately, click **Log out** (top-right) to ensure a clean test
+3. Click **"Continue with Google"** on the login page
+4. Complete Google sign-in flow
+5. Expected: Redirected to dashboard
 
 ### If Sign-In Still Fails:
 
@@ -119,8 +125,21 @@ Google ✓ Enabled
 
 3. **Common Issues:**
    - Domain not in authorized list → Add it in Firebase
-   - OAuth consent screen not configured → Configure in Google Cloud
    - Pop-up blocker blocking sign-in window → Disable temporarily
+   - Google provider disabled or misconfigured → Toggle Google provider OFF/ON in Firebase Auth
+
+---
+
+## 2B. Google Drive Connection (Optional)
+
+If you use Drive import/export, test the **"Connect Google Drive"** button inside the app.
+
+Drive features may require:
+- OAuth consent screen configured in Google Cloud
+- Drive API enabled in Google Cloud
+- Authorized JavaScript origins include `https://gradeflow-20260113.web.app`
+
+If Drive connection fails, capture the error page URL/message and browser console output.
 
 ---
 

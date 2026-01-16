@@ -131,6 +131,14 @@ class _GradebookScreenState extends State<GradebookScreen> {
         updatedAt: now,
       );
       await gradeItemService.addGradeItem(item);
+
+      final students = context.read<StudentService>().students;
+      await context.read<StudentScoreService>().ensureDefaultScoresForGradeItem(
+            widget.classId,
+            item.gradeItemId,
+            students.map((s) => s.studentId).toList(),
+            item.maxScore,
+          );
       if (mounted && setSelection) {
         setState(() => selectedGradeItemId = item.gradeItemId);
       }
@@ -156,6 +164,14 @@ class _GradebookScreenState extends State<GradebookScreen> {
       updatedAt: now,
     );
     await context.read<GradeItemService>().addGradeItem(newItem);
+
+    final students = context.read<StudentService>().students;
+    await context.read<StudentScoreService>().ensureDefaultScoresForGradeItem(
+          widget.classId,
+          newItem.gradeItemId,
+          students.map((s) => s.studentId).toList(),
+          newItem.maxScore,
+        );
     if (mounted) setState(() => selectedGradeItemId = newItem.gradeItemId);
   }
 
@@ -364,6 +380,14 @@ class _GradebookScreenState extends State<GradebookScreen> {
       );
 
       await context.read<GradeItemService>().addGradeItem(gradeItem);
+
+      final students = context.read<StudentService>().students;
+      await context.read<StudentScoreService>().ensureDefaultScoresForGradeItem(
+            widget.classId,
+            gradeItem.gradeItemId,
+            students.map((s) => s.studentId).toList(),
+            gradeItem.maxScore,
+          );
       _showSuccess('Grade item added');
     }
   }
@@ -420,7 +444,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
           }
 
           final max = item.maxScore <= 1 ? 100.0 : item.maxScore;
-          final min = 1.0;
+          final min = 0.0;
           final divisions = max > min ? (max - min).round() : null;
           final s = students[idx];
           return Padding(
@@ -620,8 +644,9 @@ class _GradebookScreenState extends State<GradebookScreen> {
                           builder: (ctx, setSheetState) {
                             final max =
                                 item.maxScore <= 1 ? 100.0 : item.maxScore;
+                            const min = 0.0;
                             final divisions =
-                                max > 1 ? (max - 1).round() : null;
+                              max > min ? (max - min).round() : null;
                             return Column(
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -632,8 +657,8 @@ class _GradebookScreenState extends State<GradebookScreen> {
                                 Row(children: [
                                   Expanded(
                                     child: Slider(
-                                      value: temp.clamp(1, max),
-                                      min: 1,
+                                      value: temp.clamp(min, max),
+                                      min: min,
                                       max: max,
                                       divisions: divisions,
                                       label: temp.toStringAsFixed(0),
@@ -1019,6 +1044,20 @@ class _GradebookScreenState extends State<GradebookScreen> {
                                     await context
                                         .read<GradeItemService>()
                                         .addGradeItem(item);
+
+                                    final students = context
+                                        .read<StudentService>()
+                                        .students
+                                        .map((s) => s.studentId)
+                                        .toList();
+                                    await context
+                                        .read<StudentScoreService>()
+                                        .ensureDefaultScoresForGradeItem(
+                                          widget.classId,
+                                          item.gradeItemId,
+                                          students,
+                                          item.maxScore,
+                                        );
                                     if (mounted) {
                                       setState(() => selectedGradeItemId =
                                           item.gradeItemId);
@@ -1132,7 +1171,7 @@ class _ScoreSliderRowState extends State<_ScoreSliderRow> {
   @override
   Widget build(BuildContext context) {
     final max = widget.maxScore <= 1 ? 100.0 : widget.maxScore;
-    final min = 1.0;
+    final min = 0.0;
     final display = (_value ?? max).toStringAsFixed(0);
     final divisions = max > min ? (max - min).round() : null;
     return AnimatedGlowBorder(

@@ -1505,8 +1505,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
                   )
                 : const Icon(Icons.login),
             tooltip: _driveAccessToken == null
-                ? 'Sign in with Google (Drive)'
-                : 'Google Drive connected',
+              ? 'Drive uses your Google login (auto-connect)'
+              : 'Google Drive connected',
             onPressed: _driveSigningIn ? null : _ensureDriveAccessToken,
           ),
           IconButton(

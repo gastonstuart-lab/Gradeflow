@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:csv/csv.dart';
 import 'package:excel/excel.dart';
+import 'package:icalendar_parser/icalendar_parser.dart';
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
 import 'package:gradeflow/models/student.dart';
@@ -14,6 +15,20 @@ enum ImportFileType {
   timetable,     // Weekly class schedule
   examResults,   // Scores/grades
   unknown,
+}
+
+class CalendarEvent {
+  final DateTime start;
+  final DateTime end;
+  final String summary;
+  final String? location;
+
+  CalendarEvent({
+    required this.start,
+    required this.end,
+    required this.summary,
+    this.location,
+  });
 }
 
 class FileTypeDetection {
@@ -37,7 +52,7 @@ class ImportedStudent {
   final String? classCode;
   final bool isValid;
   final String? error;
-
+      // Calendar detection
   ImportedStudent({
     this.studentId,
     this.chineseName,
@@ -51,6 +66,37 @@ class ImportedStudent {
 }
 
 class FileImportService {
+  /// Parse .ics calendar bytes into structured events.
+  List<CalendarEvent> parseIcs(Uint8List bytes) {
+    final text = utf8.decode(bytes, allowMalformed: true);
+    final parser = ICalendar.fromString(text);
+    final events = <CalendarEvent>[];
+    for (final comp in parser.data) {
+      final vevents = comp['VEVENT'];
+      if (vevents is List) {
+        for (final e in vevents) {
+          try {
+            final dtStart = e['DTSTART']?.value;
+            final dtEnd = e['DTEND']?.value;
+            final summary = e['SUMMARY']?.value?.toString() ?? '';
+            final location = e['LOCATION']?.value?.toString();
+            if (dtStart is DateTime && dtEnd is DateTime && summary.isNotEmpty) {
+              events.add(CalendarEvent(
+                start: dtStart,
+                end: dtEnd,
+                summary: summary,
+                location: location,
+              ));
+            }
+          } catch (_) {
+            continue;
+          }
+        }
+      }
+    }
+    return events;
+  }
+
   /// Extract the "best" table from a DOCX file as a 2D grid of cell text.
   /// Heuristic-based: prefers tables that contain weekday headers (Mon/Tue/一/二/...).
   List<List<String>> extractDocxBestTableGrid(Uint8List bytes) {
@@ -140,25 +186,12 @@ class FileImportService {
   List<List<String>> cleanTimetableGrid(List<List<String>> rawGrid) {
     if (rawGrid.isEmpty) return rawGrid;
 
-    final cleaned = <List<String>>[];
-    
-    // Always keep the header row (first row with weekday names)
-    if (rawGrid.isNotEmpty) {
-      cleaned.add(rawGrid.first);
-    }
-
     // Helper: check if a row is meaningful (has actual class/time data)
     bool isMeaningfulRow(List<String> row) {
       if (row.length <= 1) return false;
-      
-      // Skip the first column (period/time), check if any other cell has meaningful content
       for (int i = 1; i < row.length; i++) {
         final cell = row[i].trim().toLowerCase();
-        
-        // Skip if empty or just the word "class"
         if (cell.isEmpty || cell == 'class') continue;
-        
-        // Has actual content (class name, subject code, etc.)
         return true;
       }
       return false;
@@ -168,18 +201,16 @@ class FileImportService {
     bool isLunchRow(List<String> row) {
       if (row.isEmpty) return false;
       final firstCell = row.first.toLowerCase();
-      return firstCell.contains('lunch') || 
-             firstCell.contains('12:') || 
-             firstCell.contains('13:');
+      return firstCell.contains('lunch') || firstCell.contains('12:') || firstCell.contains('13:');
     }
 
     // Helper: extract hour:minute from time string
     List<int>? parseTime(String timeStr) {
-      final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(timeStr);
+      final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(timeStr.trim());
       if (match != null) {
         final h = int.tryParse(match.group(1) ?? '');
         final m = int.tryParse(match.group(2) ?? '');
-        return h != null && m != null ? [h, m] : null;
+        if (h != null && m != null) return [h, m];
       }
       return null;
     }
@@ -189,90 +220,66 @@ class FileImportService {
       final t1 = parseTime(time1);
       final t2 = parseTime(time2);
       if (t1 == null || t2 == null) return false;
-      
       final mins1 = t1[0] * 60 + t1[1];
       final mins2 = t2[0] * 60 + t2[1];
       final diff = mins2 - mins1;
-      
-      // Consecutive if 45-55 minutes apart (typical 50-min class)
       return diff >= 45 && diff <= 55;
     }
 
-    // Track previous meaningful row to detect consecutive periods
+    final cleaned = <List<String>>[];
+    cleaned.add(rawGrid.first);
+
     List<String>? previousRow;
-    
     for (int i = 1; i < rawGrid.length; i++) {
       final row = rawGrid[i];
-      
-      // Detect lunch period - always keep it
+
       if (isLunchRow(row)) {
         cleaned.add(row);
-        previousRow = null; // Reset merging
+        previousRow = null;
         continue;
       }
 
-      // Skip non-meaningful rows (empty or just "Class" placeholders)
       if (!isMeaningfulRow(row)) {
         continue;
       }
 
-      // Check if this row is a continuation of the previous period (50+50 min blocks)
-      if (previousRow != null && 
+      if (previousRow != null &&
           row.length == previousRow.length &&
           previousRow.isNotEmpty &&
           row.isNotEmpty &&
           areConsecutiveTimes(previousRow[0], row[0])) {
-        
         bool isSameClass = true;
-        
-        // Compare class cells (skip first column which is time)
         for (int col = 1; col < row.length; col++) {
           final prevCell = previousRow[col].trim();
           final currCell = row[col].trim();
-          
-          // If both cells have content, they should match for it to be the same period
-          if (prevCell.isNotEmpty && currCell.isNotEmpty) {
-            if (prevCell != currCell) {
-              isSameClass = false;
-              break;
-            }
+          if (prevCell.isNotEmpty && currCell.isNotEmpty && prevCell != currCell) {
+            isSameClass = false;
+            break;
           }
         }
 
-        // If it's the same class continuing, merge the time labels
         if (isSameClass) {
           final mergedRow = List<String>.from(previousRow);
-          
-          // Merge time column (e.g., "08:00" + "08:50" → "08:00-09:40")
-          if (row.isNotEmpty && previousRow.isNotEmpty) {
-            final prevTime = previousRow[0].trim();
-            final currTime = row[0].trim();
-            final t1 = parseTime(prevTime);
-            final t2 = parseTime(currTime);
-            
-            if (t1 != null && t2 != null) {
-              // Calculate end time (previous time + ~50 minutes for first block, + 50 for second)
-              final endMins = t2[0] * 60 + t2[1] + 50;
-              final endH = (endMins ~/ 60) % 24;
-              final endM = endMins % 60;
-              mergedRow[0] = '$prevTime-${endH.toString().padLeft(2, '0')}:${endM.toString().padLeft(2, '0')}';
-            }
+          final prevTime = previousRow[0].trim();
+          final currTime = row[0].trim();
+          final t1 = parseTime(prevTime);
+          final t2 = parseTime(currTime);
+          if (t1 != null && t2 != null) {
+            final endMins = t2[0] * 60 + t2[1] + 50;
+            final endH = (endMins ~/ 60) % 24;
+            final endM = endMins % 60;
+            mergedRow[0] = '$prevTime-${endH.toString().padLeft(2, '0')}:${endM.toString().padLeft(2, '0')}';
           }
-          
-          // Fill in any empty cells from the second period
           for (int col = 1; col < row.length; col++) {
             if (mergedRow[col].trim().isEmpty && row[col].trim().isNotEmpty) {
               mergedRow[col] = row[col];
             }
           }
-          
-          // Replace the previous row with merged version
           cleaned[cleaned.length - 1] = mergedRow;
           continue;
         }
       }
 
-      // Add this as a new row
       cleaned.add(row);
       previousRow = row;
     }
@@ -463,6 +470,15 @@ class FileImportService {
 
   /// Intelligently detect what type of file this is based on headers and content
   FileTypeDetection detectFileType(Uint8List bytes, {required String filename}) {
+    final lowerName = filename.toLowerCase();
+    if (lowerName.endsWith('.ics')) {
+      return const FileTypeDetection(
+        type: ImportFileType.calendar,
+        message: 'Calendar file detected (.ics)',
+        suggestion: 'Import this in Teacher Dashboard → Schedule tab.',
+      );
+    }
+
     try {
       final isZip = bytes.length > 3 && bytes[0] == 0x50 && bytes[1] == 0x4B;
       List<String> headers = [];

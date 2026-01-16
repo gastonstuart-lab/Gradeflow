@@ -12,17 +12,20 @@ class CalculationService {
     if (items.isEmpty) return null;
     
     final itemScores = items.map((item) {
-      final score = scores.firstWhere(
-        (s) => s.gradeItemId == item.gradeItemId,
-        orElse: () => StudentScore(
-          studentId: '',
-          gradeItemId: item.gradeItemId,
-          score: null,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      );
-      return score.score != null ? (score.score! / item.maxScore) * 100 : null;
+      // Default behavior: if a score row is missing entirely, treat it as
+      // full marks (100%) until the teacher changes it.
+      // If a score row exists but is explicitly null (cleared), keep it null.
+      StudentScore? existing;
+      for (final s in scores) {
+        if (s.gradeItemId == item.gradeItemId) {
+          existing = s;
+          break;
+        }
+      }
+
+      if (existing == null) return 100.0;
+      if (existing.score == null) return null;
+      return (existing.score! / item.maxScore) * 100;
     }).where((s) => s != null).cast<double>().toList();
     
     if (itemScores.isEmpty) return null;

@@ -28,6 +28,7 @@ import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
+import 'package:gradeflow/components/time_slot_timetable.dart';
 
 class TeacherDashboardScreen extends StatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -1793,7 +1794,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                               try {
                                 // Show AI analysis dialog
                                 final aiService = AiImportService();
-                                final aiOutput = await showDialog<AiImportOutput?>(
+                                await showDialog<AiImportOutput?>(
                                   context: context,
                                   builder: (aiCtx) {
                                     return FutureBuilder<AiImportOutput?>(
@@ -2009,6 +2010,72 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
+  List<TimeSlotClass> _parseGridToTimeSlots(List<List<String>> grid) {
+    final slots = <TimeSlotClass>[];
+    if (grid.isEmpty) return slots;
+
+    final dayMap = {
+      'mon': 0, 'monday': 0,
+      'tue': 1, 'tuesday': 1,
+      'wed': 2, 'wednesday': 2,
+      'thu': 3, 'thursday': 3,
+      'fri': 4, 'friday': 4,
+    };
+
+    List<int> headerDays = [];
+    for (int r = 0; r < (grid.length > 2 ? 2 : grid.length); r++) {
+      final row = grid[r];
+      final normalized = row.map((c) => c.toLowerCase().trim()).toList();
+      int dayCount = 0;
+      for (final norm in normalized) {
+        if (dayMap.containsKey(norm)) dayCount++;
+      }
+      if (dayCount >= 3) {
+        headerDays = normalized.map((h) => dayMap[h] ?? -1).toList();
+        break;
+      }
+    }
+
+    if (headerDays.isEmpty) return slots;
+
+    for (int r = 1; r < grid.length; r++) {
+      final row = grid[r];
+      if (row.isEmpty || row.every((c) => c.trim().isEmpty)) continue;
+
+      String timeStr = row.isNotEmpty ? row[0].trim() : '';
+      int startMin = 0, endMin = 60;
+
+      final timeMatch = RegExp(r'(\d{1,2}):(\d{2})(?:-(\d{1,2}):(\d{2}))?').firstMatch(timeStr);
+      if (timeMatch != null) {
+        final startH = int.tryParse(timeMatch.group(1) ?? '0') ?? 0;
+        final startM = int.tryParse(timeMatch.group(2) ?? '0') ?? 0;
+        startMin = startH * 60 + startM;
+        if (timeMatch.group(3) != null) {
+          final endH = int.tryParse(timeMatch.group(3) ?? '0') ?? 0;
+          final endM = int.tryParse(timeMatch.group(4) ?? '0') ?? 0;
+          endMin = endH * 60 + endM;
+        } else {
+          endMin = startMin + 50;
+        }
+      }
+
+      for (int c = 1; c < row.length && c < headerDays.length; c++) {
+        final className = row[c].trim();
+        if (className.isEmpty) continue;
+        final dayOfWeek = headerDays[c];
+        if (dayOfWeek < 0 || dayOfWeek >= 5) continue;
+        slots.add(TimeSlotClass(
+          title: className,
+          dayOfWeek: dayOfWeek,
+          startMinutes: startMin,
+          endMinutes: endMin,
+        ));
+      }
+    }
+
+    return slots;
+  }
+
   Future<void> _openTimetableViewer(_Timetable timetable) async {
     final initialGrid = timetable.grid;
     if (initialGrid == null || initialGrid.isEmpty) {
@@ -2025,6 +2092,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           row.map((cell) => TextEditingController(text: cell)).toList());
     }
 
+    // Parse grid to time slots for visual display
+    final timeSlots = _parseGridToTimeSlots(initialGrid);
+
     await showDialog<void>(
       context: context,
       builder: (ctx) => Dialog(
@@ -2034,6 +2104,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           constraints: const BoxConstraints(maxWidth: 1200),
           child: StatefulBuilder(
             builder: (ctx, setLocalState) {
+              bool showVisual = timeSlots.isNotEmpty;
+
               Widget cellField(int r, int c) {
                 // Bounds check to prevent IndexError
                 if (r >= controllers.length || c >= controllers[r].length) {
@@ -2094,14 +2166,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 );
               }
 
-              final rows = controllers.length;
-              final cols = controllers.isEmpty
-                  ? 0
-                  : controllers.map((r) => r.length).reduce((a, b) => a > b ? a : b);
-
               return Column(
                 children: [
-                  // Header
+                  // Header with toggle
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -2116,7 +2183,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.table_chart,
+                          showVisual ? Icons.grid_on : Icons.table_chart,
                           color: Theme.of(ctx).colorScheme.primary,
                           size: 28,
                         ),
@@ -2133,7 +2200,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Edit your timetable by clicking any cell',
+                                showVisual
+                                    ? 'Visual timetable preview'
+                                    : 'Edit cells to update your timetable',
                                 style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                                       color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                                     ),
@@ -2141,6 +2210,22 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             ],
                           ),
                         ),
+                        if (timeSlots.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: SegmentedButton<bool>(
+                              segments: const [
+                                ButtonSegment(label: Text('Visual'), value: true),
+                                ButtonSegment(label: Text('Edit'), value: false),
+                              ],
+                              selected: {showVisual},
+                              onSelectionChanged: (newSelection) {
+                                setLocalState(() {
+                                  showVisual = newSelection.first;
+                                });
+                              },
+                            ),
+                          ),
                         IconButton(
                           icon: const Icon(Icons.close),
                           onPressed: () => Navigator.pop(ctx),
@@ -2149,25 +2234,38 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       ],
                     ),
                   ),
-                  // Timetable content
+                  // Content area
                   Expanded(
-                    child: Container(
-                      color: Theme.of(ctx).colorScheme.surface,
-                      padding: const EdgeInsets.all(20),
-                      child: Card(
-                        elevation: 2,
-                        clipBehavior: Clip.antiAlias,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minWidth: MediaQuery.of(ctx).size.width * 0.8,
+                    child: showVisual
+                        ? SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: SizedBox(
+                                height: 500,
+                                child: TimeSlotTimetable(
+                                  classes: timeSlots,
+                                  weekStart: DateTime.now(),
+                                ),
+                              ),
                             ),
-                            child: SingleChildScrollView(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  // Header row with day names
+                          )
+                        : Container(
+                            color: Theme.of(ctx).colorScheme.surface,
+                            padding: const EdgeInsets.all(20),
+                            child: Card(
+                              elevation: 2,
+                              clipBehavior: Clip.antiAlias,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minWidth: MediaQuery.of(ctx).size.width * 0.8,
+                                  ),
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        // Header row with day names
                                   if (cols > 1)
                                     IntrinsicHeight(
                                       child: Row(
@@ -2244,7 +2342,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              '$rows rows × $cols columns',
+                              '${controllers.length} rows × ${controllers.isEmpty ? 0 : controllers.map((r) => r.length).reduce((a, b) => a > b ? a : b)} columns',
                               style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                                     color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                                   ),
@@ -3737,8 +3835,32 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   }
 
   Future<void> _importScheduleFromBytes(Uint8List bytes, String filename) async {
-    final rows = FileImportService().rowsFromAnyBytes(bytes);
+    // **Show loading dialog immediately**
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Processing Calendar...'),
+        content: SizedBox(
+          width: 400,
+          height: 100,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Analyzing your file...'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final rows = FileImportService().rowsFromAnyBytes(bytes);
       if (rows.isEmpty) {
+        if (mounted) Navigator.pop(context);
         await _showImportDiagnosticsDialog(
           title: 'Could not read schedule file',
           filename: filename,
@@ -3824,6 +3946,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           if (imported > 0) {
             if (mounted) {
               setState(() => _reminders.addAll(remindersToAdd));
+              Navigator.pop(context); // Close loading dialog
             }
             await _saveReminders();
             if (mounted) {
@@ -3835,6 +3958,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           }
         }
 
+        if (mounted) Navigator.pop(context); // Close loading dialog
         await _showImportDiagnosticsDialog(
           title: 'Missing required columns',
           filename: filename,
@@ -3844,6 +3968,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         );
         return;
       }
+
+      if (mounted) Navigator.pop(context); // Close loading dialog
 
       int imported = 0;
       for (int i = 1; i < rows.length; i++) {
@@ -3878,8 +4004,20 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       }
       await _saveReminders();
       if (mounted) {
+        Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Imported $imported reminders')));
+      }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Close loading dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Calendar import error: ${e.toString().substring(0, 80)}'),
+                duration: const Duration(seconds: 5),
+              ));
+        }
+        debugPrint('[CALENDAR] Import error: $e');
       }
   }
 

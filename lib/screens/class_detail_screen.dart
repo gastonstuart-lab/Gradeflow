@@ -328,8 +328,8 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                             )
                           : const Icon(Icons.login),
                       label: Text(_driveAccessToken == null
-                          ? 'Sign in with Google'
-                          : 'Signed in'),
+                          ? 'Connect Google Drive'
+                          : 'Drive connected'),
                       onPressed: _driveSigningIn
                           ? null
                           : () => _ensureDriveAccessToken(),

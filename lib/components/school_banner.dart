@@ -50,26 +50,28 @@ class SchoolBannerBar extends StatelessWidget implements PreferredSizeWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo with circular subtle background
+                // Clean, prominent logo with subtle glow
                 Container(
-                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                      ),
+                      BoxShadow(
                         color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 10,
                         offset: const Offset(0, 2),
-                        blurRadius: 8,
                       ),
                     ],
                   ),
                   child: Image.asset(
                     primaryLogo,
-                    height: 64,
-                    width: 64,
+                    height: 88,
+                    width: 88,
                     errorBuilder: (context, error, stack) =>
-                        Image.asset(fallbackLogo, height: 64, width: 64),
+                        Image.asset(fallbackLogo, height: 88, width: 88),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),

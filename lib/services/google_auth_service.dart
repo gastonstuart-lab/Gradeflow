@@ -1,6 +1,9 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:gradeflow/google/google_config.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:gradeflow/services/firebase_service.dart';
 
 class GoogleAuthResult {
   GoogleAuthResult._(
@@ -78,6 +81,38 @@ class GoogleAuthService {
   /// blocked by the browser popup blocker.
   Future<GoogleAuthResult> ensureAccessTokenDetailed(
       {bool interactive = true}) async {
+    // Web: Prefer Firebase Auth popup with Drive scope.
+    // This avoids depending on a separately maintained Web OAuth client ID.
+    if (kIsWeb && FirebaseService.isAvailable) {
+      if (!interactive) {
+        return GoogleAuthResult._(error: 'not_signed_in');
+      }
+      try {
+        final provider = fb.GoogleAuthProvider()
+          ..addScope('email')
+          ..addScope('profile')
+          ..addScope('https://www.googleapis.com/auth/drive.readonly');
+
+        final cred = await fb.FirebaseAuth.instance.signInWithPopup(provider);
+        final authCred = cred.credential;
+        if (authCred is fb.OAuthCredential) {
+          final accessToken = authCred.accessToken;
+          final idToken = authCred.idToken;
+          if (accessToken == null || accessToken.isEmpty) {
+            return GoogleAuthResult._(
+                error: 'No Google access token returned for Drive scope.');
+          }
+          // Persist token for re-use during Drive calls within session
+          return GoogleAuthResult._(accessToken: accessToken, idToken: idToken);
+        }
+
+        return GoogleAuthResult._(
+            error: 'Unexpected credential type returned by FirebaseAuth.');
+      } catch (e, st) {
+        return GoogleAuthResult._(error: e, stackTrace: st);
+      }
+    }
+
     GoogleSignInAccount? user;
     try {
       user = await _googleSignIn.signInSilently();

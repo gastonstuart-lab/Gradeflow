@@ -529,8 +529,8 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
                           color: Theme.of(context).colorScheme.onSurface),
                     )
                   : const Icon(Icons.login),
-              tooltip: _driveAccessToken == null
-                  ? 'Sign in with Google (Drive)'
+                tooltip: _driveAccessToken == null
+                  ? 'Drive uses your Google login (auto-connect)'
                   : 'Google Drive connected',
               onPressed: _driveSigningIn ? null : _ensureDriveAccessToken,
             ),

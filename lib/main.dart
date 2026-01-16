@@ -7,6 +7,7 @@ import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/firebase_service.dart';
+import 'package:responsive_framework/responsive_framework.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,6 +61,18 @@ class _MyAppState extends State<MyApp> {
             darkTheme: darkTheme,
             themeMode: themeModeNotifier.themeMode,
             routerConfig: AppRouter.router,
+            builder: (context, child) {
+              return ResponsiveBreakpoints.builder(
+                child: child!,
+                breakpoints: const [
+                  Breakpoint(start: 0, end: 479, name: PHONE),
+                  Breakpoint(start: 480, end: 767, name: TABLET),
+                  Breakpoint(start: 768, end: 1023, name: 'TABLET_LANDSCAPE'),
+                  Breakpoint(start: 1024, end: 1439, name: DESKTOP),
+                  Breakpoint(start: 1440, end: double.infinity, name: 'XL'),
+                ],
+              );
+            },
           );
         },
       ),

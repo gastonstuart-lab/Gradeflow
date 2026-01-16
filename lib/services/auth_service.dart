@@ -80,6 +80,36 @@ class AuthService extends ChangeNotifier {
     }
 
     try {
+      // Web: use Firebase Auth popup/redirect flow.
+      // This avoids brittle manual OAuth client-id wiring and is the most
+      // reliable way to do Google sign-in for Firebase on Flutter web.
+      if (kIsWeb) {
+        // Also request Drive scope so Google Drive features work immediately
+        // after Google login (one consent instead of a separate “connect Drive”).
+        final provider = fb.GoogleAuthProvider()
+          ..addScope('email')
+          ..addScope('profile')
+          ..addScope('https://www.googleapis.com/auth/drive.readonly');
+        final cred = await fb.FirebaseAuth.instance.signInWithPopup(provider);
+        final u = cred.user;
+        if (u == null) {
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+
+        _currentUser = _userFromFirebase(u);
+        await RepositoryFactory.initialize(userId: u.uid);
+        await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_currentUserKey, json.encode(_currentUser!.toJson()));
+
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+
       final googleAuth = _googleAuth ?? GoogleAuthService();
       final result = await googleAuth.ensureAccessTokenDetailed(interactive: true);
       if (!result.ok) {
@@ -130,7 +160,32 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
     
     try {
-      // Email/password is local-only for now.
+      // Prefer Firebase Auth when available (production).
+      if (FirebaseService.isAvailable) {
+        try {
+          final cred = await fb.FirebaseAuth.instance
+              .signInWithEmailAndPassword(email: email.trim(), password: password);
+          final u = cred.user;
+          if (u != null) {
+            _currentUser = _userFromFirebase(u);
+            await RepositoryFactory.initialize(userId: u.uid);
+            await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString(
+                _currentUserKey, json.encode(_currentUser!.toJson()));
+
+            _isLoading = false;
+            notifyListeners();
+            return true;
+          }
+        } catch (e) {
+          // Fall back to local login (demo/offline) if Firebase login fails.
+          debugPrint('Firebase email/password login failed (falling back): $e');
+        }
+      }
+
+      // Local-only account login (demo/offline mode).
       RepositoryFactory.useLocal();
 
       final prefs = await SharedPreferences.getInstance();
