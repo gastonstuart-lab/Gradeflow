@@ -1,13 +1,22 @@
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/services/file_import_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
+import 'package:gradeflow/models/class_schedule_item.dart';
+import 'dart:convert';
+import 'package:csv/csv.dart';
 
 class AiImportOutput {
   final List<ImportedClass> classesMeta; // May have null subject/year/term
   final Map<String, List<ImportedStudent>> byClass; // key is className/classCode
   final List<String> errors;
+  final List<ClassScheduleItem> items; // For schedule imports
 
-  AiImportOutput({required this.classesMeta, required this.byClass, required this.errors});
+  AiImportOutput({
+    required this.classesMeta, 
+    required this.byClass, 
+    required this.errors,
+    this.items = const [],
+  });
 }
 
 class AiImportService {
@@ -386,5 +395,56 @@ Filename: ${filename ?? 'unknown'}
 CSV_SAMPLE_START
 $csvSample
 CSV_SAMPLE_END''';
+  }
+
+  Future<AiImportOutput?> analyzeScheduleFromBytes(List<int> bytes, {String? filename}) async {
+    try {
+      if (bytes.isEmpty) return null;
+
+      // Decode bytes to CSV
+      final csvString = utf8.decode(bytes);
+      final List<List<dynamic>> rowsData = const CsvToListConverter().convert(csvString);
+      final rows = rowsData.map((row) => row.map((cell) => cell.toString()).toList()).toList();
+      
+      if (rows.isEmpty) return null;
+
+      // Use AI to analyze the schedule file
+      final result = await analyzeTimetableFromRows(rows, filename: filename);
+      
+      final rawItems = (result['items'] as List<dynamic>?) ?? [];
+      final List<ClassScheduleItem> items = [];
+      
+      // Convert raw AI output to ClassScheduleItem objects
+      for (final item in rawItems) {
+        final map = item as Map<String, dynamic>;
+        try {
+          final dateStr = map['date'] as String?;
+          final title = map['title'] as String? ?? 'Untitled';
+          final week = map['week'] as int?;
+          final details = Map<String, String>.from(
+            (map['details'] as Map<dynamic, dynamic>?) ?? {}
+          );
+          
+          items.add(ClassScheduleItem(
+            title: title,
+            date: dateStr != null ? DateTime.tryParse(dateStr) : null,
+            week: week,
+            details: details,
+          ));
+        } catch (e) {
+          debugPrint('Failed to parse schedule item: $e');
+        }
+      }
+
+      return AiImportOutput(
+        classesMeta: [],
+        byClass: {},
+        errors: (result['errors'] as List<dynamic>?)?.cast<String>() ?? [],
+        items: items,
+      );
+    } catch (e) {
+      debugPrint('Schedule AI analysis failed: $e');
+      return null;
+    }
   }
 }
