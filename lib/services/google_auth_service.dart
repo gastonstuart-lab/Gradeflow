@@ -84,10 +84,40 @@ class GoogleAuthService {
     // Web: Prefer Firebase Auth popup with Drive scope.
     // This avoids depending on a separately maintained Web OAuth client ID.
     if (kIsWeb && FirebaseService.isAvailable) {
-      if (!interactive) {
-        return GoogleAuthResult._(error: 'not_signed_in');
-      }
       try {
+        final currentUser = fb.FirebaseAuth.instance.currentUser;
+        
+        // If user already signed in, try to get their Google OAuth credential
+        if (currentUser != null) {
+          try {
+            // Force token refresh to get fresh OAuth token
+            final credential = await currentUser.getIdTokenResult(true);
+            
+            // Check if this is a Google-authenticated user
+            if (credential.signInProvider == 'google.com') {
+              // Get the OAuth access token from the credential
+              // Note: Firebase doesn't directly expose the Google OAuth token after login,
+              // so we need to re-authenticate to get it
+              if (!interactive) {
+                // Can't refresh without interaction
+                return GoogleAuthResult._(error: 'Token expired, re-sign-in needed');
+              }
+              // Fall through to re-authenticate
+            } else if (!interactive) {
+              // Non-Google user, can't get Drive access without interaction
+              return GoogleAuthResult._(error: 'not_signed_in');
+            }
+          } catch (_) {
+            // Token refresh failed, fall through to re-auth
+            if (!interactive) {
+              return GoogleAuthResult._(error: 'not_signed_in');
+            }
+          }
+        } else if (!interactive) {
+          return GoogleAuthResult._(error: 'not_signed_in');
+        }
+
+        // Interactive sign-in with Drive scope
         final provider = fb.GoogleAuthProvider()
           ..addScope('email')
           ..addScope('profile')
@@ -102,7 +132,7 @@ class GoogleAuthService {
             return GoogleAuthResult._(
                 error: 'No Google access token returned for Drive scope.');
           }
-          // Persist token for re-use during Drive calls within session
+          // Return the OAuth access token (used for Drive API calls)
           return GoogleAuthResult._(accessToken: accessToken, idToken: idToken);
         }
 

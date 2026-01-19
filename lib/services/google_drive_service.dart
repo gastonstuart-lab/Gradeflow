@@ -171,7 +171,7 @@ class GoogleDriveService {
 
   Future<Uint8List> exportFileBytes(
       String fileId, String exportMimeType) async {
-    final auth = await _auth.ensureAccessTokenDetailed();
+    final auth = await _auth.ensureAccessTokenDetailed(interactive: true);
     if (!auth.ok) {
       throw StateError(auth.userMessage());
     }
@@ -195,7 +195,7 @@ class GoogleDriveService {
   }
 
   Future<Uint8List> downloadFileBytes(String fileId) async {
-    final auth = await _auth.ensureAccessTokenDetailed();
+    final auth = await _auth.ensureAccessTokenDetailed(interactive: true);
     if (!auth.ok) {
       throw StateError(auth.userMessage());
     }
