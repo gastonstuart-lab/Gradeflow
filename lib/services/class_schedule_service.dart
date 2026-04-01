@@ -27,6 +27,11 @@ class ClassScheduleService {
     await prefs.setString(_key(classId), jsonEncode(data));
   }
 
+  Future<void> clear(String classId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key(classId));
+  }
+
   List<ClassScheduleItem> parseFromBytes(Uint8List bytes) {
     final rows = FileImportService().rowsFromAnyBytes(bytes);
     return parseFromRows(rows);
@@ -37,6 +42,7 @@ class ClassScheduleService {
 
     int headerIdx = _pickHeaderRowIndex(rows);
     final header = rows[headerIdx].map(_norm).toList();
+    final yearHint = _inferYearHint(rows, headerIdx);
 
     final calendarEventIdx = _findCalendarEventColumnIndex(header);
     final calendarMonthIdx = _findHeaderIndex(header, ['month']);
@@ -91,7 +97,8 @@ class ClassScheduleService {
 
       DateTime? date;
       if (dateIdx != -1) {
-        date = _parseDateFlexible(cell(row, dateIdx));
+        date = _parseDateFlexible(cell(row, dateIdx)) ??
+            _parseDateRangeStart(cell(row, dateIdx), yearHint: yearHint);
       }
 
       int? week;
@@ -383,6 +390,40 @@ class ClassScheduleService {
     }
 
     return null;
+  }
+
+  int? _inferYearHint(List<List<String>> rows, int headerIdx) {
+    final scanMax = headerIdx < 0 ? 0 : (headerIdx + 1).clamp(0, 10);
+    for (int i = 0; i < scanMax; i++) {
+      final line = rows[i].join(' ');
+      final m = RegExp(r'\b(20\d{2})\b').firstMatch(line);
+      if (m != null) {
+        final year = int.tryParse(m.group(1)!);
+        if (year != null && year >= 2000 && year <= 2100) return year;
+      }
+    }
+    return null;
+  }
+
+  DateTime? _parseDateRangeStart(String input, {int? yearHint}) {
+    final s = input.trim();
+    if (s.isEmpty) return null;
+
+    // Handles values like "2/23-2/28", "03/01 - 03/07", "3/1~3/7".
+    final m = RegExp(r'(\d{1,2})\s*/\s*(\d{1,2})').firstMatch(s);
+    if (m == null) return null;
+
+    final month = int.tryParse(m.group(1) ?? '');
+    final day = int.tryParse(m.group(2) ?? '');
+    if (month == null || day == null) return null;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+    final year = yearHint ?? DateTime.now().year;
+    try {
+      return DateTime(year, month, day);
+    } catch (_) {
+      return null;
+    }
   }
 
   String _norm(String s) {

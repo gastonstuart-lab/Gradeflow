@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
+import 'package:gradeflow/services/demo_data_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/services/grade_item_service.dart';
@@ -76,12 +78,31 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
   }
 
   Future<void> _loadData() async {
+    final authService = context.read<AuthService>();
+    final classService = context.read<ClassService>();
     final studentService = context.read<StudentService>();
     final categoryService = context.read<GradingCategoryService>();
     final gradeItemService = context.read<GradeItemService>();
     final scoreService = context.read<StudentScoreService>();
     final examService = context.read<FinalExamService>();
     final scheduleService = ClassScheduleService();
+
+    final user = authService.currentUser;
+    if (user != null && classService.getClassById(widget.classId) == null) {
+      if (DemoDataService.isDemoUser(user)) {
+        await DemoDataService.ensureDemoWorkspace(
+          teacherId: user.userId,
+          classService: classService,
+          studentService: studentService,
+          categoryService: categoryService,
+          gradeItemService: gradeItemService,
+          scoreService: scoreService,
+          examService: examService,
+        );
+      } else {
+        await classService.loadClasses(user.userId);
+      }
+    }
 
     await studentService.loadStudents(widget.classId);
     await categoryService.loadCategories(widget.classId);
@@ -202,6 +223,16 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                       subtitle: 'View and manage students',
                       onTap: () =>
                           context.push('/class/${widget.classId}/students'),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AnimatedGlowBorder(
+                    child: _ActionButton(
+                      icon: Icons.event_seat_outlined,
+                      title: 'Seating Plan',
+                      subtitle: 'Design layouts and print substitute handouts',
+                      onTap: () =>
+                          context.push('/class/${widget.classId}/seating'),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),

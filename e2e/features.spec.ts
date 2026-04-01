@@ -43,6 +43,40 @@ test('Export: Grade export screen loads', async ({ page }) => {
   }
 });
 
+test('Seating: editor and full screen flow loads', async ({ page }) => {
+  test.setTimeout(120_000);
+
+  await page.goto('/');
+  await ensureDemoSignedIn(page);
+
+  await page.goto('/#/class/demo-class-1/seating');
+  await ensureFlutterSemantics(page);
+
+  await expect(page.getByRole('heading', { name: /Grade 10A Seating/i })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(
+    page.getByRole('checkbox', { name: /^Edit room$/i }),
+  ).toBeVisible();
+
+  const editRoom = page.getByRole('checkbox', { name: /^Edit room$/i });
+  await editRoom.click();
+  await expect(page.getByText(/Edit room is on\./i)).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /^Show menu Add furniture$/i }),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: /^Show menu Add furniture$/i }).click();
+  await page.getByRole('menuitem', { name: /^Desk$/i }).click();
+  await expect(page.getByRole('button', { name: 'Edit table' })).toBeVisible();
+
+  await page.getByRole('button', { name: /^Full screen$/i }).click();
+  await expect(page.getByRole('heading', { name: /Seating chart/i })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByRole('heading', { name: /Grade 10A Seating/i })).toBeVisible();
+});
+
 test('Routing: Direct navigation works without refresh', async ({ page }) => {
   test.setTimeout(120_000);
 

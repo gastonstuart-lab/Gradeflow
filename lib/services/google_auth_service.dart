@@ -73,6 +73,22 @@ class GoogleAuthService {
             );
 
   final GoogleSignIn _googleSignIn;
+  String? _cachedWebAccessToken;
+  String? _cachedWebIdToken;
+  DateTime? _cachedWebTokenAt;
+
+  bool get _hasFreshWebToken {
+    final token = _cachedWebAccessToken;
+    final at = _cachedWebTokenAt;
+    if (token == null || token.isEmpty || at == null) return false;
+    return DateTime.now().difference(at) < const Duration(minutes: 50);
+  }
+
+  void _cacheWebTokens({required String accessToken, String? idToken}) {
+    _cachedWebAccessToken = accessToken;
+    _cachedWebIdToken = idToken;
+    _cachedWebTokenAt = DateTime.now();
+  }
 
   /// Ensures an access token is available.
   ///
@@ -85,22 +101,29 @@ class GoogleAuthService {
     // This avoids depending on a separately maintained Web OAuth client ID.
     if (kIsWeb && FirebaseService.isAvailable) {
       try {
+        if (!interactive && _hasFreshWebToken) {
+          return GoogleAuthResult._(
+            accessToken: _cachedWebAccessToken,
+            idToken: _cachedWebIdToken,
+          );
+        }
+
         final currentUser = fb.FirebaseAuth.instance.currentUser;
-        
+
         // If user already signed in, try to get their Google OAuth credential
         if (currentUser != null) {
           try {
             // Force token refresh to get fresh OAuth token
             final credential = await currentUser.getIdTokenResult(true);
-            
+
             // Check if this is a Google-authenticated user
             if (credential.signInProvider == 'google.com') {
               // Get the OAuth access token from the credential
               // Note: Firebase doesn't directly expose the Google OAuth token after login,
               // so we need to re-authenticate to get it
               if (!interactive) {
-                // Can't refresh without interaction
-                return GoogleAuthResult._(error: 'Token expired, re-sign-in needed');
+                return GoogleAuthResult._(
+                    error: 'Token expired, re-sign-in needed');
               }
               // Fall through to re-authenticate
             } else if (!interactive) {
@@ -132,6 +155,7 @@ class GoogleAuthService {
             return GoogleAuthResult._(
                 error: 'No Google access token returned for Drive scope.');
           }
+          _cacheWebTokens(accessToken: accessToken, idToken: idToken);
           // Return the OAuth access token (used for Drive API calls)
           return GoogleAuthResult._(accessToken: accessToken, idToken: idToken);
         }
@@ -177,11 +201,15 @@ class GoogleAuthService {
     final result = await ensureAccessTokenDetailed();
     return result.accessToken;
   }
+
   Future<void> signOut() async {
     try {
       await _googleSignIn.signOut();
     } catch (_) {
       // Ignore
     }
+    _cachedWebAccessToken = null;
+    _cachedWebIdToken = null;
+    _cachedWebTokenAt = null;
   }
 }

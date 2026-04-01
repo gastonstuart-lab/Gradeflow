@@ -13,6 +13,8 @@ import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/components/school_banner.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:gradeflow/components/drive_file_picker_dialog.dart';
+import 'package:gradeflow/components/pilot_feedback_card.dart';
+import 'package:gradeflow/components/pilot_feedback_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,7 +24,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'dart:math' as math;
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
@@ -38,6 +39,18 @@ class TeacherDashboardScreen extends StatefulWidget {
 }
 
 class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
+  static const String _defaultAttendancePortalUrl =
+      'https://fsis.hn.thu.edu.tw/csn1t/permain.asp';
+  static const String _legacyRemindersPrefsKey = 'dashboard_reminders';
+  static const String _legacyAttendanceUrlPrefsKey = 'attendance_url';
+  static const String _legacyQuickLinksPrefsKey = 'custom_quick_links';
+  static const String _remindersMigrationFlagKey =
+      'dashboard_reminders_migrated_v1';
+  static const String _attendanceUrlMigrationFlagKey =
+      'dashboard_attendance_url_migrated_v1';
+  static const String _quickLinksMigrationFlagKey =
+      'dashboard_quick_links_migrated_v1';
+
   Timer? _timer;
   final ValueNotifier<DateTime> _nowNotifier = ValueNotifier(DateTime.now());
 
@@ -52,6 +65,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   final TextEditingController _reminderCtrl = TextEditingController();
   // Attendance link (simple local URL field)
   final TextEditingController _attendanceUrlCtrl = TextEditingController();
+  final TextEditingController _googleSearchCtrl = TextEditingController();
+  final TextEditingController _askAiCtrl = TextEditingController();
 
   // Quick Links (default + user-added)
   final List<_QuickLink> _customLinks = [];
@@ -71,7 +86,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   final List<String> _toolTabs = [
     'Name Picker',
     'Groups',
-    'Seating',
     'Participation',
     'Schedule',
     'Quick Poll',
@@ -82,11 +96,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   // Summary range for reminders panel (Week or Month)
   _SummaryRange _summaryRange = _SummaryRange.week;
-
-  // Seating designer: freeform tables with multiple seats, per class
-  final Map<String, List<_SeatTable>> _seatingByClass = {}; // classId -> tables
-  bool _seatDesignMode = false; // Design tables layout vs Assign students (default: Assign mode)
-  int _newTableSeats = 4; // Default capacity for newly added tables
 
   // Participation counters (per class)
   final Map<String, Map<String, int>> _participation =
@@ -112,6 +121,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   final ClassScheduleService _classScheduleService = ClassScheduleService();
   final Map<String, List<ClassScheduleItem>> _scheduleByClass = {};
   bool _scheduleBusy = false;
+  String? _dashboardPrefsUserId;
 
   Future<void> _showImportDiagnosticsDialog({
     required String title,
@@ -143,7 +153,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             TextButton(
               onPressed: () async {
                 final rows = FileImportService().rowsFromAnyBytes(bytes);
-                
+
                 try {
                   final result = await showDialog<Map<String, dynamic>>(
                     context: context,
@@ -153,7 +163,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       confirmLabel: 'Import events',
                       hint:
                           'If this looks correct, press Import events to add reminders.',
-                      analyze: () => AiImportService().analyzeSchoolCalendarFromRows(
+                      analyze: () =>
+                          AiImportService().analyzeSchoolCalendarFromRows(
                         rows,
                         filename: filename,
                       ),
@@ -165,7 +176,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   if (events is! List) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('AI did not return valid events. Please try a different file format.')));
+                          content: Text(
+                              'AI did not return valid events. Please try a different file format.')));
                     }
                     return;
                   }
@@ -179,14 +191,16 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     final d = DateTime.tryParse(dateStr);
                     if (d == null) continue;
                     final details = (e['details'] ?? '').toString().trim();
-                    final t = details.isEmpty ? titleStr : '$titleStr — $details';
+                    final t =
+                        details.isEmpty ? titleStr : '$titleStr - $details';
                     remindersToAdd.add(_Reminder(t, d, done: false));
                   }
 
                   if (remindersToAdd.isEmpty) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('No valid events found. Try a file with Date and Title columns.')));
+                          content: Text(
+                              'No valid events found. Try a file with Date and Title columns.')));
                     }
                     return;
                   }
@@ -198,13 +212,14 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   if (!context.mounted) return;
                   Navigator.of(ctx).pop();
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content:
-                          Text('Imported ${remindersToAdd.length} events from AI')));
+                      content: Text(
+                          'Imported ${remindersToAdd.length} events from AI')));
                 } catch (e) {
                   // AI failed - show helpful error message
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text('AI analysis failed: ${e.toString().contains('quota') ? 'API quota exceeded' : 'Connection error'}'),
+                      content: Text(
+                          'AI analysis failed: ${e.toString().contains('quota') ? 'API quota exceeded' : 'Connection error'}'),
                       duration: const Duration(seconds: 4),
                     ));
                   }
@@ -238,18 +253,22 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       if (!mounted) return;
       _nowNotifier.value = DateTime.now();
     });
-    // Initialize attendance portal URL (customizable by teacher - empty by default)
-    _attendanceUrlCtrl.text = '';
-    _loadData();
-    // Load saved reminders so weekly panel reflects calendar changes immediately
-    unawaited(_loadReminders());
-    // Load quick links (attendance URL and custom)
-    unawaited(_loadQuickLinks());
-
-    // Load timetables (upload + select)
-    unawaited(_loadTimetables());
+    // Default to the school attendance portal unless the teacher overrides it.
+    _attendanceUrlCtrl.text = _defaultAttendancePortalUrl;
     // Do not prefill QR text; leave empty so teacher enters student-targeted content
     // _qrCtrl.text = _attendanceUrlCtrl.text;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userId = _dashboardStorageUserId();
+    if (_dashboardPrefsUserId == userId) return;
+    _dashboardPrefsUserId = userId;
+    unawaited(_loadData());
+    unawaited(_loadReminders());
+    unawaited(_loadQuickLinks());
+    unawaited(_loadTimetables());
   }
 
   Widget _buildQrTool(BuildContext context) {
@@ -430,32 +449,37 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   void _refreshNames() async {
     final studentService = context.read<StudentService>();
-    if (_selectedClassId == null) {
-      setState(() => _currentNames = []);
+    final classId = _selectedClassId;
+    if (classId == null) {
+      _safeSetState(() => _currentNames = []);
       return;
     }
-    await studentService.loadStudents(_selectedClassId!);
+    await studentService.loadStudents(classId);
+    if (!mounted || _selectedClassId != classId) return;
     final names = studentService.students
         .map((s) => '${s.chineseName} (${s.englishFullName})')
         .toList();
-    setState(() => _currentNames = names);
+    _safeSetState(() => _currentNames = names);
 
     // Load schedule for this class (async, cached)
     if (_selectedClassId != null) {
-      unawaited(_loadClassSchedule(_selectedClassId!));
+      unawaited(_loadClassSchedule(classId));
     }
     // Initialize participation counts for this class
     if (_selectedClassId != null) {
-      _participation.putIfAbsent(_selectedClassId!, () => {});
+      _participation.putIfAbsent(classId, () => {});
       for (final n in names) {
-        _participation[_selectedClassId!]!.putIfAbsent(n, () => 0);
+        _participation[classId]!.putIfAbsent(n, () => 0);
       }
       // Initialize poll counts for this class
       _pollCountsByClass.putIfAbsent(
-          _selectedClassId!, () => {'A': 0, 'B': 0, 'C': 0, 'D': 0});
-      // Load seating layout for this class
-      unawaited(_loadSeatingLayoutForClass());
+          classId, () => {'A': 0, 'B': 0, 'C': 0, 'D': 0});
     }
+  }
+
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+    setState(fn);
   }
 
   Future<void> _loadClassSchedule(String classId) async {
@@ -494,187 +518,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
       final bytes = picked.files.single.bytes!;
       final filename = picked.files.single.name;
-
-      // Use AI to analyze the schedule file first
-      final aiService = AiImportService();
-      final aiOutput = await showDialog<AiImportOutput?>(
-        context: context,
-        builder: (ctx) {
-          return FutureBuilder<AiImportOutput?>(
-            future: aiService.analyzeScheduleFromBytes(bytes, filename: filename),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return AlertDialog(
-                  title: const Text('Analyzing schedule...'),
-                  content: SizedBox(
-                    width: 400,
-                    height: 100,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('AI is analyzing your schedule file...'),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return AlertDialog(
-                  title: const Text('Analysis failed'),
-                  content: Text('Error: ${snapshot.error}'),
-                  actions: [
-                    FilledButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Close'),
-                    )
-                  ],
-                );
-              }
-
-              final output = snapshot.data;
-              if (output == null || output.items.isEmpty) {
-                return AlertDialog(
-                  title: const Text('No schedule found'),
-                  content: Text('No schedule items were detected in "$filename". '
-                      'Please verify the file format is correct.'),
-                  actions: [
-                    FilledButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Close'),
-                    )
-                  ],
-                );
-              }
-
-              final items = output.items;
-              final dateItems = items.where((i) => i.date != null).toList();
-              DateTime? start;
-              DateTime? end;
-              if (dateItems.isNotEmpty) {
-                start = dateItems
-                    .map((e) => e.date!)
-                    .reduce((a, b) => a.isBefore(b) ? a : b);
-                end = dateItems
-                    .map((e) => e.date!)
-                    .reduce((a, b) => a.isAfter(b) ? a : b);
-              }
-
-              return AlertDialog(
-                title: const Text('Import class schedule'),
-                content: SizedBox(
-                  width: 560,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('File: $filename',
-                          style: Theme.of(context).textTheme.labelSmall),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('✓ AI Analysis Complete',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary)),
-                            Text('Items found: ${items.length}',
-                                style: Theme.of(context).textTheme.bodySmall),
-                            if (start != null && end != null)
-                              Text(
-                                  'Date range: ${_formatDate(start)} → ${_formatDate(end)}',
-                                  style:
-                                      Theme.of(context).textTheme.bodySmall),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text('Preview (first 3):',
-                          style: Theme.of(context).textTheme.titleSmall),
-                      const SizedBox(height: 6),
-                      Flexible(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: items.take(3).map((i) {
-                              final when = i.date != null
-                                  ? _formatDate(i.date!)
-                                  : (i.week != null ? 'Week ${i.week}' : '');
-                              final subtitleParts = <String>[];
-                              if (i.details['Book']?.isNotEmpty == true) {
-                                subtitleParts.add(i.details['Book']!);
-                              }
-                              if (i.details['Chapter/Unit']?.isNotEmpty == true) {
-                                subtitleParts.add(i.details['Chapter/Unit']!);
-                              }
-                              if (i.details['Homework']?.isNotEmpty == true) {
-                                subtitleParts.add('HW: ${i.details['Homework']!}');
-                              }
-                              final subtitle = subtitleParts.isEmpty
-                                  ? null
-                                  : subtitleParts.join(' • ');
-                              return ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(i.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis),
-                                subtitle: subtitle == null
-                                    ? null
-                                    : Text(subtitle,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis),
-                                leading: when.isEmpty
-                                    ? null
-                                    : Text(when,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelMedium),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(ctx, output),
-                    child: const Text('Import'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-
-      if (aiOutput != null && mounted) {
-        await _saveClassSchedule(_selectedClassId!, aiOutput.items);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(
-                  'Saved schedule (${aiOutput.items.length} items)')));
-        }
-      }
+      await _importClassScheduleFromBytes(bytes, filename);
     } catch (e) {
       debugPrint('Import class schedule failed: $e');
       if (mounted) {
@@ -683,6 +527,180 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       }
     } finally {
       if (mounted) setState(() => _scheduleBusy = false);
+    }
+  }
+
+  Future<void> _importClassScheduleFromDrive() async {
+    if (_selectedClassId == null) return;
+    if (_scheduleBusy) return;
+
+    setState(() => _scheduleBusy = true);
+    try {
+      final drive = context.read<GoogleDriveService>();
+      final picked = await showDialog<DriveFile>(
+        context: context,
+        builder: (ctx) => DriveFilePickerDialog(
+          driveService: drive,
+          allowedExtensions: const ['xlsx', 'csv', 'docx'],
+          title: 'Import class schedule from Google Drive',
+        ),
+      );
+      if (picked == null) return;
+
+      final bytes = await drive.downloadFileBytesFor(
+        picked,
+        preferredExportMimeType: GoogleDriveService.exportXlsxMimeType,
+      );
+      await _importClassScheduleFromBytes(bytes, picked.name);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Drive schedule import failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _scheduleBusy = false);
+    }
+  }
+
+  Future<void> _importClassScheduleFromBytes(
+      Uint8List bytes, String filename) async {
+    if (!await _enforceImportType(
+      bytes: bytes,
+      filename: filename,
+      allowed: {ImportFileType.calendar},
+      destinationLabel: 'Class schedule',
+    )) {
+      return;
+    }
+
+    var items = _classScheduleService.parseFromBytes(bytes);
+    if (items.isEmpty && OpenAIConfig.isConfigured) {
+      final aiOutput = await AiImportService()
+          .analyzeScheduleFromBytes(bytes, filename: filename);
+      if (aiOutput != null && aiOutput.items.isNotEmpty) {
+        items = aiOutput.items;
+      }
+    }
+
+    if (items.isEmpty) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('No schedule detected'),
+          content: Text(
+            'Could not detect schedule items in "$filename". Try CSV/XLSX export with clear Date/Title or Week/Topic columns.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            )
+          ],
+        ),
+      );
+      return;
+    }
+
+    final dateItems = items.where((i) => i.date != null).toList();
+    DateTime? start;
+    DateTime? end;
+    if (dateItems.isNotEmpty) {
+      start =
+          dateItems.map((e) => e.date!).reduce((a, b) => a.isBefore(b) ? a : b);
+      end =
+          dateItems.map((e) => e.date!).reduce((a, b) => a.isAfter(b) ? a : b);
+    }
+
+    if (!mounted) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Import class schedule'),
+        content: SizedBox(
+          width: 560,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('File: $filename',
+                  style: Theme.of(context).textTheme.labelSmall),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Items found: ${items.length}',
+                        style: Theme.of(context).textTheme.bodySmall),
+                    if (start != null && end != null)
+                      Text(
+                        'Date range: ${_formatDate(start)} -> ${_formatDate(end)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text('Preview (first 6):',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 6),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: items.take(6).map((i) {
+                      final when = i.date != null
+                          ? _formatDate(i.date!)
+                          : (i.week != null ? 'Week ${i.week}' : '');
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(i.title,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: i.details.isEmpty
+                            ? null
+                            : Text(
+                                i.details.values.take(2).join(' • '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                        leading: when.isEmpty
+                            ? null
+                            : Text(when,
+                                style: Theme.of(context).textTheme.labelMedium),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      await _saveClassSchedule(_selectedClassId!, items);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Saved schedule (${items.length} items)')),
+        );
+      }
     }
   }
 
@@ -733,6 +751,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     _timer?.cancel();
     _reminderCtrl.dispose();
     _attendanceUrlCtrl.dispose();
+    _googleSearchCtrl.dispose();
+    _askAiCtrl.dispose();
     _cdMinCtrl.dispose();
     _cdSecCtrl.dispose();
     _qrCtrl.dispose();
@@ -752,6 +772,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       appBar: AppBar(
         title: const Text('Teacher Dashboard'),
         actions: [
+          const PilotFeedbackIconButton(
+            initialArea: 'Dashboard',
+            initialRoute: '/dashboard',
+          ),
           IconButton(
             tooltip: themeMode == ThemeMode.dark
                 ? 'Switch to light mode'
@@ -794,8 +818,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                               Stack(children: [
                                 CircleAvatar(
                                   radius: 28,
-                                  backgroundColor:
-                                      Theme.of(context).colorScheme.primaryContainer,
+                                  backgroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .primaryContainer,
                                   backgroundImage: (user?.photoBase64 != null &&
                                           user!.photoBase64!.isNotEmpty)
                                       ? MemoryImage(const Base64Decoder()
@@ -823,17 +848,20 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                                         : _changeTeacherPhoto,
                                     child: Container(
                                       decoration: BoxDecoration(
-                                          color:
-                                              Theme.of(context).colorScheme.surface,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surface,
                                           shape: BoxShape.circle,
                                           border: Border.all(
-                                              color: Theme.of(context).dividerColor,
+                                              color: Theme.of(context)
+                                                  .dividerColor,
                                               width: 0.5)),
                                       padding: const EdgeInsets.all(6),
                                       child: Icon(Icons.camera_alt,
                                           size: 18,
-                                          color:
-                                              Theme.of(context).colorScheme.primary),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary),
                                     ),
                                   ),
                                 ),
@@ -841,7 +869,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                           'Welcome, ${user?.fullName ?? 'Teacher'} 👋',
@@ -864,8 +893,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             ]),
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
-                          icon: Icon(_selectedTimetableId == null 
-                              ? Icons.upload_file 
+                          icon: Icon(_selectedTimetableId == null
+                              ? Icons.upload_file
                               : Icons.table_chart),
                           label: Text(_selectedTimetableId == null
                               ? 'Upload Timetable'
@@ -891,7 +920,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                               children: [
                                 Icon(Icons.class_,
                                     size: 20,
-                                    color: Theme.of(context).colorScheme.primary),
+                                    color:
+                                        Theme.of(context).colorScheme.primary),
                                 const SizedBox(width: 6),
                                 Text('${_classes.length} classes'),
                               ],
@@ -901,7 +931,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                               children: [
                                 Icon(Icons.people_alt,
                                     size: 20,
-                                    color: Theme.of(context).colorScheme.primary),
+                                    color:
+                                        Theme.of(context).colorScheme.primary),
                                 const SizedBox(width: 6),
                                 Text('$_totalStudents students'),
                               ],
@@ -1002,8 +1033,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                                     const SizedBox(height: 12),
                                     Center(
                                       child: OutlinedButton.icon(
-                                        icon: Icon(_selectedTimetableId == null 
-                                            ? Icons.upload_file 
+                                        icon: Icon(_selectedTimetableId == null
+                                            ? Icons.upload_file
                                             : Icons.table_chart),
                                         label: Text(_selectedTimetableId == null
                                             ? 'Upload Timetable'
@@ -1049,6 +1080,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   ),
                 ]),
               ),
+            const SizedBox(height: 16),
+            const PilotFeedbackCard(
+              initialArea: 'General pilot',
+              initialRoute: '/dashboard',
+            ),
+            const SizedBox(height: 16),
 
             const SizedBox(height: 12),
 
@@ -1121,6 +1158,67 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
             const SizedBox(height: 12),
 
+            _Card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.manage_search_outlined),
+                      const SizedBox(width: 8),
+                      Text('Research Tools',
+                          style: context.textStyles.titleMedium?.semiBold),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      SizedBox(
+                        width: 420,
+                        child: TextField(
+                          controller: _googleSearchCtrl,
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: (_) => _submitGoogleSearch(),
+                          decoration: InputDecoration(
+                            labelText: 'Google Search',
+                            hintText: 'Type and press Enter',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: IconButton(
+                              tooltip: 'Search',
+                              icon: const Icon(Icons.open_in_new),
+                              onPressed: _submitGoogleSearch,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 420,
+                        child: TextField(
+                          controller: _askAiCtrl,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _submitAiSearch(),
+                          decoration: InputDecoration(
+                            labelText: 'Ask AI',
+                            hintText: 'Type your question and press Enter',
+                            prefixIcon: const Icon(Icons.auto_awesome_outlined),
+                            suffixIcon: IconButton(
+                              tooltip: 'Open',
+                              icon: const Icon(Icons.open_in_new),
+                              onPressed: _submitAiSearch,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
             // Weekly reminders dropdown (collapsible)
             _Card(
               child: Theme(
@@ -1135,8 +1233,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       children: [
                         Text(
                             _summaryRange == _SummaryRange.week
-                                ? "This Week’s To‑Dos & Reminders"
-                                : "This Month’s To‑Dos & Reminders",
+                                ? "This Week's To-Dos & Reminders"
+                                : "This Month's To-Dos & Reminders",
                             style: context.textStyles.titleMedium?.semiBold),
                         const SizedBox(height: 8),
                         SingleChildScrollView(
@@ -1161,8 +1259,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                               padding: WidgetStatePropertyAll(
                                   EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 6)),
-                              tapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                           ),
                         ),
@@ -1240,9 +1337,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       const SizedBox(width: 8),
                       Flexible(
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 280, minWidth: 120),
+                          constraints: const BoxConstraints(
+                              maxWidth: 280, minWidth: 120),
                           child: DropdownButtonFormField<String>(
-                            value: _selectedClassId,
+                            key: ValueKey(_selectedClassId),
+                            initialValue: _selectedClassId,
                             isDense: true,
                             decoration: const InputDecoration(
                               labelText: 'Class',
@@ -1269,21 +1368,32 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       ),
                     ]),
                     const SizedBox(height: 12),
+                    if (_selectedClassId != null) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed: _openSeatingPlan,
+                          icon: const Icon(Icons.event_seat_outlined),
+                          label: const Text('Open seating plan'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(children: [
-                          for (int i = 0; i < _toolTabs.length; i++)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: ChoiceChip(
-                                label: Text(_toolTabs[i]),
-                                selected: _selectedToolTab == i,
-                                onSelected: (_) =>
-                                    setState(() => _selectedToolTab = i),
-                              ),
+                        for (int i = 0; i < _toolTabs.length; i++)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ChoiceChip(
+                              label: Text(_toolTabs[i]),
+                              selected: _selectedToolTab == i,
+                              onSelected: (_) =>
+                                  setState(() => _selectedToolTab = i),
                             ),
-                        ]),
-                      ),
+                          ),
+                      ]),
+                    ),
                     const SizedBox(height: 12),
                     _buildClassToolsBody(context),
                   ]),
@@ -1291,7 +1401,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
             const SizedBox(height: 12),
 
-            // Calendar panel — actual month grid with day selection and to‑dos/reminders
+            // Calendar panel - actual month grid with day selection and to-dos/reminders
             _Card(child: _buildCalendar(context)),
           ]),
         );
@@ -1348,7 +1458,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         OutlinedButton.icon(
             onPressed: _importSchedule,
             icon: const Icon(Icons.file_upload_outlined),
-          label: const Text('Import calendar')),
+            label: const Text('Import calendar')),
         OutlinedButton.icon(
             onPressed: _importScheduleFromDrive,
             icon: const Icon(Icons.drive_folder_upload_outlined),
@@ -1399,16 +1509,16 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             child: Container(
                               height: 44,
                               decoration: BoxDecoration(
-                              color: isSelected || isToday
-                                ? Theme.of(context)
-                                  .colorScheme
-                                  .primaryContainer
-                                : Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
+                                color: isSelected || isToday
+                                    ? Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest,
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.sm),
-                              border: isToday && !isSelected
+                                border: isToday && !isSelected
                                     ? Border.all(
                                         color: Theme.of(context)
                                             .colorScheme
@@ -1425,8 +1535,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                                         style: isToday
                                             ? context.textStyles.bodyMedium
                                                 ?.copyWith(
-                                                    fontWeight:
-                                                        FontWeight.w700)
+                                                    fontWeight: FontWeight.w700)
                                             : context.textStyles.bodyMedium),
                                     if (hasItems) ...[
                                       const SizedBox(width: 6),
@@ -1456,7 +1565,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       Builder(builder: (ctx) {
         final selected = _selectedDate;
         if (selected == null) {
-          return Text('Select a day to add to‑dos/reminders.',
+          return Text('Select a day to add to-dos/reminders.',
               style: context.textStyles.bodySmall
                   ?.withColor(Theme.of(context).colorScheme.onSurfaceVariant));
         }
@@ -1486,7 +1595,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 controller: _reminderCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Add a reminder',
-                    hintText: 'e.g., Quiz, homework, meeting…'),
+                    hintText: 'e.g., Quiz, homework, meeting...'),
               ),
             ),
             const SizedBox(width: 8),
@@ -1593,9 +1702,15 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Future<void> _loadReminders() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString('dashboard_reminders');
-      if (raw == null || raw.isEmpty) return;
-      final list = jsonDecode(raw) as List<dynamic>;
+      final raw = await _readScopedPreference(
+        prefs,
+        scopedKey: _remindersPrefsKey(),
+        legacyKey: _legacyRemindersPrefsKey,
+        migrationFlagKey: _remindersMigrationFlagKey,
+      );
+      final list = raw == null || raw.isEmpty
+          ? const <dynamic>[]
+          : jsonDecode(raw) as List<dynamic>;
       final parsed = list.map((e) {
         final m = Map<String, dynamic>.from(e as Map);
         final ids = (m['classIds'] as List?)
@@ -1632,20 +1747,54 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 'classIds': r.classIds,
               })
           .toList();
-      await prefs.setString('dashboard_reminders', jsonEncode(data));
+      await prefs.setString(_remindersPrefsKey(), jsonEncode(data));
     } catch (e) {
       debugPrint('Failed to save reminders: $e');
     }
   }
 
+  String _dashboardStorageUserId() {
+    return context.read<AuthService>().currentUser?.userId ?? 'local';
+  }
+
+  String _remindersPrefsKey() =>
+      'dashboard_reminders_v1:${_dashboardStorageUserId()}';
+
   String _timetablePrefsKey() {
-    final userId = context.read<AuthService>().currentUser?.userId ?? 'local';
+    final userId = _dashboardStorageUserId();
     return 'dashboard_timetables_v1:$userId';
   }
 
   String _selectedTimetablePrefsKey() {
-    final userId = context.read<AuthService>().currentUser?.userId ?? 'local';
+    final userId = _dashboardStorageUserId();
     return 'dashboard_selected_timetable_v1:$userId';
+  }
+
+  String _attendanceUrlPrefsKey() =>
+      'attendance_url_v1:${_dashboardStorageUserId()}';
+
+  String _quickLinksPrefsKey() =>
+      'custom_quick_links_v1:${_dashboardStorageUserId()}';
+
+  Future<String?> _readScopedPreference(
+    SharedPreferences prefs, {
+    required String scopedKey,
+    required String legacyKey,
+    required String migrationFlagKey,
+  }) async {
+    final scopedValue = prefs.getString(scopedKey);
+    if (scopedValue != null) return scopedValue;
+
+    final alreadyMigrated = prefs.getBool(migrationFlagKey) ?? false;
+    if (alreadyMigrated) return null;
+
+    final legacyValue = prefs.getString(legacyKey);
+    if (legacyValue == null) return null;
+
+    await prefs.setString(scopedKey, legacyValue);
+    await prefs.setBool(migrationFlagKey, true);
+    await prefs.remove(legacyKey);
+    return legacyValue;
   }
 
   Future<void> _loadTimetables() async {
@@ -1706,7 +1855,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         return;
       }
     }
-    
+
     // Otherwise show management/upload dialog
     await _showTimetableManagementDialog();
   }
@@ -1718,6 +1867,64 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocalState) {
           final currentSelectedId = _selectedTimetableId;
+          Future<void> saveTimetableFromBytes(
+              Uint8List bytes, String name, String? mimeType) async {
+            final id = DateTime.now().microsecondsSinceEpoch.toString();
+            List<List<String>>? grid;
+            final ext = (mimeType ?? '').toLowerCase();
+            if (ext == 'docx') {
+              try {
+                final rawGrid =
+                    FileImportService().extractDocxBestTableGrid(bytes);
+                grid = FileImportService().cleanTimetableGrid(rawGrid);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('Could not parse DOCX timetable: $e')),
+                  );
+                }
+              }
+            } else if (ext == 'xlsx' || ext == 'csv') {
+              try {
+                final rows = FileImportService().rowsFromAnyBytes(bytes);
+                if (rows.isNotEmpty) {
+                  grid = FileImportService().cleanTimetableGrid(rows);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('Could not parse timetable table: $e')),
+                  );
+                }
+              }
+            }
+
+            final timetable = _Timetable(
+              id: id,
+              name: name,
+              base64: base64Encode(bytes),
+              mimeType: mimeType,
+              uploadedAt: DateTime.now(),
+              grid: grid,
+            );
+
+            if (!mounted) return;
+            setState(() {
+              _timetables.add(timetable);
+              _selectedTimetableId = id;
+            });
+            await _saveTimetables();
+            if (!mounted) return;
+            setLocalState(() {});
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Timetable "$name" uploaded.')),
+              );
+            }
+          }
+
           return AlertDialog(
             title: const Text('Timetable Management'),
             content: SizedBox(
@@ -1730,7 +1937,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                      color: theme.colorScheme.primaryContainer
+                          .withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: theme.colorScheme.primary.withValues(alpha: 0.3),
@@ -1755,125 +1963,90 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Supports DOCX files with table structures',
+                          'Upload from local file or Google Drive',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        FilledButton.icon(
-                          icon: const Icon(Icons.add),
-                          label: const Text('Choose File'),
-                          onPressed: () async {
-                            final picked = await FilePicker.platform.pickFiles(
-                              withData: true,
-                              type: FileType.custom,
-                              allowedExtensions: [
-                                'xlsx',
-                                'csv',
-                                'pdf',
-                                'png',
-                                'jpg',
-                                'jpeg',
-                                'docx'
-                              ],
-                            );
-                            if (picked == null ||
-                                picked.files.single.bytes == null) {
-                              return;
-                            }
-                            final bytes = picked.files.single.bytes!;
-                            final name = picked.files.single.name;
-                            final mimeType = picked.files.single.extension;
-                            final id = DateTime.now()
-                                .microsecondsSinceEpoch
-                                .toString();
-
-                            List<List<String>>? grid;
-                            if ((mimeType ?? '').toLowerCase() == 'docx') {
-                              try {
-                                // Show AI analysis dialog
-                                final aiService = AiImportService();
-                                await showDialog<AiImportOutput?>(
-                                  context: context,
-                                  builder: (aiCtx) {
-                                    return FutureBuilder<AiImportOutput?>(
-                                      future: aiService.analyzeScheduleFromBytes(bytes, filename: name),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState == ConnectionState.waiting) {
-                                          return AlertDialog(
-                                            title: const Text('AI Analyzing Timetable...'),
-                                            content: SizedBox(
-                                              width: 400,
-                                              height: 100,
-                                              child: Column(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: const [
-                                                  CircularProgressIndicator(),
-                                                  SizedBox(height: 16),
-                                                  Text('AI is analyzing your timetable...'),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        }
-
-                                        if (snapshot.hasError) {
-                                          // Fall back to traditional DOCX parsing
-                                          Navigator.pop(aiCtx);
-                                          return const SizedBox.shrink();
-                                        }
-
-                                        // For now, close the dialog and use traditional parsing
-                                        // The AI analysis is shown to user but we use DOCX parsing for grid
-                                        Navigator.pop(aiCtx);
-                                        return const SizedBox.shrink();
-                                      },
-                                    );
-                                  },
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilledButton.icon(
+                              icon: const Icon(Icons.add),
+                              label: const Text('Choose File'),
+                              onPressed: () async {
+                                final picked =
+                                    await FilePicker.platform.pickFiles(
+                                  withData: true,
+                                  type: FileType.custom,
+                                  allowedExtensions: [
+                                    'xlsx',
+                                    'csv',
+                                    'pdf',
+                                    'png',
+                                    'jpg',
+                                    'jpeg',
+                                    'docx'
+                                  ],
                                 );
-
-                                final rawGrid = FileImportService()
-                                    .extractDocxBestTableGrid(bytes);
-                                // Clean up the grid to remove duplicates and merge periods
-                                grid = FileImportService().cleanTimetableGrid(rawGrid);
-                              } catch (e) {
-                                grid = null;
-                                if (context.mounted) {
+                                if (picked == null ||
+                                    picked.files.single.bytes == null) {
+                                  return;
+                                }
+                                final bytes = picked.files.single.bytes!;
+                                final name = picked.files.single.name;
+                                final mimeType = picked.files.single.extension;
+                                await saveTimetableFromBytes(
+                                    bytes, name, mimeType);
+                              },
+                            ),
+                            OutlinedButton.icon(
+                              icon: const Icon(
+                                  Icons.drive_folder_upload_outlined),
+                              label: const Text('Google Drive'),
+                              onPressed: () async {
+                                try {
+                                  final drive =
+                                      context.read<GoogleDriveService>();
+                                  final picked = await showDialog<DriveFile>(
+                                    context: context,
+                                    builder: (ctx) => DriveFilePickerDialog(
+                                      driveService: drive,
+                                      allowedExtensions: const [
+                                        'xlsx',
+                                        'csv',
+                                        'docx'
+                                      ],
+                                      title:
+                                          'Import timetable from Google Drive',
+                                    ),
+                                  );
+                                  if (picked == null) return;
+                                  final bytes =
+                                      await drive.downloadFileBytesFor(
+                                    picked,
+                                    preferredExportMimeType:
+                                        GoogleDriveService.exportXlsxMimeType,
+                                  );
+                                  final ext = picked.name.contains('.')
+                                      ? picked.name.split('.').last
+                                      : null;
+                                  await saveTimetableFromBytes(
+                                      bytes, picked.name, ext);
+                                } catch (e) {
+                                  if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                        content: Text(
-                                            'Could not parse DOCX timetable: $e')),
+                                      content: Text(
+                                          'Drive timetable import failed: $e'),
+                                    ),
                                   );
                                 }
-                              }
-                            }
-
-                            final timetable = _Timetable(
-                              id: id,
-                              name: name,
-                              base64: base64Encode(bytes),
-                              mimeType: mimeType,
-                              uploadedAt: DateTime.now(),
-                              grid: grid,
-                            );
-
-                            if (!mounted) return;
-                            setState(() {
-                              _timetables.add(timetable);
-                              _selectedTimetableId = id;
-                            });
-                            await _saveTimetables();
-                            if (!mounted) return;
-                            setLocalState(() {});
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(
-                                        'Timetable "$name" uploaded and analyzed by AI.')),
-                              );
-                            }
-                          },
+                              },
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -2015,11 +2188,16 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     if (grid.isEmpty) return slots;
 
     final dayMap = {
-      'mon': 0, 'monday': 0,
-      'tue': 1, 'tuesday': 1,
-      'wed': 2, 'wednesday': 2,
-      'thu': 3, 'thursday': 3,
-      'fri': 4, 'friday': 4,
+      'mon': 0,
+      'monday': 0,
+      'tue': 1,
+      'tuesday': 1,
+      'wed': 2,
+      'wednesday': 2,
+      'thu': 3,
+      'thursday': 3,
+      'fri': 4,
+      'friday': 4,
     };
 
     List<int> headerDays = [];
@@ -2045,7 +2223,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       String timeStr = row.isNotEmpty ? row[0].trim() : '';
       int startMin = 0, endMin = 60;
 
-      final timeMatch = RegExp(r'(\d{1,2}):(\d{2})(?:-(\d{1,2}):(\d{2}))?').firstMatch(timeStr);
+      final timeMatch = RegExp(r'(\d{1,2}):(\d{2})(?:-(\d{1,2}):(\d{2}))?')
+          .firstMatch(timeStr);
       if (timeMatch != null) {
         final startH = int.tryParse(timeMatch.group(1) ?? '0') ?? 0;
         final startM = int.tryParse(timeMatch.group(2) ?? '0') ?? 0;
@@ -2088,12 +2267,13 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     // Build controllers for editing.
     final controllers = <List<TextEditingController>>[];
     for (final row in initialGrid) {
-      controllers.add(
-          row.map((cell) => TextEditingController(text: cell)).toList());
+      controllers
+          .add(row.map((cell) => TextEditingController(text: cell)).toList());
     }
 
     // Parse grid to time slots for visual display
     final timeSlots = _parseGridToTimeSlots(initialGrid);
+    bool showVisual = timeSlots.isNotEmpty;
 
     await showDialog<void>(
       context: context,
@@ -2104,7 +2284,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           constraints: const BoxConstraints(maxWidth: 1200),
           child: StatefulBuilder(
             builder: (ctx, setLocalState) {
-              bool showVisual = timeSlots.isNotEmpty;
+              final rows = controllers.length;
+              final cols = controllers.isEmpty
+                  ? 0
+                  : controllers
+                      .map((r) => r.length)
+                      .reduce((a, b) => a > b ? a : b);
 
               Widget cellField(int r, int c) {
                 // Bounds check to prevent IndexError
@@ -2117,17 +2302,26 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isHeader
-                        ? Theme.of(ctx).colorScheme.primaryContainer.withValues(alpha: 0.6)
+                        ? Theme.of(ctx)
+                            .colorScheme
+                            .primaryContainer
+                            .withValues(alpha: 0.6)
                         : isFirstCol
                             ? Theme.of(ctx).colorScheme.surfaceContainerHighest
                             : null,
                     border: Border(
                       right: BorderSide(
-                        color: Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        color: Theme.of(ctx)
+                            .colorScheme
+                            .outlineVariant
+                            .withValues(alpha: 0.5),
                         width: 1,
                       ),
                       bottom: BorderSide(
-                        color: Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                        color: Theme.of(ctx)
+                            .colorScheme
+                            .outlineVariant
+                            .withValues(alpha: 0.5),
                         width: 1,
                       ),
                     ),
@@ -2136,28 +2330,38 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     controller: controllers[r][c],
                     maxLines: isFirstCol ? 1 : 3,
                     minLines: 1,
-                    textAlign: isHeader || isFirstCol ? TextAlign.center : TextAlign.center,
+                    textAlign: isHeader || isFirstCol
+                        ? TextAlign.center
+                        : TextAlign.center,
                     style: isHeader
                         ? Theme.of(ctx).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(ctx).colorScheme.onPrimaryContainer,
-                            fontSize: 13,
-                          )
+                              fontWeight: FontWeight.w700,
+                              color:
+                                  Theme.of(ctx).colorScheme.onPrimaryContainer,
+                              fontSize: 13,
+                            )
                         : isFirstCol
                             ? Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                              )
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                )
                             : Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                                fontSize: 11,
-                                height: 1.3,
-                              ),
+                                  fontSize: 11,
+                                  height: 1.3,
+                                ),
                     decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
-                      hintText: isHeader ? 'Day' : isFirstCol ? 'Time' : 'Class',
+                      hintText: isHeader
+                          ? 'Day'
+                          : isFirstCol
+                              ? 'Time'
+                              : 'Class',
                       hintStyle: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                            color: Theme.of(ctx)
+                                .colorScheme
+                                .onSurfaceVariant
+                                .withValues(alpha: 0.3),
                             fontSize: 10,
                           ),
                       contentPadding: EdgeInsets.zero,
@@ -2194,7 +2398,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             children: [
                               Text(
                                 timetable.name,
-                                style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                                style: Theme.of(ctx)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
                               ),
@@ -2203,9 +2410,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                                 showVisual
                                     ? 'Visual timetable preview'
                                     : 'Edit cells to update your timetable',
-                                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                                    ),
+                                style:
+                                    Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                          color: Theme.of(ctx)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
                               ),
                             ],
                           ),
@@ -2215,8 +2425,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             padding: const EdgeInsets.only(right: 8),
                             child: SegmentedButton<bool>(
                               segments: const [
-                                ButtonSegment(label: Text('Visual'), value: true),
-                                ButtonSegment(label: Text('Edit'), value: false),
+                                ButtonSegment(
+                                    label: Text('Visual'), value: true),
+                                ButtonSegment(
+                                    label: Text('Edit'), value: false),
                               ],
                               selected: {showVisual},
                               onSelectionChanged: (newSelection) {
@@ -2259,64 +2471,80 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                                 scrollDirection: Axis.horizontal,
                                 child: ConstrainedBox(
                                   constraints: BoxConstraints(
-                                    minWidth: MediaQuery.of(ctx).size.width * 0.8,
+                                    minWidth:
+                                        MediaQuery.of(ctx).size.width * 0.8,
                                   ),
                                   child: SingleChildScrollView(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
                                       children: [
                                         // Header row with day names
-                                  if (cols > 1)
-                                    IntrinsicHeight(
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                                        children: [
-                                          for (var c = 0; c < cols; c++)
-                                            SizedBox(
-                                              width: c == 0 ? 100 : 180,
-                                              child: Container(
-                                                decoration: BoxDecoration(
-                                                  color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
-                                                  border: Border.all(
-                                                    color: Theme.of(ctx).colorScheme.outlineVariant,
-                                                  ),
-                                                ),
-                                                padding: const EdgeInsets.all(8),
-                                                child: Center(
-                                                  child: Text(
-                                                    c == 0
-                                                        ? 'Time'
-                                                        : _getDayName(c - 1),
-                                                    style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
-                                                      fontWeight: FontWeight.bold,
+                                        if (cols > 1)
+                                          IntrinsicHeight(
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                for (var c = 0; c < cols; c++)
+                                                  SizedBox(
+                                                    width: c == 0 ? 100 : 180,
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        color: Theme.of(ctx)
+                                                            .colorScheme
+                                                            .surfaceContainerHighest,
+                                                        border: Border.all(
+                                                          color: Theme.of(ctx)
+                                                              .colorScheme
+                                                              .outlineVariant,
+                                                        ),
+                                                      ),
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              8),
+                                                      child: Center(
+                                                        child: Text(
+                                                          c == 0
+                                                              ? 'Time'
+                                                              : _getDayName(
+                                                                  c - 1),
+                                                          style: Theme.of(ctx)
+                                                              .textTheme
+                                                              .labelSmall
+                                                              ?.copyWith(
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
+                                                        ),
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                              ),
+                                              ],
                                             ),
-                                        ],
-                                      ),
-                                    ),
-                                  for (var r = 0; r < rows; r++)
-                                    IntrinsicHeight(
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                                        children: [
-                                          for (var c = 0; c < cols; c++)
-                                            SizedBox(
-                                              width: c == 0 ? 100 : 180,
-                                              child: cellField(r, c),
+                                          ),
+                                        for (var r = 0; r < rows; r++)
+                                          IntrinsicHeight(
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                for (var c = 0; c < cols; c++)
+                                                  SizedBox(
+                                                    width: c == 0 ? 100 : 180,
+                                                    child: cellField(r, c),
+                                                  ),
+                                              ],
                                             ),
-                                        ],
-                                      ),
+                                          ),
+                                      ],
                                     ),
-                                ],
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
                   ),
                   // Actions
                   Container(
@@ -2343,9 +2571,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                             const SizedBox(width: 8),
                             Text(
                               '${controllers.length} rows × ${controllers.isEmpty ? 0 : controllers.map((r) => r.length).reduce((a, b) => a > b ? a : b)} columns',
-                              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                                  ),
+                              style:
+                                  Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(ctx)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                      ),
                             ),
                           ],
                         ),
@@ -2372,7 +2603,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                               onPressed: () async {
                                 final newGrid = <List<String>>[];
                                 for (final rowCtrls in controllers) {
-                                  newGrid.add(rowCtrls.map((c) => c.text).toList());
+                                  newGrid.add(
+                                      rowCtrls.map((c) => c.text).toList());
                                 }
                                 if (!mounted) return;
                                 setState(() {
@@ -2394,7 +2626,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                        content: Text('Timetable saved successfully')),
+                                        content: Text(
+                                            'Timetable saved successfully')),
                                   );
                                 }
                               },
@@ -2425,7 +2658,15 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   }
 
   String _getDayName(int columnIndex) {
-    const names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const names = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
     if (columnIndex >= 0 && columnIndex < names.length) {
       return names[columnIndex];
     }
@@ -2465,6 +2706,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           ? ''
           : '  ${_formatHourMinute(d)}';
 
+  void _openSeatingPlan() {
+    final classId = _selectedClassId;
+    if (classId == null) return;
+    context.push('/class/$classId/seating');
+  }
+
   // ===== Class Tools UI builder =====
   Widget _buildClassToolsBody(BuildContext context) {
     switch (_selectedToolTab) {
@@ -2473,16 +2720,14 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       case 1:
         return _buildGroups(context);
       case 2:
-        return _buildSeating(context);
-      case 3:
         return _buildParticipation(context);
-      case 4:
+      case 3:
         return _buildScheduleTool(context);
-      case 5:
+      case 4:
         return _buildQuickPoll(context);
-      case 6:
+      case 5:
         return _buildTimerTool(context);
-      case 7:
+      case 6:
         return _buildQrTool(context);
       default:
         return const SizedBox.shrink();
@@ -2516,12 +2761,18 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         const Icon(Icons.menu_book_outlined),
         const SizedBox(width: 8),
         Expanded(
-            child: Text('Schedule • $className',
+            child: Text('Schedule - $className',
                 style: context.textStyles.titleSmall?.semiBold)),
         OutlinedButton.icon(
           onPressed: _scheduleBusy ? null : _importClassSchedule,
           icon: const Icon(Icons.drive_folder_upload_outlined),
-          label: Text(_scheduleBusy ? 'Importing…' : 'Upload'),
+          label: Text(_scheduleBusy ? 'Importing...' : 'Upload'),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: _scheduleBusy ? null : _importClassScheduleFromDrive,
+          icon: const Icon(Icons.folder_shared_outlined),
+          label: const Text('Google Drive'),
         ),
       ]),
       const SizedBox(height: 10),
@@ -2783,7 +3034,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 decoration: const InputDecoration(
                     labelText: 'Group Size', isDense: true),
                 keyboardType: TextInputType.number,
-                onChanged: (v) => setState(() => _groupSize = int.tryParse(v) ?? 2),
+                onChanged: (v) =>
+                    setState(() => _groupSize = int.tryParse(v) ?? 2),
               ),
             ),
             FilledButton.icon(
@@ -2845,73 +3097,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   label: const Text('Close'))),
         ]);
 
-      // Seating: present read-only seating layout (no toolbar)
-      case 2:
-        final tables = _seatingForClass();
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const Icon(Icons.event_seat_outlined),
-            const SizedBox(width: 8),
-            Text('Seating Plan', style: Theme.of(ctx).textTheme.titleLarge)
-          ]),
-          const SizedBox(height: 12),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(ctx).colorScheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(16),
-                border:
-                    Border.all(color: Theme.of(ctx).colorScheme.outlineVariant),
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: LayoutBuilder(builder: (ctx2, constraints) {
-                return InteractiveViewer(
-                  constrained: false,
-                  boundaryMargin: const EdgeInsets.all(300),
-                  minScale: 0.5,
-                  maxScale: 2.5,
-                  child: SizedBox(
-                    width: math.max(constraints.maxWidth, 900),
-                    height: math.max(constraints.maxHeight, 700),
-                    child: Stack(children: [
-                      for (int i = 0; i < tables.length; i++)
-                        _TableWidget(
-                          tableIndex: i,
-                          table: tables[i],
-                          designMode: false,
-                          onMove: (_) {},
-                          onMoveEnd: () {},
-                          onRemove: () {},
-                          onCapacityChanged: (_) {},
-                          onSeatDrop: (seatIndex, data) {
-                            _handleSeatDrop(i, seatIndex, data);
-                            setDialogState(() {});
-                          },
-                          onClearSeat: (seatIndex) {
-                            _clearSeat(i, seatIndex);
-                            setDialogState(() {});
-                          },
-                          onTapSeat: (seatIndex) {
-                            unawaited(_promptPickStudentForSeat(i, seatIndex)
-                                .whenComplete(() => setDialogState(() {})));
-                          },
-                        ),
-                    ]),
-                  ),
-                );
-              }),
-            ),
-          ),
-          Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  icon: const Icon(Icons.close),
-                  label: const Text('Close'))),
-        ]);
-
       // Participation: allow increment/reset in present mode
-      case 3:
+      case 2:
         final part = _participationForClass();
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
@@ -3009,7 +3196,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         ]);
 
       // Schedule: not presented full-screen (keeps tab mapping consistent)
-      case 4:
+      case 3:
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             const Icon(Icons.event_note_outlined),
@@ -3037,7 +3224,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         ]);
 
       // Quick Poll: large buttons and bars
-      case 5:
+      case 4:
         final map = _pollCountsForClass();
         int total = (map['A'] ?? 0) +
             (map['B'] ?? 0) +
@@ -3123,60 +3310,83 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         ]);
 
       // Timer: large stopwatch/countdown
-      case 6:
+      case 5:
         String fmt(int s) {
           final m = s ~/ 60;
           final r = s % 60;
           return '${_two(m)}:${_two(r)}';
         }
         return SingleChildScrollView(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
             Row(children: [
               const Icon(Icons.timer_outlined),
               const SizedBox(width: 8),
-              Text('Timer & Stopwatch', style: Theme.of(ctx).textTheme.titleLarge)
+              Text('Timer & Stopwatch',
+                  style: Theme.of(ctx).textTheme.titleLarge)
             ]),
             const SizedBox(height: 24),
             Text('Stopwatch', style: Theme.of(ctx).textTheme.titleSmall),
             const SizedBox(height: 8),
-            Text(fmt(_stopwatchSeconds),
-                style: Theme.of(ctx)
-                    .textTheme
-                    .displaySmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            StreamBuilder<int>(
+              stream: Stream.periodic(const Duration(seconds: 1), (i) => i),
+              builder: (context, _) => Text(fmt(_stopwatchSeconds),
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .displaySmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+            ),
             const SizedBox(height: 12),
             Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
               if (!_stopwatchRunning)
                 FilledButton.icon(
-                    onPressed: _startStopwatch,
+                    onPressed: () {
+                      _startStopwatch();
+                      setDialogState(() {});
+                    },
                     icon: const Icon(Icons.play_arrow),
                     label: const Text('Start'))
               else
                 FilledButton.icon(
-                    onPressed: _stopStopwatch,
+                    onPressed: () {
+                      _stopStopwatch();
+                      setDialogState(() {});
+                    },
                     icon: const Icon(Icons.pause),
                     label: const Text('Pause')),
               OutlinedButton.icon(
-                  onPressed: _resetStopwatch,
+                  onPressed: () {
+                    _resetStopwatch();
+                    setDialogState(() {});
+                  },
                   icon: const Icon(Icons.restart_alt),
                   label: const Text('Reset')),
             ]),
             const SizedBox(height: 28),
             Text('Countdown', style: Theme.of(ctx).textTheme.titleSmall),
             const SizedBox(height: 8),
-            Text(fmt(_countdownSeconds),
-                style: Theme.of(ctx)
-                    .textTheme
-                    .displaySmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            StreamBuilder<int>(
+              stream: Stream.periodic(const Duration(seconds: 1), (i) => i),
+              builder: (context, _) => Text(fmt(_countdownSeconds),
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .displaySmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+            ),
             const SizedBox(height: 8),
             Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
               FilledButton.icon(
-                  onPressed: _startCountdown,
+                  onPressed: () {
+                    _startCountdown();
+                    setDialogState(() {});
+                  },
                   icon: const Icon(Icons.play_arrow),
                   label: const Text('Start')),
               OutlinedButton.icon(
-                  onPressed: _stopCountdown,
+                  onPressed: () {
+                    _stopCountdown();
+                    setDialogState(() {});
+                  },
                   icon: const Icon(Icons.stop),
                   label: const Text('Stop')),
             ]),
@@ -3189,7 +3399,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         );
 
       // QR: present large QR if available
-      case 7:
+      case 6:
         final text = _qrCtrl.text.trim();
         return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
           Row(children: [
@@ -3306,132 +3516,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             ]),
           ),
       ]),
-    ]);
-  }
-
-  Widget _buildSeating(BuildContext context) {
-    final tables = _seatingForClass();
-    final unassigned = _unassignedStudents();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        const Icon(Icons.event_seat_outlined),
-        const SizedBox(width: 8),
-        Text('Seating Designer',
-            style: context.textStyles.titleSmall?.semiBold),
-        const Spacer(),
-        SegmentedButton<bool>(
-          segments: const [
-            ButtonSegment(
-                value: true,
-                label: Text('Design'),
-                icon: Icon(Icons.design_services_outlined)),
-            ButtonSegment(
-                value: false,
-                label: Text('Assign'),
-                icon: Icon(Icons.badge_outlined)),
-          ],
-          selected: {_seatDesignMode},
-          onSelectionChanged: (s) => setState(() => _seatDesignMode = s.first),
-        ),
-      ]),
-      const SizedBox(height: 8),
-      // Toolbar
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Wrap(spacing: 8, runSpacing: 4, children: [
-          // Seat count selector + single Add button
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            Text('Seats per table:',
-                style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(width: 8),
-            DropdownButton<int>(
-              value: _newTableSeats,
-              onChanged: (v) => setState(() => _newTableSeats = v ?? 4),
-              items: const [2, 3, 4, 5, 6, 8, 10]
-                  .map(
-                      (n) => DropdownMenuItem<int>(value: n, child: Text('$n')))
-                  .toList(),
-            ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-                onPressed: () => _addTable(capacity: _newTableSeats),
-                icon: const Icon(Icons.add),
-                label: const Text('Add table')),
-          ]),
-          OutlinedButton.icon(
-              onPressed: _randomizeAssignments,
-              icon: const Icon(Icons.shuffle),
-              label: const Text('Randomize')),
-          OutlinedButton.icon(
-              onPressed: _clearAssignments,
-              icon: const Icon(Icons.clear_all),
-              label: const Text('Clear assignments')),
-          IconButton(
-              onPressed: _autoLayoutGrid,
-              icon: const Icon(Icons.auto_awesome_mosaic_outlined),
-              tooltip: 'Auto‑arrange'),
-          IconButton(
-              onPressed: _clearLayout,
-              icon: const Icon(Icons.delete_sweep_outlined),
-              tooltip: 'Clear layout'),
-        ]),
-      ),
-      const SizedBox(height: 8),
-      // Canvas with pan/zoom for mobile
-      LayoutBuilder(builder: (ctx, constraints) {
-        return Container(
-          height: 380,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(12),
-            border:
-                Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-          ),
-          clipBehavior: Clip.hardEdge,
-          child: InteractiveViewer(
-            constrained: false,
-            boundaryMargin: const EdgeInsets.all(240),
-            minScale: 0.6,
-            maxScale: 2.2,
-            child: SizedBox(
-              width: math.max(constraints.maxWidth, 900),
-              height: 700,
-              child: Stack(children: [
-                for (int i = 0; i < tables.length; i++)
-                  _TableWidget(
-                    tableIndex: i,
-                    table: tables[i],
-                    designMode: _seatDesignMode,
-                    onMove: (delta) => _moveTable(i, delta),
-                    onMoveEnd: () => _saveSeatingLayoutForClass(),
-                    onRemove: () => _removeTable(i),
-                    onCapacityChanged: (cap) => _setTableCapacity(i, cap),
-                    onSeatDrop: (seatIndex, data) =>
-                        _handleSeatDrop(i, seatIndex, data),
-                    onClearSeat: (seatIndex) => _clearSeat(i, seatIndex),
-                    onTapSeat: (seatIndex) =>
-                        _promptPickStudentForSeat(i, seatIndex),
-                  ),
-              ]),
-            ),
-          ),
-        );
-      }),
-      const SizedBox(height: 8),
-      // Unassigned students tray
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Unassigned students (${unassigned.length})',
-            style: context.textStyles.labelLarge?.semiBold),
-        const SizedBox(height: 6),
-        Wrap(spacing: 6, runSpacing: 6, children: [
-          for (final name in unassigned) _StudentChip(name: name),
-        ]),
-      ]),
-      const SizedBox(height: 6),
-      Text(
-          '💡 Tip: Click any seat to assign or change a student. Use the drag handle (⋮⋮) to reposition tables.',
-          style: context.textStyles.bodySmall
-              ?.withColor(Theme.of(context).colorScheme.onSurfaceVariant)),
     ]);
   }
 
@@ -3565,8 +3649,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Question:',
-                style: context.textStyles.bodySmall?.semiBold),
+            Text('Question:', style: context.textStyles.bodySmall?.semiBold),
             const SizedBox(height: 6),
             TextField(
               decoration: InputDecoration(
@@ -3739,8 +3822,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   // Attendance portal open handler
   Future<void> _openAttendancePortal() async {
-    final raw = _attendanceUrlCtrl.text.trim();
-    if (raw.isEmpty) return;
+    final raw = _attendanceUrlCtrl.text.trim().isEmpty
+        ? _defaultAttendancePortalUrl
+        : _attendanceUrlCtrl.text.trim();
     // Add https scheme if missing
     final normalized = raw.contains('://') ? raw : 'https://$raw';
     Uri? uri;
@@ -3788,6 +3872,52 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     }
   }
 
+  Future<void> _submitGoogleSearch() async {
+    final q = _googleSearchCtrl.text.trim();
+    if (q.isEmpty) return;
+    final url =
+        'https://www.google.com/search?q=${Uri.encodeQueryComponent(q)}';
+    await _openExternal(url);
+  }
+
+  Future<void> _submitAiSearch() async {
+    final q = _askAiCtrl.text.trim();
+    if (q.isEmpty) return;
+    final url = 'https://chat.openai.com/?q=${Uri.encodeQueryComponent(q)}';
+    await _openExternal(url);
+  }
+
+  Future<bool> _enforceImportType({
+    required Uint8List bytes,
+    required String filename,
+    required Set<ImportFileType> allowed,
+    required String destinationLabel,
+  }) async {
+    final detection =
+        FileImportService().detectFileType(bytes, filename: filename);
+    if (allowed.contains(detection.type) ||
+        detection.type == ImportFileType.unknown) {
+      return true;
+    }
+    if (!mounted) return false;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Wrong import destination'),
+        content: Text(
+          '${detection.message}\n\nThis import is for $destinationLabel.\n\n${detection.suggestion}',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    return false;
+  }
+
   // ===== Schedule import (Excel/CSV) -> Reminders =====
   Future<void> _importSchedule() async {
     try {
@@ -3828,13 +3958,23 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     } catch (e) {
       debugPrint('Import schedule from Drive failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Drive import failed: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Drive import failed: $e')));
       }
     }
   }
 
-  Future<void> _importScheduleFromBytes(Uint8List bytes, String filename) async {
+  Future<void> _importScheduleFromBytes(
+      Uint8List bytes, String filename) async {
+    if (!await _enforceImportType(
+      bytes: bytes,
+      filename: filename,
+      allowed: {ImportFileType.calendar},
+      destinationLabel: 'Dashboard calendar',
+    )) {
+      return;
+    }
+
     // **Show loading dialog immediately**
     if (!mounted) return;
     showDialog(
@@ -3869,7 +4009,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         );
         return;
       }
-      final header = rows.first.map((e) => _normalize(e)).toList();
+      final headerRowIndex = _pickLikelyCalendarHeaderRow(rows);
+      final header = rows[headerRowIndex].map((e) => _normalize(e)).toList();
       int dateIdx = _findHeaderIndex(header, ['date', '日期', 'day']);
       int titleIdx = _findHeaderIndex(header,
           ['title', 'event', 'subject', 'description', 'task', '內容', '事項']);
@@ -3899,21 +4040,48 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       // parse it even when it doesn't have explicit Date/Title columns.
       if (dateIdx == -1 || titleIdx == -1) {
         final monthIdx = _findHeaderIndex(header, ['month']);
-        final dateEventIdx = _findHeaderIndex(
+        int dateEventIdx = _findHeaderIndex(
             header, ['date: event', 'date event', 'event', 'events']);
+        if (dateEventIdx == -1 && rows.length > headerRowIndex + 1) {
+          // Some school templates use a date stamp as header (e.g. "(2025.01.05)")
+          // and keep all event text in that column.
+          final sampleStart = headerRowIndex + 1;
+          final sampleEnd =
+              (sampleStart + 8) < rows.length ? (sampleStart + 8) : rows.length;
+          int bestIdx = -1;
+          int bestScore = 0;
+          for (int c = 0; c < header.length; c++) {
+            int score = 0;
+            for (int r = sampleStart; r < sampleEnd; r++) {
+              final row = rows[r];
+              if (c >= row.length) continue;
+              final v = row[c].toString().trim();
+              if (v.isEmpty) continue;
+              if (v.contains(':')) score += 2; // "23: Opening ceremony"
+              if (v.contains('\n')) score += 1; // multi-line events
+              if (RegExp(r'\d{1,2}\s*-\s*\d{1,2}').hasMatch(v)) score += 1;
+            }
+            if (score > bestScore) {
+              bestScore = score;
+              bestIdx = c;
+            }
+          }
+          if (bestScore >= 3) {
+            dateEventIdx = bestIdx;
+          }
+        }
         if (monthIdx != -1 && dateEventIdx != -1) {
           int imported = 0;
           String lastMonthToken = '';
           final remindersToAdd = <_Reminder>[];
 
-          for (int i = 1; i < rows.length; i++) {
+          for (int i = headerRowIndex + 1; i < rows.length; i++) {
             final row = rows[i];
             if (row.isEmpty) continue;
 
-            String cellAt(int idx) => (idx != -1 && idx < row.length
-                  ? row[idx].toString()
-                    : '')
-                .trim();
+            String cellAt(int idx) =>
+                (idx != -1 && idx < row.length ? row[idx].toString() : '')
+                    .trim();
             final monthToken = cellAt(monthIdx);
             if (monthToken.isNotEmpty) lastMonthToken = monthToken;
 
@@ -3929,10 +4097,23 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 .toList();
 
             for (final p in pieces) {
-              final m = RegExp(r'^(.+?)\s*:\s*(.+)$').firstMatch(p);
-              if (m == null) continue;
-              final token = m.group(1)!.trim();
-              final title = m.group(2)!.trim();
+              String token = '';
+              String title = '';
+
+              final colon = RegExp(r'^(.+?)\s*[:：]\s*(.+)$').firstMatch(p);
+              if (colon != null) {
+                token = colon.group(1)!.trim();
+                title = colon.group(2)!.trim();
+              } else {
+                // Fallback for lines like "22-23 H1 Civil Training Camp"
+                final leadDate = RegExp(
+                        r'^(\d{1,2}(?:\s*-\s*\d{1,2}(?:\s*/\s*\d{1,2})?)?)\s+(.+)$')
+                    .firstMatch(p);
+                if (leadDate == null) continue;
+                token = leadDate.group(1)!.trim();
+                title = leadDate.group(2)!.trim();
+              }
+
               if (title.isEmpty) continue;
 
               final d = _parseSchoolCalendarDateToken(token,
@@ -3972,17 +4153,17 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       if (mounted) Navigator.pop(context); // Close loading dialog
 
       int imported = 0;
-      for (int i = 1; i < rows.length; i++) {
+      final remindersToAdd = <_Reminder>[];
+      for (int i = headerRowIndex + 1; i < rows.length; i++) {
         final row = rows[i];
         if (row.isEmpty) continue;
         String getCell(int idx) =>
-          (idx != -1 && idx < row.length ? row[idx].toString() : '')
-                .trim();
+            (idx != -1 && idx < row.length ? row[idx].toString() : '').trim();
         final dateStr = getCell(dateIdx);
         final title = getCell(titleIdx);
         if (dateStr.isEmpty || title.isEmpty) continue;
         final details = getCell(detailsIdx);
-        final displayTitle = details.isEmpty ? title : '$title — $details';
+        final displayTitle = details.isEmpty ? title : '$title - $details';
         DateTime? d = _parseDateFlexible(dateStr);
         if (d == null) continue;
         if (timeIdx != -1) {
@@ -3998,9 +4179,12 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           final mapped = _mapClassIdsFromValue(v);
           if (mapped.isNotEmpty) classIds = mapped.toList();
         }
-        setState(() => _reminders.add(
-            _Reminder(displayTitle, d!, done: false, classIds: classIds)));
+        remindersToAdd
+            .add(_Reminder(displayTitle, d, done: false, classIds: classIds));
         imported++;
+      }
+      if (remindersToAdd.isNotEmpty) {
+        setState(() => _reminders.addAll(remindersToAdd));
       }
       await _saveReminders();
       if (mounted) {
@@ -4008,17 +4192,17 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Imported $imported reminders')));
       }
-      } catch (e) {
-        if (mounted) {
-          Navigator.pop(context); // Close loading dialog
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Calendar import error: ${e.toString().substring(0, 80)}'),
-                duration: const Duration(seconds: 5),
-              ));
-        }
-        debugPrint('[CALENDAR] Import error: $e');
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text('Calendar import error: ${e.toString().substring(0, 80)}'),
+          duration: const Duration(seconds: 5),
+        ));
       }
+      debugPrint('[CALENDAR] Import error: $e');
+    }
   }
 
   int? _inferYearFromFilename(String filename) {
@@ -4071,10 +4255,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     t = t.replaceAll(RegExp(r'[\(（].*?[\)）]'), '').trim();
     // Strip trailing weekday words if present
     t = t
-      .replaceAll(
-        RegExp(r'\b(mon|tue|wed|thu|fri|sat|sun)\b', caseSensitive: false),
-        '')
-      .trim();
+        .replaceAll(
+            RegExp(r'\b(mon|tue|wed|thu|fri|sat|sun)\b', caseSensitive: false),
+            '')
+        .trim();
 
     // M/D or M/D-M/D
     final md = RegExp(
@@ -4093,6 +4277,20 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       if (d1 != null) return DateTime(year, month, d1);
     }
 
+    // D-M/D (range crossing month, keep start day in current month context)
+    final dmd =
+        RegExp(r'^(\d{1,2})\s*-\s*(\d{1,2})\s*/\s*(\d{1,2})$').firstMatch(t);
+    if (dmd != null) {
+      final d1 = int.tryParse(dmd.group(1)!);
+      final m2 = int.tryParse(dmd.group(2)!);
+      if (d1 != null) {
+        final resolvedMonth = month ?? m2;
+        if (resolvedMonth != null) {
+          return DateTime(year, resolvedMonth, d1);
+        }
+      }
+    }
+
     // Single day number
     final dOnly = int.tryParse(t);
     if (dOnly != null && month != null) {
@@ -4101,6 +4299,55 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
     // As a last resort, try existing flexible parser (handles YYYY-MM-DD too).
     return _parseDateFlexible(t);
+  }
+
+  int _pickLikelyCalendarHeaderRow(List<List<String>> rows) {
+    if (rows.isEmpty) return 0;
+    final limit = rows.length < 12 ? rows.length : 12;
+    int bestIndex = 0;
+    int bestScore = -1;
+
+    const keywords = <String>[
+      'date',
+      'day',
+      'title',
+      'event',
+      'month',
+      'week',
+      'time',
+      'class',
+      'details',
+      'notes',
+      '日期',
+      '事項',
+      '內容',
+      '月',
+      '週',
+    ];
+
+    for (int i = 0; i < limit; i++) {
+      final normalized =
+          rows[i].map((e) => _normalize(e)).where((e) => e.isNotEmpty).toList();
+      if (normalized.length < 2) continue;
+
+      int score = 0;
+      for (final cell in normalized) {
+        for (final keyword in keywords) {
+          final key = _normalize(keyword);
+          if (cell == key || cell.contains(key)) {
+            score++;
+            break;
+          }
+        }
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = i;
+      }
+    }
+
+    return bestScore >= 2 ? bestIndex : 0;
   }
 
   String _normalize(String s) => s
@@ -4204,10 +4451,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 // Attendance URL
                 TextField(
                   controller: _attendanceUrlCtrl,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Attendance Portal URL',
-                    hintText: 'https://...',
-                    helperText: 'URL for the Attendance link',
+                    hintText: _defaultAttendancePortalUrl,
+                    helperText:
+                        'Defaults to the school attendance portal URL.',
                   ),
                   onChanged: (_) {
                     _saveQuickLinks();
@@ -4216,8 +4464,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 8),
-                Text('Custom Links',
-                    style: Theme.of(ctx).textTheme.titleSmall),
+                Text('Custom Links', style: Theme.of(ctx).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 if (_customLinks.isEmpty)
                   Text('No custom links yet. Add one below.',
@@ -4333,19 +4580,36 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Future<void> _loadQuickLinks() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final att = prefs.getString('attendance_url');
-      if (att != null && att.isNotEmpty) _attendanceUrlCtrl.text = att;
-      final raw = prefs.getString('custom_quick_links');
-      if (raw != null && raw.isNotEmpty) {
-        final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
-        setState(() {
-          _customLinks
-            ..clear()
-            ..addAll(list.map((m) => _QuickLink(
+      final attendanceUrl = await _readScopedPreference(
+        prefs,
+        scopedKey: _attendanceUrlPrefsKey(),
+        legacyKey: _legacyAttendanceUrlPrefsKey,
+        migrationFlagKey: _attendanceUrlMigrationFlagKey,
+      );
+      final raw = await _readScopedPreference(
+        prefs,
+        scopedKey: _quickLinksPrefsKey(),
+        legacyKey: _legacyQuickLinksPrefsKey,
+        migrationFlagKey: _quickLinksMigrationFlagKey,
+      );
+      final parsed = raw == null || raw.isEmpty
+          ? const <Map<String, dynamic>>[]
+          : (jsonDecode(raw) as List)
+              .map((entry) => Map<String, dynamic>.from(entry as Map))
+              .toList();
+      if (!mounted) return;
+      setState(() {
+        _attendanceUrlCtrl.text =
+            (attendanceUrl == null || attendanceUrl.trim().isEmpty)
+                ? _defaultAttendancePortalUrl
+                : attendanceUrl.trim();
+        _customLinks
+          ..clear()
+          ..addAll(parsed.map((m) => _QuickLink(
                 label: (m['label'] ?? '') as String,
-                url: (m['url'] ?? '') as String)));
-        });
-      }
+                url: (m['url'] ?? '') as String,
+              )));
+      });
     } catch (e) {
       debugPrint('Failed to load quick links: $e');
     }
@@ -4354,9 +4618,13 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Future<void> _saveQuickLinks() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('attendance_url', _attendanceUrlCtrl.text.trim());
+      final attendanceUrl = _attendanceUrlCtrl.text.trim().isEmpty
+          ? _defaultAttendancePortalUrl
+          : _attendanceUrlCtrl.text.trim();
       await prefs.setString(
-          'custom_quick_links',
+          _attendanceUrlPrefsKey(), attendanceUrl);
+      await prefs.setString(
+          _quickLinksPrefsKey(),
           jsonEncode(_customLinks
               .map((e) => {'label': e.label, 'url': e.url})
               .toList()));
@@ -4419,8 +4687,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           u.copyWith(photoBase64: base64, updatedAt: DateTime.now());
       await auth.updateCurrentUser(updated);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile photo updated')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Profile photo updated')));
     } catch (e) {
       debugPrint('Failed to set teacher photo: $e');
       if (mounted) {
@@ -4431,294 +4699,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     } finally {
       if (mounted) setState(() => _updatingTeacherPhoto = false);
     }
-  }
-
-  // Seating helpers
-  List<_SeatTable> _seatingForClass() {
-    if (_selectedClassId == null) return [];
-    return _seatingByClass.putIfAbsent(_selectedClassId!, () => []);
-  }
-
-  Future<void> _loadSeatingLayoutForClass() async {
-    if (_selectedClassId == null) return;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString('seating_layout_$_selectedClassId');
-      if (raw == null || raw.isEmpty) return;
-      final list = jsonDecode(raw) as List<dynamic>;
-      final parsed = list
-          .map((e) => _SeatTable.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList();
-      setState(() => _seatingByClass[_selectedClassId!] = parsed);
-    } catch (e) {
-      debugPrint('Failed to load seating layout: $e');
-    }
-  }
-
-  Future<void> _saveSeatingLayoutForClass() async {
-    if (_selectedClassId == null) return;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final tables = _seatingForClass();
-      final jsonStr = jsonEncode(tables.map((t) => t.toJson()).toList());
-      await prefs.setString('seating_layout_$_selectedClassId', jsonStr);
-    } catch (e) {
-      debugPrint('Failed to save seating layout: $e');
-    }
-  }
-
-  void _addTable({required int capacity}) {
-    final tables = _seatingForClass();
-    final id = 'T${DateTime.now().millisecondsSinceEpoch}-${tables.length + 1}';
-    // Place new table at an offset grid to avoid overlap
-    final pos = Offset(24.0 + (tables.length % 5) * 120.0,
-        24.0 + (tables.length ~/ 5) * 120.0);
-    setState(() {
-      tables.add(_SeatTable(
-          id: id,
-          label: 'Table ${tables.length + 1}',
-          capacity: capacity,
-          position: pos));
-    });
-    unawaited(_saveSeatingLayoutForClass());
-  }
-
-  void _removeTable(int index) {
-    final tables = _seatingForClass();
-    setState(() => tables.removeAt(index));
-    unawaited(_saveSeatingLayoutForClass());
-  }
-
-  void _setTableCapacity(int index, int cap) {
-    final tables = _seatingForClass();
-    setState(() => tables[index] = tables[index].copyWith(capacity: cap));
-    unawaited(_saveSeatingLayoutForClass());
-  }
-
-  void _moveTable(int index, Offset delta) {
-    final tables = _seatingForClass();
-    final t = tables[index];
-    setState(() => tables[index] = t.copyWith(position: t.position + delta));
-    // save lazily not required here for every pan
-  }
-
-  void _clearLayout() {
-    if (_selectedClassId == null) return;
-    setState(() => _seatingByClass[_selectedClassId!] = []);
-    unawaited(_saveSeatingLayoutForClass());
-  }
-
-  void _autoLayoutGrid() {
-    final tables = _seatingForClass();
-    const spacingX = 140.0, spacingY = 120.0, pad = 24.0;
-    setState(() {
-      for (int i = 0; i < tables.length; i++) {
-        final row = i ~/ 5;
-        final col = i % 5;
-        tables[i] = tables[i].copyWith(
-            position: Offset(pad + col * spacingX, pad + row * spacingY));
-      }
-    });
-    unawaited(_saveSeatingLayoutForClass());
-  }
-
-  List<String> _unassignedStudents() {
-    final assigned = <String>{};
-    for (final t in _seatingForClass()) {
-      for (final s in t.assigned) {
-        if (s != null && s.isNotEmpty) assigned.add(s);
-      }
-    }
-    return _currentNames.where((n) => !assigned.contains(n)).toList();
-  }
-
-  Future<void> _promptPickStudentForSeat(int tableIndex, int seatIndex) async {
-    if (_seatDesignMode) return; // only in Assign mode
-    final tables = _seatingForClass();
-    final current =
-        (seatIndex >= 0 && seatIndex < tables[tableIndex].assigned.length)
-            ? tables[tableIndex].assigned[seatIndex]
-            : null;
-    final all = _currentNames;
-    final unassigned = _unassignedStudents();
-    final searchCtrl = TextEditingController();
-    String query = '';
-
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final bottom = MediaQuery.of(ctx).viewInsets.bottom;
-        return StatefulBuilder(builder: (ctx, setModal) {
-          List<String> filtered = (query.isEmpty
-              ? [
-                  ...unassigned,
-                  if (current != null && !unassigned.contains(current)) current
-                ]
-              : all
-                  .where((n) => n.toLowerCase().contains(query.toLowerCase()))
-                  .toList());
-          // Ensure current appears first if present
-          if (current != null) {
-            filtered.remove(current);
-            filtered.insert(0, current);
-          }
-          return Padding(
-            padding: EdgeInsets.only(
-                left: 16, right: 16, top: 16, bottom: bottom + 16),
-            child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    const Icon(Icons.event_seat_outlined),
-                    const SizedBox(width: 8),
-                    Text('Assign student to seat',
-                        style: Theme.of(ctx).textTheme.titleLarge)
-                  ]),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: searchCtrl,
-                    decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.search),
-                        labelText: 'Search students'),
-                    onChanged: (v) => setModal(() => query = v.trim()),
-                  ),
-                  const SizedBox(height: 8),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: filtered.length + (current != null ? 1 : 0),
-                      itemBuilder: (ctx, i) {
-                        if (current != null && i == 0) {
-                          return ListTile(
-                            leading: const Icon(Icons.clear),
-                            title: const Text('Clear this seat'),
-                            onTap: () {
-                              _clearSeat(tableIndex, seatIndex);
-                              Navigator.of(ctx).pop();
-                            },
-                          );
-                        }
-                        final name = filtered[i - (current != null ? 1 : 0)];
-                        return ListTile(
-                          leading: const Icon(Icons.person),
-                          title: Text(name, overflow: TextOverflow.ellipsis),
-                          onTap: () {
-                            _assignStudentToSeat(tableIndex, seatIndex, name);
-                            Navigator.of(ctx).pop();
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ]),
-          );
-        });
-      },
-    );
-  }
-
-  void _assignStudentToSeat(int tableIndex, int seatIndex, String student) {
-    final tables = _seatingForClass();
-    // Remove from any previous seat
-    for (int i = 0; i < tables.length; i++) {
-      final idx = tables[i].assigned.indexOf(student);
-      if (idx != -1) tables[i].assigned[idx] = null;
-    }
-    setState(() {
-      tables[tableIndex].assigned[seatIndex] = student;
-    });
-    unawaited(_saveSeatingLayoutForClass());
-  }
-
-  // Move or swap students when dropping onto a seat.
-  void _handleSeatDrop(int tableIndex, int seatIndex, _DragStudent data) {
-    final tables = _seatingForClass();
-    if (tableIndex < 0 || tableIndex >= tables.length) return;
-    final targetTable = tables[tableIndex];
-    if (seatIndex < 0 || seatIndex >= targetTable.capacity) return;
-
-    final incoming = data.name;
-    final targetCurrent = targetTable.assigned[seatIndex];
-
-    // From unassigned tray -> assign (overwrite if needed)
-    if (data.fromTableIndex < 0 || data.fromSeatIndex < 0) {
-      setState(() {
-        for (final t in tables) {
-          final idx = t.assigned.indexOf(incoming);
-          if (idx != -1) t.assigned[idx] = null;
-        }
-        targetTable.assigned[seatIndex] = incoming;
-      });
-      unawaited(_saveSeatingLayoutForClass());
-      return;
-    }
-
-    // From another seat -> move or swap
-    if (data.fromTableIndex >= 0 && data.fromTableIndex < tables.length) {
-      final srcTable = tables[data.fromTableIndex];
-      if (data.fromSeatIndex >= 0 &&
-          data.fromSeatIndex < srcTable.assigned.length) {
-        if (data.fromTableIndex == tableIndex &&
-            data.fromSeatIndex == seatIndex) {
-          return;
-        }
-        setState(() {
-          if (targetCurrent != null && targetCurrent.isNotEmpty) {
-            // Swap
-            srcTable.assigned[data.fromSeatIndex] = targetCurrent;
-            targetTable.assigned[seatIndex] = incoming;
-          } else {
-            // Move
-            srcTable.assigned[data.fromSeatIndex] = null;
-            targetTable.assigned[seatIndex] = incoming;
-          }
-        });
-        unawaited(_saveSeatingLayoutForClass());
-      }
-    }
-  }
-
-  void _clearSeat(int tableIndex, int seatIndex) {
-    final tables = _seatingForClass();
-    setState(() => tables[tableIndex].assigned[seatIndex] = null);
-    unawaited(_saveSeatingLayoutForClass());
-  }
-
-  void _clearAssignments() {
-    final tables = _seatingForClass();
-    setState(() {
-      for (final t in tables) {
-        for (int i = 0; i < t.assigned.length; i++) {
-          t.assigned[i] = null;
-        }
-      }
-    });
-    unawaited(_saveSeatingLayoutForClass());
-  }
-
-  void _randomizeAssignments() {
-    final tables = _seatingForClass();
-    final names = List<String>.from(_currentNames)..shuffle();
-    final totalSeats = tables.fold<int>(0, (p, t) => p + t.capacity);
-    if (names.length > totalSeats) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Not enough seats for ${names.length} students'),
-          backgroundColor: Theme.of(context).colorScheme.error));
-      return;
-    }
-    int idx = 0;
-    setState(() {
-      for (final t in tables) {
-        for (int i = 0; i < t.capacity; i++) {
-          t.assigned[i] = idx < names.length ? names[idx++] : null;
-        }
-      }
-    });
-    unawaited(_saveSeatingLayoutForClass());
   }
 
   Map<String, int> _participationForClass() {
@@ -4846,7 +4826,7 @@ class _Timetable {
         'name': name,
         'base64': base64,
         'mimeType': mimeType,
-      'grid': grid,
+        'grid': grid,
         'uploadedAt': uploadedAt.toIso8601String(),
       };
 
@@ -4855,460 +4835,16 @@ class _Timetable {
         name: (json['name'] ?? '') as String,
         base64: (json['base64'] ?? '') as String,
         mimeType: json['mimeType'] as String?,
-      grid: (json['grid'] is List)
-        ? (json['grid'] as List)
-          .map((r) => (r as List?)
-              ?.map((c) => c?.toString() ?? '')
-              .toList() ??
-            const <String>[])
-          .toList()
-        : null,
+        grid: (json['grid'] is List)
+            ? (json['grid'] as List)
+                .map((r) =>
+                    (r as List?)?.map((c) => c?.toString() ?? '').toList() ??
+                    const <String>[])
+                .toList()
+            : null,
         uploadedAt: DateTime.tryParse(json['uploadedAt'] as String? ?? '') ??
             DateTime.now(),
       );
-}
-
-// Seating data model and widgets
-class _SeatTable {
-  final String id;
-  final String label;
-  final int capacity;
-  final Offset position;
-  final List<String?> assigned;
-
-  _SeatTable(
-      {required this.id,
-      required this.label,
-      required this.capacity,
-      required this.position})
-      : assigned = List<String?>.filled(capacity, null);
-
-  _SeatTable._(
-      {required this.id,
-      required this.label,
-      required this.capacity,
-      required this.position,
-      required this.assigned});
-
-  _SeatTable copyWith(
-      {String? id, String? label, int? capacity, Offset? position}) {
-    final newCapacity = capacity ?? this.capacity;
-    List<String?> newAssigned = List<String?>.from(assigned);
-    if (newCapacity != assigned.length) {
-      // Resize keeping existing assignments
-      newAssigned = List<String?>.filled(newCapacity, null);
-      for (int i = 0; i < newCapacity && i < assigned.length; i++) {
-        newAssigned[i] = assigned[i];
-      }
-    }
-    return _SeatTable._(
-        id: id ?? this.id,
-        label: label ?? this.label,
-        capacity: newCapacity,
-        position: position ?? this.position,
-        assigned: newAssigned);
-  }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'label': label,
-        'capacity': capacity,
-        'x': position.dx,
-        'y': position.dy,
-        'assigned': assigned,
-      };
-
-  static _SeatTable fromJson(Map<String, dynamic> map) {
-    int cap;
-    final rawCap = map['capacity'];
-    if (rawCap is num) {
-      cap = rawCap.toInt();
-    } else if (rawCap is String) {
-      cap = int.tryParse(rawCap) ?? 2;
-    } else {
-      cap = 2;
-    }
-    final assigned = (map['assigned'] as List?)
-            ?.map((e) => e?.toString())
-            .toList() ??
-        List<String?>.filled(cap, null);
-    // Ensure list length equals capacity
-    final normalized = List<String?>.filled(cap, null);
-    for (int i = 0; i < cap && i < assigned.length; i++) {
-      normalized[i] = assigned[i];
-    }
-    return _SeatTable._(
-      id: (map['id'] ?? '') as String,
-      label: (map['label'] ?? '') as String,
-      capacity: cap,
-      position: Offset(
-        (map['x'] is num)
-            ? (map['x'] as num).toDouble()
-            : double.tryParse(map['x']?.toString() ?? '') ?? 24.0,
-        (map['y'] is num)
-            ? (map['y'] as num).toDouble()
-            : double.tryParse(map['y']?.toString() ?? '') ?? 24.0,
-      ),
-      assigned: normalized,
-    );
-  }
-}
-
-class _TableWidget extends StatelessWidget {
-  final int tableIndex;
-  final _SeatTable table;
-  final bool designMode;
-  final void Function(Offset delta) onMove;
-  final VoidCallback onMoveEnd;
-  final VoidCallback onRemove;
-  final void Function(int capacity) onCapacityChanged;
-  final void Function(int seatIndex, _DragStudent data) onSeatDrop;
-  final void Function(int seatIndex) onClearSeat;
-  final void Function(int seatIndex) onTapSeat;
-
-  const _TableWidget(
-      {required this.tableIndex,
-      required this.table,
-      required this.designMode,
-      required this.onMove,
-      required this.onMoveEnd,
-      required this.onRemove,
-      required this.onCapacityChanged,
-      required this.onSeatDrop,
-      required this.onClearSeat,
-      required this.onTapSeat});
-
-  int get _columns =>
-      table.capacity <= 2 ? table.capacity : (table.capacity <= 4 ? 2 : 3);
-
-  @override
-  Widget build(BuildContext context) {
-    final cardColor = Theme.of(context).colorScheme.surface;
-    return Positioned(
-      left: table.position.dx,
-      top: table.position.dy,
-      child: GestureDetector(
-        onPanUpdate: designMode ? (d) => onMove(d.delta) : null,
-        onPanEnd: designMode ? (_) => onMoveEnd() : null,
-        child: Container(
-          width: 160,
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant)),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Header row with table info
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Table name and seat count
-                Expanded(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Table ${tableIndex + 1}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelLarge
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis,
-                        softWrap: false,
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${table.assigned.where((s) => s != null && s.isNotEmpty).length}/${table.capacity}',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onPrimaryContainer,
-                              ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Control buttons row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              mainAxisSize: MainAxisSize.max,
-              children: [
-                // Drag handle
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onPanUpdate: (d) => onMove(d.delta),
-                  onPanEnd: (_) => onMoveEnd(),
-                  child: Icon(Icons.drag_indicator,
-                      size: 18,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-                // Capacity controls in design mode
-                if (designMode)
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 28,
-                          child: IconButton(
-                              tooltip: 'Decrease seats',
-                              icon: const Icon(Icons.remove_circle_outline,
-                                  size: 16),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: table.capacity > 1
-                                  ? () => onCapacityChanged(table.capacity - 1)
-                                  : null),
-                        ),
-                        Text('${table.capacity}',
-                            style: Theme.of(context).textTheme.labelSmall),
-                        SizedBox(
-                          width: 28,
-                          child: IconButton(
-                              tooltip: 'Increase seats',
-                              icon: const Icon(Icons.add_circle_outline,
-                                  size: 16),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () =>
-                                  onCapacityChanged(table.capacity + 1)),
-                        ),
-                        SizedBox(
-                          width: 28,
-                          child: IconButton(
-                              tooltip: 'Remove table',
-                              icon: const Icon(Icons.delete_outline, size: 16),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: onRemove),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            _SeatGrid(
-              capacity: table.capacity,
-              columns: _columns,
-              assigned: table.assigned,
-              designMode: designMode,
-              tableIndex: tableIndex,
-              onSeatDrop: onSeatDrop,
-              onClearSeat: onClearSeat,
-              onTapSeat: onTapSeat,
-            ),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-class _SeatGrid extends StatelessWidget {
-  final int capacity;
-  final int columns;
-  final List<String?> assigned;
-  final bool designMode;
-  final int tableIndex;
-  final void Function(int seatIndex, _DragStudent data) onSeatDrop;
-  final void Function(int seatIndex) onClearSeat;
-  final void Function(int seatIndex) onTapSeat;
-
-  const _SeatGrid(
-      {required this.capacity,
-      required this.columns,
-      required this.assigned,
-      required this.designMode,
-      required this.tableIndex,
-      required this.onSeatDrop,
-      required this.onClearSeat,
-      required this.onTapSeat});
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = (capacity / columns).ceil();
-    return Column(children: [
-      for (int r = 0; r < rows; r++)
-        Row(children: [
-          for (int c = 0; c < columns; c++)
-            Expanded(
-                child: _SeatCell(
-                    index: r * columns + c,
-                    tableIndex: tableIndex,
-                    assigned: r * columns + c < assigned.length
-                        ? assigned[r * columns + c]
-                        : null,
-                    designMode: designMode,
-                    onSeatDrop: onSeatDrop,
-                    onClearSeat: onClearSeat,
-                    onTapSeat: onTapSeat)),
-        ]),
-    ]);
-  }
-}
-
-class _SeatCell extends StatelessWidget {
-  final int index;
-  final int tableIndex;
-  final String? assigned;
-  final bool designMode;
-  final void Function(int seatIndex, _DragStudent data) onSeatDrop;
-  final void Function(int seatIndex) onClearSeat;
-  final void Function(int seatIndex) onTapSeat;
-
-  const _SeatCell(
-      {required this.index,
-      required this.tableIndex,
-      required this.assigned,
-      required this.designMode,
-      required this.onSeatDrop,
-      required this.onClearSeat,
-      required this.onTapSeat});
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = Theme.of(context).colorScheme.surfaceContainer;
-    final border = Theme.of(context).colorScheme.outlineVariant;
-    final canInteract = !designMode;
-
-    return MouseRegion(
-      cursor: canInteract ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: GestureDetector(
-        onTap: canInteract ? () => onTapSeat(index) : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          margin: const EdgeInsets.all(4),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-          height: 42,
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: canInteract
-                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
-                  : border,
-              width: canInteract ? 1.5 : 1,
-            ),
-          ),
-          child: assigned == null
-              ? Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.event_seat_outlined,
-                        size: 14,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant
-                            .withValues(alpha: 0.5),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          '${index + 1}',
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant
-                                        .withValues(alpha: 0.7),
-                                  ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : Align(
-                  alignment: Alignment.centerLeft,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.person,
-                          size: 14,
-                          color:
-                              Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          assigned!,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onPrimaryContainer,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StudentChip extends StatelessWidget {
-  final String name;
-
-  const _StudentChip({required this.name});
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = Theme.of(context).colorScheme.primaryContainer;
-    final fg = Theme.of(context).colorScheme.onPrimaryContainer;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.person, size: 14),
-        const SizedBox(width: 4),
-        ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 180),
-            child: Text(name,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: fg))),
-      ]),
-    );
-  }
-}
-
-// Drag payload for seating moves/swaps
-class _DragStudent {
-  final String name;
-  final int fromTableIndex; // -1 for unassigned tray
-  final int fromSeatIndex; // -1 for unassigned tray
-  const _DragStudent(
-      {required this.name,
-      required this.fromTableIndex,
-      required this.fromSeatIndex});
 }
 
 class _QuickLink {

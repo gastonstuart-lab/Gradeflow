@@ -18,7 +18,7 @@ import 'package:flutter/services.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 
-enum _SortBy { seat, chinese, english }
+enum _SortBy { studentId, seat, chinese, english }
 
 class StudentListScreen extends StatefulWidget {
   final String classId;
@@ -33,7 +33,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
   final FileImportService _importService = FileImportService();
   final TextEditingController _searchCtrl = TextEditingController();
   String _query = '';
-  _SortBy _sortBy = _SortBy.seat;
+  _SortBy _sortBy = _SortBy.studentId;
   bool _ascending = true;
   bool _selectionMode = false;
   final Set<String> _selectedStudentIds = {};
@@ -903,6 +903,91 @@ class _StudentListScreenState extends State<StudentListScreen> {
     );
   }
 
+  int _compareStudents(Student left, Student right) {
+    int cmp;
+    switch (_sortBy) {
+      case _SortBy.studentId:
+        cmp = _compareStudentIds(left, right);
+        break;
+      case _SortBy.seat:
+        cmp = _compareSeatNumbers(left.seatNo, right.seatNo);
+        if (cmp == 0) {
+          cmp = _compareStudentIds(left, right);
+        }
+        break;
+      case _SortBy.chinese:
+        cmp = left.chineseName
+            .toLowerCase()
+            .compareTo(right.chineseName.toLowerCase());
+        if (cmp == 0) {
+          cmp = _compareStudentIds(left, right);
+        }
+        break;
+      case _SortBy.english:
+        cmp = left.englishFullName
+            .toLowerCase()
+            .compareTo(right.englishFullName.toLowerCase());
+        if (cmp == 0) {
+          cmp = _compareStudentIds(left, right);
+        }
+        break;
+    }
+
+    return _ascending ? cmp : -cmp;
+  }
+
+  int _compareStudentIds(Student left, Student right) {
+    final idCompare = _naturalCompare(
+      left.studentId.toLowerCase(),
+      right.studentId.toLowerCase(),
+    );
+    if (idCompare != 0) return idCompare;
+
+    final chineseCompare = left.chineseName
+        .toLowerCase()
+        .compareTo(right.chineseName.toLowerCase());
+    if (chineseCompare != 0) return chineseCompare;
+
+    return left.englishFullName
+        .toLowerCase()
+        .compareTo(right.englishFullName.toLowerCase());
+  }
+
+  int _compareSeatNumbers(String? leftSeat, String? rightSeat) {
+    final leftValue = leftSeat?.trim() ?? '';
+    final rightValue = rightSeat?.trim() ?? '';
+    if (leftValue.isEmpty && rightValue.isEmpty) return 0;
+    if (leftValue.isEmpty) return 1;
+    if (rightValue.isEmpty) return -1;
+    return _naturalCompare(leftValue.toLowerCase(), rightValue.toLowerCase());
+  }
+
+  int _naturalCompare(String left, String right) {
+    final leftParts = RegExp(r'\d+|\D+')
+        .allMatches(left)
+        .map((match) => match.group(0)!)
+        .toList();
+    final rightParts = RegExp(r'\d+|\D+')
+        .allMatches(right)
+        .map((match) => match.group(0)!)
+        .toList();
+    final limit =
+        leftParts.length < rightParts.length ? leftParts.length : rightParts.length;
+
+    for (int i = 0; i < limit; i++) {
+      final leftPart = leftParts[i];
+      final rightPart = rightParts[i];
+      final leftNumber = int.tryParse(leftPart);
+      final rightNumber = int.tryParse(rightPart);
+      final compare = leftNumber != null && rightNumber != null
+          ? leftNumber.compareTo(rightNumber)
+          : leftPart.compareTo(rightPart);
+      if (compare != 0) return compare;
+    }
+
+    return leftParts.length.compareTo(rightParts.length);
+  }
+
   @override
   Widget build(BuildContext context) {
     final studentService = context.watch<StudentService>();
@@ -922,27 +1007,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
               (s.classCode?.toLowerCase().contains(q) ?? false))
           .toList();
     }
-    int seatAsInt(String? v) =>
-        int.tryParse(v ?? '') ?? 1 << 30; // push empties to end
-    list.sort((a, b) {
-      int cmp;
-      switch (_sortBy) {
-        case _SortBy.seat:
-          cmp = seatAsInt(a.seatNo).compareTo(seatAsInt(b.seatNo));
-          break;
-        case _SortBy.chinese:
-          cmp = a.chineseName
-              .toLowerCase()
-              .compareTo(b.chineseName.toLowerCase());
-          break;
-        case _SortBy.english:
-          cmp = a.englishFullName
-              .toLowerCase()
-              .compareTo(b.englishFullName.toLowerCase());
-          break;
-      }
-      return _ascending ? cmp : -cmp;
-    });
+    list.sort(_compareStudents);
 
     return Scaffold(
       appBar: AppBar(
@@ -1070,6 +1135,9 @@ class _StudentListScreenState extends State<StudentListScreen> {
                                   icon: const Icon(Icons.sort),
                                   onSelected: (v) {
                                     setState(() {
+                                      if (v == 'studentId') {
+                                        _sortBy = _SortBy.studentId;
+                                      }
                                       if (v == 'seat') _sortBy = _SortBy.seat;
                                       if (v == 'chinese') {
                                         _sortBy = _SortBy.chinese;
@@ -1080,6 +1148,9 @@ class _StudentListScreenState extends State<StudentListScreen> {
                                     });
                                   },
                                   itemBuilder: (context) => const [
+                                    PopupMenuItem(
+                                        value: 'studentId',
+                                        child: Text('Student ID')),
                                     PopupMenuItem(
                                         value: 'seat',
                                         child: Text('Seat number')),

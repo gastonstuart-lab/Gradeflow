@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
+import 'package:gradeflow/services/class_schedule_service.dart';
 
 class ClassService extends ChangeNotifier {
   List<Class> _classes = [];
@@ -78,6 +79,7 @@ class ClassService extends ChangeNotifier {
     try {
       final repo = RepositoryFactory.instance;
       await repo.deleteClass(classId);
+      await ClassScheduleService().clear(classId);
       _classes.removeWhere((c) => c.classId == classId);
       notifyListeners();
     } catch (e) {

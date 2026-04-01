@@ -15,7 +15,7 @@ class StudentService extends ChangeNotifier {
     
     try {
       final repo = RepositoryFactory.instance;
-      _students = await repo.loadStudents(classId);
+      _students = _sortStudentsByStudentId(await repo.loadStudents(classId));
     } catch (e) {
       debugPrint('Failed to load students: $e');
     } finally {
@@ -27,6 +27,7 @@ class StudentService extends ChangeNotifier {
   Future<void> addStudent(Student newStudent) async {
     try {
       _students.add(newStudent);
+      _students = _sortStudentsByStudentId(_students);
       final repo = RepositoryFactory.instance;
       await repo.saveStudents(newStudent.classId, _students);
       notifyListeners();
@@ -38,6 +39,7 @@ class StudentService extends ChangeNotifier {
   Future<void> addStudents(List<Student> newStudents) async {
     try {
       _students.addAll(newStudents);
+      _students = _sortStudentsByStudentId(_students);
       if (newStudents.isNotEmpty) {
         final repo = RepositoryFactory.instance;
         await repo.saveStudents(newStudents.first.classId, _students);
@@ -53,6 +55,7 @@ class StudentService extends ChangeNotifier {
       final localIndex = _students.indexWhere((s) => s.studentId == updatedStudent.studentId);
       if (localIndex == -1) return;
       _students[localIndex] = updatedStudent;
+      _students = _sortStudentsByStudentId(_students);
       final repo = RepositoryFactory.instance;
       await repo.saveStudents(updatedStudent.classId, _students);
       notifyListeners();
@@ -155,5 +158,52 @@ class StudentService extends ChangeNotifier {
     } catch (e) {
       debugPrint('Failed to seed demo students: $e');
     }
+  }
+
+  List<Student> _sortStudentsByStudentId(List<Student> students) {
+    final sorted = List<Student>.from(students);
+    sorted.sort((left, right) {
+      final idCompare = _naturalCompare(
+        left.studentId.toLowerCase(),
+        right.studentId.toLowerCase(),
+      );
+      if (idCompare != 0) return idCompare;
+
+      final chineseCompare = left.chineseName
+          .toLowerCase()
+          .compareTo(right.chineseName.toLowerCase());
+      if (chineseCompare != 0) return chineseCompare;
+
+      return left.englishFullName
+          .toLowerCase()
+          .compareTo(right.englishFullName.toLowerCase());
+    });
+    return sorted;
+  }
+
+  int _naturalCompare(String left, String right) {
+    final leftParts = RegExp(r'\d+|\D+')
+        .allMatches(left)
+        .map((match) => match.group(0)!)
+        .toList();
+    final rightParts = RegExp(r'\d+|\D+')
+        .allMatches(right)
+        .map((match) => match.group(0)!)
+        .toList();
+    final limit =
+        leftParts.length < rightParts.length ? leftParts.length : rightParts.length;
+
+    for (int i = 0; i < limit; i++) {
+      final leftPart = leftParts[i];
+      final rightPart = rightParts[i];
+      final leftNumber = int.tryParse(leftPart);
+      final rightNumber = int.tryParse(rightPart);
+      final compare = leftNumber != null && rightNumber != null
+          ? leftNumber.compareTo(rightNumber)
+          : leftPart.compareTo(rightPart);
+      if (compare != 0) return compare;
+    }
+
+    return leftParts.length.compareTo(rightParts.length);
   }
 }

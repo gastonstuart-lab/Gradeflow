@@ -12,6 +12,7 @@ import 'package:gradeflow/screens/category_management_screen.dart';
 import 'package:gradeflow/screens/exam_input_screen.dart';
 import 'package:gradeflow/screens/export_screen.dart';
 import 'package:gradeflow/screens/final_results_screen.dart';
+import 'package:gradeflow/screens/class_seating_screen.dart';
 import 'package:gradeflow/screens/teacher_dashboard_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/screens/deleted_students_screen.dart';
@@ -93,6 +94,14 @@ class AppRouter {
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
           return NoTransitionPage(child: GradebookScreen(classId: classId));
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.classDetail}/:classId/seating',
+        name: 'classSeating',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return NoTransitionPage(child: ClassSeatingScreen(classId: classId));
         },
       ),
       GoRoute(

@@ -883,8 +883,17 @@ class FileImportService {
   // --------------------
   // Excel (XLSX): Students Roster
   // --------------------
-  List<ImportedStudent> parseXlsxRoster(Uint8List bytes) {
+  List<ImportedStudent> parseXlsxRoster(Uint8List bytes,
+      {String? teacherName}) {
     try {
+      // First pass: handle school-wide, multi-sheet roster workbooks where
+      // each row may contain repeated student blocks (e.g. Cls/Seat/ID/Name...).
+      final schoolWide =
+          _parseSchoolWideRosterWorkbook(bytes, teacherName: teacherName);
+      if (schoolWide.isNotEmpty) {
+        return schoolWide;
+      }
+
       final rows = _rowsFromExcel(bytes);
       if (rows.isEmpty) return [];
 
@@ -1016,6 +1025,383 @@ class FileImportService {
       debugPrint('Failed to parse XLSX roster: $e');
       return [];
     }
+  }
+
+  /// Best-effort extraction of class codes taught by a teacher from a school
+  /// roster workbook. Used to preselect target classes in import UI.
+  Set<String> inferClassCodesForTeacherFromRoster(
+      Uint8List bytes, String teacherName) {
+    try {
+      final excel = Excel.decodeBytes(bytes);
+      if (excel.tables.isEmpty) return const {};
+
+      final normalizedTeacher = teacherName.trim().toLowerCase();
+      if (normalizedTeacher.isEmpty) return const {};
+      final teacherTokens = normalizedTeacher
+          .split(RegExp(r'[^a-z0-9]+'))
+          .where((t) => t.length >= 3)
+          .toSet();
+
+      bool cellMatchesTeacher(String raw) {
+        final t = raw.trim().toLowerCase();
+        if (t.isEmpty) return false;
+        if (t.contains(normalizedTeacher)) return true;
+        for (final token in teacherTokens) {
+          if (t.contains(token)) return true;
+        }
+        return false;
+      }
+
+      bool looksLikeClassCode(String raw) {
+        final t = raw.trim().toUpperCase();
+        return RegExp(r'^[JH]\d[A-Z]{1,3}$').hasMatch(t);
+      }
+
+      final out = <String>{};
+      for (final entry in excel.tables.entries) {
+        final sheetName = entry.key;
+        final sheet = entry.value;
+        if (sheet.rows.isEmpty) continue;
+
+        bool teacherMatched = false;
+        final rows = sheet.rows;
+        final scanRows = rows.length < 14 ? rows.length : 14;
+        for (int r = 0; r < scanRows; r++) {
+          for (final c in rows[r]) {
+            final raw = c?.value?.toString() ?? '';
+            if (cellMatchesTeacher(raw)) {
+              teacherMatched = true;
+              break;
+            }
+          }
+          if (teacherMatched) break;
+        }
+        if (!teacherMatched) continue;
+
+        final inferred = _inferTeachingClassCodeFromSheetName(sheetName);
+        if (inferred != null && inferred.isNotEmpty) {
+          out.add(inferred);
+        }
+
+        // Also extract class codes from "Cls" columns in student rows.
+        int? headerRow;
+        List<int> classCols = const [];
+        for (int r = 0; r < rows.length && r < 40; r++) {
+          final normalized = rows[r]
+              .map((c) => (c?.value?.toString() ?? '').trim().toLowerCase())
+              .toList();
+          final cols = <int>[];
+          for (int i = 0; i < normalized.length; i++) {
+            final h = normalized[i];
+            if (h == 'cls' || h == 'class' || h.contains('class')) cols.add(i);
+          }
+          if (cols.isNotEmpty) {
+            headerRow = r;
+            classCols = cols;
+            break;
+          }
+        }
+        if (headerRow == null || classCols.isEmpty) continue;
+
+        for (int r = headerRow + 1; r < rows.length; r++) {
+          final row = rows[r];
+          if (row.isEmpty) continue;
+          for (final col in classCols) {
+            if (col >= row.length) continue;
+            final raw = row[col]?.value?.toString() ?? '';
+            final code = raw.trim().toUpperCase();
+            if (looksLikeClassCode(code)) out.add(code);
+          }
+        }
+      }
+
+      return out;
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  List<ImportedStudent> _parseSchoolWideRosterWorkbook(Uint8List bytes,
+      {String? teacherName}) {
+    try {
+      final excel = Excel.decodeBytes(bytes);
+      if (excel.tables.isEmpty) return const [];
+
+      final out = <ImportedStudent>[];
+      final seen = <String>{};
+      final normalizedTeacher = (teacherName ?? '').trim().toLowerCase();
+      final teacherTokens = normalizedTeacher
+          .split(RegExp(r'[^a-z0-9]+'))
+          .where((t) => t.length >= 3)
+          .toSet();
+      final teacherFilterEnabled = normalizedTeacher.isNotEmpty;
+
+      bool isLikelyRosterHeader(List<String> row) {
+        final norm = row.map(_normalizeName).toList();
+        final hasClass = norm.any((c) =>
+            c == 'class' ||
+            c == 'cls' ||
+            c.contains('class') ||
+            c.contains('classname'));
+        final hasSeat = norm.any((c) => c.contains('seat'));
+        final hasId = norm.any((c) => c == 'id' || c.contains('studentid'));
+        final hasName = norm.any((c) =>
+            c == 'name' ||
+            c.contains('chinesename') ||
+            c.contains('firstname') ||
+            c.contains('lastname'));
+        return hasClass && hasSeat && hasId && hasName;
+      }
+
+      bool hasStudentDataInBlock(List<String> row, int startCol) {
+        final classCode = _safeCell(row, startCol);
+        final seat = _safeCell(row, startCol + 1);
+        final id = _safeCell(row, startCol + 2);
+        final name = _safeCell(row, startCol + 3);
+        final first = _safeCell(row, startCol + 4);
+        final last = _safeCell(row, startCol + 5);
+
+        final hasAnyName =
+            name.isNotEmpty || first.isNotEmpty || last.isNotEmpty;
+        final hasLikelyId = RegExp(r'^\d{5,}$').hasMatch(_normalizeNumber(id));
+        final hasLikelySeat =
+            int.tryParse(_normalizeNumber(seat)) != null && seat.isNotEmpty;
+        final hasClassCode = classCode.isNotEmpty &&
+            RegExp(r'^[A-Za-z0-9\u4e00-\u9fff]{2,}$').hasMatch(classCode);
+
+        return hasAnyName && (hasLikelyId || hasLikelySeat || hasClassCode);
+      }
+
+      ImportedStudent? parseBlock(
+          List<String> row, int startCol, String? teachingClassCode) {
+        final classCodeRaw = _safeCell(row, startCol);
+        final seatRaw = _safeCell(row, startCol + 1);
+        final idRaw = _safeCell(row, startCol + 2);
+        final chineseNameRaw = _safeCell(row, startCol + 3);
+        final firstRaw = _safeCell(row, startCol + 4);
+        final lastRaw = _safeCell(row, startCol + 5);
+
+        final studentId = _normalizeNumber(idRaw);
+        final seatNo = _normalizeNumber(seatRaw);
+        String? classCode = (teachingClassCode != null &&
+                teachingClassCode.trim().isNotEmpty)
+            ? teachingClassCode.trim()
+            : (classCodeRaw.trim().isEmpty
+                ? null
+                : classCodeRaw.trim().replaceAll(' ', ''));
+        String? chineseName =
+            chineseNameRaw.trim().isEmpty ? null : chineseNameRaw.trim();
+        String? first =
+            firstRaw.trim().isEmpty ? null : _normalizeNameToken(firstRaw);
+        String? last =
+            lastRaw.trim().isEmpty ? null : _normalizeNameToken(lastRaw);
+
+        // Fallback: if Chinese name is absent but we have English parts.
+        if ((chineseName == null || chineseName.isEmpty) &&
+            (first != null && first.isNotEmpty) &&
+            (last != null && last.isNotEmpty)) {
+          chineseName = '$first $last';
+        }
+
+        // Fallback: if English parts are absent, mirror Chinese name.
+        if ((first == null || first.isEmpty || last == null || last.isEmpty) &&
+            chineseName != null &&
+            chineseName.isNotEmpty) {
+          first ??= chineseName;
+          last ??= chineseName;
+        }
+
+        if (studentId.isEmpty) return null;
+        if ((chineseName == null || chineseName.isEmpty) &&
+            ((first == null || first.isEmpty) ||
+                (last == null || last.isEmpty))) {
+          return null;
+        }
+
+        final dedupeKey = '${classCode ?? ''}|$studentId';
+        if (seen.contains(dedupeKey)) return null;
+        seen.add(dedupeKey);
+
+        return ImportedStudent(
+          studentId: studentId,
+          chineseName: chineseName,
+          englishFirstName: first,
+          englishLastName: last,
+          seatNo: seatNo.isEmpty ? null : seatNo,
+          classCode: classCode,
+          isValid: true,
+        );
+      }
+
+      for (final entry in excel.tables.entries) {
+        final teachingClassCode =
+            _inferTeachingClassCodeFromSheetName(entry.key);
+        final sheet = entry.value;
+        if (sheet.rows.isEmpty) continue;
+
+        final rows = <List<String>>[];
+        for (final r in sheet.rows) {
+          final vals = r.map((c) => c?.value?.toString() ?? '').toList();
+          rows.add(vals);
+        }
+
+        for (int r = 0; r < rows.length; r++) {
+          final row = rows[r];
+          if (!isLikelyRosterHeader(row)) continue;
+
+          // Determine where repeated 6-column roster blocks begin.
+          final blockStarts = <int>[];
+          final nRow = row.map(_normalizeName).toList();
+          for (int c = 0; c < nRow.length; c++) {
+            final h = nRow[c];
+            if (h == 'cls' || h == 'class' || h.contains('classname')) {
+              blockStarts.add(c);
+            }
+          }
+
+          if (blockStarts.isEmpty) {
+            blockStarts.add(0);
+          }
+          final teacherByBlock = <int, String>{};
+          for (final start in blockStarts) {
+            teacherByBlock[start] =
+                _inferTeacherForRosterBlock(rows, r, start).trim();
+          }
+          final sheetTeacherMatched = !teacherFilterEnabled
+              ? true
+              : _sheetLikelyBelongsToTeacher(
+                  rows, r, normalizedTeacher, teacherTokens);
+
+          for (int rr = r + 1; rr < rows.length; rr++) {
+            final dataRow = rows[rr];
+            if (dataRow.every((c) => c.trim().isEmpty)) continue;
+            if (isLikelyRosterHeader(dataRow)) break;
+
+            var foundAny = false;
+            for (final start in blockStarts) {
+              if (teacherFilterEnabled) {
+                final blockTeacher = teacherByBlock[start] ?? '';
+                final blockMatches = _matchesTeacherName(
+                    blockTeacher, normalizedTeacher, teacherTokens);
+                if (!blockMatches && !sheetTeacherMatched) {
+                  continue;
+                }
+              }
+              if (start + 2 >= dataRow.length) continue;
+              if (!hasStudentDataInBlock(dataRow, start)) continue;
+              final parsed = parseBlock(dataRow, start, teachingClassCode);
+              if (parsed != null) {
+                out.add(parsed);
+                foundAny = true;
+              }
+            }
+
+            // If a row in the section has no parseable student blocks, and
+            // looks like section metadata, keep scanning. If it's fully blank,
+            // continue.
+            if (!foundAny &&
+                dataRow.where((c) => c.trim().isNotEmpty).length <= 1) {
+              continue;
+            }
+          }
+        }
+      }
+
+      return out;
+    } catch (e) {
+      debugPrint('School-wide roster parse fallback failed: $e');
+      return const [];
+    }
+  }
+
+  String _safeCell(List<String> row, int idx) {
+    if (idx < 0 || idx >= row.length) return '';
+    return row[idx].trim();
+  }
+
+  String _normalizeNumber(String raw) {
+    var value = raw.trim();
+    if (value.isEmpty) return value;
+    if (value.endsWith('.0')) {
+      value = value.substring(0, value.length - 2);
+    }
+    value = value.replaceAll(',', '').trim();
+    return value;
+  }
+
+  String _normalizeNameToken(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed.replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String? _inferTeachingClassCodeFromSheetName(String sheetName) {
+    final compact = sheetName.replaceAll(' ', '').toUpperCase();
+
+    // Prefer patterns like "J2-EEP-FG" => J2FG or "J1-ESL-ABC" => J1ABC.
+    final grouped = RegExp(r'([JH]\d)[^A-Z0-9]*[A-Z]+[^A-Z0-9]*([A-Z]{1,3})')
+        .firstMatch(compact);
+    if (grouped != null) {
+      return '${grouped.group(1)}${grouped.group(2)}';
+    }
+
+    // Fallback direct code in sheet name like J2FG.
+    final direct = RegExp(r'([JH]\d[A-Z]{1,3})').firstMatch(compact);
+    if (direct != null) return direct.group(1);
+
+    return null;
+  }
+
+  bool _matchesTeacherName(
+      String raw, String normalizedTeacher, Set<String> teacherTokens) {
+    final v = raw.trim().toLowerCase();
+    if (v.isEmpty || normalizedTeacher.isEmpty) return false;
+    if (v.contains(normalizedTeacher)) return true;
+    for (final token in teacherTokens) {
+      if (v.contains(token)) return true;
+    }
+    return false;
+  }
+
+  bool _sheetLikelyBelongsToTeacher(List<List<String>> rows, int headerRow,
+      String normalizedTeacher, Set<String> teacherTokens) {
+    final scanTo = headerRow < 14 ? headerRow : 14;
+    for (int r = 0; r < scanTo; r++) {
+      final row = rows[r];
+      for (final cell in row) {
+        if (_matchesTeacherName(cell, normalizedTeacher, teacherTokens)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  String _inferTeacherForRosterBlock(
+      List<List<String>> rows, int headerRow, int blockStart) {
+    final minRow = headerRow - 12 < 0 ? 0 : headerRow - 12;
+    for (int r = headerRow - 1; r >= minRow; r--) {
+      final candidate = _safeCell(rows[r], blockStart + 5);
+      if (_looksLikeTeacherNameCell(candidate)) {
+        return candidate;
+      }
+    }
+    return '';
+  }
+
+  bool _looksLikeTeacherNameCell(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return false;
+    final lower = v.toLowerCase();
+    if (RegExp(r'^\d+(\.\d+)?$').hasMatch(lower)) return false;
+    if (lower.contains('teacher') ||
+        lower.contains('subject') ||
+        lower.contains('group') ||
+        lower == 'cls' ||
+        lower == 'class') {
+      return false;
+    }
+    return true;
   }
 
   int _findColumnIndex(List<String> headers, List<String> possibleNames) {

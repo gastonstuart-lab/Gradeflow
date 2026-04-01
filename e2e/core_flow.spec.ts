@@ -33,8 +33,8 @@ async function openDemoClassGradebook(page: Page) {
   await expect(page.getByText('Gradebook')).toBeVisible();
 
   // Select a category and a specific grade item so we can edit a score.
-  await page.getByRole('button', { name: 'Homework' }).first().click();
-  await page.getByRole('button', { name: 'Homework 1' }).first().click();
+  await page.getByRole('checkbox', { name: /^Homework$/i }).first().click();
+  await page.getByRole('checkbox', { name: /^Homework 1\b/i }).first().click();
 
   await expect(page.getByRole('button', { name: 'Quick grade' }).first()).toBeVisible({
     timeout: 60_000,
@@ -82,18 +82,18 @@ async function clickSliderToValue(page: Page, value: number) {
   await page.mouse.click(x, y);
 }
 
-async function getQuickGradeScore(page: Page) {
+async function getFirstStudentScore(page: Page) {
   const group = page.getByRole('group', {
     name: /Ming Li ID: demo-class-1-student-1/i,
   });
   await group.first().waitFor({ timeout: 10_000 });
-  const label = await group.first().evaluate((el) => {
+  const text = await group.first().evaluate((el) => {
     const v = el.getAttribute('aria-label');
-    if (v && v.trim()) return v.trim();
-    return (el.textContent ?? '').trim();
+    const body = (el.textContent ?? '').trim();
+    return [v, body].filter(Boolean).join(' ');
   });
-  const m = label.match(/\b\d+\/\d+\s+(\d+)\s*$/);
-  if (!m) throw new Error(`Could not parse score from dialog label: ${label}`);
+  const m = text.match(/Seat\s+\d+\s+(\d+)\s+Clear/);
+  if (!m) throw new Error(`Could not parse score from gradebook row: ${text}`);
   return Number(m[1]);
 }
 
@@ -108,23 +108,21 @@ test('core loop: edit score persists; undo reverts', async ({ page }) => {
   // Set a distinctive score value, then verify it persists and can be undone.
   const target = 73;
 
+  const before = await getFirstStudentScore(page);
   await openQuickGradeForFirstStudent(page);
-  const before = await getQuickGradeScore(page);
   await clickSliderToValue(page, target);
-  await expect.poll(() => getQuickGradeScore(page)).not.toBe(before);
-  const after = await getQuickGradeScore(page);
   await page.getByRole('button', { name: 'Done' }).click();
+  await expect.poll(() => getFirstStudentScore(page)).not.toBe(before);
+  const after = await getFirstStudentScore(page);
 
   // Go back to class detail, re-enter gradebook, and verify the score persisted.
   await goBack(page);
   await expect(page.getByRole('heading', { name: 'Grade 10A' })).toBeVisible();
   await page.getByRole('button', { name: /^Gradebook\b/i }).first().click();
   await expect(page.getByText('Gradebook')).toBeVisible();
-  await page.getByRole('button', { name: 'Homework' }).first().click();
-  await page.getByRole('button', { name: 'Homework 1' }).first().click();
-  await openQuickGradeForFirstStudent(page);
-  await expect.poll(() => getQuickGradeScore(page)).toBe(after);
-  await page.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('checkbox', { name: /^Homework$/i }).first().click();
+  await page.getByRole('checkbox', { name: /^Homework 1\b/i }).first().click();
+  await expect.poll(() => getFirstStudentScore(page)).toBe(after);
 
   // Undo the last score change.
   await page.getByRole('button', { name: 'Undo last score change' }).click();
@@ -133,17 +131,14 @@ test('core loop: edit score persists; undo reverts', async ({ page }) => {
   ).toBeVisible();
 
   // Verify the score reverted back to what it was before the change.
-  await openQuickGradeForFirstStudent(page);
-  await expect.poll(() => getQuickGradeScore(page)).toBe(before);
-  await page.getByRole('button', { name: 'Done' }).click();
+  await expect.poll(() => getFirstStudentScore(page)).toBe(before);
 
   // Go back and re-enter again to ensure undo persisted.
   await goBack(page);
   await expect(page.getByRole('heading', { name: 'Grade 10A' })).toBeVisible();
   await page.getByRole('button', { name: /^Gradebook\b/i }).first().click();
   await expect(page.getByText('Gradebook')).toBeVisible();
-  await page.getByRole('button', { name: 'Homework' }).first().click();
-  await page.getByRole('button', { name: 'Homework 1' }).first().click();
-  await openQuickGradeForFirstStudent(page);
-  await expect.poll(() => getQuickGradeScore(page)).toBe(before);
+  await page.getByRole('checkbox', { name: /^Homework$/i }).first().click();
+  await page.getByRole('checkbox', { name: /^Homework 1\b/i }).first().click();
+  await expect.poll(() => getFirstStudentScore(page)).toBe(before);
 });

@@ -2,18 +2,17 @@ import 'package:flutter/foundation.dart';
 import 'package:gradeflow/services/file_import_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/models/class_schedule_item.dart';
-import 'dart:convert';
-import 'package:csv/csv.dart';
 
 class AiImportOutput {
   final List<ImportedClass> classesMeta; // May have null subject/year/term
-  final Map<String, List<ImportedStudent>> byClass; // key is className/classCode
+  final Map<String, List<ImportedStudent>>
+      byClass; // key is className/classCode
   final List<String> errors;
   final List<ClassScheduleItem> items; // For schedule imports
 
   AiImportOutput({
-    required this.classesMeta, 
-    required this.byClass, 
+    required this.classesMeta,
+    required this.byClass,
     required this.errors,
     this.items = const [],
   });
@@ -25,28 +24,33 @@ class AiImportService {
 
   static const String defaultModel = 'gpt-4o';
 
-  Future<AiImportOutput?> inferFromRows(List<List<String>> rows, {String? filename}) async {
+  Future<AiImportOutput?> inferFromRows(List<List<String>> rows,
+      {String? filename}) async {
     // Try AI first if configured
     try {
       if (rows.isEmpty) return null;
       final firstCols = rows.isNotEmpty ? rows.first.length : 0;
-      debugPrint('AI Import: rows=${rows.length}, cols(first)=$firstCols, file=${filename ?? 'unknown'}');
+      debugPrint(
+          'AI Import: rows=${rows.length}, cols(first)=$firstCols, file=${filename ?? 'unknown'}');
       final sample = _csvFromRows(rows.take(120).toList());
       final messages = [
         {
           'role': 'system',
-          'content': 'You are a strict data normalizer for school class rosters. Always respond with a single valid JSON object. Do not include any commentary.'
+          'content':
+              'You are a strict data normalizer for school class rosters. Always respond with a single valid JSON object. Do not include any commentary.'
         },
         {
           'role': 'user',
           'content': _buildPrompt(sample, filename: filename),
         }
       ];
-      final jsonObj = await _client.chatJson(model: defaultModel, messages: messages);
+      final jsonObj =
+          await _client.chatJson(model: defaultModel, messages: messages);
       return parseRosterJson(jsonObj);
     } catch (e) {
       debugPrint('AI import failed: $e');
-      debugPrint('AI Import: AI could not interpret file "${filename ?? 'unknown'}". Falling back to local parser.');
+      debugPrint(
+          'AI Import: AI could not interpret file "${filename ?? 'unknown'}". Falling back to local parser.');
       // Fall back to smart local parser
       return _localParse(rows, filename: filename);
     }
@@ -159,49 +163,57 @@ class AiImportService {
 
     return _client.chatJson(model: defaultModel, messages: messages);
   }
-  
+
   // Smart local parser that doesn't require AI
   AiImportOutput? _localParse(List<List<String>> rows, {String? filename}) {
     try {
       if (rows.isEmpty) return null;
-      
-      debugPrint('Local Parser: Processing ${rows.length} rows from ${filename ?? 'unknown'}');
-      
+
+      debugPrint(
+          'Local Parser: Processing ${rows.length} rows from ${filename ?? 'unknown'}');
+
       // Convert to CSV format for existing parser
       final csvContent = _csvFromRows(rows);
       final students = _fileImportService.parseCSV(csvContent);
-      
+
       if (students.isEmpty) {
         debugPrint('Local Parser: No valid students found');
         return null;
       }
-      
+
       // Group by class code
       final byClass = <String, List<ImportedStudent>>{};
       for (final student in students) {
-        final classKey = student.classCode?.isNotEmpty == true ? student.classCode! : 'Default Class';
+        final classKey = student.classCode?.isNotEmpty == true
+            ? student.classCode!
+            : 'Default Class';
         byClass.putIfAbsent(classKey, () => []).add(student);
       }
-      
+
       // Create class metadata
-      final classesMeta = byClass.keys.map((className) => ImportedClass(
-        className: className,
-        subject: null,
-        groupNumber: null,
-        schoolYear: null,
-        term: null,
-        isValid: true,
-      )).toList();
-      
+      final classesMeta = byClass.keys
+          .map((className) => ImportedClass(
+                className: className,
+                subject: null,
+                groupNumber: null,
+                schoolYear: null,
+                term: null,
+                isValid: true,
+              ))
+          .toList();
+
       final validCount = students.where((s) => s.isValid).length;
       final invalidCount = students.length - validCount;
-      
-      debugPrint('Local Parser: Found ${byClass.length} classes, $validCount valid students, $invalidCount with errors');
-      
+
+      debugPrint(
+          'Local Parser: Found ${byClass.length} classes, $validCount valid students, $invalidCount with errors');
+
       return AiImportOutput(
         classesMeta: classesMeta,
         byClass: byClass,
-        errors: invalidCount > 0 ? ['$invalidCount students skipped due to missing required fields'] : [],
+        errors: invalidCount > 0
+            ? ['$invalidCount students skipped due to missing required fields']
+            : [],
       );
     } catch (e) {
       debugPrint('Local parser failed: $e');
@@ -254,9 +266,15 @@ CSV_SAMPLE_END''';
         if (c is! Map) continue;
         final className = (c['className'] ?? '').toString().trim();
         if (className.isEmpty) continue;
-        final subject = (c['subject']?.toString().trim().isEmpty ?? true) ? null : c['subject'].toString().trim();
-        final schoolYear = (c['schoolYear']?.toString().trim().isEmpty ?? true) ? null : c['schoolYear'].toString().trim();
-        final term = (c['term']?.toString().trim().isEmpty ?? true) ? null : c['term'].toString().trim();
+        final subject = (c['subject']?.toString().trim().isEmpty ?? true)
+            ? null
+            : c['subject'].toString().trim();
+        final schoolYear = (c['schoolYear']?.toString().trim().isEmpty ?? true)
+            ? null
+            : c['schoolYear'].toString().trim();
+        final term = (c['term']?.toString().trim().isEmpty ?? true)
+            ? null
+            : c['term'].toString().trim();
 
         classesMeta.add(ImportedClass(
           className: className,
@@ -275,9 +293,14 @@ CSV_SAMPLE_END''';
           final chineseName = (s['chineseName'] ?? '').toString().trim();
           final firstName = (s['englishFirstName'] ?? '').toString().trim();
           final lastName = (s['englishLastName'] ?? '').toString().trim();
-          final seatNo = (s['seatNo']?.toString().trim().isEmpty ?? true) ? null : s['seatNo'].toString().trim();
+          final seatNo = (s['seatNo']?.toString().trim().isEmpty ?? true)
+              ? null
+              : s['seatNo'].toString().trim();
 
-          final isValid = studentId.isNotEmpty && chineseName.isNotEmpty && firstName.isNotEmpty && lastName.isNotEmpty;
+          final isValid = studentId.isNotEmpty &&
+              chineseName.isNotEmpty &&
+              firstName.isNotEmpty &&
+              lastName.isNotEmpty;
           students.add(ImportedStudent(
             studentId: studentId,
             chineseName: chineseName,
@@ -296,9 +319,11 @@ CSV_SAMPLE_END''';
       debugPrint('AI JSON parse error: $e');
     }
 
-    final errs = (obj['errors'] as List?)?.map((e) => e.toString()).toList() ?? const [];
+    final errs =
+        (obj['errors'] as List?)?.map((e) => e.toString()).toList() ?? const [];
     errors.addAll(errs);
-    return AiImportOutput(classesMeta: classesMeta, byClass: byClass, errors: errors);
+    return AiImportOutput(
+        classesMeta: classesMeta, byClass: byClass, errors: errors);
   }
 
   String _buildCalendarPrompt(String csvSample, {String? filename}) {
@@ -397,39 +422,66 @@ $csvSample
 CSV_SAMPLE_END''';
   }
 
-  Future<AiImportOutput?> analyzeScheduleFromBytes(List<int> bytes, {String? filename}) async {
+  Future<AiImportOutput?> analyzeScheduleFromBytes(List<int> bytes,
+      {String? filename}) async {
     try {
       if (bytes.isEmpty) return null;
 
-      // Decode bytes to CSV
-      final csvString = utf8.decode(bytes);
-      final List<List<dynamic>> rowsData = const CsvToListConverter().convert(csvString);
-      final rows = rowsData.map((row) => row.map((cell) => cell.toString()).toList()).toList();
-      
+      final rows =
+          _fileImportService.rowsFromAnyBytes(Uint8List.fromList(bytes));
+
       if (rows.isEmpty) return null;
 
       // Use AI to analyze the schedule file
       final result = await analyzeTimetableFromRows(rows, filename: filename);
-      
-      final rawItems = (result['items'] as List<dynamic>?) ?? [];
+
+      final rawItems = (() {
+        final direct = result['items'];
+        if (direct is List) return direct;
+        final timetable = result['timetable'];
+        if (timetable is Map && timetable['entries'] is List) {
+          return timetable['entries'] as List<dynamic>;
+        }
+        return const <dynamic>[];
+      })();
       final List<ClassScheduleItem> items = [];
-      
+
       // Convert raw AI output to ClassScheduleItem objects
       for (final item in rawItems) {
-        final map = item as Map<String, dynamic>;
+        if (item is! Map) continue;
+        final map = Map<String, dynamic>.from(item);
         try {
-          final dateStr = map['date'] as String?;
+          final dateStr = map['date']?.toString();
           final title = map['title'] as String? ?? 'Untitled';
-          final week = map['week'] as int?;
+          final week = map['week'] is int
+              ? map['week'] as int
+              : int.tryParse('${map['week'] ?? ''}');
           final details = Map<String, String>.from(
-            (map['details'] as Map<dynamic, dynamic>?) ?? {}
-          );
-          
+              (map['details'] as Map<dynamic, dynamic>?) ?? {});
+          final day = map['day']?.toString().trim();
+          final startTime = map['startTime']?.toString().trim();
+          final endTime = map['endTime']?.toString().trim();
+
+          int? parseMinutes(String? hhmm) {
+            if (hhmm == null || hhmm.isEmpty) return null;
+            final m = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(hhmm);
+            if (m == null) return null;
+            final h = int.tryParse(m.group(1)!);
+            final mm = int.tryParse(m.group(2)!);
+            if (h == null || mm == null) return null;
+            if (h < 0 || h > 23 || mm < 0 || mm > 59) return null;
+            return (h * 60) + mm;
+          }
+
           items.add(ClassScheduleItem(
             title: title,
             date: dateStr != null ? DateTime.tryParse(dateStr) : null,
             week: week,
             details: details,
+            dayOfWeek: day?.isEmpty == true ? null : day,
+            startTimeMinutes: parseMinutes(startTime),
+            endTimeMinutes: parseMinutes(endTime),
+            room: map['location']?.toString(),
           ));
         } catch (e) {
           debugPrint('Failed to parse schedule item: $e');

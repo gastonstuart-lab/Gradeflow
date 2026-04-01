@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:gradeflow/models/grade_item.dart';
+import 'package:gradeflow/models/grading_category.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 
 class GradeItemService extends ChangeNotifier {
@@ -70,22 +71,23 @@ class GradeItemService extends ChangeNotifier {
     return _gradeItems.where((g) => g.categoryId == categoryId && g.isActive).toList();
   }
 
-  Future<void> seedDemoGradeItems(String classId, List<String> categoryIds) async {
+  Future<void> seedDemoGradeItems(
+      String classId, List<GradingCategory> categories) async {
     try {
       final repo = RepositoryFactory.instance;
       final existingItems = await repo.loadGradeItems(classId);
-      if (existingItems.isEmpty && categoryIds.isNotEmpty) {
+      if (existingItems.isEmpty && categories.isNotEmpty) {
         final now = DateTime.now();
         final demoItems = <GradeItem>[];
         
-        for (int i = 0; i < categoryIds.length; i++) {
-          final categoryId = categoryIds[i];
+        for (final category in categories) {
+          final baseName = _seedBaseName(category.name);
           demoItems.addAll([
             GradeItem(
               gradeItemId: const Uuid().v4(),
               classId: classId,
-              categoryId: categoryId,
-              name: 'Week 1',
+              categoryId: category.categoryId,
+              name: '$baseName 1',
               maxScore: 100.0,
               isActive: true,
               createdAt: now,
@@ -94,8 +96,8 @@ class GradeItemService extends ChangeNotifier {
             GradeItem(
               gradeItemId: const Uuid().v4(),
               classId: classId,
-              categoryId: categoryId,
-              name: 'Week 2',
+              categoryId: category.categoryId,
+              name: '$baseName 2',
               maxScore: 100.0,
               isActive: true,
               createdAt: now,
@@ -110,5 +112,14 @@ class GradeItemService extends ChangeNotifier {
     } catch (e) {
       debugPrint('Failed to seed demo grade items: $e');
     }
+  }
+
+  String _seedBaseName(String categoryName) {
+    final lower = categoryName.trim().toLowerCase();
+    if (lower.contains('homework')) return 'Homework';
+    if (lower.contains('quiz')) return 'Quiz';
+    if (lower.contains('participation')) return 'Week';
+    if (lower.contains('classwork')) return 'Classwork';
+    return categoryName.trim().isEmpty ? 'Item' : categoryName.trim();
   }
 }

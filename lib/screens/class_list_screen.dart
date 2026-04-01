@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -5,8 +6,12 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
+import 'package:gradeflow/services/demo_data_service.dart';
+import 'package:gradeflow/services/final_exam_service.dart';
+import 'package:gradeflow/services/grade_item_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
+import 'package:gradeflow/services/student_score_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/components/school_banner.dart';
@@ -19,6 +24,7 @@ import 'package:gradeflow/services/drive_import_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/components/drive_file_picker_dialog.dart';
+import 'package:gradeflow/components/pilot_feedback_dialog.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/models/deleted_class_entry.dart';
@@ -26,6 +32,7 @@ import 'package:gradeflow/services/class_trash_service.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum _ImportSource { local, driveLink, driveBrowse }
 
@@ -45,10 +52,13 @@ class ClassListScreen extends StatefulWidget {
 class _ClassListScreenState extends State<ClassListScreen> {
   final FileImportService _importService = FileImportService();
   final DriveImportService _driveImportService = DriveImportService();
-  final GoogleDriveService _googleDriveService = GoogleDriveService();
   String? _driveAccessToken;
   bool _driveSigningIn = false;
   bool _showArchived = false;
+  List<String> _activeClassOrder = [];
+
+  String _currentTeacherName() =>
+      context.read<AuthService>().currentUser?.fullName ?? '';
 
   String _extractGroupDigits(String input) {
     final t = input.trim();
@@ -149,7 +159,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
     setState(() {
       _driveSigningIn = true;
     });
-    final result = await GoogleAuthService().ensureAccessTokenDetailed();
+    final result =
+        await context.read<GoogleAuthService>().ensureAccessTokenDetailed();
     final token = result.accessToken;
     if (!mounted) return token;
     setState(() {
@@ -220,11 +231,12 @@ class _ClassListScreenState extends State<ClassListScreen> {
       {required List<String> extensions}) async {
     final token = _driveAccessToken ?? await _ensureDriveAccessToken();
     if (token == null || token.isEmpty || !mounted) return null;
+    final driveService = context.read<GoogleDriveService>();
 
     final picked = await showDialog<DriveFile?>(
       context: context,
       builder: (ctx) => DriveFilePickerDialog(
-        driveService: _googleDriveService,
+        driveService: driveService,
         allowedExtensions: extensions,
       ),
     );
@@ -232,7 +244,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
     if (picked == null) return null;
 
     try {
-      final bytes = await _googleDriveService.downloadFileBytesFor(
+      final bytes = await driveService.downloadFileBytesFor(
         picked,
         preferredExportMimeType: GoogleDriveService.exportXlsxMimeType,
       );
@@ -364,6 +376,35 @@ class _ClassListScreenState extends State<ClassListScreen> {
     return withName >= 5 && (withSeat >= 3 || roster.length >= 10);
   }
 
+  Future<bool> _guardImportTypeForClassScreen({
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final detection = _importService.detectFileType(bytes, filename: filename);
+    if (detection.type == ImportFileType.roster ||
+        detection.type == ImportFileType.unknown) {
+      return true;
+    }
+
+    if (!mounted) return false;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Wrong import destination'),
+        content: Text(
+          '${detection.message}\n\nThis screen imports classes/students only.\n\n${detection.suggestion}',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    return false;
+  }
+
   Future<void> _importRosterIntoSingleClass({
     required List<ImportedStudent> parsed,
     required String filename,
@@ -428,7 +469,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                 ),
                 if (!createNew) ...[
                   DropdownButtonFormField<String>(
-                    value: selectedClassId,
+                    initialValue: selectedClassId,
                     isExpanded: true,
                     decoration:
                         const InputDecoration(labelText: 'Target class'),
@@ -454,7 +495,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                           const InputDecoration(labelText: 'School Year')),
                   const SizedBox(height: AppSpacing.sm),
                   DropdownButtonFormField<String>(
-                    value: selectedTerm,
+                    initialValue: selectedTerm,
                     decoration: const InputDecoration(labelText: 'Term'),
                     items: const [
                       DropdownMenuItem(value: 'Fall', child: Text('Fall')),
@@ -537,7 +578,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
   }) async {
     final nameLower = filename.toLowerCase();
     final imported = nameLower.endsWith('.xlsx')
-        ? _importService.parseXlsxRoster(bytes)
+        ? _importService.parseXlsxRoster(bytes,
+            teacherName: _currentTeacherName())
         : _importService.parseCSV(_importService.decodeTextFromBytes(bytes));
 
     final parsed = (imported.isEmpty && nameLower.endsWith('.xlsx'))
@@ -585,6 +627,12 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
     final auth = context.read<AuthService>();
     final classService = context.read<ClassService>();
+    final teacherFullName = auth.currentUser?.fullName ?? '';
+    final teacherMatchedCodes =
+        _importService.inferClassCodesForTeacherFromRoster(
+      bytes,
+      teacherFullName,
+    );
 
     // Determine which classes already exist (match by className == ClassCode for this teacher)
     final existingByName = {
@@ -603,6 +651,58 @@ class _ClassListScreenState extends State<ClassListScreen> {
     bool combineSections = false;
     Map<String, List<ImportedStudent>> previewMap =
         _applyGroupToClassMap(byClass, groupCtrl.text);
+    final existingClassKeys = existingByName.keys.toSet();
+    Set<String> selectedClassKeys = {};
+
+    bool _keyMatchesTeacherCode(String key) {
+      final upper = key.replaceAll(' ', '').toUpperCase();
+      for (final code in teacherMatchedCodes) {
+        final c = code.replaceAll(' ', '').toUpperCase();
+        if (upper == c || upper.startsWith(c) || c.startsWith(upper)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    void ensureDefaultSelection() {
+      if (previewMap.isEmpty) {
+        selectedClassKeys = {};
+        return;
+      }
+      final matchesTeacher =
+          previewMap.keys.where((k) => _keyMatchesTeacherCode(k)).toSet();
+      if (matchesTeacher.isNotEmpty) {
+        if (selectedClassKeys.isEmpty) {
+          selectedClassKeys = matchesTeacher;
+          return;
+        }
+        selectedClassKeys =
+            selectedClassKeys.where((k) => previewMap.containsKey(k)).toSet();
+        if (selectedClassKeys.isEmpty) {
+          selectedClassKeys = matchesTeacher;
+        }
+        return;
+      }
+      final matchesExisting = previewMap.keys
+          .where((k) => existingClassKeys.contains(k.toLowerCase()))
+          .toSet();
+      if (selectedClassKeys.isEmpty) {
+        selectedClassKeys = matchesExisting.isNotEmpty
+            ? matchesExisting
+            : previewMap.keys.toSet();
+        return;
+      }
+      selectedClassKeys =
+          selectedClassKeys.where((k) => previewMap.containsKey(k)).toSet();
+      if (selectedClassKeys.isEmpty) {
+        selectedClassKeys = matchesExisting.isNotEmpty
+            ? matchesExisting
+            : previewMap.keys.toSet();
+      }
+    }
+
+    ensureDefaultSelection();
     final proceed = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -621,6 +721,70 @@ class _ClassListScreenState extends State<ClassListScreen> {
                 const SizedBox(height: AppSpacing.md),
                 Text('Classes detected: ${previewMap.length}'),
                 const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => setState(
+                          () => selectedClassKeys = previewMap.keys.toSet()),
+                      child: const Text('Select all'),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    TextButton(
+                      onPressed: () => setState(() {
+                        selectedClassKeys = teacherMatchedCodes.isNotEmpty
+                            ? previewMap.keys
+                                .where((k) => _keyMatchesTeacherCode(k))
+                                .toSet()
+                            : previewMap.keys
+                                .where((k) =>
+                                    existingClassKeys.contains(k.toLowerCase()))
+                                .toSet();
+                        if (selectedClassKeys.isEmpty) {
+                          selectedClassKeys = previewMap.keys.toSet();
+                        }
+                      }),
+                      child: Text(teacherMatchedCodes.isNotEmpty
+                          ? 'Select mine'
+                          : 'Select existing'),
+                    ),
+                  ],
+                ),
+                if (teacherMatchedCodes.isNotEmpty) ...[
+                  Text(
+                    'Auto-detected teacher match for ${teacherMatchedCodes.length} class code(s): ${teacherMatchedCodes.take(8).join(', ')}',
+                    style: context.textStyles.bodySmall,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: previewMap.entries.map((e) {
+                      final key = e.key;
+                      final count = e.value.length;
+                      final exists =
+                          existingClassKeys.contains(key.toLowerCase());
+                      return CheckboxListTile(
+                        dense: true,
+                        value: selectedClassKeys.contains(key),
+                        onChanged: (v) => setState(() {
+                          if (v == true) {
+                            selectedClassKeys.add(key);
+                          } else {
+                            selectedClassKeys.remove(key);
+                          }
+                        }),
+                        title: Text(key),
+                        subtitle: Text(
+                            '$count student${count == 1 ? '' : 's'} • ${exists ? 'existing class' : 'new class'}'),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Combine letter sections with same prefix'),
@@ -633,6 +797,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                           enabled: combineSections,
                           userPrefix: prefixCtrl.text.trim());
                       previewMap = _applyGroupToClassMap(base, groupCtrl.text);
+                      ensureDefaultSelection();
                     });
                   },
                 ),
@@ -647,6 +812,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                           enabled: combineSections,
                           userPrefix: prefixCtrl.text.trim());
                       previewMap = _applyGroupToClassMap(base, groupCtrl.text);
+                      ensureDefaultSelection();
                     });
                   },
                 ),
@@ -661,6 +827,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                           enabled: combineSections,
                           userPrefix: prefixCtrl.text.trim());
                       previewMap = _applyGroupToClassMap(base, groupCtrl.text);
+                      ensureDefaultSelection();
                     });
                   },
                 ),
@@ -678,7 +845,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                         const InputDecoration(labelText: 'School Year')),
                 const SizedBox(height: AppSpacing.sm),
                 DropdownButtonFormField<String>(
-                  value: selectedTerm,
+                  initialValue: selectedTerm,
                   decoration: const InputDecoration(labelText: 'Term'),
                   items: const [
                     DropdownMenuItem(value: 'Fall', child: Text('Fall')),
@@ -710,7 +877,83 @@ class _ClassListScreenState extends State<ClassListScreen> {
         ? _mergeSections(byClass,
             enabled: true, userPrefix: prefixCtrl.text.trim())
         : byClass;
-    final effectiveMap = _applyGroupToClassMap(baseMap, groupCtrl.text);
+    final effectiveMapAll = _applyGroupToClassMap(baseMap, groupCtrl.text);
+    final effectiveMap = <String, List<ImportedStudent>>{};
+    for (final e in effectiveMapAll.entries) {
+      if (selectedClassKeys.contains(e.key)) {
+        effectiveMap[e.key] = e.value;
+      }
+    }
+    if (effectiveMap.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('No target classes selected for import'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+      return;
+    }
+    final newClassCount = effectiveMap.keys
+        .where((k) => !existingByName.containsKey(k.toLowerCase()))
+        .length;
+    final selectedRows =
+        effectiveMap.values.fold<int>(0, (sum, list) => sum + list.length);
+    final confirmWrite = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm roster import'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Target classes: ${effectiveMap.length}'),
+              Text('Student rows selected: $selectedRows'),
+              Text('New classes to create: $newClassCount'),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Preview:',
+                style: Theme.of(ctx).textTheme.titleSmall,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 180),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: effectiveMap.entries.take(20).map((e) {
+                    final count = e.value.length;
+                    final willCreate =
+                        !existingByName.containsKey(e.key.toLowerCase());
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(e.key),
+                      subtitle: Text(
+                          '$count student${count == 1 ? '' : 's'} • ${willCreate ? 'create class' : 'existing class'}'),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm import'),
+          ),
+        ],
+      ),
+    );
+    if (confirmWrite != true || !mounted) return;
+
     final groupDigits = _extractGroupDigits(groupCtrl.text);
 
     // Create any missing classes
@@ -735,6 +978,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
     final catService = context.read<GradingCategoryService>();
     final studentService = context.read<StudentService>();
+    int addedStudents = 0;
+    int touchedClasses = 0;
 
     for (final c in toCreate) {
       await classService.addClass(c);
@@ -759,6 +1004,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
           .toList();
       if (students.isNotEmpty) {
         await studentService.addStudents(students);
+        touchedClasses++;
+        addedStudents += students.length;
       }
     }
 
@@ -766,7 +1013,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            'Imported ${valid.length} students across ${effectiveMap.length} classes')));
+            'Imported $addedStudents students into $touchedClasses class${touchedClasses == 1 ? '' : 'es'}')));
   }
 
   Future<String?> _showImportDiagnosticsDialog({
@@ -886,6 +1133,80 @@ class _ClassListScreenState extends State<ClassListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
+  String _classOrderKey(String teacherId) => 'class_order_$teacherId';
+
+  Future<void> _loadClassOrder(String teacherId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList(_classOrderKey(teacherId)) ?? const [];
+      if (!mounted) return;
+      setState(() => _activeClassOrder = List<String>.from(saved));
+    } catch (e) {
+      debugPrint('Failed to load class order: $e');
+    }
+  }
+
+  Future<void> _saveClassOrder(String teacherId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_classOrderKey(teacherId), _activeClassOrder);
+    } catch (e) {
+      debugPrint('Failed to save class order: $e');
+    }
+  }
+
+  List<Class> _orderedActiveClasses(List<Class> active) {
+    final activeById = {for (final c in active) c.classId: c};
+    final cleanedOrder = _activeClassOrder
+        .where((id) => activeById.containsKey(id))
+        .toList(growable: true);
+    final missing = active
+        .where((c) => !cleanedOrder.contains(c.classId))
+        .toList()
+      ..sort((a, b) =>
+          a.className.toLowerCase().compareTo(b.className.toLowerCase()));
+    cleanedOrder.addAll(missing.map((c) => c.classId));
+
+    if (!listEquals(cleanedOrder, _activeClassOrder)) {
+      _activeClassOrder = cleanedOrder;
+      final teacherId = context.read<AuthService>().currentUser?.userId;
+      if (teacherId != null && teacherId.isNotEmpty) {
+        unawaited(_saveClassOrder(teacherId));
+      }
+    }
+
+    final orderIndex = <String, int>{
+      for (int i = 0; i < cleanedOrder.length; i++) cleanedOrder[i]: i
+    };
+    final ordered = List<Class>.from(active);
+    ordered.sort((a, b) {
+      final ai = orderIndex[a.classId] ?? 1 << 20;
+      final bi = orderIndex[b.classId] ?? 1 << 20;
+      return ai.compareTo(bi);
+    });
+    return ordered;
+  }
+
+  Future<void> _reorderActiveClasses(
+      int oldIndex, int newIndex, List<Class> orderedActive) async {
+    if (newIndex > oldIndex) newIndex -= 1;
+    final ids = orderedActive.map((e) => e.classId).toList(growable: true);
+    if (oldIndex < 0 ||
+        oldIndex >= ids.length ||
+        newIndex < 0 ||
+        newIndex >= ids.length) {
+      return;
+    }
+    final moved = ids.removeAt(oldIndex);
+    ids.insert(newIndex, moved);
+    setState(() => _activeClassOrder = ids);
+
+    final teacherId = context.read<AuthService>().currentUser?.userId;
+    if (teacherId != null && teacherId.isNotEmpty) {
+      await _saveClassOrder(teacherId);
+    }
+  }
+
   Future<void> _showEditClassDialog(Class classItem) async {
     final nameController = TextEditingController(text: classItem.className);
     final subjectController = TextEditingController(text: classItem.subject);
@@ -958,6 +1279,189 @@ class _ClassListScreenState extends State<ClassListScreen> {
     }
   }
 
+  String _nextSchoolYear(String value) {
+    final trimmed = value.trim();
+    final range = RegExp(r'^(\d{4})\s*[-/]\s*(\d{2,4})$').firstMatch(trimmed);
+    if (range != null) {
+      final start = int.tryParse(range.group(1)!);
+      final endRaw = range.group(2)!;
+      if (start != null) {
+        final normalizedEnd = endRaw.length == 2
+            ? int.tryParse('${start.toString().substring(0, 2)}$endRaw')
+            : int.tryParse(endRaw);
+        if (normalizedEnd != null) {
+          return '${start + 1}-${normalizedEnd + 1}';
+        }
+      }
+    }
+    final single = RegExp(r'^(\d{4})$').firstMatch(trimmed);
+    if (single != null) {
+      final year = int.tryParse(single.group(1)!);
+      if (year != null) return '${year + 1}-${year + 2}';
+    }
+    return trimmed;
+  }
+
+  String _nextTerm(String term) {
+    final t = term.trim().toLowerCase();
+    if (t == 'fall' || t == 'autumn') return 'Spring';
+    if (t == 'spring') return 'Fall';
+    if (t == 'summer') return 'Fall';
+    if (t == 'winter') return 'Spring';
+    return term;
+  }
+
+  Future<void> _showStartNewSemesterDialog(Class classItem) async {
+    final nameController = TextEditingController(text: classItem.className);
+    final subjectController = TextEditingController(text: classItem.subject);
+    final groupController =
+        TextEditingController(text: classItem.groupNumber ?? '');
+    final yearController =
+        TextEditingController(text: _nextSchoolYear(classItem.schoolYear));
+    final termController =
+        TextEditingController(text: _nextTerm(classItem.term));
+    bool archiveCurrent = !classItem.isArchived;
+    bool copyStudents = true;
+
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Start New Semester'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Class Name'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: subjectController,
+                  decoration: const InputDecoration(labelText: 'Subject'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: groupController,
+                  decoration: const InputDecoration(labelText: 'Group Number'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: yearController,
+                  decoration: const InputDecoration(labelText: 'School Year'),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                TextField(
+                  controller: termController,
+                  decoration: const InputDecoration(labelText: 'Term'),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                CheckboxListTile(
+                  value: archiveCurrent,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Archive current class'),
+                  onChanged: classItem.isArchived
+                      ? null
+                      : (v) => setDialogState(() => archiveCurrent = v ?? true),
+                ),
+                CheckboxListTile(
+                  value: copyStudents,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Copy students into new semester class'),
+                  subtitle: const Text(
+                      'Grades and assessments are not copied. You can edit roster after creation.'),
+                  onChanged: (v) =>
+                      setDialogState(() => copyStudents = v ?? true),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Create New Semester Class'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (proceed != true || !mounted) return;
+
+    final auth = context.read<AuthService>();
+    final user = auth.currentUser;
+    if (user == null) return;
+
+    final className = nameController.text.trim();
+    final subject = subjectController.text.trim();
+    final schoolYear = yearController.text.trim();
+    final term = termController.text.trim();
+    if (className.isEmpty ||
+        subject.isEmpty ||
+        schoolYear.isEmpty ||
+        term.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Class Name, Subject, School Year, and Term are required.')),
+      );
+      return;
+    }
+
+    final now = DateTime.now();
+    final newClass = Class(
+      classId: const Uuid().v4(),
+      className: className,
+      subject: subject,
+      groupNumber: groupController.text.trim().isEmpty
+          ? null
+          : groupController.text.trim(),
+      schoolYear: schoolYear,
+      term: term,
+      teacherId: user.userId,
+      createdAt: now,
+      updatedAt: now,
+      syllabus: classItem.syllabus,
+    );
+
+    final classService = context.read<ClassService>();
+    final studentService = context.read<StudentService>();
+    final catService = context.read<GradingCategoryService>();
+    if (archiveCurrent && !classItem.isArchived) {
+      await classService.archiveClass(classItem.classId);
+    }
+    await classService.addClass(newClass);
+    await catService.seedDefaultCategories(newClass.classId);
+    if (copyStudents) {
+      await studentService.loadStudents(classItem.classId);
+      final oldStudents = List.of(studentService.students);
+      final copied = oldStudents
+          .map((s) => s.copyWith(
+                classId: newClass.classId,
+                createdAt: now,
+                updatedAt: now,
+              ))
+          .toList();
+      await studentService.loadStudents(newClass.classId);
+      if (copied.isNotEmpty) {
+        await studentService.addStudents(copied);
+      }
+    }
+    await classService.loadClasses(user.userId);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('New semester class created.')),
+    );
+  }
+
   Future<void> _moveClassToBin(Class classItem) async {
     final auth = context.read<AuthService>();
     final classService = context.read<ClassService>();
@@ -989,25 +1493,26 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final authService = context.read<AuthService>();
     final classService = context.read<ClassService>();
 
-    if (authService.currentUser != null) {
-      await classService.loadClasses(authService.currentUser!.userId);
+    final user = authService.currentUser;
+    if (user == null) return;
+
+    await _loadClassOrder(user.userId);
+
+    if (DemoDataService.isDemoUser(user)) {
+      await DemoDataService.ensureDemoWorkspace(
+        teacherId: user.userId,
+        classService: classService,
+        studentService: context.read<StudentService>(),
+        categoryService: context.read<GradingCategoryService>(),
+        gradeItemService: context.read<GradeItemService>(),
+        scoreService: context.read<StudentScoreService>(),
+        examService: context.read<FinalExamService>(),
+      );
       if (!mounted) return;
-
-      if (classService.classes.isEmpty) {
-        await classService.seedDemoClasses(authService.currentUser!.userId);
-        if (!mounted) return;
-        await classService.loadClasses(authService.currentUser!.userId);
-        if (!mounted) return;
-
-        final studentService = context.read<StudentService>();
-        final catService = context.read<GradingCategoryService>();
-
-        for (var classItem in classService.classes) {
-          await studentService.seedDemoStudents(classItem.classId);
-          await catService.seedDefaultCategories(classItem.classId);
-        }
-      }
+      return;
     }
+
+    await classService.loadClasses(user.userId);
   }
 
   Future<void> _showCreateClassDialog() async {
@@ -1087,20 +1592,23 @@ class _ClassListScreenState extends State<ClassListScreen> {
                           allowedExtensions: const ['xlsx', 'csv'],
                           withData: true,
                         );
-                        if (result == null || result.files.single.bytes == null) {
+                        if (result == null ||
+                            result.files.single.bytes == null) {
                           return;
                         }
                         final bytes = result.files.single.bytes!;
                         final filename = result.files.single.name;
-                        final parsed = _importService.parseClassSyllabusFromBytes(
+                        final parsed =
+                            _importService.parseClassSyllabusFromBytes(
                           bytes,
                           filename: filename,
                         );
                         setLocalState(() {
                           pickedSyllabusFilename = filename;
                           pickedSyllabus = parsed;
-                          pickedSyllabusError =
-                              parsed == null ? 'Could not detect a Week/Date/Lesson Content table.' : null;
+                          pickedSyllabusError = parsed == null
+                              ? 'Could not detect a Week/Date/Lesson Content table.'
+                              : null;
                         });
                       },
                     ),
@@ -1112,8 +1620,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       pickedSyllabusError!,
-                      style: context.textStyles.bodySmall?.withColor(
-                          Theme.of(context).colorScheme.error),
+                      style: context.textStyles.bodySmall
+                          ?.withColor(Theme.of(context).colorScheme.error),
                     ),
                   ),
                 ]
@@ -1176,12 +1684,19 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final name = picked.filename.toLowerCase();
     final filename = picked.filename;
     final bytes = picked.bytes;
+    if (!await _guardImportTypeForClassScreen(
+      bytes: bytes,
+      filename: filename,
+    )) {
+      return;
+    }
 
     // First: detect roster files (even if missing ClassCode) to avoid treating student names as class names.
     List<ImportedStudent> rosterParsed = const [];
     try {
       rosterParsed = name.endsWith('.xlsx')
-          ? _importService.parseXlsxRoster(bytes)
+          ? _importService.parseXlsxRoster(bytes,
+              teacherName: _currentTeacherName())
           : _importService.parseCSV(_importService.decodeTextFromBytes(bytes));
       if (rosterParsed.isEmpty && name.endsWith('.xlsx')) {
         rosterParsed =
@@ -1220,7 +1735,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
       // If the file looks like a roster, import classes + students from it directly.
       try {
         final roster = name.endsWith('.xlsx')
-            ? _importService.parseXlsxRoster(bytes)
+            ? _importService.parseXlsxRoster(bytes,
+                teacherName: _currentTeacherName())
             : _importService
                 .parseCSV(_importService.decodeTextFromBytes(bytes));
         final rosterValid = roster
@@ -1242,9 +1758,9 @@ class _ClassListScreenState extends State<ClassListScreen> {
         bytes: bytes,
         hint: 'Tip: Export as CSV (UTF-8) and retry.',
       );
-      
+
       if (!mounted || action != 'ai') return;
-      
+
       // Use AI to parse classes
       final rows = _importService.rowsFromAnyBytes(bytes);
       final aiResult = await showDialog<Map<String, dynamic>>(
@@ -1252,13 +1768,14 @@ class _ClassListScreenState extends State<ClassListScreen> {
         builder: (ctx) => AiAnalyzeImportDialog(
           title: 'Analyze class list with AI',
           filename: filename,
-          analyze: () => AiImportService().analyzeClassesFromRows(rows, filename: filename),
+          analyze: () => AiImportService()
+              .analyzeClassesFromRows(rows, filename: filename),
           confirmLabel: 'Use these classes',
         ),
       );
-      
+
       if (!mounted || aiResult == null) return;
-      
+
       // Convert AI output to ImportedClass list
       final aiClasses = <ImportedClass>[];
       final rawClasses = aiResult['classes'];
@@ -1278,13 +1795,13 @@ class _ClassListScreenState extends State<ClassListScreen> {
           }
         }
       }
-      
+
       if (aiClasses.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('AI did not return any classes.')));
         return;
       }
-      
+
       // Replace parsed with AI result and continue with normal flow
       parsed = aiClasses;
     }
@@ -1296,7 +1813,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
     if (valid.isEmpty) {
       try {
         final roster = name.endsWith('.xlsx')
-            ? _importService.parseXlsxRoster(bytes)
+            ? _importService.parseXlsxRoster(bytes,
+                teacherName: _currentTeacherName())
             : _importService
                 .parseCSV(_importService.decodeTextFromBytes(bytes));
         if (_looksLikeRoster(roster)) {
@@ -1478,13 +1996,107 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
   // Note: there is no separate "Import Rosters" entrypoint; the Import action auto-detects roster files.
 
+  Widget _buildClassTile({
+    required Class classItem,
+    required bool archived,
+    Widget? dragHandle,
+  }) {
+    return Stack(
+      children: [
+        ClassCard(
+          classItem: classItem,
+          onTap: () => context.push('/class/${classItem.classId}'),
+        ),
+        Positioned(
+          top: 4,
+          right: 4,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (dragHandle != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 2),
+                  child: dragHandle,
+                ),
+              Material(
+                color: Colors.transparent,
+                child: PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  onSelected: (value) async {
+                    if (value == 'archive') {
+                      await context
+                          .read<ClassService>()
+                          .archiveClass(classItem.classId);
+                    } else if (value == 'unarchive') {
+                      await context
+                          .read<ClassService>()
+                          .unarchiveClass(classItem.classId);
+                    } else if (value == 'edit') {
+                      await _showEditClassDialog(classItem);
+                    } else if (value == 'rollover') {
+                      await _showStartNewSemesterDialog(classItem);
+                    } else if (value == 'delete') {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Move to recycle bin?'),
+                          content: const Text(
+                              'You can restore it later from the Class Recycle Bin.'),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel')),
+                            FilledButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Move')),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await _moveClassToBin(classItem);
+                      }
+                    }
+                  },
+                  itemBuilder: (ctx) {
+                    if (archived) {
+                      return const [
+                        PopupMenuItem(
+                            value: 'rollover',
+                            child: Text('Start New Semester')),
+                        PopupMenuItem(
+                            value: 'unarchive', child: Text('Unarchive')),
+                        PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        PopupMenuItem(value: 'delete', child: Text('Delete')),
+                      ];
+                    }
+                    return const [
+                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(
+                          value: 'rollover',
+                          child: Text('Archive + New Semester')),
+                      PopupMenuItem(value: 'archive', child: Text('Archive')),
+                      PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    ];
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
     final classService = context.watch<ClassService>();
     final themeModeNotifier = context.watch<ThemeModeNotifier>();
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: colors.surface,
       appBar: AppBar(
         title: const Text('My Classes'),
         leading: IconButton(
@@ -1493,6 +2105,10 @@ class _ClassListScreenState extends State<ClassListScreen> {
           onPressed: () => context.go(AppRoutes.dashboard),
         ),
         actions: [
+          const PilotFeedbackIconButton(
+            initialArea: 'Classes',
+            initialRoute: '/classes',
+          ),
           IconButton(
             icon: _driveSigningIn
                 ? SizedBox(
@@ -1505,8 +2121,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
                   )
                 : const Icon(Icons.login),
             tooltip: _driveAccessToken == null
-              ? 'Drive uses your Google login (auto-connect)'
-              : 'Google Drive connected',
+                ? 'Drive uses your Google login (auto-connect)'
+                : 'Google Drive connected',
             onPressed: _driveSigningIn ? null : _ensureDriveAccessToken,
           ),
           IconButton(
@@ -1536,202 +2152,157 @@ class _ClassListScreenState extends State<ClassListScreen> {
         ],
         bottom: const SchoolBannerBar(height: 56),
       ),
-      body: classService.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : (!_showArchived
-                      ? classService.activeClasses
-                      : classService.archivedClasses)
-                  .isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.school_outlined,
-                          size: 64,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                          _showArchived
-                              ? 'No archived classes'
-                              : 'No classes yet',
-                          style: context.textStyles.titleLarge),
-                      const SizedBox(height: AppSpacing.sm),
-                      if (!_showArchived)
-                        Text('Create your first class or import from Excel/CSV',
-                            style: context.textStyles.bodyMedium),
-                      const SizedBox(height: AppSpacing.lg),
-                      if (!_showArchived)
+      body: Container(
+        color: colors.surfaceContainerLowest,
+        child: classService.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : (!_showArchived
+                        ? classService.activeClasses
+                        : classService.archivedClasses)
+                    .isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.school_outlined,
+                            size: 64,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                            _showArchived
+                                ? 'No archived classes'
+                                : 'No classes yet',
+                            style: context.textStyles.titleLarge),
+                        const SizedBox(height: AppSpacing.sm),
+                        if (!_showArchived)
+                          Text(
+                              'Create your first class or import from Excel/CSV',
+                              style: context.textStyles.bodyMedium),
+                        const SizedBox(height: AppSpacing.lg),
+                        if (!_showArchived)
+                          Wrap(
+                            spacing: AppSpacing.sm,
+                            runSpacing: AppSpacing.sm,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              FilledButton.icon(
+                                onPressed: _showCreateClassDialog,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Create Class'),
+                              ),
+                              TextButton.icon(
+                                onPressed: _showImportClassesDialog,
+                                icon: const Icon(Icons.upload_file),
+                                label: const Text('Import'),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  )
+                : Padding(
+                    padding: AppSpacing.paddingMd,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Active'),
+                              selected: !_showArchived,
+                              onSelected: (v) =>
+                                  setState(() => _showArchived = false),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            ChoiceChip(
+                              label: const Text('Archived'),
+                              selected: _showArchived,
+                              onSelected: (v) =>
+                                  setState(() => _showArchived = true),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
                         Wrap(
                           spacing: AppSpacing.sm,
                           runSpacing: AppSpacing.sm,
-                          alignment: WrapAlignment.center,
                           children: [
-                            FilledButton.icon(
-                              onPressed: _showCreateClassDialog,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Create Class'),
-                            ),
                             TextButton.icon(
                               onPressed: _showImportClassesDialog,
-                              icon: const Icon(Icons.upload_file),
+                              icon: Icon(Icons.upload_file,
+                                  color: Theme.of(context).colorScheme.primary),
                               label: const Text('Import'),
                             ),
                           ],
                         ),
-                    ],
-                  ),
-                )
-              : Padding(
-                  padding: AppSpacing.paddingMd,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          ChoiceChip(
-                            label: const Text('Active'),
-                            selected: !_showArchived,
-                            onSelected: (v) =>
-                                setState(() => _showArchived = false),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          ChoiceChip(
-                            label: const Text('Archived'),
-                            selected: _showArchived,
-                            onSelected: (v) =>
-                                setState(() => _showArchived = true),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        children: [
-                          TextButton.icon(
-                            onPressed: _showImportClassesDialog,
-                            icon: Icon(Icons.upload_file,
-                                color: Theme.of(context).colorScheme.primary),
-                            label: const Text('Import'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Expanded(
-                        child: GridView.builder(
-                          gridDelegate:
-                              const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 400,
-                            childAspectRatio: 1.5,
-                            crossAxisSpacing: AppSpacing.md,
-                            mainAxisSpacing: AppSpacing.md,
-                          ),
-                          itemCount: (!_showArchived
-                                  ? classService.activeClasses
-                                  : classService.archivedClasses)
-                              .length,
-                          itemBuilder: (context, index) {
-                            final list = !_showArchived
-                                ? classService.activeClasses
-                                : classService.archivedClasses;
-                            final classItem = list[index];
-                            return Stack(
-                              children: [
-                                ClassCard(
-                                  classItem: classItem,
-                                  onTap: () => context
-                                      .push('/class/${classItem.classId}'),
-                                ),
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: PopupMenuButton<String>(
-                                      icon: Icon(Icons.more_vert,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant),
-                                      onSelected: (value) async {
-                                        if (value == 'archive') {
-                                          await context
-                                              .read<ClassService>()
-                                              .archiveClass(classItem.classId);
-                                        } else if (value == 'unarchive') {
-                                          await context
-                                              .read<ClassService>()
-                                              .unarchiveClass(
-                                                  classItem.classId);
-                                        } else if (value == 'edit') {
-                                          await _showEditClassDialog(classItem);
-                                        } else if (value == 'delete') {
-                                          final confirm =
-                                              await showDialog<bool>(
-                                            context: context,
-                                            builder: (ctx) => AlertDialog(
-                                              title: const Text(
-                                                  'Move to recycle bin?'),
-                                              content: const Text(
-                                                  'You can restore it later from the Class Recycle Bin.'),
-                                              actions: [
-                                                TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                            ctx, false),
-                                                    child:
-                                                        const Text('Cancel')),
-                                                FilledButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                            ctx, true),
-                                                    child: const Text('Move')),
-                                              ],
-                                            ),
-                                          );
-                                          if (confirm == true) {
-                                            await _moveClassToBin(classItem);
-                                          }
-                                        }
-                                      },
-                                      itemBuilder: (ctx) {
-                                        if (_showArchived) {
-                                          return [
-                                            const PopupMenuItem(
-                                                value: 'unarchive',
-                                                child: Text('Unarchive')),
-                                            const PopupMenuItem(
-                                                value: 'edit',
-                                                child: Text('Edit')),
-                                            const PopupMenuItem(
-                                                value: 'delete',
-                                                child: Text('Delete')),
-                                          ];
-                                        } else {
-                                          return [
-                                            const PopupMenuItem(
-                                                value: 'edit',
-                                                child: Text('Edit')),
-                                            const PopupMenuItem(
-                                                value: 'archive',
-                                                child: Text('Archive')),
-                                            const PopupMenuItem(
-                                                value: 'delete',
-                                                child: Text('Delete')),
-                                          ];
-                                        }
-                                      },
+                        const SizedBox(height: AppSpacing.md),
+                        Expanded(
+                          child: !_showArchived
+                              ? Builder(builder: (context) {
+                                  final orderedActive = _orderedActiveClasses(
+                                      classService.activeClasses);
+                                  return ReorderableListView.builder(
+                                    itemCount: orderedActive.length,
+                                    onReorder: (oldIndex, newIndex) =>
+                                        _reorderActiveClasses(
+                                            oldIndex, newIndex, orderedActive),
+                                    proxyDecorator: (child, index, animation) =>
+                                        Material(
+                                      elevation: 4,
+                                      color: Colors.transparent,
+                                      child: child,
                                     ),
+                                    buildDefaultDragHandles: false,
+                                    itemBuilder: (context, index) {
+                                      final classItem = orderedActive[index];
+                                      return Padding(
+                                        key: ValueKey(classItem.classId),
+                                        padding: const EdgeInsets.only(
+                                            bottom: AppSpacing.md),
+                                        child: SizedBox(
+                                          height: 210,
+                                          child: _buildClassTile(
+                                            classItem: classItem,
+                                            archived: false,
+                                            dragHandle:
+                                                ReorderableDragStartListener(
+                                              index: index,
+                                              child: Icon(Icons.drag_indicator,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                })
+                              : GridView.builder(
+                                  gridDelegate:
+                                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 400,
+                                    childAspectRatio: 1.5,
+                                    crossAxisSpacing: AppSpacing.md,
+                                    mainAxisSpacing: AppSpacing.md,
                                   ),
+                                  itemCount:
+                                      classService.archivedClasses.length,
+                                  itemBuilder: (context, index) {
+                                    final classItem =
+                                        classService.archivedClasses[index];
+                                    return _buildClassTile(
+                                      classItem: classItem,
+                                      archived: true,
+                                    );
+                                  },
                                 ),
-                              ],
-                            );
-                          },
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+      ),
       floatingActionButton: classService.classes.isNotEmpty
           ? Column(
               mainAxisSize: MainAxisSize.min,

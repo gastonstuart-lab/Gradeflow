@@ -9,6 +9,8 @@ import 'package:gradeflow/models/final_exam.dart';
 import 'package:gradeflow/models/change_history.dart';
 import 'package:gradeflow/models/grading_category.dart';
 import 'package:gradeflow/models/grading_template.dart';
+import 'package:gradeflow/models/room_setup.dart';
+import 'package:gradeflow/models/seating_layout.dart';
 
 /// Local-only implementation using SharedPreferences.
 /// This is the current storage backend - all existing services will migrate to this.
@@ -29,18 +31,22 @@ class LocalRepository implements DataRepository {
   static const String _categoriesKeyPrefix = 'categories_';
   static const String _historyKeyPrefix = 'change_history_';
   static const String _templatesKey = 'grading_templates';
-  
+  static const String _seatingLayoutsKeyPrefix = 'seating_layouts_';
+  static const String _seatingActiveLayoutPrefix = 'seating_active_layout_';
+  static const String _seatingAssignedRoomPrefix = 'seating_room_setup_';
+  static const String _roomSetupsKey = 'room_setups';
+
   // Write queue to serialize SharedPreferences operations
   final List<Future<void> Function()> _writeQueue = [];
   final Set<Future<void>> _pendingWrites = {};
-  
+
   Future<void> _enqueueWrite(Future<void> Function() operation) async {
     _writeQueue.add(operation);
     if (_writeQueue.length == 1) {
       await _processQueue();
     }
   }
-  
+
   Future<void> _processQueue() async {
     while (_writeQueue.isNotEmpty) {
       final operation = _writeQueue.removeAt(0);
@@ -53,18 +59,18 @@ class LocalRepository implements DataRepository {
       }
     }
   }
-  
+
   @override
   Future<bool> hasPendingWrites() async {
     return _pendingWrites.isNotEmpty || _writeQueue.isNotEmpty;
   }
-  
+
   @override
   Future<void> flushPendingWrites() async {
     await _processQueue();
     await Future.wait(_pendingWrites.toList());
   }
-  
+
   // Students
   @override
   Future<List<Student>> loadStudents(String classId) async {
@@ -84,7 +90,7 @@ class LocalRepository implements DataRepository {
         .where((s) => s.classId == classId)
         .toList();
   }
-  
+
   @override
   Future<void> saveStudents(String classId, List<Student> students) async {
     await _enqueueWrite(() async {
@@ -93,14 +99,14 @@ class LocalRepository implements DataRepository {
       await prefs.setString('$_studentsKeyPrefix$classId', data);
     });
   }
-  
+
   @override
   Future<void> deleteStudent(String classId, String studentId) async {
     final students = await loadStudents(classId);
     students.removeWhere((s) => s.studentId == studentId);
     await saveStudents(classId, students);
   }
-  
+
   // Classes
   @override
   Future<List<Class>> loadClasses() async {
@@ -110,7 +116,7 @@ class LocalRepository implements DataRepository {
     final List<dynamic> jsonList = json.decode(data);
     return jsonList.map((json) => Class.fromJson(json)).toList();
   }
-  
+
   @override
   Future<void> saveClasses(List<Class> classes) async {
     await _enqueueWrite(() async {
@@ -119,21 +125,29 @@ class LocalRepository implements DataRepository {
       await prefs.setString(_classesKey, data);
     });
   }
-  
+
   @override
   Future<void> deleteClass(String classId) async {
     final classes = await loadClasses();
+    final gradeItems = await loadGradeItems(classId);
     classes.removeWhere((c) => c.classId == classId);
     await saveClasses(classes);
-    
+
     // Clean up related data
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('$_studentsKeyPrefix$classId');
     await prefs.remove('$_gradeItemsKeyPrefix$classId');
     await prefs.remove('$_examsKeyPrefix$classId');
     await prefs.remove('$_categoriesKeyPrefix$classId');
+    await prefs.remove('$_historyKeyPrefix$classId');
+    await prefs.remove('$_seatingLayoutsKeyPrefix$classId');
+    await prefs.remove('$_seatingActiveLayoutPrefix$classId');
+    await prefs.remove('$_seatingAssignedRoomPrefix$classId');
+    for (final item in gradeItems) {
+      await prefs.remove('$_scoresKeyPrefix${classId}_${item.gradeItemId}');
+    }
   }
-  
+
   // Grade Items
   @override
   Future<List<GradeItem>> loadGradeItems(String classId) async {
@@ -153,7 +167,7 @@ class LocalRepository implements DataRepository {
         .where((g) => g.classId == classId)
         .toList();
   }
-  
+
   @override
   Future<void> saveGradeItems(String classId, List<GradeItem> items) async {
     await _enqueueWrite(() async {
@@ -162,19 +176,21 @@ class LocalRepository implements DataRepository {
       await prefs.setString('$_gradeItemsKeyPrefix$classId', data);
     });
   }
-  
+
   @override
   Future<void> deleteGradeItem(String classId, String itemId) async {
     final items = await loadGradeItems(classId);
     items.removeWhere((i) => i.gradeItemId == itemId);
     await saveGradeItems(classId, items);
   }
-  
+
   // Student Scores
   @override
-  Future<List<StudentScore>> loadScores(String classId, String gradeItemId) async {
+  Future<List<StudentScore>> loadScores(
+      String classId, String gradeItemId) async {
     final prefs = await SharedPreferences.getInstance();
-    final String? data = prefs.getString('$_scoresKeyPrefix${classId}_$gradeItemId');
+    final String? data =
+        prefs.getString('$_scoresKeyPrefix${classId}_$gradeItemId');
     if (data != null) {
       final List<dynamic> jsonList = json.decode(data);
       return jsonList.map((json) => StudentScore.fromJson(json)).toList();
@@ -189,9 +205,10 @@ class LocalRepository implements DataRepository {
         .where((s) => s.gradeItemId == gradeItemId)
         .toList();
   }
-  
+
   @override
-  Future<void> saveScores(String classId, String gradeItemId, List<StudentScore> scores) async {
+  Future<void> saveScores(
+      String classId, String gradeItemId, List<StudentScore> scores) async {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
       final String data = json.encode(scores.map((s) => s.toJson()).toList());
@@ -201,12 +218,15 @@ class LocalRepository implements DataRepository {
 
   // Score Change History (Undo)
   @override
-  Future<List<ChangeHistory>> loadScoreHistory(String classId, {int limit = 100}) async {
+  Future<List<ChangeHistory>> loadScoreHistory(String classId,
+      {int limit = 100}) async {
     final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString('$_historyKeyPrefix$classId');
     if (data != null) {
       final List<dynamic> jsonList = json.decode(data);
-      final out = jsonList.map((e) => ChangeHistory.fromJson(e as Map<String, dynamic>)).toList();
+      final out = jsonList
+          .map((e) => ChangeHistory.fromJson(e as Map<String, dynamic>))
+          .toList();
       return out.reversed.take(limit).toList().reversed.toList();
     }
 
@@ -225,7 +245,8 @@ class LocalRepository implements DataRepository {
   }
 
   @override
-  Future<void> addScoreHistory(String classId, ChangeHistory entry, {int maxEntries = 100}) async {
+  Future<void> addScoreHistory(String classId, ChangeHistory entry,
+      {int maxEntries = 100}) async {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
       final key = '$_historyKeyPrefix$classId';
@@ -249,12 +270,13 @@ class LocalRepository implements DataRepository {
       final key = '$_historyKeyPrefix$classId';
       final existing = prefs.getString(key);
       if (existing == null) return;
-      List<Map<String, dynamic>> list = (json.decode(existing) as List).cast<Map<String, dynamic>>();
+      List<Map<String, dynamic>> list =
+          (json.decode(existing) as List).cast<Map<String, dynamic>>();
       list.removeWhere((e) => e['changeId'] == changeId);
       await prefs.setString(key, json.encode(list));
     });
   }
-  
+
   // Final Exams
   @override
   Future<List<FinalExam>> loadExams(String classId) async {
@@ -278,7 +300,7 @@ class LocalRepository implements DataRepository {
         .where((e) => studentIds.contains(e.studentId))
         .toList();
   }
-  
+
   @override
   Future<void> saveExams(String classId, List<FinalExam> exams) async {
     await _enqueueWrite(() async {
@@ -287,7 +309,7 @@ class LocalRepository implements DataRepository {
       await prefs.setString('$_examsKeyPrefix$classId', data);
     });
   }
-  
+
   // Grading Categories
   @override
   Future<List<GradingCategory>> loadCategories(String classId) async {
@@ -307,16 +329,18 @@ class LocalRepository implements DataRepository {
         .where((c) => c.classId == classId)
         .toList();
   }
-  
+
   @override
-  Future<void> saveCategories(String classId, List<GradingCategory> categories) async {
+  Future<void> saveCategories(
+      String classId, List<GradingCategory> categories) async {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
-      final String data = json.encode(categories.map((c) => c.toJson()).toList());
+      final String data =
+          json.encode(categories.map((c) => c.toJson()).toList());
       await prefs.setString('$_categoriesKeyPrefix$classId', data);
     });
   }
-  
+
   // Grading Templates
   @override
   Future<List<GradingTemplate>> loadTemplates() async {
@@ -326,16 +350,129 @@ class LocalRepository implements DataRepository {
     final List<dynamic> jsonList = json.decode(data);
     return jsonList.map((json) => GradingTemplate.fromJson(json)).toList();
   }
-  
+
   @override
   Future<void> saveTemplates(List<GradingTemplate> templates) async {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
-      final String data = json.encode(templates.map((t) => t.toJson()).toList());
+      final String data =
+          json.encode(templates.map((t) => t.toJson()).toList());
       await prefs.setString(_templatesKey, data);
     });
   }
-  
+
+  // Seating Layouts
+  @override
+  Future<List<SeatingLayout>> loadSeatingLayouts(String classId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? data = prefs.getString('$_seatingLayoutsKeyPrefix$classId');
+    if (data == null) return [];
+    final List<dynamic> jsonList = json.decode(data);
+    return jsonList
+        .map((json) => SeatingLayout.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> saveSeatingLayouts(
+      String classId, List<SeatingLayout> layouts) async {
+    await _enqueueWrite(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final String data = json.encode(layouts.map((l) => l.toJson()).toList());
+      await prefs.setString('$_seatingLayoutsKeyPrefix$classId', data);
+    });
+  }
+
+  @override
+  Future<void> deleteSeatingLayout(String classId, String layoutId) async {
+    await _enqueueWrite(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final String? data = prefs.getString('$_seatingLayoutsKeyPrefix$classId');
+      if (data == null) return;
+      final List<dynamic> jsonList = json.decode(data);
+      final layouts = jsonList
+          .map((json) => SeatingLayout.fromJson(json as Map<String, dynamic>))
+          .toList();
+      layouts.removeWhere((l) => l.layoutId == layoutId);
+      final String updated =
+          json.encode(layouts.map((l) => l.toJson()).toList());
+      await prefs.setString('$_seatingLayoutsKeyPrefix$classId', updated);
+    });
+  }
+
+  @override
+  Future<String?> loadActiveSeatingLayoutId(String classId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('$_seatingActiveLayoutPrefix$classId');
+  }
+
+  @override
+  Future<void> saveActiveSeatingLayoutId(
+      String classId, String layoutId) async {
+    await _enqueueWrite(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('$_seatingActiveLayoutPrefix$classId', layoutId);
+    });
+  }
+
+  @override
+  Future<String?> loadAssignedRoomSetupId(String classId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('$_seatingAssignedRoomPrefix$classId');
+  }
+
+  @override
+  Future<void> saveAssignedRoomSetupId(
+      String classId, String? roomSetupId) async {
+    await _enqueueWrite(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final key = '$_seatingAssignedRoomPrefix$classId';
+      if (roomSetupId == null || roomSetupId.isEmpty) {
+        await prefs.remove(key);
+      } else {
+        await prefs.setString(key, roomSetupId);
+      }
+    });
+  }
+
+  @override
+  Future<List<RoomSetup>> loadRoomSetups() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? data = prefs.getString(_roomSetupsKey);
+    if (data == null) return [];
+    final List<dynamic> jsonList = json.decode(data);
+    return jsonList
+        .map((json) => RoomSetup.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> saveRoomSetups(List<RoomSetup> roomSetups) async {
+    await _enqueueWrite(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final String data =
+          json.encode(roomSetups.map((setup) => setup.toJson()).toList());
+      await prefs.setString(_roomSetupsKey, data);
+    });
+  }
+
+  @override
+  Future<void> deleteRoomSetup(String roomSetupId) async {
+    await _enqueueWrite(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final String? data = prefs.getString(_roomSetupsKey);
+      if (data == null) return;
+      final List<dynamic> jsonList = json.decode(data);
+      final roomSetups = jsonList
+          .map((json) => RoomSetup.fromJson(json as Map<String, dynamic>))
+          .toList()
+        ..removeWhere((setup) => setup.roomSetupId == roomSetupId);
+      final String updated =
+          json.encode(roomSetups.map((setup) => setup.toJson()).toList());
+      await prefs.setString(_roomSetupsKey, updated);
+    });
+  }
+
   // Utility
   @override
   Future<void> clearAll() async {

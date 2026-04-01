@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/services/class_service.dart';
+import 'package:gradeflow/services/demo_data_service.dart';
+import 'package:gradeflow/services/final_exam_service.dart';
+import 'package:gradeflow/services/grade_item_service.dart';
+import 'package:gradeflow/services/grading_category_service.dart';
+import 'package:gradeflow/services/student_score_service.dart';
+import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -51,6 +58,21 @@ class _LoginScreenState extends State<LoginScreen> {
     final authService = context.read<AuthService>();
     await authService.seedDemoUser();
     final success = await authService.login('teacher@demo.com', 'demo');
+
+    if (success && mounted) {
+      final user = authService.currentUser;
+      if (DemoDataService.isDemoUser(user)) {
+        await DemoDataService.ensureDemoWorkspace(
+          teacherId: user!.userId,
+          classService: context.read<ClassService>(),
+          studentService: context.read<StudentService>(),
+          categoryService: context.read<GradingCategoryService>(),
+          gradeItemService: context.read<GradeItemService>(),
+          scoreService: context.read<StudentScoreService>(),
+          examService: context.read<FinalExamService>(),
+        );
+      }
+    }
 
     if (mounted) {
       setState(() => _isLoading = false);

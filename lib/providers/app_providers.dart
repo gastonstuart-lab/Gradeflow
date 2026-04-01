@@ -12,6 +12,8 @@ import 'package:gradeflow/services/student_trash_service.dart';
 import 'package:gradeflow/services/class_trash_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/google_drive_service.dart';
+import 'package:gradeflow/services/pilot_feedback_service.dart';
+import 'package:gradeflow/services/seating_service.dart';
 
 class AppProviders extends StatelessWidget {
   final Widget child;
@@ -43,6 +45,8 @@ class AppProviders extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => GradingTemplateService()),
         ChangeNotifierProvider(create: (_) => StudentTrashService()),
         ChangeNotifierProvider(create: (_) => ClassTrashService()),
+        ChangeNotifierProvider(create: (_) => SeatingService()),
+        ChangeNotifierProvider(create: (_) => PilotFeedbackService()),
         ChangeNotifierProvider(create: (_) => ThemeModeNotifier()),
       ],
       child: child,
@@ -56,7 +60,8 @@ class ThemeModeNotifier extends ChangeNotifier {
   ThemeMode get themeMode => _themeMode;
 
   void toggleTheme() {
-    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    _themeMode =
+        _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
   }
 

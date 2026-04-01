@@ -72,42 +72,78 @@ class GoogleDriveService {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   static const String exportCsvMimeType = 'text/csv';
 
-  Future<List<DriveFile>> listRecentFiles(
-      {int pageSize = 25, bool interactiveAuth = true}) async {
-    final auth = await _auth.ensureAccessTokenDetailed(
-        interactive: interactiveAuth);
+  Future<List<DriveFile>> _listFiles({
+    required Map<String, String> queryParams,
+    required bool interactiveAuth,
+  }) async {
+    final auth =
+        await _auth.ensureAccessTokenDetailed(interactive: interactiveAuth);
     if (!auth.ok) {
       throw StateError(auth.userMessage());
     }
 
-    final uri = Uri.https('www.googleapis.com', '/drive/v3/files', {
-      'pageSize': '$pageSize',
-      'orderBy': 'modifiedTime desc',
-      'q': 'trashed=false',
-      'fields': 'files(id,name,mimeType,modifiedTime,size,parents)',
-      'supportsAllDrives': 'true',
-      'includeItemsFromAllDrives': 'true',
-    });
+    final out = <DriveFile>[];
+    final seen = <String>{};
+    String? pageToken;
 
-    final resp = await _http.get(
-      uri,
-      headers: {'Authorization': 'Bearer ${auth.accessToken}'},
+    do {
+      final params = Map<String, String>.from(queryParams);
+      if (pageToken != null && pageToken.isNotEmpty) {
+        params['pageToken'] = pageToken;
+      }
+      final fields = (params['fields'] ?? '').trim();
+      if (fields.isEmpty) {
+        params['fields'] =
+            'nextPageToken,files(id,name,mimeType,modifiedTime,size,parents)';
+      } else if (!fields.contains('nextPageToken')) {
+        params['fields'] = 'nextPageToken,$fields';
+      }
+
+      final uri = Uri.https('www.googleapis.com', '/drive/v3/files', params);
+      final resp = await _http.get(
+        uri,
+        headers: {'Authorization': 'Bearer ${auth.accessToken}'},
+      );
+
+      if (resp.statusCode >= 400) {
+        throw StateError('Drive list failed (${resp.statusCode}).');
+      }
+
+      final jsonBody = jsonDecode(resp.body);
+      final files = (jsonBody is Map<String, dynamic>)
+          ? (jsonBody['files'] as List<dynamic>? ?? const [])
+          : const <dynamic>[];
+
+      for (final map in files.whereType<Map<String, dynamic>>()) {
+        final file = DriveFile.fromJson(map);
+        if (file.id.isEmpty || file.name.isEmpty || seen.contains(file.id)) {
+          continue;
+        }
+        seen.add(file.id);
+        out.add(file);
+      }
+
+      pageToken = (jsonBody is Map<String, dynamic>)
+          ? (jsonBody['nextPageToken']?.toString())
+          : null;
+    } while (pageToken != null && pageToken.isNotEmpty);
+
+    return out;
+  }
+
+  Future<List<DriveFile>> listRecentFiles(
+      {int pageSize = 25, bool interactiveAuth = true}) async {
+    return _listFiles(
+      interactiveAuth: interactiveAuth,
+      queryParams: {
+        'pageSize': '$pageSize',
+        'orderBy': 'modifiedTime desc',
+        'q': 'trashed=false',
+        'fields': 'files(id,name,mimeType,modifiedTime,size,parents)',
+        'supportsAllDrives': 'true',
+        'includeItemsFromAllDrives': 'true',
+      },
     );
-
-    if (resp.statusCode >= 400) {
-      throw StateError('Drive list failed (${resp.statusCode}).');
-    }
-
-    final jsonBody = jsonDecode(resp.body);
-    final files = (jsonBody is Map<String, dynamic>)
-        ? (jsonBody['files'] as List<dynamic>? ?? const [])
-        : const <dynamic>[];
-
-    return files
-        .whereType<Map<String, dynamic>>()
-        .map(DriveFile.fromJson)
-        .where((f) => f.id.isNotEmpty && f.name.isNotEmpty)
-        .toList();
   }
 
   /// Lists the contents of a Drive folder.
@@ -117,46 +153,51 @@ class GoogleDriveService {
       {String folderId = 'root',
       int pageSize = 200,
       bool interactiveAuth = false}) async {
-    final auth = await _auth.ensureAccessTokenDetailed(
-        interactive: interactiveAuth);
-    if (!auth.ok) {
-      throw StateError(auth.userMessage());
-    }
-
     final q = "'$folderId' in parents and trashed=false";
-    final uri = Uri.https('www.googleapis.com', '/drive/v3/files', {
-      'pageSize': '$pageSize',
-      'q': q,
-      'fields': 'files(id,name,mimeType,modifiedTime,size,parents)',
-      'supportsAllDrives': 'true',
-      'includeItemsFromAllDrives': 'true',
-    });
-
-    final resp = await _http.get(
-      uri,
-      headers: {'Authorization': 'Bearer ${auth.accessToken}'},
+    final out = await _listFiles(
+      interactiveAuth: interactiveAuth,
+      queryParams: {
+        'pageSize': '$pageSize',
+        'q': q,
+        'fields': 'files(id,name,mimeType,modifiedTime,size,parents)',
+        'supportsAllDrives': 'true',
+        'includeItemsFromAllDrives': 'true',
+      },
     );
-
-    if (resp.statusCode >= 400) {
-      throw StateError('Drive list failed (${resp.statusCode}).');
-    }
-
-    final jsonBody = jsonDecode(resp.body);
-    final files = (jsonBody is Map<String, dynamic>)
-        ? (jsonBody['files'] as List<dynamic>? ?? const [])
-        : const <dynamic>[];
-
-    final out = files
-        .whereType<Map<String, dynamic>>()
-        .map(DriveFile.fromJson)
-        .where((f) => f.id.isNotEmpty && f.name.isNotEmpty)
-        .toList();
 
     out.sort((a, b) {
       if (a.isFolder != b.isFolder) return a.isFolder ? -1 : 1;
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
 
+    return out;
+  }
+
+  Future<List<DriveFile>> searchFiles(
+    String query, {
+    int pageSize = 100,
+    bool interactiveAuth = false,
+  }) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return const [];
+    final escaped = trimmed.replaceAll("'", r"\'");
+
+    final out = await _listFiles(
+      interactiveAuth: interactiveAuth,
+      queryParams: {
+        'pageSize': '$pageSize',
+        'orderBy': 'modifiedTime desc',
+        'q': "trashed=false and name contains '$escaped'",
+        'fields': 'files(id,name,mimeType,modifiedTime,size,parents)',
+        'supportsAllDrives': 'true',
+        'includeItemsFromAllDrives': 'true',
+      },
+    );
+
+    out.sort((a, b) {
+      if (a.isFolder != b.isFolder) return a.isFolder ? -1 : 1;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
     return out;
   }
 

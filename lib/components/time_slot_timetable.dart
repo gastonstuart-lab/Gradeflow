@@ -7,12 +7,18 @@ class TimeSlotTimetable extends StatelessWidget {
   final DateTime weekStart;
 
   const TimeSlotTimetable({
-    Key? key,
+    super.key,
     required this.classes,
     required this.weekStart,
-  }) : super(key: key);
+  });
 
-  static const List<String> dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  static const List<String> dayNames = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday'
+  ];
   static const int startHour = 8;
   static const int endHour = 18;
 
@@ -23,44 +29,56 @@ class TimeSlotTimetable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    const gridHeight = (endHour - startHour) * 60.0;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row: day names
-          Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
             children: [
-              SizedBox(width: 80, child: Padding(padding: EdgeInsets.all(8), child: Text('Time', style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold)))),
+              SizedBox(
+                  width: 80,
+                  child: Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Text('Time',
+                          style: theme.textTheme.labelSmall
+                              ?.copyWith(fontWeight: FontWeight.bold)))),
               for (int day = 0; day < 5; day++)
                 SizedBox(
                   width: 180,
                   child: Container(
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                      border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant)),
+                      color: theme.colorScheme.primaryContainer
+                          .withValues(alpha: 0.3),
+                      border: Border(
+                          bottom: BorderSide(
+                              color: theme.colorScheme.outlineVariant)),
                     ),
                     child: Center(
                       child: Text(
                         dayNames[day],
-                        style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.labelLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
                 ),
             ],
           ),
-          // Scrollable content
-          Expanded(
+        ),
+        Expanded(
+          child: SingleChildScrollView(
             child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Time axis
                   SizedBox(
                     width: 80,
+                    height: gridHeight,
                     child: Column(
                       children: [
                         for (int h = startHour; h < endHour; h++)
@@ -68,24 +86,28 @@ class TimeSlotTimetable extends StatelessWidget {
                             height: 60,
                             child: Container(
                               decoration: BoxDecoration(
-                                border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5)),
+                                border: Border(
+                                    bottom: BorderSide(
+                                        color: theme.colorScheme.outlineVariant,
+                                        width: 0.5)),
                               ),
                               child: Padding(
                                 padding: EdgeInsets.all(4),
-                                child: Text('${h.toString().padLeft(2, '0')}:00', style: theme.textTheme.labelSmall),
+                                child: Text(
+                                    '${h.toString().padLeft(2, '0')}:00',
+                                    style: theme.textTheme.labelSmall),
                               ),
                             ),
                           ),
                       ],
                     ),
                   ),
-                  // Day columns
                   for (int day = 0; day < 5; day++)
                     SizedBox(
                       width: 180,
+                      height: gridHeight,
                       child: Stack(
                         children: [
-                          // Background grid
                           Column(
                             children: [
                               for (int h = startHour; h < endHour; h++)
@@ -94,15 +116,19 @@ class TimeSlotTimetable extends StatelessWidget {
                                   child: Container(
                                     decoration: BoxDecoration(
                                       border: Border(
-                                        right: BorderSide(color: theme.colorScheme.outlineVariant),
-                                        bottom: BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
+                                        right: BorderSide(
+                                            color: theme
+                                                .colorScheme.outlineVariant),
+                                        bottom: BorderSide(
+                                            color: theme
+                                                .colorScheme.outlineVariant,
+                                            width: 0.5),
                                       ),
                                     ),
                                   ),
                                 ),
                             ],
                           ),
-                          // Classes positioned absolutely
                           ..._buildClassBlocks(theme, day),
                         ],
                       ),
@@ -111,8 +137,8 @@ class TimeSlotTimetable extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

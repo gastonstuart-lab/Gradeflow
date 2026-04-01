@@ -13,7 +13,7 @@ export default defineConfig({
   webServer: {
     command:
       process.env.E2E_WEB_SERVER_COMMAND ??
-      `powershell -NoProfile -Command "flutter build web --release; npx serve build/web -s -l ${port}"`,
+      `powershell -NoProfile -Command "flutter build web --release; npx.cmd serve build/web -s -l ${port}"`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

@@ -66,9 +66,7 @@ class ClassCard extends StatelessWidget {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         border: Border.all(
-                            color: Theme.of(ctx)
-                                .colorScheme
-                                .outlineVariant),
+                            color: Theme.of(ctx).colorScheme.outlineVariant),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
@@ -179,7 +177,9 @@ class ClassCard extends StatelessWidget {
                 const Spacer(),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    Icon(Icons.calendar_today,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
                       '${classItem.schoolYear} • ${classItem.term}',
@@ -205,7 +205,8 @@ class ClassCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Icon(Icons.arrow_forward, size: 20, color: Theme.of(context).colorScheme.primary),
+                    Icon(Icons.arrow_forward,
+                        size: 20, color: Theme.of(context).colorScheme.primary),
                   ],
                 ),
               ],

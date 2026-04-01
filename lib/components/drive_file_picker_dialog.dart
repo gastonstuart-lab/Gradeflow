@@ -24,13 +24,23 @@ class _DriveFilePickerDialogState extends State<DriveFilePickerDialog> {
   bool _loading = true;
   String? _error;
   List<DriveFile> _files = const [];
+  bool _showRecent = true;
+  final TextEditingController _searchCtrl = TextEditingController();
 
-  final List<_DriveFolder> _stack = [_DriveFolder(id: 'root', name: 'My Drive')];
+  final List<_DriveFolder> _stack = [
+    _DriveFolder(id: 'root', name: 'My Drive')
+  ];
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   bool _matchesExtension(String name) {
@@ -45,7 +55,8 @@ class _DriveFilePickerDialogState extends State<DriveFilePickerDialog> {
   bool _isGoogleSheet(DriveFile f) =>
       f.mimeType == GoogleDriveService.googleSheetMimeType;
 
-  bool _isFolder(DriveFile f) => f.mimeType == GoogleDriveService.folderMimeType;
+  bool _isFolder(DriveFile f) =>
+      f.mimeType == GoogleDriveService.folderMimeType;
 
   _DriveFolder get _currentFolder => _stack.last;
 
@@ -58,8 +69,14 @@ class _DriveFilePickerDialogState extends State<DriveFilePickerDialog> {
     });
 
     try {
-      final files = await widget.driveService
-          .listFolder(folderId: _currentFolder.id, interactiveAuth: false);
+      final q = _searchCtrl.text.trim();
+      final files = q.isNotEmpty
+          ? await widget.driveService.searchFiles(q, interactiveAuth: false)
+          : _showRecent
+              ? await widget.driveService
+                  .listRecentFiles(pageSize: 80, interactiveAuth: false)
+              : await widget.driveService.listFolder(
+                  folderId: _currentFolder.id, interactiveAuth: false);
       final filtered = files.where((f) {
         if (_isFolder(f)) return true;
         return _matchesExtension(f.name) || _isGoogleSheet(f);
@@ -88,7 +105,8 @@ class _DriveFilePickerDialogState extends State<DriveFilePickerDialog> {
 
     try {
       // Trigger interactive sign-in from a user gesture.
-      await widget.driveService.listRecentFiles(pageSize: 1, interactiveAuth: true);
+      await widget.driveService
+          .listRecentFiles(pageSize: 1, interactiveAuth: true);
     } catch (e) {
       setState(() => _error = '$e');
     } finally {
@@ -99,6 +117,8 @@ class _DriveFilePickerDialogState extends State<DriveFilePickerDialog> {
 
   void _openFolder(DriveFile folder) {
     _stack.add(_DriveFolder(id: folder.id, name: folder.name));
+    _showRecent = false;
+    _searchCtrl.clear();
     _load();
   }
 
@@ -122,19 +142,63 @@ class _DriveFilePickerDialogState extends State<DriveFilePickerDialog> {
             Row(children: [
               IconButton(
                 tooltip: 'Up',
-                onPressed: _loading || !_canGoUp ? null : _goUp,
+                onPressed: _loading ||
+                        !_canGoUp ||
+                        _showRecent ||
+                        _searchCtrl.text.trim().isNotEmpty
+                    ? null
+                    : _goUp,
                 icon: const Icon(Icons.arrow_upward),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _currentFolder.name,
+                  _searchCtrl.text.trim().isNotEmpty
+                      ? 'Search results'
+                      : _showRecent
+                          ? 'Recent files (including shared drives)'
+                          : _currentFolder.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: context.textStyles.titleSmall?.semiBold,
                 ),
               ),
             ]),
+            const SizedBox(height: AppSpacing.sm),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment<bool>(value: true, label: Text('Recent')),
+                ButtonSegment<bool>(value: false, label: Text('Folders')),
+              ],
+              selected: {_showRecent},
+              onSelectionChanged: _loading
+                  ? null
+                  : (s) {
+                      setState(() => _showRecent = s.first);
+                      _searchCtrl.clear();
+                      _load();
+                    },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search files by name (works across shared drives)',
+                suffixIcon: _searchCtrl.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _load();
+                        },
+                      ),
+              ),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _load(),
+            ),
             const SizedBox(height: AppSpacing.sm),
             Expanded(
               child: _loading
@@ -179,14 +243,15 @@ class _DriveFilePickerDialogState extends State<DriveFilePickerDialog> {
                                 const Expanded(
                                   child: Center(
                                     child: Text(
-                                        'Try uploading a CSV/XLSX to Drive, then Refresh.'),
+                                        'Try search, switch to Recent, or open folders.'),
                                   ),
                                 ),
                               ],
                             )
                           : ListView.separated(
                               itemCount: _files.length,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
                               itemBuilder: (ctx, i) {
                                 final f = _files[i];
                                 final subtitleParts = <String>[];

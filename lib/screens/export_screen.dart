@@ -10,10 +10,8 @@ import 'package:gradeflow/services/export_service.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
-// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:html' as html;
-import 'dart:convert';
 import 'dart:typed_data';
+import 'package:gradeflow/platform/browser_file_actions.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:csv/csv.dart';
@@ -374,7 +372,7 @@ class _ExportScreenState extends State<ExportScreen> {
                               style: ctx.textStyles.titleLarge?.semiBold)),
                       OutlinedButton.icon(
                         onPressed: () =>
-                            _downloadTextWeb(csv, filename, 'text/csv'),
+                            _downloadText(csv, filename, 'text/csv'),
                         icon: const Icon(Icons.download),
                         label: const Text('Download CSV'),
                       ),
@@ -474,7 +472,7 @@ class _ExportScreenState extends State<ExportScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: ctx.textStyles.titleLarge?.semiBold)),
                       OutlinedButton.icon(
-                        onPressed: () => _downloadBytesWeb(
+                        onPressed: () => _downloadBytes(
                             bytes, filename, 'application/pdf'),
                         icon: const Icon(Icons.download),
                         label: const Text('Download PDF'),
@@ -537,7 +535,7 @@ class _ExportScreenState extends State<ExportScreen> {
         categoryService.categories,
         _studentGrades,
       );
-      final ok = await _downloadTextWeb(
+      final ok = await _downloadText(
           csv, 'grades_${widget.classId}.csv', 'text/csv');
       ok
           ? _showSuccess('CSV downloaded')
@@ -549,7 +547,7 @@ class _ExportScreenState extends State<ExportScreen> {
         categoryService.categories,
         _studentGrades,
       );
-      final ok = await _downloadBytesWeb(bytes, 'grades_${widget.classId}.xlsx',
+      final ok = await _downloadBytes(bytes, 'grades_${widget.classId}.xlsx',
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       ok
           ? _showSuccess('XLSX downloaded')
@@ -623,7 +621,7 @@ class _ExportScreenState extends State<ExportScreen> {
       // Single-row CSV for the student
       final csv = _exportService.generateCSV(
           [student], categoryService.categories, {student.studentId: grades});
-      final ok = await _downloadTextWeb(
+      final ok = await _downloadText(
           csv, 'report_${student.studentId}.csv', 'text/csv');
       ok
           ? _showSuccess('CSV downloaded')
@@ -632,7 +630,7 @@ class _ExportScreenState extends State<ExportScreen> {
     } else if (_format == _ExportFormat.xlsx) {
       final bytes = _exportService.generateXlsx(
           [student], categoryService.categories, {student.studentId: grades});
-      final ok = await _downloadBytesWeb(
+      final ok = await _downloadBytes(
           bytes,
           'report_${student.studentId}.xlsx',
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -673,7 +671,7 @@ class _ExportScreenState extends State<ExportScreen> {
             student, grades, categoryService.categories);
         if (mounted) Navigator.of(context).pop(); // Close loading dialog
 
-        final ok = await _downloadBytesWeb(
+        final ok = await _downloadBytes(
             bytes, 'report_${student.studentId}.pdf', 'application/pdf');
         ok
             ? _showSuccess('PDF downloaded successfully!')
@@ -800,7 +798,7 @@ class _ExportScreenState extends State<ExportScreen> {
     if (_format == _ExportFormat.csv) {
       final csv = const ListToCsvConverter().convert([headers, ...allRows]);
       final ok =
-          await _downloadTextWeb(csv, 'grades_all_classes.csv', 'text/csv');
+          await _downloadText(csv, 'grades_all_classes.csv', 'text/csv');
       ok
           ? _showSuccess('CSV downloaded')
           : _showError(
@@ -819,7 +817,7 @@ class _ExportScreenState extends State<ExportScreen> {
             padded.map<CellValue?>((e) => TextCellValue(e)).toList());
       }
       final bytes = Uint8List.fromList(excel.encode()!);
-      final ok = await _downloadBytesWeb(bytes, 'grades_all_classes.xlsx',
+      final ok = await _downloadBytes(bytes, 'grades_all_classes.xlsx',
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       ok
           ? _showSuccess('XLSX downloaded')
@@ -873,15 +871,24 @@ class _ExportScreenState extends State<ExportScreen> {
         ),
       );
 
-  Future<bool> _downloadTextWeb(String text, String filename, String mime,
-      {bool openInNewTab = false}) async {
-    final bytes = utf8.encode(text);
-    return _downloadBytesWeb(Uint8List.fromList(bytes), filename, mime,
-        openInNewTab: openInNewTab);
+  Future<bool> _downloadText(
+    String text,
+    String filename,
+    String mime,
+  ) async {
+    if (!kIsWeb) {
+      _showError('Export is only supported on web');
+      return false;
+    }
+
+    return downloadBrowserText(text, filename, mime);
   }
 
-  Future<bool> _downloadBytesWeb(Uint8List bytes, String filename, String mime,
-      {bool openInNewTab = false}) async {
+  Future<bool> _downloadBytes(
+    Uint8List bytes,
+    String filename,
+    String mime,
+  ) async {
     if (!kIsWeb) {
       _showError('Export is only supported on web');
       return false;
@@ -893,23 +900,11 @@ class _ExportScreenState extends State<ExportScreen> {
     try {
       debugPrint(
           'Preparing download for $filename (${bytes.length} bytes, mime=$mime).');
-      final blob = html.Blob([bytes], mime);
-      final url = html.Url.createObjectUrlFromBlob(blob);
-
-      // Use a hidden anchor to trigger a download. Must be in DOM, clicked directly in user gesture context.
-      final anchor = html.AnchorElement(href: url)
-        ..style.display = 'none'
-        ..download = filename;
-      anchor.setAttribute('download', filename);
-      html.document.body!.children.add(anchor);
-      anchor.click();
-      anchor.remove();
-
-      // Delay revoke to ensure download completes (Chrome/Firefox/Safari need this).
-      await Future.delayed(const Duration(seconds: 1));
-      html.Url.revokeObjectUrl(url);
-      debugPrint('Download triggered successfully for $filename');
-      return true;
+      final triggered = await downloadBrowserBytes(bytes, filename, mime);
+      if (triggered) {
+        debugPrint('Download triggered successfully for $filename');
+      }
+      return triggered;
     } catch (e) {
       debugPrint('Export download failed for $filename: $e');
       return false;
@@ -922,9 +917,10 @@ class _ExportScreenState extends State<ExportScreen> {
       return;
     }
     try {
-      // Prefer async clipboard API
-      // ignore: undefined_prefixed_name
-      await html.window.navigator.clipboard?.writeText(text);
+      final copied = await copyBrowserText(text);
+      if (!copied) {
+        throw StateError('Clipboard write was not available.');
+      }
       _showSuccess('CSV copied to clipboard');
     } catch (e) {
       debugPrint('Clipboard write failed: $e');
