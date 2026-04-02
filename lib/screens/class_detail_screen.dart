@@ -12,12 +12,16 @@ import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/class_schedule_service.dart';
 import 'package:gradeflow/models/class_schedule_item.dart';
+import 'package:gradeflow/models/class_note_item.dart';
+import 'package:gradeflow/services/class_note_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 
 class ClassDetailScreen extends StatefulWidget {
   final String classId;
@@ -30,8 +34,10 @@ class ClassDetailScreen extends StatefulWidget {
 
 class _ClassDetailScreenState extends State<ClassDetailScreen> {
   List<ClassScheduleItem> _scheduleItems = [];
+  List<ClassNoteItem> _classNotes = [];
   String? _driveAccessToken;
   bool _driveSigningIn = false;
+  final ClassNoteService _classNoteService = ClassNoteService();
 
   void _showPersistentMessage(String message) {
     if (!mounted) return;
@@ -77,6 +83,50 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     });
   }
 
+  String _classDataUserId() {
+    final user = context.read<AuthService>().currentUser;
+    return user?.userId ?? 'local';
+  }
+
+  DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  DateTime _startOfWeek(DateTime anchor) {
+    final normalized = _dateOnly(anchor);
+    return normalized.subtract(Duration(days: normalized.weekday - 1));
+  }
+
+  List<ClassNoteItem> _sortClassNotes(Iterable<ClassNoteItem> items) {
+    final sorted = items.toList();
+    sorted.sort((a, b) {
+      if (a.isDone != b.isDone) {
+        return a.isDone ? 1 : -1;
+      }
+
+      final aReminder = a.remindAt;
+      final bReminder = b.remindAt;
+      if (aReminder != null && bReminder != null) {
+        final byDate = aReminder.compareTo(bReminder);
+        if (byDate != 0) return byDate;
+      } else if (aReminder != null) {
+        return -1;
+      } else if (bReminder != null) {
+        return 1;
+      }
+
+      return b.createdAt.compareTo(a.createdAt);
+    });
+    return sorted;
+  }
+
+  Future<void> _saveClassNotes() async {
+    await _classNoteService.save(
+      classId: widget.classId,
+      userId: _classDataUserId(),
+      items: _classNotes,
+    );
+  }
+
   Future<void> _loadData() async {
     final authService = context.read<AuthService>();
     final classService = context.read<ClassService>();
@@ -108,10 +158,16 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     await categoryService.loadCategories(widget.classId);
     await gradeItemService.loadGradeItems(widget.classId);
 
-    // Load schedule
+    // Load schedule + class notes/reminders
     final items = await scheduleService.load(widget.classId);
+    final notes = await _classNoteService.load(
+      classId: widget.classId,
+      userId: user?.userId ?? 'local',
+    );
+    if (!mounted) return;
     setState(() {
       _scheduleItems = items;
+      _classNotes = _sortClassNotes(notes);
     });
 
     if (studentService.students.isNotEmpty) {
@@ -131,6 +187,182 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
         await examService.loadExams(widget.classId, studentIds);
       }
     }
+  }
+
+  List<ClassScheduleItem> _scheduleItemsForWeek(DateTime weekStart) {
+    final start = _dateOnly(weekStart);
+    final end = start.add(const Duration(days: 7));
+    final items = _scheduleItems.where((item) {
+      final date = item.date;
+      if (date == null) return false;
+      final normalized = _dateOnly(date);
+      return !normalized.isBefore(start) && normalized.isBefore(end);
+    }).toList();
+
+    items.sort((a, b) {
+      final aDate = a.date ?? DateTime(9999);
+      final bDate = b.date ?? DateTime(9999);
+      final byDate = aDate.compareTo(bDate);
+      if (byDate != 0) return byDate;
+      return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+    });
+    return items;
+  }
+
+  String _weekRangeLabel(DateTime weekStart) {
+    final end = weekStart.add(const Duration(days: 6));
+    if (weekStart.month == end.month) {
+      return '${DateFormat('MMM d').format(weekStart)}-${DateFormat('d').format(end)}';
+    }
+    return '${DateFormat('MMM d').format(weekStart)} - ${DateFormat('MMM d').format(end)}';
+  }
+
+  String _schedulePreviewTitle(ClassScheduleItem item) {
+    final title = item.title.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final subjectMatch = RegExp(
+      r'subject:\s*(.+?)(?=\s+aim:|\s+question:|$)',
+      caseSensitive: false,
+    ).firstMatch(title);
+    if (subjectMatch != null) {
+      final value = subjectMatch.group(1)?.trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+
+    final aimMatch = RegExp(
+      r'aim:\s*(.+?)(?=\s+question:|$)',
+      caseSensitive: false,
+    ).firstMatch(title);
+    if (aimMatch != null) {
+      final value = aimMatch.group(1)?.trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+
+    final sentence = title.split(RegExp(r'(?<=[.!?])\s+')).first.trim();
+    return sentence.isEmpty ? title : sentence;
+  }
+
+  Future<void> _showAddClassNoteDialog() async {
+    final controller = TextEditingController();
+    var includeReminderDate = false;
+    DateTime? remindAt;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocalState) => AlertDialog(
+          title: const Text('Add note or reminder'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Note',
+                    hintText: 'Add a teaching note, reminder, or follow-up',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Set reminder date'),
+                  value: includeReminderDate,
+                  onChanged: (value) {
+                    setLocalState(() {
+                      includeReminderDate = value ?? false;
+                      if (!includeReminderDate) {
+                        remindAt = null;
+                      }
+                    });
+                  },
+                ),
+                if (includeReminderDate)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.event),
+                      label: Text(
+                        remindAt == null
+                            ? 'Choose date'
+                            : DateFormat('EEE, MMM d').format(remindAt!),
+                      ),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: remindAt ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked == null) return;
+                        setLocalState(() {
+                          remindAt = _dateOnly(picked);
+                        });
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (controller.text.trim().isEmpty) return;
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) {
+      controller.dispose();
+      return;
+    }
+
+    final text = controller.text.trim();
+    controller.dispose();
+    if (text.isEmpty) return;
+
+    final newItem = ClassNoteItem(
+      id: const Uuid().v4(),
+      text: text,
+      createdAt: DateTime.now(),
+      remindAt: includeReminderDate ? remindAt : null,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _classNotes = _sortClassNotes([..._classNotes, newItem]);
+    });
+    await _saveClassNotes();
+  }
+
+  Future<void> _toggleClassNoteDone(ClassNoteItem item, bool isDone) async {
+    if (!mounted) return;
+    setState(() {
+      _classNotes = _sortClassNotes(_classNotes.map((note) {
+        if (note.id != item.id) return note;
+        return note.copyWith(isDone: isDone);
+      }));
+    });
+    await _saveClassNotes();
+  }
+
+  Future<void> _deleteClassNote(ClassNoteItem item) async {
+    if (!mounted) return;
+    setState(() {
+      _classNotes = _classNotes.where((note) => note.id != item.id).toList();
+    });
+    await _saveClassNotes();
   }
 
   @override
@@ -154,140 +386,450 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       appBar: AppBar(
         title: Text(classItem.className),
       ),
-      body: studentService.isLoading || categoryService.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: AppSpacing.paddingLg,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AnimatedGlowBorder(
-                    child: Card(
-                      child: Padding(
-                        padding: AppSpacing.paddingLg,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(classItem.subject,
-                                style:
-                                    context.textStyles.headlineSmall?.semiBold),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text('${classItem.schoolYear} • ${classItem.term}',
-                                style: context.textStyles.bodyMedium),
-                            const SizedBox(height: AppSpacing.lg),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _StatCard(
-                                    icon: Icons.people,
-                                    label: 'Students',
-                                    value: '$studentCount',
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: _StatCard(
-                                    icon: Icons.category,
-                                    label: 'Categories',
-                                    value: '$categoryCount',
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => _showScheduleDialog(context),
+      body: AnimatedPageBackground(
+        child: studentService.isLoading || categoryService.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: AppSpacing.paddingLg,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AnimatedGlowBorder(
+                      child: Card(
+                        child: Padding(
+                          padding: AppSpacing.paddingLg,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(classItem.subject,
+                                  style: context
+                                      .textStyles.headlineSmall?.semiBold),
+                              const SizedBox(height: AppSpacing.sm),
+                              Text(
+                                  '${classItem.schoolYear} • ${classItem.term}',
+                                  style: context.textStyles.bodyMedium),
+                              const SizedBox(height: AppSpacing.lg),
+                              Row(
+                                children: [
+                                  Expanded(
                                     child: _StatCard(
-                                      icon: Icons.calendar_today,
-                                      label: 'Schedule',
-                                      value: _scheduleItems.isEmpty
-                                          ? '—'
-                                          : '${_scheduleItems.length}',
+                                      icon: Icons.people,
+                                      label: 'Students',
+                                      value: '$studentCount',
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(
+                                    child: _StatCard(
+                                      icon: Icons.category,
+                                      label: 'Categories',
+                                      value: '$categoryCount',
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () => _showScheduleDialog(context),
+                                      child: _StatCard(
+                                        icon: Icons.calendar_today,
+                                        label: 'Schedule',
+                                        value: _scheduleItems.isEmpty
+                                            ? '—'
+                                            : '${_scheduleItems.length}',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: AppSpacing.lg),
+                              _buildOverviewPanels(context),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text('Quick Actions',
-                      style: context.textStyles.titleLarge?.semiBold),
-                  const SizedBox(height: AppSpacing.md),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.people,
-                      title: 'Student Roster',
-                      subtitle: 'View and manage students',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/students'),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text('Quick Actions',
+                        style: context.textStyles.titleLarge?.semiBold),
+                    const SizedBox(height: AppSpacing.md),
+                    AnimatedGlowBorder(
+                      child: _ActionButton(
+                        icon: Icons.people,
+                        title: 'Student Roster',
+                        subtitle: 'View and manage students',
+                        onTap: () =>
+                            context.push('/class/${widget.classId}/students'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.event_seat_outlined,
-                      title: 'Seating Plan',
-                      subtitle: 'Design layouts and print substitute handouts',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/seating'),
+                    const SizedBox(height: AppSpacing.sm),
+                    AnimatedGlowBorder(
+                      child: _ActionButton(
+                        icon: Icons.event_seat_outlined,
+                        title: 'Seating Plan',
+                        subtitle:
+                            'Design layouts and print substitute handouts',
+                        onTap: () =>
+                            context.push('/class/${widget.classId}/seating'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.edit_note,
-                      title: 'Gradebook',
-                      subtitle: 'Enter and view grades',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/gradebook'),
+                    const SizedBox(height: AppSpacing.sm),
+                    AnimatedGlowBorder(
+                      child: _ActionButton(
+                        icon: Icons.edit_note,
+                        title: 'Gradebook',
+                        subtitle: 'Enter and view grades',
+                        onTap: () =>
+                            context.push('/class/${widget.classId}/gradebook'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.category,
-                      title: 'Grading Categories',
-                      subtitle: 'Manage weights and categories',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/categories'),
+                    const SizedBox(height: AppSpacing.sm),
+                    AnimatedGlowBorder(
+                      child: _ActionButton(
+                        icon: Icons.category,
+                        title: 'Grading Categories',
+                        subtitle: 'Manage weights and categories',
+                        onTap: () =>
+                            context.push('/class/${widget.classId}/categories'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.description,
-                      title: 'Final Exam Scores',
-                      subtitle: 'Enter exam scores (60% weight)',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/exams'),
+                    const SizedBox(height: AppSpacing.sm),
+                    AnimatedGlowBorder(
+                      child: _ActionButton(
+                        icon: Icons.description,
+                        title: 'Final Exam Scores',
+                        subtitle: 'Enter exam scores (60% weight)',
+                        onTap: () =>
+                            context.push('/class/${widget.classId}/exams'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.assessment,
-                      title: 'Final Results',
-                      subtitle: 'Process, Exam, Final scores per student',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/results'),
+                    const SizedBox(height: AppSpacing.sm),
+                    AnimatedGlowBorder(
+                      child: _ActionButton(
+                        icon: Icons.assessment,
+                        title: 'Final Results',
+                        subtitle: 'Process, Exam, Final scores per student',
+                        onTap: () =>
+                            context.push('/class/${widget.classId}/results'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.download,
-                      title: 'Export Results',
-                      subtitle: 'Download grades as CSV',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/export'),
+                    const SizedBox(height: AppSpacing.sm),
+                    AnimatedGlowBorder(
+                      child: _ActionButton(
+                        icon: Icons.download,
+                        title: 'Export Results',
+                        subtitle: 'Download grades as CSV',
+                        onTap: () =>
+                            context.push('/class/${widget.classId}/export'),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildOverviewPanels(BuildContext context) {
+    final now = DateTime.now();
+    final thisWeekStart = _startOfWeek(now);
+    final nextWeekStart = thisWeekStart.add(const Duration(days: 7));
+
+    return Column(
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 860;
+            final weekCards = [
+              Expanded(
+                child: _buildWeekSchedulePanel(
+                  context,
+                  title: 'This Week',
+                  weekStart: thisWeekStart,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm, height: AppSpacing.sm),
+              Expanded(
+                child: _buildWeekSchedulePanel(
+                  context,
+                  title: 'Next Week',
+                  weekStart: nextWeekStart,
+                ),
+              ),
+            ];
+
+            if (isWide) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: weekCards,
+              );
+            }
+
+            return Column(
+              children: [
+                _buildWeekSchedulePanel(
+                  context,
+                  title: 'This Week',
+                  weekStart: thisWeekStart,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _buildWeekSchedulePanel(
+                  context,
+                  title: 'Next Week',
+                  weekStart: nextWeekStart,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        _buildClassNotesPanel(context),
+      ],
+    );
+  }
+
+  Widget _buildWeekSchedulePanel(
+    BuildContext context, {
+    required String title,
+    required DateTime weekStart,
+  }) {
+    final theme = Theme.of(context);
+    final items = _scheduleItemsForWeek(weekStart);
+    final previewItems = items.take(4).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: AppSpacing.paddingMd,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.calendar_view_week,
+                  size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: AppSpacing.xs),
+              Text(title, style: context.textStyles.titleSmall?.semiBold),
+              const Spacer(),
+              Text(
+                _weekRangeLabel(weekStart),
+                style: context.textStyles.bodySmall?.withColor(
+                  theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (previewItems.isEmpty)
+            Text(
+              'No scheduled items yet.',
+              style: context.textStyles.bodySmall?.withColor(
+                theme.colorScheme.onSurfaceVariant,
+              ),
+            )
+          else
+            ...previewItems.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 54,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            item.date == null
+                                ? 'TBD'
+                                : DateFormat('EEE').format(item.date!),
+                            style: context.textStyles.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          if (item.date != null)
+                            Text(
+                              DateFormat('M/d').format(item.date!),
+                              style: context.textStyles.labelSmall?.copyWith(
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _schedulePreviewTitle(item),
+                            style: context.textStyles.bodyMedium?.semiBold,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (item.details.isNotEmpty)
+                            Text(
+                              item.details.entries
+                                  .take(1)
+                                  .map((entry) => entry.value)
+                                  .join(' • '),
+                              style: context.textStyles.bodySmall?.withColor(
+                                theme.colorScheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
+          if (items.length > previewItems.length)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Text(
+                '+${items.length - previewItems.length} more items',
+                style: context.textStyles.bodySmall?.withColor(
+                  theme.colorScheme.primary,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClassNotesPanel(BuildContext context) {
+    final theme = Theme.of(context);
+    final previewItems = _classNotes.take(4).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: AppSpacing.paddingMd,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.sticky_note_2_outlined,
+                  size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  'Class Notes & Reminders',
+                  style: context.textStyles.titleSmall?.semiBold,
+                ),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add'),
+                onPressed: _showAddClassNoteDialog,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (previewItems.isEmpty)
+            Text(
+              'Keep track of things to revisit with this class.',
+              style: context.textStyles.bodySmall?.withColor(
+                theme.colorScheme.onSurfaceVariant,
+              ),
+            )
+          else
+            ...previewItems.map(
+              (note) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      note.remindAt != null
+                          ? Icons.notifications_active_outlined
+                          : Icons.note_alt_outlined,
+                      size: 18,
+                      color: note.isDone
+                          ? theme.colorScheme.onSurfaceVariant
+                          : theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            note.text,
+                            style: context.textStyles.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              decoration: note.isDone
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              color: note.isDone
+                                  ? theme.colorScheme.onSurfaceVariant
+                                  : null,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            note.remindAt != null
+                                ? 'Reminder: ${DateFormat('EEE, MMM d').format(note.remindAt!)}'
+                                : 'Note added ${DateFormat('MMM d').format(note.createdAt)}',
+                            style: context.textStyles.bodySmall?.withColor(
+                              theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: note.isDone ? 'Mark unfinished' : 'Mark done',
+                      icon: Icon(
+                        note.isDone
+                            ? Icons.check_circle
+                            : Icons.check_circle_outline,
+                        color: note.isDone
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                      onPressed: () => _toggleClassNoteDone(note, !note.isDone),
+                    ),
+                    IconButton(
+                      tooltip: 'Delete',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _deleteClassNote(note),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (_classNotes.length > previewItems.length)
+            Text(
+              '+${_classNotes.length - previewItems.length} more notes',
+              style: context.textStyles.bodySmall?.withColor(
+                theme.colorScheme.primary,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -414,7 +956,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Upload an Excel or CSV file with your class schedule',
+            'Upload an Excel, CSV, or Word file with your class schedule',
             style: context.textStyles.bodySmall?.withColor(
               Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -440,7 +982,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['xlsx', 'xls', 'csv'],
+        allowedExtensions: ['xlsx', 'xls', 'csv', 'docx'],
         withData: true,
       );
 
@@ -567,7 +1109,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                 controller: controller,
                 decoration: const InputDecoration(
                   labelText: 'Link (Google Drive or direct URL)',
-                  hintText: 'Paste a CSV/XLSX link',
+                  hintText: 'Paste a CSV/XLSX/DOCX link',
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),

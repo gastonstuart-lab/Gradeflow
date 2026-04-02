@@ -84,89 +84,23 @@ class GoogleAuthService {
     return DateTime.now().difference(at) < const Duration(minutes: 50);
   }
 
+  bool _isGoogleFirebaseUser(fb.User user) {
+    return user.providerData.any((info) => info.providerId == 'google.com');
+  }
+
   void _cacheWebTokens({required String accessToken, String? idToken}) {
     _cachedWebAccessToken = accessToken;
     _cachedWebIdToken = idToken;
     _cachedWebTokenAt = DateTime.now();
   }
 
-  /// Ensures an access token is available.
-  ///
-  /// If [interactive] is false, this will only attempt silent sign-in.
-  /// On Flutter web, interactive sign-in without a user gesture can be
-  /// blocked by the browser popup blocker.
-  Future<GoogleAuthResult> ensureAccessTokenDetailed(
-      {bool interactive = true}) async {
-    // Web: Prefer Firebase Auth popup with Drive scope.
-    // This avoids depending on a separately maintained Web OAuth client ID.
-    if (kIsWeb && FirebaseService.isAvailable) {
-      try {
-        if (!interactive && _hasFreshWebToken) {
-          return GoogleAuthResult._(
-            accessToken: _cachedWebAccessToken,
-            idToken: _cachedWebIdToken,
-          );
-        }
+  void cacheWebTokens({required String accessToken, String? idToken}) {
+    if (accessToken.isEmpty) return;
+    _cacheWebTokens(accessToken: accessToken, idToken: idToken);
+  }
 
-        final currentUser = fb.FirebaseAuth.instance.currentUser;
-
-        // If user already signed in, try to get their Google OAuth credential
-        if (currentUser != null) {
-          try {
-            // Force token refresh to get fresh OAuth token
-            final credential = await currentUser.getIdTokenResult(true);
-
-            // Check if this is a Google-authenticated user
-            if (credential.signInProvider == 'google.com') {
-              // Get the OAuth access token from the credential
-              // Note: Firebase doesn't directly expose the Google OAuth token after login,
-              // so we need to re-authenticate to get it
-              if (!interactive) {
-                return GoogleAuthResult._(
-                    error: 'Token expired, re-sign-in needed');
-              }
-              // Fall through to re-authenticate
-            } else if (!interactive) {
-              // Non-Google user, can't get Drive access without interaction
-              return GoogleAuthResult._(error: 'not_signed_in');
-            }
-          } catch (_) {
-            // Token refresh failed, fall through to re-auth
-            if (!interactive) {
-              return GoogleAuthResult._(error: 'not_signed_in');
-            }
-          }
-        } else if (!interactive) {
-          return GoogleAuthResult._(error: 'not_signed_in');
-        }
-
-        // Interactive sign-in with Drive scope
-        final provider = fb.GoogleAuthProvider()
-          ..addScope('email')
-          ..addScope('profile')
-          ..addScope('https://www.googleapis.com/auth/drive.readonly');
-
-        final cred = await fb.FirebaseAuth.instance.signInWithPopup(provider);
-        final authCred = cred.credential;
-        if (authCred is fb.OAuthCredential) {
-          final accessToken = authCred.accessToken;
-          final idToken = authCred.idToken;
-          if (accessToken == null || accessToken.isEmpty) {
-            return GoogleAuthResult._(
-                error: 'No Google access token returned for Drive scope.');
-          }
-          _cacheWebTokens(accessToken: accessToken, idToken: idToken);
-          // Return the OAuth access token (used for Drive API calls)
-          return GoogleAuthResult._(accessToken: accessToken, idToken: idToken);
-        }
-
-        return GoogleAuthResult._(
-            error: 'Unexpected credential type returned by FirebaseAuth.');
-      } catch (e, st) {
-        return GoogleAuthResult._(error: e, stackTrace: st);
-      }
-    }
-
+  Future<GoogleAuthResult> _ensureWithGoogleSignIn(
+      {required bool interactive}) async {
     GoogleSignInAccount? user;
     try {
       user = await _googleSignIn.signInSilently();
@@ -189,12 +123,76 @@ class GoogleAuthService {
       final token = auth.accessToken;
       final idToken = auth.idToken;
       if (token == null || token.isEmpty) {
-        return GoogleAuthResult._(error: 'No access token returned by Google.');
+        return GoogleAuthResult._(
+            error: 'No access token returned by Google.');
+      }
+      if (kIsWeb) {
+        _cacheWebTokens(accessToken: token, idToken: idToken);
       }
       return GoogleAuthResult._(accessToken: token, idToken: idToken);
     } catch (e, st) {
       return GoogleAuthResult._(error: e, stackTrace: st);
     }
+  }
+
+  Future<GoogleAuthResult> _reauthenticateFirebaseGoogleUser(
+      fb.User user) async {
+    try {
+      final provider = fb.GoogleAuthProvider()
+        ..addScope('email')
+        ..addScope('profile')
+        ..addScope('https://www.googleapis.com/auth/drive.readonly');
+
+      final cred = await user.reauthenticateWithPopup(provider);
+      final authCred = cred.credential;
+      if (authCred is! fb.OAuthCredential) {
+        return GoogleAuthResult._(
+            error: 'Unexpected credential type returned by FirebaseAuth.');
+      }
+
+      final accessToken = authCred.accessToken;
+      final idToken = authCred.idToken;
+      if (accessToken == null || accessToken.isEmpty) {
+        return GoogleAuthResult._(
+            error: 'No Google access token returned for Drive scope.');
+      }
+
+      _cacheWebTokens(accessToken: accessToken, idToken: idToken);
+      return GoogleAuthResult._(accessToken: accessToken, idToken: idToken);
+    } catch (e, st) {
+      return GoogleAuthResult._(error: e, stackTrace: st);
+    }
+  }
+
+  /// Ensures an access token is available.
+  ///
+  /// If [interactive] is false, this will only attempt silent sign-in.
+  /// On Flutter web, interactive sign-in without a user gesture can be
+  /// blocked by the browser popup blocker.
+  Future<GoogleAuthResult> ensureAccessTokenDetailed(
+      {bool interactive = true}) async {
+    if (kIsWeb && _hasFreshWebToken) {
+      return GoogleAuthResult._(
+        accessToken: _cachedWebAccessToken,
+        idToken: _cachedWebIdToken,
+      );
+    }
+
+    if (kIsWeb && FirebaseService.isAvailable) {
+      if (!interactive) {
+        return GoogleAuthResult._(error: 'not_signed_in');
+      }
+
+      final currentUser = fb.FirebaseAuth.instance.currentUser;
+      if (currentUser != null && _isGoogleFirebaseUser(currentUser)) {
+        final result = await _reauthenticateFirebaseGoogleUser(currentUser);
+        if (result.ok || result.wasCanceled) {
+          return result;
+        }
+      }
+    }
+
+    return _ensureWithGoogleSignIn(interactive: interactive);
   }
 
   Future<String?> ensureAccessToken() async {

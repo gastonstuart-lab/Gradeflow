@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gradeflow/components/time_slot_timetable_colors.dart';
 
 /// Simple time-slot based timetable
 /// Shows a week view where classes span their actual time duration
@@ -146,16 +147,6 @@ class TimeSlotTimetable extends StatelessWidget {
     final dayClasses = _getClassesForDay(dayOfWeek);
     if (dayClasses.isEmpty) return [];
 
-    final colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.red,
-      Colors.teal,
-      Colors.indigo,
-    ];
-
     return dayClasses.map((cls) {
       // Calculate position from top
       final startMinFromMidnight = cls.startMinutes;
@@ -168,7 +159,7 @@ class TimeSlotTimetable extends StatelessWidget {
       final topPx = (startMinFromGridStart / 60) * 60;
       final heightPx = (durationMin / 60) * 60;
 
-      final colorIndex = dayClasses.indexOf(cls) % colors.length;
+      final classColor = timetableColorForClassTitle(cls.title);
 
       return Positioned(
         top: topPx,
@@ -177,8 +168,8 @@ class TimeSlotTimetable extends StatelessWidget {
         height: heightPx.clamp(30, 500),
         child: Container(
           decoration: BoxDecoration(
-            color: colors[colorIndex].withValues(alpha: 0.2),
-            border: Border.all(color: colors[colorIndex], width: 2),
+            color: classColor.withValues(alpha: 0.18),
+            border: Border.all(color: classColor, width: 2),
             borderRadius: BorderRadius.circular(6),
           ),
           padding: EdgeInsets.all(6),
@@ -190,7 +181,7 @@ class TimeSlotTimetable extends StatelessWidget {
                 cls.title,
                 style: theme.textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: colors[colorIndex],
+                  color: classColor,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

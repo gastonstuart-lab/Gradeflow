@@ -13,13 +13,19 @@ class AnimatedGlowBorder extends StatefulWidget {
   /// Globally toggle animations to improve performance when needed
   static bool animationsEnabled = false;
 
-  const AnimatedGlowBorder({super.key, required this.child, this.borderWidth = 2.0, this.radius = AppRadius.lg, this.duration = const Duration(seconds: 6)});
+  const AnimatedGlowBorder(
+      {super.key,
+      required this.child,
+      this.borderWidth = 2.0,
+      this.radius = AppRadius.lg,
+      this.duration = const Duration(seconds: 6)});
 
   @override
   State<AnimatedGlowBorder> createState() => _AnimatedGlowBorderState();
 }
 
-class _AnimatedGlowBorderState extends State<AnimatedGlowBorder> with SingleTickerProviderStateMixin {
+class _AnimatedGlowBorderState extends State<AnimatedGlowBorder>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   bool _controllerInitialized = false;
 
@@ -27,7 +33,8 @@ class _AnimatedGlowBorderState extends State<AnimatedGlowBorder> with SingleTick
   void initState() {
     super.initState();
     if (AnimatedGlowBorder.animationsEnabled) {
-      _controller = AnimationController(vsync: this, duration: widget.duration)..repeat();
+      _controller = AnimationController(vsync: this, duration: widget.duration)
+        ..repeat();
       _controllerInitialized = true;
     }
   }
@@ -42,7 +49,32 @@ class _AnimatedGlowBorderState extends State<AnimatedGlowBorder> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final bg = Theme.of(context).colorScheme.surfaceContainer;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final surface = theme.colorScheme.surface;
+    final surfaceAccent = theme.colorScheme.surfaceContainerHighest;
+    final panelGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        surface.withValues(alpha: isDark ? 0.88 : 0.86),
+        surfaceAccent.withValues(alpha: isDark ? 0.82 : 0.72),
+      ],
+    );
+    final panelShadow = [
+      BoxShadow(
+        color:
+            theme.colorScheme.primary.withValues(alpha: isDark ? 0.10 : 0.06),
+        blurRadius: 28,
+        spreadRadius: -12,
+        offset: const Offset(0, 14),
+      ),
+      BoxShadow(
+        color: theme.shadowColor.withValues(alpha: isDark ? 0.28 : 0.10),
+        blurRadius: 32,
+        offset: const Offset(0, 16),
+      ),
+    ];
 
     // Static (non-animated) border for performance safety
     if (!AnimatedGlowBorder.animationsEnabled) {
@@ -54,14 +86,16 @@ class _AnimatedGlowBorderState extends State<AnimatedGlowBorder> with SingleTick
             stops: const [0.0, 0.33, 0.66, 1.0],
             // No rotation = static outline
           ),
+          boxShadow: panelShadow,
         ),
         child: Container(
           margin: EdgeInsets.all(widget.borderWidth),
           decoration: BoxDecoration(
-            color: bg,
+            gradient: panelGradient,
             borderRadius: BorderRadius.circular(widget.radius - 1),
             border: Border.all(
-              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+              color: theme.colorScheme.outline
+                  .withValues(alpha: isDark ? 0.28 : 0.18),
               width: 1,
             ),
           ),
@@ -86,14 +120,16 @@ class _AnimatedGlowBorderState extends State<AnimatedGlowBorder> with SingleTick
               stops: const [0.0, 0.33, 0.66, 1.0],
               transform: GradientRotation(angle),
             ),
+            boxShadow: panelShadow,
           ),
           child: Container(
             margin: EdgeInsets.all(widget.borderWidth),
             decoration: BoxDecoration(
-              color: bg,
+              gradient: panelGradient,
               borderRadius: BorderRadius.circular(widget.radius - 1),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                color: theme.colorScheme.outline
+                    .withValues(alpha: isDark ? 0.28 : 0.18),
                 width: 1,
               ),
             ),

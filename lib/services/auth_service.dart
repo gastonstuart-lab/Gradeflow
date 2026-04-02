@@ -98,6 +98,17 @@ class AuthService extends ChangeNotifier {
           return false;
         }
 
+        final authCred = cred.credential;
+        if (authCred is fb.OAuthCredential) {
+          final accessToken = authCred.accessToken;
+          if (accessToken != null && accessToken.isNotEmpty) {
+            (_googleAuth ??= GoogleAuthService()).cacheWebTokens(
+              accessToken: accessToken,
+              idToken: authCred.idToken,
+            );
+          }
+        }
+
         _currentUser = _userFromFirebase(u);
         await RepositoryFactory.initialize(userId: u.uid);
         await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);

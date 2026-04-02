@@ -32,6 +32,7 @@ import 'package:gradeflow/services/class_trash_service.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum _ImportSource { local, driveLink, driveBrowse }
@@ -2152,8 +2153,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
         ],
         bottom: const SchoolBannerBar(height: 56),
       ),
-      body: Container(
-        color: colors.surfaceContainerLowest,
+      body: AnimatedPageBackground(
         child: classService.isLoading
             ? const Center(child: CircularProgressIndicator())
             : (!_showArchived

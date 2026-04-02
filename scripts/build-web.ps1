@@ -2,7 +2,7 @@
 
 # Web Build (Production)
 Write-Host "Building GradeFlow for Web..." -ForegroundColor Cyan
-flutter build web --release --web-renderer canvaskit
+flutter build web --release
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`nBuild successful! ✓" -ForegroundColor Green

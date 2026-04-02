@@ -12,6 +12,8 @@ import 'package:gradeflow/models/class_schedule_item.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/components/school_banner.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
+import 'package:gradeflow/components/dashboard_story_carousel.dart';
 import 'package:gradeflow/components/drive_file_picker_dialog.dart';
 import 'package:gradeflow/components/pilot_feedback_card.dart';
 import 'package:gradeflow/components/pilot_feedback_dialog.dart';
@@ -27,6 +29,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
+import 'package:gradeflow/services/dashboard_news_service.dart';
+import 'package:gradeflow/services/dashboard_weather_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 import 'package:gradeflow/components/time_slot_timetable.dart';
@@ -50,9 +54,18 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       'dashboard_attendance_url_migrated_v1';
   static const String _quickLinksMigrationFlagKey =
       'dashboard_quick_links_migrated_v1';
+  static const String _worldHeroImageAsset =
+      'assets/images/dashboard_world.jpg';
+  static const String _weatherHeroImageAsset =
+      'assets/images/dashboard_weather.jpg';
+  static const String _eventsHeroImageAsset =
+      'assets/images/dashboard_events.jpg';
 
   Timer? _timer;
+  Timer? _liveCarouselRefreshTimer;
   final ValueNotifier<DateTime> _nowNotifier = ValueNotifier(DateTime.now());
+  final GlobalKey _classToolsSectionKey = GlobalKey();
+  final GlobalKey _calendarSectionKey = GlobalKey();
 
   String? _selectedClassId;
   List<_ClassBrief> _classes = [];
@@ -122,6 +135,16 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   final Map<String, List<ClassScheduleItem>> _scheduleByClass = {};
   bool _scheduleBusy = false;
   String? _dashboardPrefsUserId;
+  final DashboardNewsService _dashboardNewsService = DashboardNewsService();
+  final DashboardWeatherService _dashboardWeatherService =
+      DashboardWeatherService();
+  List<DashboardNewsStory> _worldNewsStories = [];
+  List<DashboardNewsStory> _localNewsStories = [];
+  DashboardWeatherSnapshot? _weatherSnapshot;
+  bool _newsBusy = false;
+  bool _weatherBusy = false;
+  String? _newsError;
+  String? _weatherError;
 
   Future<void> _showImportDiagnosticsDialog({
     required String title,
@@ -257,6 +280,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     _attendanceUrlCtrl.text = _defaultAttendancePortalUrl;
     // Do not prefill QR text; leave empty so teacher enters student-targeted content
     // _qrCtrl.text = _attendanceUrlCtrl.text;
+    unawaited(_refreshLiveCarouselData());
+    _liveCarouselRefreshTimer = Timer.periodic(
+      const Duration(minutes: 20),
+      (_) => unawaited(_refreshLiveCarouselData()),
+    );
   }
 
   @override
@@ -482,6 +510,86 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     setState(fn);
   }
 
+  Future<void> _refreshLiveCarouselData() async {
+    await Future.wait([
+      _loadWorldNews(),
+      _loadWeatherForecast(),
+    ]);
+  }
+
+  Future<void> _loadWorldNews() async {
+    if (_newsBusy) return;
+    if (mounted) {
+      setState(() {
+        _newsBusy = true;
+        _newsError = null;
+      });
+    }
+
+    try {
+      final bundle = await _dashboardNewsService.fetchNewsBundle();
+      if (!mounted) return;
+      setState(() {
+        _worldNewsStories = bundle.world;
+        _localNewsStories = bundle.local;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _newsError = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _newsBusy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadWeatherForecast() async {
+    if (_weatherBusy) return;
+    if (mounted) {
+      setState(() {
+        _weatherBusy = true;
+        _weatherError = null;
+      });
+    }
+
+    try {
+      final snapshot = await _dashboardWeatherService.fetchForecast();
+      if (!mounted) return;
+      setState(() {
+        _weatherSnapshot = snapshot;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _weatherError = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _weatherBusy = false;
+        });
+      }
+    }
+  }
+
+  Future<bool> _ensureDriveReady() async {
+    final result = await context
+        .read<GoogleAuthService>()
+        .ensureAccessTokenDetailed(interactive: true);
+    if (!mounted) return result.ok;
+    if (!result.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.userMessage())),
+      );
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _loadClassSchedule(String classId) async {
     if (_scheduleByClass.containsKey(classId)) return;
     try {
@@ -536,6 +644,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
     setState(() => _scheduleBusy = true);
     try {
+      if (!await _ensureDriveReady()) return;
       final drive = context.read<GoogleDriveService>();
       final picked = await showDialog<DriveFile>(
         context: context,
@@ -758,6 +867,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     _qrCtrl.dispose();
     _stopwatchTimer?.cancel();
     _countdownTimer?.cancel();
+    _liveCarouselRefreshTimer?.cancel();
     _nowNotifier.dispose();
     super.dispose();
   }
@@ -766,646 +876,852 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthService>().currentUser;
     final themeMode = context.watch<ThemeModeNotifier>().themeMode;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final compactMasthead = screenWidth < 900;
+    final mastheadWidth = screenWidth >= 1400
+        ? 760.0
+        : screenWidth >= 1100
+            ? 680.0
+            : screenWidth >= 820
+                ? 560.0
+                : 420.0;
+    final storySlides = _dashboardStorySlides(context);
     debugPrint(
         'TeacherDashboard.build | classes=${_classes.length} reminders=${_reminders.length} width=${MediaQuery.of(context).size.width}');
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Teacher Dashboard'),
-        actions: [
-          const PilotFeedbackIconButton(
-            initialArea: 'Dashboard',
-            initialRoute: '/dashboard',
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        toolbarHeight: compactMasthead ? 118 : 136,
+        titleSpacing: 0,
+        automaticallyImplyLeading: false,
+        flexibleSpace: ClipRect(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? const [
+                            Color(0xFF081726),
+                            Color(0xFF123252),
+                            Color(0xFF2E5F85),
+                          ]
+                        : const [
+                            Color(0xFF12314D),
+                            Color(0xFF20507C),
+                            Color(0xFF5F9BC6),
+                          ],
+                  ),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.14),
+                    ),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.14),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: -48,
+                right: -12,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.white.withValues(alpha: 0.22),
+                          Colors.white.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 120,
+                bottom: -72,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 260,
+                    height: 260,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          const Color(0xFF8BE0FF).withValues(alpha: 0.18),
+                          const Color(0xFF8BE0FF).withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.08),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.06),
+                    ],
+                    stops: const [0.0, 0.45, 1.0],
+                  ),
+                ),
+              ),
+              SafeArea(
+                bottom: false,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: compactMasthead ? 6 : 8,
+                      right: 20,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const PilotFeedbackIconButton(
+                            initialArea: 'Dashboard',
+                            initialRoute: '/dashboard',
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            style: IconButton.styleFrom(
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.08),
+                              foregroundColor: Colors.white,
+                            ),
+                            tooltip: themeMode == ThemeMode.dark
+                                ? 'Switch to light mode'
+                                : 'Switch to dark mode',
+                            icon: Icon(themeMode == ThemeMode.dark
+                                ? Icons.light_mode
+                                : Icons.dark_mode),
+                            onPressed: () =>
+                                context.read<ThemeModeNotifier>().toggleTheme(),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            style: IconButton.styleFrom(
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.08),
+                              foregroundColor: Colors.white,
+                            ),
+                            tooltip: 'Log out',
+                            icon: const Icon(Icons.logout),
+                            onPressed: () async {
+                              await context.read<GoogleAuthService>().signOut();
+                              await context.read<AuthService>().logout();
+                              if (!context.mounted) return;
+                              context.go(AppRoutes.home);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.center,
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          20,
+                          compactMasthead ? 16 : 18,
+                          20,
+                          compactMasthead ? 10 : 12,
+                        ),
+                        child: SchoolHeroMasthead(
+                          compact: compactMasthead,
+                          maxWidth: mastheadWidth,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: themeMode == ThemeMode.dark
-                ? 'Switch to light mode'
-                : 'Switch to dark mode',
-            icon: Icon(themeMode == ThemeMode.dark
-                ? Icons.light_mode
-                : Icons.dark_mode),
-            onPressed: () => context.read<ThemeModeNotifier>().toggleTheme(),
-          ),
-          IconButton(
-            tooltip: 'Log out',
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await context.read<GoogleAuthService>().signOut();
-              await context.read<AuthService>().logout();
-              if (!context.mounted) return;
-              context.go(AppRoutes.home);
-            },
-          ),
-        ],
-        bottom: const SchoolBannerBar(height: 56),
+        ),
       ),
-      body: Builder(builder: (context) {
-        final isNarrow = MediaQuery.of(context).size.width < 720;
-        return SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: AppSpacing.paddingLg,
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            // Top stats row (responsive)
-            if (isNarrow)
-              Column(children: [
-                _Card(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
+      body: AnimatedPageBackground(
+        child: Builder(builder: (context) {
+          final isNarrow = MediaQuery.of(context).size.width < 720;
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: AppSpacing.paddingLg,
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ValueListenableBuilder<DateTime>(
+                    valueListenable: _nowNotifier,
+                    builder: (context, now, _) => DashboardStoryCarousel(
+                      slides: storySlides,
+                      headlines: _liveDashboardHeadlines(referenceTime: now),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Top stats row (responsive)
+                  if (isNarrow)
+                    Column(children: [
+                      _Card(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Stack(children: [
-                                CircleAvatar(
-                                  radius: 28,
-                                  backgroundColor: Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer,
-                                  backgroundImage: (user?.photoBase64 != null &&
-                                          user!.photoBase64!.isNotEmpty)
-                                      ? MemoryImage(const Base64Decoder()
-                                          .convert(user.photoBase64!))
-                                      : null,
-                                  child: (user?.photoBase64 == null ||
-                                          (user?.photoBase64?.isEmpty ?? true))
-                                      ? Text(
-                                          (user?.fullName.isNotEmpty ?? false)
-                                              ? user!.fullName[0].toUpperCase()
-                                              : 'T',
-                                          style: context.textStyles.titleLarge
-                                              ?.withColor(Theme.of(context)
-                                                  .colorScheme
-                                                  .onPrimaryContainer),
-                                        )
-                                      : null,
-                                ),
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: InkWell(
-                                    onTap: _updatingTeacherPhoto
-                                        ? null
-                                        : _changeTeacherPhoto,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .surface,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                              color: Theme.of(context)
-                                                  .dividerColor,
-                                              width: 0.5)),
-                                      padding: const EdgeInsets.all(6),
-                                      child: Icon(Icons.camera_alt,
-                                          size: 18,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary),
-                                    ),
-                                  ),
-                                ),
-                              ]),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                          'Welcome, ${user?.fullName ?? 'Teacher'} 👋',
-                                          style: context
-                                              .textStyles.titleMedium?.semiBold,
-                                          overflow: TextOverflow.ellipsis),
-                                      const SizedBox(height: 6),
-                                      ValueListenableBuilder<DateTime>(
-                                        valueListenable: _nowNotifier,
-                                        builder: (context, now, _) => Text(
-                                          '${_formatDate(now)} • ${_formatTime(now)}',
-                                          style: context.textStyles.bodySmall
-                                              ?.withColor(Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurfaceVariant),
+                              Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Stack(children: [
+                                      CircleAvatar(
+                                        radius: 28,
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .primaryContainer,
+                                        backgroundImage: (user?.photoBase64 !=
+                                                    null &&
+                                                user!.photoBase64!.isNotEmpty)
+                                            ? MemoryImage(const Base64Decoder()
+                                                .convert(user.photoBase64!))
+                                            : null,
+                                        child: (user?.photoBase64 == null ||
+                                                (user?.photoBase64?.isEmpty ??
+                                                    true))
+                                            ? Text(
+                                                (user?.fullName.isNotEmpty ??
+                                                        false)
+                                                    ? user!.fullName[0]
+                                                        .toUpperCase()
+                                                    : 'T',
+                                                style: context
+                                                    .textStyles.titleLarge
+                                                    ?.withColor(Theme.of(
+                                                            context)
+                                                        .colorScheme
+                                                        .onPrimaryContainer),
+                                              )
+                                            : null,
+                                      ),
+                                      Positioned(
+                                        right: 0,
+                                        bottom: 0,
+                                        child: InkWell(
+                                          onTap: _updatingTeacherPhoto
+                                              ? null
+                                              : _changeTeacherPhoto,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .surface,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                    color: Theme.of(context)
+                                                        .dividerColor,
+                                                    width: 0.5)),
+                                            padding: const EdgeInsets.all(6),
+                                            child: Icon(Icons.camera_alt,
+                                                size: 18,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary),
+                                          ),
                                         ),
                                       ),
                                     ]),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                                'Welcome, ${user?.fullName ?? 'Teacher'} 👋',
+                                                style: context.textStyles
+                                                    .titleMedium?.semiBold,
+                                                overflow:
+                                                    TextOverflow.ellipsis),
+                                            const SizedBox(height: 6),
+                                            ValueListenableBuilder<DateTime>(
+                                              valueListenable: _nowNotifier,
+                                              builder: (context, now, _) =>
+                                                  Text(
+                                                '${_formatDate(now)} • ${_formatTime(now)}',
+                                                style: context
+                                                    .textStyles.bodySmall
+                                                    ?.withColor(
+                                                        Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurfaceVariant),
+                                              ),
+                                            ),
+                                          ]),
+                                    ),
+                                  ]),
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                icon: Icon(_selectedTimetableId == null
+                                    ? Icons.upload_file
+                                    : Icons.table_chart),
+                                label: Text(_selectedTimetableId == null
+                                    ? 'Upload Timetable'
+                                    : 'Timetable'),
+                                onPressed: _openTimetableDialog,
                               ),
                             ]),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          icon: Icon(_selectedTimetableId == null
-                              ? Icons.upload_file
-                              : Icons.table_chart),
-                          label: Text(_selectedTimetableId == null
-                              ? 'Upload Timetable'
-                              : 'Timetable'),
-                          onPressed: _openTimetableDialog,
-                        ),
-                      ]),
-                ),
-                const SizedBox(height: 12),
-                _Card(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Quick Stats',
-                            style: context.textStyles.titleMedium?.semiBold),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 6,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.class_,
-                                    size: 20,
-                                    color:
-                                        Theme.of(context).colorScheme.primary),
-                                const SizedBox(width: 6),
-                                Text('${_classes.length} classes'),
-                              ],
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.people_alt,
-                                    size: 20,
-                                    color:
-                                        Theme.of(context).colorScheme.primary),
-                                const SizedBox(width: 6),
-                                Text('$_totalStudents students'),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.class_),
-                            label: const Text('My Classes'),
-                            onPressed: () => context.go('/classes'),
+                      ),
+                      const SizedBox(height: 12),
+                      _Card(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Quick Stats',
+                                  style:
+                                      context.textStyles.titleMedium?.semiBold),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 6,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.class_,
+                                          size: 20,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary),
+                                      const SizedBox(width: 6),
+                                      Text('${_classes.length} classes'),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.people_alt,
+                                          size: 20,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary),
+                                      const SizedBox(width: 6),
+                                      Text('$_totalStudents students'),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Center(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.class_),
+                                  label: const Text('My Classes'),
+                                  onPressed: () => context.go('/classes'),
+                                ),
+                              ),
+                            ]),
+                      ),
+                    ])
+                  else
+                    IntrinsicHeight(
+                      child: Row(children: [
+                        Expanded(
+                          child: _Card(
+                            child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Stack(children: [
+                                    CircleAvatar(
+                                      radius: 32,
+                                      backgroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .primaryContainer,
+                                      backgroundImage: (user?.photoBase64 !=
+                                                  null &&
+                                              user!.photoBase64!.isNotEmpty)
+                                          ? MemoryImage(const Base64Decoder()
+                                              .convert(user.photoBase64!))
+                                          : null,
+                                      child: (user?.photoBase64 == null ||
+                                              (user?.photoBase64?.isEmpty ??
+                                                  true))
+                                          ? Text(
+                                              (user?.fullName.isNotEmpty ??
+                                                      false)
+                                                  ? user!.fullName[0]
+                                                      .toUpperCase()
+                                                  : 'T',
+                                              style: context
+                                                  .textStyles.headlineMedium
+                                                  ?.withColor(Theme.of(context)
+                                                      .colorScheme
+                                                      .onPrimaryContainer),
+                                            )
+                                          : null,
+                                    ),
+                                    Positioned(
+                                      right: 0,
+                                      bottom: 0,
+                                      child: InkWell(
+                                        onTap: _updatingTeacherPhoto
+                                            ? null
+                                            : _changeTeacherPhoto,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .surface,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                  color: Theme.of(context)
+                                                      .dividerColor,
+                                                  width: 0.5)),
+                                          padding: const EdgeInsets.all(6),
+                                          child: Icon(Icons.camera_alt,
+                                              size: 18,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary),
+                                        ),
+                                      ),
+                                    ),
+                                  ]),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                              'Welcome, ${user?.fullName ?? 'Teacher'} 👋',
+                                              style: context.textStyles
+                                                  .titleLarge?.semiBold),
+                                          const SizedBox(height: 8),
+                                          ValueListenableBuilder<DateTime>(
+                                            valueListenable: _nowNotifier,
+                                            builder: (context, now, _) => Text(
+                                              '${_formatDate(now)} • ${_formatTime(now)}',
+                                              style: context
+                                                  .textStyles.bodyMedium
+                                                  ?.withColor(Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Center(
+                                            child: OutlinedButton.icon(
+                                              icon: Icon(
+                                                  _selectedTimetableId == null
+                                                      ? Icons.upload_file
+                                                      : Icons.table_chart),
+                                              label: Text(
+                                                  _selectedTimetableId == null
+                                                      ? 'Upload Timetable'
+                                                      : 'Timetable'),
+                                              onPressed: _openTimetableDialog,
+                                            ),
+                                          ),
+                                        ]),
+                                  ),
+                                ]),
                           ),
                         ),
-                      ]),
-                ),
-              ])
-            else
-              IntrinsicHeight(
-                child: Row(children: [
-                  Expanded(
-                    child: _Card(
-                      child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Stack(children: [
-                              CircleAvatar(
-                                radius: 32,
-                                backgroundColor: Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer,
-                                backgroundImage: (user?.photoBase64 != null &&
-                                        user!.photoBase64!.isNotEmpty)
-                                    ? MemoryImage(const Base64Decoder()
-                                        .convert(user.photoBase64!))
-                                    : null,
-                                child: (user?.photoBase64 == null ||
-                                        (user?.photoBase64?.isEmpty ?? true))
-                                    ? Text(
-                                        (user?.fullName.isNotEmpty ?? false)
-                                            ? user!.fullName[0].toUpperCase()
-                                            : 'T',
-                                        style: context.textStyles.headlineMedium
-                                            ?.withColor(Theme.of(context)
-                                                .colorScheme
-                                                .onPrimaryContainer),
-                                      )
-                                    : null,
-                              ),
-                              Positioned(
-                                right: 0,
-                                bottom: 0,
-                                child: InkWell(
-                                  onTap: _updatingTeacherPhoto
-                                      ? null
-                                      : _changeTeacherPhoto,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surface,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                            color:
-                                                Theme.of(context).dividerColor,
-                                            width: 0.5)),
-                                    padding: const EdgeInsets.all(6),
-                                    child: Icon(Icons.camera_alt,
-                                        size: 18,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _Card(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Quick Stats',
+                                      style: context
+                                          .textStyles.titleLarge?.semiBold),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    Icon(Icons.class_,
                                         color: Theme.of(context)
                                             .colorScheme
                                             .primary),
+                                    const SizedBox(width: 6),
+                                    Text('${_classes.length} classes'),
+                                    const SizedBox(width: 16),
+                                    Icon(Icons.people_alt,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary),
+                                    const SizedBox(width: 6),
+                                    Text('$_totalStudents students'),
+                                  ]),
+                                  const SizedBox(height: 12),
+                                  Center(
+                                    child: OutlinedButton.icon(
+                                      icon: const Icon(Icons.class_),
+                                      label: const Text('My Classes'),
+                                      onPressed: () => context.go('/classes'),
+                                    ),
+                                  ),
+                                ]),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  const SizedBox(height: 16),
+                  const PilotFeedbackCard(
+                    initialArea: 'General pilot',
+                    initialRoute: '/dashboard',
+                  ),
+                  const SizedBox(height: 16),
+
+                  const SizedBox(height: 12),
+
+                  // Quick Links: horizontally scrollable row
+                  _Card(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            const Icon(Icons.link_outlined),
+                            const SizedBox(width: 8),
+                            Text('Quick Links',
+                                style:
+                                    context.textStyles.titleMedium?.semiBold),
+                            const Spacer(),
+                            IconButton(
+                              tooltip: 'Manage links',
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed: _promptEditCustomLinks,
+                            ),
+                          ]),
+                          const SizedBox(height: 8),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(children: [
+                              // Attendance (editable URL)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: _LinkPill(
+                                  label: 'Attendance',
+                                  icon: Icons.how_to_reg_outlined,
+                                  onTap: _openAttendancePortal,
+                                ),
+                              ),
+                              // School Google Drive (they sign in with their own account)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: _LinkPill(
+                                    label: 'Google Drive',
+                                    icon: Icons.drive_folder_upload_outlined,
+                                    onTap: () => _openExternal(
+                                        'https://drive.google.com/')),
+                              ),
+                              // ClassroomScreen
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: _LinkPill(
+                                  label: 'ClassroomScreen',
+                                  icon: Icons.dashboard_customize_outlined,
+                                  onTap: () => _openExternal(
+                                      'https://classroomscreen.com/'),
+                                ),
+                              ),
+                              // Custom links
+                              for (int i = 0; i < _customLinks.length; i++)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: _LinkPill(
+                                    label: _customLinks[i].label,
+                                    icon: Icons.link,
+                                    onTap: () =>
+                                        _openExternal(_customLinks[i].url),
+                                    onLongPress: () =>
+                                        _confirmRemoveCustomLink(i),
+                                  ),
+                                ),
+                              // Add button
+                              _AddLinkPill(onTap: _promptAddQuickLink),
+                            ]),
+                          ),
+                        ]),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  _Card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.manage_search_outlined),
+                            const SizedBox(width: 8),
+                            Text('Research Tools',
+                                style:
+                                    context.textStyles.titleMedium?.semiBold),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            SizedBox(
+                              width: 420,
+                              child: TextField(
+                                controller: _googleSearchCtrl,
+                                textInputAction: TextInputAction.search,
+                                onSubmitted: (_) => _submitGoogleSearch(),
+                                decoration: InputDecoration(
+                                  labelText: 'Google Search',
+                                  hintText: 'Type and press Enter',
+                                  prefixIcon: const Icon(Icons.search),
+                                  suffixIcon: IconButton(
+                                    tooltip: 'Search',
+                                    icon: const Icon(Icons.open_in_new),
+                                    onPressed: _submitGoogleSearch,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 420,
+                              child: TextField(
+                                controller: _askAiCtrl,
+                                textInputAction: TextInputAction.send,
+                                onSubmitted: (_) => _submitAiSearch(),
+                                decoration: InputDecoration(
+                                  labelText: 'Ask AI',
+                                  hintText:
+                                      'Type your question and press Enter',
+                                  prefixIcon:
+                                      const Icon(Icons.auto_awesome_outlined),
+                                  suffixIcon: IconButton(
+                                    tooltip: 'Open',
+                                    icon: const Icon(Icons.open_in_new),
+                                    onPressed: _submitAiSearch,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Weekly reminders dropdown (collapsible)
+                  _Card(
+                    child: Theme(
+                      data: Theme.of(context)
+                          .copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.event_available_outlined),
+                        title: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  _summaryRange == _SummaryRange.week
+                                      ? "This Week's To-Dos & Reminders"
+                                      : "This Month's To-Dos & Reminders",
+                                  style:
+                                      context.textStyles.titleMedium?.semiBold),
+                              const SizedBox(height: 8),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: SegmentedButton<_SummaryRange>(
+                                  segments: const [
+                                    ButtonSegment(
+                                        value: _SummaryRange.week,
+                                        label: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text('Weekly'))),
+                                    ButtonSegment(
+                                        value: _SummaryRange.month,
+                                        label: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text('Monthly'))),
+                                  ],
+                                  selected: {_summaryRange},
+                                  onSelectionChanged: (s) =>
+                                      setState(() => _summaryRange = s.first),
+                                  style: const ButtonStyle(
+                                    padding: WidgetStatePropertyAll(
+                                        EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 6)),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
                                 ),
                               ),
                             ]),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                        'Welcome, ${user?.fullName ?? 'Teacher'} 👋',
-                                        style: context
-                                            .textStyles.titleLarge?.semiBold),
-                                    const SizedBox(height: 8),
-                                    ValueListenableBuilder<DateTime>(
-                                      valueListenable: _nowNotifier,
-                                      builder: (context, now, _) => Text(
-                                        '${_formatDate(now)} • ${_formatTime(now)}',
-                                        style: context.textStyles.bodyMedium
-                                            ?.withColor(Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Center(
-                                      child: OutlinedButton.icon(
-                                        icon: Icon(_selectedTimetableId == null
-                                            ? Icons.upload_file
-                                            : Icons.table_chart),
-                                        label: Text(_selectedTimetableId == null
-                                            ? 'Upload Timetable'
-                                            : 'Timetable'),
-                                        onPressed: _openTimetableDialog,
-                                      ),
-                                    ),
-                                  ]),
-                            ),
-                          ]),
+                        subtitle: Builder(builder: (ctx) {
+                          final list = _periodReminders();
+                          return Text(
+                              '${list.length} item${list.length == 1 ? '' : 's'}',
+                              style: context.textStyles.bodySmall?.withColor(
+                                  Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant));
+                        }),
+                        children: [
+                          if (_periodReminders().isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                  'No items in this period yet. Add some from the calendar below.',
+                                  style: context.textStyles.bodySmall
+                                      ?.withColor(Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant)),
+                            )
+                          else
+                            ..._periodReminders().map((r) => ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Checkbox(
+                                    value: r.done,
+                                    onChanged: (v) {
+                                      setState(() => r.done = v ?? false);
+                                      unawaited(_saveReminders());
+                                    },
+                                  ),
+                                  title: Text(
+                                    r.text,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: r.done
+                                        ? context.textStyles.bodyMedium
+                                            ?.copyWith(
+                                                decoration:
+                                                    TextDecoration.lineThrough,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant)
+                                        : context.textStyles.bodyMedium,
+                                  ),
+                                  subtitle: Text(
+                                      '${_weekdayLabel(r.timestamp)} • ${_formatDate(r.timestamp)}${_optionalTimeInline(r.timestamp)}${_scopeLabel(r)}'),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: () {
+                                      setState(() => _reminders.remove(r));
+                                      unawaited(_saveReminders());
+                                    },
+                                  ),
+                                )),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
+
+                  const SizedBox(height: 12),
+
+                  // Class Tools (horizontal selector)
+                  KeyedSubtree(
+                    key: _classToolsSectionKey,
                     child: _Card(
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Quick Stats',
-                                style: context.textStyles.titleLarge?.semiBold),
-                            const SizedBox(height: 8),
                             Row(children: [
-                              Icon(Icons.class_,
-                                  color: Theme.of(context).colorScheme.primary),
-                              const SizedBox(width: 6),
-                              Text('${_classes.length} classes'),
-                              const SizedBox(width: 16),
-                              Icon(Icons.people_alt,
-                                  color: Theme.of(context).colorScheme.primary),
-                              const SizedBox(width: 6),
-                              Text('$_totalStudents students'),
+                              const Icon(Icons.widgets_outlined),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text('Class Tools',
+                                    style: context
+                                        .textStyles.titleMedium?.semiBold,
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                      maxWidth: 280, minWidth: 120),
+                                  child: DropdownButtonFormField<String>(
+                                    key: ValueKey(_selectedClassId),
+                                    initialValue: _selectedClassId,
+                                    isDense: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Class',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: _classes
+                                        .map((c) => DropdownMenuItem(
+                                            value: c.id, child: Text(c.name)))
+                                        .toList(),
+                                    onChanged: (id) {
+                                      if (id == null) return;
+                                      setState(() => _selectedClassId = id);
+                                      _refreshNames();
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                tooltip: 'Present on projector',
+                                icon: const Icon(Icons.fullscreen),
+                                onPressed: _openPresent,
+                              ),
                             ]),
                             const SizedBox(height: 12),
-                            Center(
-                              child: OutlinedButton.icon(
-                                icon: const Icon(Icons.class_),
-                                label: const Text('My Classes'),
-                                onPressed: () => context.go('/classes'),
+                            if (_selectedClassId != null) ...[
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: OutlinedButton.icon(
+                                  onPressed: _openSeatingPlan,
+                                  icon: const Icon(Icons.event_seat_outlined),
+                                  label: const Text('Open seating plan'),
+                                ),
                               ),
+                              const SizedBox(height: 12),
+                            ],
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(children: [
+                                for (int i = 0; i < _toolTabs.length; i++)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: ChoiceChip(
+                                      label: Text(_toolTabs[i]),
+                                      selected: _selectedToolTab == i,
+                                      onSelected: (_) =>
+                                          setState(() => _selectedToolTab = i),
+                                    ),
+                                  ),
+                              ]),
                             ),
+                            const SizedBox(height: 12),
+                            _buildClassToolsBody(context),
                           ]),
                     ),
                   ),
-                ]),
-              ),
-            const SizedBox(height: 16),
-            const PilotFeedbackCard(
-              initialArea: 'General pilot',
-              initialRoute: '/dashboard',
-            ),
-            const SizedBox(height: 16),
 
-            const SizedBox(height: 12),
-
-            // Quick Links: horizontally scrollable row
-            _Card(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      const Icon(Icons.link_outlined),
-                      const SizedBox(width: 8),
-                      Text('Quick Links',
-                          style: context.textStyles.titleMedium?.semiBold),
-                      const Spacer(),
-                      IconButton(
-                        tooltip: 'Manage links',
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: _promptEditCustomLinks,
-                      ),
-                    ]),
-                    const SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(children: [
-                        // Attendance (editable URL)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: _LinkPill(
-                            label: 'Attendance',
-                            icon: Icons.how_to_reg_outlined,
-                            onTap: _openAttendancePortal,
-                          ),
-                        ),
-                        // School Google Drive (they sign in with their own account)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: _LinkPill(
-                              label: 'Google Drive',
-                              icon: Icons.drive_folder_upload_outlined,
-                              onTap: () =>
-                                  _openExternal('https://drive.google.com/')),
-                        ),
-                        // ClassroomScreen
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: _LinkPill(
-                            label: 'ClassroomScreen',
-                            icon: Icons.dashboard_customize_outlined,
-                            onTap: () =>
-                                _openExternal('https://classroomscreen.com/'),
-                          ),
-                        ),
-                        // Custom links
-                        for (int i = 0; i < _customLinks.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: _LinkPill(
-                              label: _customLinks[i].label,
-                              icon: Icons.link,
-                              onTap: () => _openExternal(_customLinks[i].url),
-                              onLongPress: () => _confirmRemoveCustomLink(i),
-                            ),
-                          ),
-                        // Add button
-                        _AddLinkPill(onTap: _promptAddQuickLink),
-                      ]),
-                    ),
-                  ]),
-            ),
-
-            const SizedBox(height: 12),
-
-            _Card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.manage_search_outlined),
-                      const SizedBox(width: 8),
-                      Text('Research Tools',
-                          style: context.textStyles.titleMedium?.semiBold),
-                    ],
-                  ),
                   const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      SizedBox(
-                        width: 420,
-                        child: TextField(
-                          controller: _googleSearchCtrl,
-                          textInputAction: TextInputAction.search,
-                          onSubmitted: (_) => _submitGoogleSearch(),
-                          decoration: InputDecoration(
-                            labelText: 'Google Search',
-                            hintText: 'Type and press Enter',
-                            prefixIcon: const Icon(Icons.search),
-                            suffixIcon: IconButton(
-                              tooltip: 'Search',
-                              icon: const Icon(Icons.open_in_new),
-                              onPressed: _submitGoogleSearch,
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 420,
-                        child: TextField(
-                          controller: _askAiCtrl,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => _submitAiSearch(),
-                          decoration: InputDecoration(
-                            labelText: 'Ask AI',
-                            hintText: 'Type your question and press Enter',
-                            prefixIcon: const Icon(Icons.auto_awesome_outlined),
-                            suffixIcon: IconButton(
-                              tooltip: 'Open',
-                              icon: const Icon(Icons.open_in_new),
-                              onPressed: _submitAiSearch,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+
+                  // Calendar panel - actual month grid with day selection and to-dos/reminders
+                  KeyedSubtree(
+                    key: _calendarSectionKey,
+                    child: _Card(child: _buildCalendar(context)),
                   ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Weekly reminders dropdown (collapsible)
-            _Card(
-              child: Theme(
-                data: Theme.of(context)
-                    .copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.event_available_outlined),
-                  title: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            _summaryRange == _SummaryRange.week
-                                ? "This Week's To-Dos & Reminders"
-                                : "This Month's To-Dos & Reminders",
-                            style: context.textStyles.titleMedium?.semiBold),
-                        const SizedBox(height: 8),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: SegmentedButton<_SummaryRange>(
-                            segments: const [
-                              ButtonSegment(
-                                  value: _SummaryRange.week,
-                                  label: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text('Weekly'))),
-                              ButtonSegment(
-                                  value: _SummaryRange.month,
-                                  label: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text('Monthly'))),
-                            ],
-                            selected: {_summaryRange},
-                            onSelectionChanged: (s) =>
-                                setState(() => _summaryRange = s.first),
-                            style: const ButtonStyle(
-                              padding: WidgetStatePropertyAll(
-                                  EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6)),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                        ),
-                      ]),
-                  subtitle: Builder(builder: (ctx) {
-                    final list = _periodReminders();
-                    return Text(
-                        '${list.length} item${list.length == 1 ? '' : 's'}',
-                        style: context.textStyles.bodySmall?.withColor(
-                            Theme.of(context).colorScheme.onSurfaceVariant));
-                  }),
-                  children: [
-                    if (_periodReminders().isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                            'No items in this period yet. Add some from the calendar below.',
-                            style: context.textStyles.bodySmall?.withColor(
-                                Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant)),
-                      )
-                    else
-                      ..._periodReminders().map((r) => ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            leading: Checkbox(
-                              value: r.done,
-                              onChanged: (v) {
-                                setState(() => r.done = v ?? false);
-                                unawaited(_saveReminders());
-                              },
-                            ),
-                            title: Text(
-                              r.text,
-                              overflow: TextOverflow.ellipsis,
-                              style: r.done
-                                  ? context.textStyles.bodyMedium?.copyWith(
-                                      decoration: TextDecoration.lineThrough,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant)
-                                  : context.textStyles.bodyMedium,
-                            ),
-                            subtitle: Text(
-                                '${_weekdayLabel(r.timestamp)} • ${_formatDate(r.timestamp)}${_optionalTimeInline(r.timestamp)}${_scopeLabel(r)}'),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () {
-                                setState(() => _reminders.remove(r));
-                                unawaited(_saveReminders());
-                              },
-                            ),
-                          )),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Class Tools (horizontal selector)
-            _Card(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      const Icon(Icons.widgets_outlined),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text('Class Tools',
-                            style: context.textStyles.titleMedium?.semiBold,
-                            overflow: TextOverflow.ellipsis),
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                              maxWidth: 280, minWidth: 120),
-                          child: DropdownButtonFormField<String>(
-                            key: ValueKey(_selectedClassId),
-                            initialValue: _selectedClassId,
-                            isDense: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Class',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _classes
-                                .map((c) => DropdownMenuItem(
-                                    value: c.id, child: Text(c.name)))
-                                .toList(),
-                            onChanged: (id) {
-                              if (id == null) return;
-                              setState(() => _selectedClassId = id);
-                              _refreshNames();
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        tooltip: 'Present on projector',
-                        icon: const Icon(Icons.fullscreen),
-                        onPressed: _openPresent,
-                      ),
-                    ]),
-                    const SizedBox(height: 12),
-                    if (_selectedClassId != null) ...[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton.icon(
-                          onPressed: _openSeatingPlan,
-                          icon: const Icon(Icons.event_seat_outlined),
-                          label: const Text('Open seating plan'),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(children: [
-                        for (int i = 0; i < _toolTabs.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              label: Text(_toolTabs[i]),
-                              selected: _selectedToolTab == i,
-                              onSelected: (_) =>
-                                  setState(() => _selectedToolTab = i),
-                            ),
-                          ),
-                      ]),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildClassToolsBody(context),
-                  ]),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Calendar panel - actual month grid with day selection and to-dos/reminders
-            _Card(child: _buildCalendar(context)),
-          ]),
-        );
-      }),
+                ]),
+          );
+        }),
+      ),
     );
   }
 
@@ -2008,6 +2324,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                               label: const Text('Google Drive'),
                               onPressed: () async {
                                 try {
+                                  if (!await _ensureDriveReady()) return;
                                   final drive =
                                       context.read<GoogleDriveService>();
                                   final picked = await showDialog<DriveFile>(
@@ -2190,62 +2507,147 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     final dayMap = {
       'mon': 0,
       'monday': 0,
+      'm': 0,
       'tue': 1,
       'tuesday': 1,
+      'tu': 1,
       'wed': 2,
       'wednesday': 2,
+      'w': 2,
       'thu': 3,
       'thursday': 3,
+      'th': 3,
       'fri': 4,
       'friday': 4,
+      'f': 4,
+      '\u4e00': 0,
+      '\u661f\u671f\u4e00': 0,
+      '\u9031\u4e00': 0,
+      '\u4e8c': 1,
+      '\u661f\u671f\u4e8c': 1,
+      '\u9031\u4e8c': 1,
+      '\u4e09': 2,
+      '\u661f\u671f\u4e09': 2,
+      '\u9031\u4e09': 2,
+      '\u56db': 3,
+      '\u661f\u671f\u56db': 3,
+      '\u9031\u56db': 3,
+      '\u4e94': 4,
+      '\u661f\u671f\u4e94': 4,
+      '\u9031\u4e94': 4,
     };
 
-    List<int> headerDays = [];
-    for (int r = 0; r < (grid.length > 2 ? 2 : grid.length); r++) {
-      final row = grid[r];
-      final normalized = row.map((c) => c.toLowerCase().trim()).toList();
-      int dayCount = 0;
-      for (final norm in normalized) {
-        if (dayMap.containsKey(norm)) dayCount++;
+    String normalizeCell(String value) =>
+        value.toLowerCase().replaceAll('\u00a0', ' ').trim();
+
+    ({int? start, int? end}) parseTimeRange(String value) {
+      final match = RegExp(
+        r'(\d{1,2})\s*:\s*(\d{2})(?:\s*(?:-|~)\s*(\d{1,2})\s*:\s*(\d{2}))?',
+      ).firstMatch(value.replaceAll('\u00a0', ' ').trim());
+      if (match == null) {
+        return (start: null, end: null);
       }
-      if (dayCount >= 3) {
-        headerDays = normalized.map((h) => dayMap[h] ?? -1).toList();
+
+      final startH = int.tryParse(match.group(1) ?? '');
+      final startM = int.tryParse(match.group(2) ?? '');
+      if (startH == null || startM == null) {
+        return (start: null, end: null);
+      }
+
+      final start = startH * 60 + startM;
+      final endH = int.tryParse(match.group(3) ?? '');
+      final endM = int.tryParse(match.group(4) ?? '');
+      final end = endH != null && endM != null ? (endH * 60 + endM) : null;
+      return (start: start, end: end);
+    }
+
+    Map<int, int> headerDays = {};
+    int headerRowIndex = -1;
+    final headerScanLimit = grid.length < 4 ? grid.length : 4;
+    for (int r = 0; r < headerScanLimit; r++) {
+      final row = grid[r];
+      final rowDays = <int, int>{};
+      for (int c = 0; c < row.length; c++) {
+        final norm = normalizeCell(row[c]);
+        final day = dayMap[norm];
+        if (day != null) {
+          rowDays[c] = day;
+        }
+      }
+      if (rowDays.length >= 3) {
+        headerDays = rowDays;
+        headerRowIndex = r;
         break;
       }
     }
 
-    if (headerDays.isEmpty) return slots;
+    if (headerDays.isEmpty || headerRowIndex == -1) return slots;
 
-    for (int r = 1; r < grid.length; r++) {
-      final row = grid[r];
-      if (row.isEmpty || row.every((c) => c.trim().isEmpty)) continue;
-
-      String timeStr = row.isNotEmpty ? row[0].trim() : '';
-      int startMin = 0, endMin = 60;
-
-      final timeMatch = RegExp(r'(\d{1,2}):(\d{2})(?:-(\d{1,2}):(\d{2}))?')
-          .firstMatch(timeStr);
-      if (timeMatch != null) {
-        final startH = int.tryParse(timeMatch.group(1) ?? '0') ?? 0;
-        final startM = int.tryParse(timeMatch.group(2) ?? '0') ?? 0;
-        startMin = startH * 60 + startM;
-        if (timeMatch.group(3) != null) {
-          final endH = int.tryParse(timeMatch.group(3) ?? '0') ?? 0;
-          final endM = int.tryParse(timeMatch.group(4) ?? '0') ?? 0;
-          endMin = endH * 60 + endM;
-        } else {
-          endMin = startMin + 50;
+    bool rowHasClassData(List<String> row) {
+      for (final col in headerDays.keys) {
+        if (col < row.length && row[col].trim().isNotEmpty) {
+          return true;
         }
       }
+      return false;
+    }
 
-      for (int c = 1; c < row.length && c < headerDays.length; c++) {
+    final maxCols = grid.fold<int>(
+      0,
+      (max, row) => row.length > max ? row.length : max,
+    );
+    int timeColumn = 0;
+    int timeMatchCount = -1;
+    for (int c = 0; c < maxCols; c++) {
+      if (headerDays.containsKey(c)) continue;
+      int matches = 0;
+      for (int r = headerRowIndex + 1; r < grid.length; r++) {
+        if (c >= grid[r].length) continue;
+        if (parseTimeRange(grid[r][c]).start != null) {
+          matches++;
+        }
+      }
+      if (matches > timeMatchCount) {
+        timeMatchCount = matches;
+        timeColumn = c;
+      }
+    }
+
+    int inferEndMinutes(int rowIndex, int startMinutes) {
+      for (int r = rowIndex + 1; r < grid.length; r++) {
+        final row = grid[r];
+        if (timeColumn >= row.length) {
+          if (rowHasClassData(row)) break;
+          continue;
+        }
+
+        final candidate = parseTimeRange(row[timeColumn]).start;
+        if (candidate != null && candidate > startMinutes) {
+          return candidate;
+        }
+      }
+      return startMinutes + 50;
+    }
+
+    for (int r = headerRowIndex + 1; r < grid.length; r++) {
+      final row = grid[r];
+      if (row.isEmpty || !rowHasClassData(row)) continue;
+      if (timeColumn >= row.length) continue;
+
+      final timeRange = parseTimeRange(row[timeColumn]);
+      final startMin = timeRange.start;
+      if (startMin == null) continue;
+      final inferredEnd = timeRange.end ?? inferEndMinutes(r, startMin);
+      final endMin = inferredEnd > startMin ? inferredEnd : startMin + 50;
+
+      for (final entry in headerDays.entries) {
+        final c = entry.key;
+        if (c >= row.length) continue;
         final className = row[c].trim();
         if (className.isEmpty) continue;
-        final dayOfWeek = headerDays[c];
-        if (dayOfWeek < 0 || dayOfWeek >= 5) continue;
         slots.add(TimeSlotClass(
           title: className,
-          dayOfWeek: dayOfWeek,
+          dayOfWeek: entry.value,
           startMinutes: startMin,
           endMinutes: endMin,
         ));
@@ -2698,6 +3100,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   String _formatTime(DateTime d) =>
       '${_two(d.hour)}:${_two(d.minute)}:${_two(d.second)}';
   String _two(int v) => v.toString().padLeft(2, '0');
+  String _shortMonthDay(DateTime d) =>
+      '${_monthName(d.month).substring(0, 3)} ${d.day}';
 
   // Show HH:MM only when a specific time is set; hide when all-day (00:00)
   String _formatHourMinute(DateTime d) => '${_two(d.hour)}:${_two(d.minute)}';
@@ -2705,6 +3109,483 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       (d.hour == 0 && d.minute == 0 && d.second == 0)
           ? ''
           : '  ${_formatHourMinute(d)}';
+
+  _ClassBrief? _selectedClassBrief() {
+    final classId = _selectedClassId;
+    if (classId == null) return null;
+    for (final classItem in _classes) {
+      if (classItem.id == classId) return classItem;
+    }
+    return null;
+  }
+
+  _Reminder? _nextOpenReminder() {
+    final pending = _reminders.where((r) => !r.done).toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return pending.isEmpty ? null : pending.first;
+  }
+
+  List<_Reminder> _pendingReminders() {
+    final pending = _reminders.where((r) => !r.done).toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return pending;
+  }
+
+  bool _isSchoolWideReminder(_Reminder reminder) =>
+      reminder.classIds == null || reminder.classIds!.isEmpty;
+
+  List<_Reminder> _schoolWideReminders() =>
+      _pendingReminders().where(_isSchoolWideReminder).toList();
+
+  _Reminder? _nextSchoolWideReminder() {
+    final schoolWide = _schoolWideReminders();
+    return schoolWide.isEmpty ? null : schoolWide.first;
+  }
+
+  ClassScheduleItem? _nextUpcomingScheduleItem() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final candidates =
+        _scheduleByClass.values.expand((items) => items).where((item) {
+      if (item.date == null) return false;
+      final date = DateTime(item.date!.year, item.date!.month, item.date!.day);
+      return !date.isBefore(today);
+    }).toList()
+          ..sort((a, b) => a.date!.compareTo(b.date!));
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
+  _Timetable? _selectedTimetable() {
+    final timetableId = _selectedTimetableId;
+    if (timetableId == null) return null;
+    for (final timetable in _timetables) {
+      if (timetable.id == timetableId) return timetable;
+    }
+    return null;
+  }
+
+  List<TimeSlotClass> _selectedTimetableClasses() {
+    final grid = _selectedTimetable()?.grid;
+    if (grid == null || grid.isEmpty) return const <TimeSlotClass>[];
+    return _parseGridToTimeSlots(grid);
+  }
+
+  List<_TimetableSlotMoment> _timetableMoments(DateTime referenceTime) {
+    final classes = _selectedTimetableClasses();
+    if (classes.isEmpty) return const <_TimetableSlotMoment>[];
+
+    final today = DateTime(
+      referenceTime.year,
+      referenceTime.month,
+      referenceTime.day,
+    );
+    final monday = today.subtract(Duration(days: referenceTime.weekday - 1));
+    final moments = <_TimetableSlotMoment>[];
+
+    for (final timetableClass in classes) {
+      for (final weekOffset in const [0, 7]) {
+        final day =
+            monday.add(Duration(days: timetableClass.dayOfWeek + weekOffset));
+        final dayStart = DateTime(day.year, day.month, day.day);
+        final startAt = dayStart.add(
+          Duration(minutes: timetableClass.startMinutes),
+        );
+        final endAt = dayStart.add(
+          Duration(minutes: timetableClass.endMinutes),
+        );
+        moments.add(
+          _TimetableSlotMoment(
+            timetableClass: timetableClass,
+            startAt: startAt,
+            endAt: endAt,
+          ),
+        );
+      }
+    }
+
+    moments.sort((a, b) => a.startAt.compareTo(b.startAt));
+    return moments;
+  }
+
+  _TimetableSlotMoment? _currentTimetableClass(DateTime referenceTime) {
+    for (final moment in _timetableMoments(referenceTime)) {
+      if (!referenceTime.isBefore(moment.startAt) &&
+          referenceTime.isBefore(moment.endAt)) {
+        return moment;
+      }
+    }
+    return null;
+  }
+
+  _TimetableSlotMoment? _nextTimetableClass(DateTime referenceTime) {
+    for (final moment in _timetableMoments(referenceTime)) {
+      if (!moment.startAt.isBefore(referenceTime)) {
+        return moment;
+      }
+    }
+    return null;
+  }
+
+  String _relativeTimetableTime(DateTime target, DateTime referenceTime) {
+    final targetDay = DateTime(target.year, target.month, target.day);
+    final referenceDay = DateTime(
+      referenceTime.year,
+      referenceTime.month,
+      referenceTime.day,
+    );
+    final dayDifference = targetDay.difference(referenceDay).inDays;
+    final timeLabel = _formatHourMinute(target);
+    if (dayDifference == 0) return 'today at $timeLabel';
+    if (dayDifference == 1) return 'tomorrow at $timeLabel';
+    return '${_weekdayLabel(target)} at $timeLabel';
+  }
+
+  String _reminderScopeText(_Reminder reminder) {
+    if (_isSchoolWideReminder(reminder)) return 'School-wide';
+    if (reminder.classIds!.length == 1) {
+      final classId = reminder.classIds!.first;
+      return _classes
+          .firstWhere(
+            (c) => c.id == classId,
+            orElse: () => _ClassBrief(id: classId, name: 'Class', subtitle: ''),
+          )
+          .name;
+    }
+    return '${reminder.classIds!.length} classes';
+  }
+
+  String _headlineSafe(String value, {int maxLength = 86}) {
+    final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.length <= maxLength) return normalized;
+    return '${normalized.substring(0, maxLength - 1)}...';
+  }
+
+  String _relativeFromNow(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    if (difference.inMinutes < 1) return 'just now';
+    if (difference.inHours < 1) return '${difference.inMinutes}m ago';
+    if (difference.inDays < 1) return '${difference.inHours}h ago';
+    if (difference.inDays < 7) return '${difference.inDays}d ago';
+    return _shortMonthDay(dateTime);
+  }
+
+  String _weatherCodeLabel(int code) {
+    if (code == 0) return 'Clear';
+    if (code == 1) return 'Mostly clear';
+    if (code == 2) return 'Partly cloudy';
+    if (code == 3) return 'Cloudy';
+    if (code == 45 || code == 48) return 'Fog';
+    if (code >= 51 && code <= 57) return 'Drizzle';
+    if (code >= 61 && code <= 67) return 'Rain';
+    if (code >= 71 && code <= 77) return 'Snow';
+    if (code >= 80 && code <= 82) return 'Showers';
+    if (code >= 85 && code <= 86) return 'Snow showers';
+    if (code >= 95) return 'Thunderstorms';
+    return 'Forecast';
+  }
+
+  IconData _weatherCodeIcon(int code) {
+    if (code == 0) return Icons.wb_sunny_rounded;
+    if (code == 1 || code == 2) return Icons.wb_cloudy_outlined;
+    if (code == 3) return Icons.cloud_rounded;
+    if (code == 45 || code == 48) return Icons.blur_on_rounded;
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) {
+      return Icons.water_drop_outlined;
+    }
+    if (code >= 71 && code <= 86) return Icons.ac_unit_rounded;
+    if (code >= 95) return Icons.thunderstorm_rounded;
+    return Icons.cloud_queue_rounded;
+  }
+
+  String _forecastChip(DashboardForecastDay day) {
+    return '${_weekdayLabel(day.date)} ${day.maxTempC.round()}°/${day.minTempC.round()}°';
+  }
+
+  Future<void> _scrollToSection(GlobalKey key) async {
+    final targetContext = key.currentContext;
+    if (targetContext == null) return;
+    await Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.easeInOutCubic,
+      alignment: 0.08,
+    );
+  }
+
+  List<DashboardStorySlide> _dashboardStorySlides(BuildContext context) {
+    final worldLead =
+        _worldNewsStories.isNotEmpty ? _worldNewsStories.first : null;
+    final localLead =
+        _localNewsStories.isNotEmpty ? _localNewsStories.first : null;
+    final leadStory = worldLead ?? localLead;
+    final weather = _weatherSnapshot;
+    final pendingReminders = _pendingReminders();
+    final nextReminder =
+        pendingReminders.isNotEmpty ? pendingReminders.first : null;
+    final nextSchoolEvent = _nextSchoolWideReminder();
+    final nextScheduleItem = _nextUpcomingScheduleItem();
+    final openReminders = pendingReminders.length;
+    final schoolWideCount = _schoolWideReminders().length;
+    final forecast = weather?.forecast ?? const <DashboardForecastDay>[];
+    final weatherDetailsUrl = _dashboardWeatherService.detailsUrl(
+      locationName: weather?.locationName ?? 'Taichung City',
+    );
+    final weatherChips = <String>[
+      if (forecast.isNotEmpty) _forecastChip(forecast[0]),
+      if (forecast.length > 1) _forecastChip(forecast[1]),
+      if (forecast.length > 2) _forecastChip(forecast[2]),
+    ];
+    final eventLead = nextSchoolEvent ?? nextReminder;
+    final eventDate = eventLead?.timestamp ?? nextScheduleItem?.date;
+    final followUpReminder =
+        pendingReminders.length > 1 ? pendingReminders[1] : null;
+
+    return [
+      DashboardStorySlide(
+        overline: 'World & Local News',
+        title: _newsBusy && leadStory == null
+            ? 'Loading the live news desk...'
+            : leadStory != null
+                ? _headlineSafe(leadStory.title, maxLength: 92)
+                : 'World and local headlines will appear here as soon as the live feeds respond.',
+        description: leadStory != null
+            ? [
+                if (worldLead != null && localLead != null)
+                  'The world desk is live, and the Taiwan desk is tracking "${_headlineSafe(localLead.title, maxLength: 84)}".',
+                if (worldLead != null && localLead == null)
+                  'The world desk is live now with fresh international coverage.',
+                if (localLead != null && worldLead == null)
+                  'The local desk is live now with Taiwan-facing headlines.',
+                'Use the story buttons below or tap the visual panel to open the full article.',
+              ].join(' ')
+            : (_newsError != null
+                ? 'The news feeds are temporarily unavailable. This panel will keep retrying automatically in the background.'
+                : 'This panel blends world coverage with local Taiwan headlines so the dashboard feels useful the moment it opens.'),
+        chips: [
+          if (worldLead != null) 'World • ${worldLead.source}',
+          if (localLead != null) 'Local • ${localLead.source}',
+          if (leadStory != null) _relativeFromNow(leadStory.publishedAt),
+          if (leadStory != null && leadStory.commentCount > 0)
+            '${leadStory.commentCount} comments',
+          if (leadStory != null &&
+              leadStory.commentCount == 0 &&
+              leadStory.score == 0)
+            'Live desk',
+          if (leadStory == null && _newsBusy) 'Refreshing',
+        ],
+        visualLabel: leadStory != null
+            ? (leadStory.desk == DashboardNewsDesk.local
+                ? 'Local desk'
+                : 'World desk')
+            : 'Status',
+        visualValue: leadStory != null ? leadStory.source : 'Stand by',
+        visualCaption: leadStory != null
+            ? worldLead != null && localLead != null
+                ? 'Primary story opens the world desk. Use the second button for the local desk.'
+                : leadStory.score > 0
+                    ? '${leadStory.score} upvotes • tap through for the full story'
+                    : 'Tap through for the latest coverage from this news desk.'
+            : 'Live world and local updates will fill this panel automatically when the feeds return.',
+        icon: Icons.public_rounded,
+        visual: DashboardStoryVisual.spotlight,
+        imageAssetPath: _worldHeroImageAsset,
+        imageUrl: leadStory?.imageUrl ?? localLead?.imageUrl,
+        ctaLabel: worldLead != null
+            ? 'Open world story'
+            : (localLead != null ? 'Open story' : null),
+        secondaryCtaLabel:
+            worldLead != null && localLead != null ? 'Open local story' : null,
+        onTap: worldLead != null
+            ? () => _openExternal(worldLead.url)
+            : (localLead != null ? () => _openExternal(localLead.url) : null),
+        onSecondaryTap: worldLead != null && localLead != null
+            ? () => _openExternal(localLead.url)
+            : null,
+      ),
+      DashboardStorySlide(
+        overline: 'Weather & Forecast',
+        title: weather == null
+            ? (_weatherBusy
+                ? 'Loading campus weather...'
+                : 'Campus forecast is standing by.')
+            : '${weather.locationName} is ${weather.temperatureC.round()}° right now with ${_weatherCodeLabel(weather.weatherCode).toLowerCase()}.',
+        description: weather == null
+            ? (_weatherError != null
+                ? 'The local forecast is temporarily unavailable. This panel refreshes automatically, so it should recover on the next pass.'
+                : 'Current temperature, feel-like temperature, wind, and the next few days will live here.')
+            : 'Feels like ${weather.apparentTempC.round()}°, wind ${weather.windSpeedKph.round()} km/h, with the next days ready for quick planning before class starts. Tap through for the fuller forecast.',
+        chips: weatherChips.isNotEmpty
+            ? weatherChips
+            : [
+                if (_weatherBusy) 'Refreshing',
+                if (!_weatherBusy) 'Forecast pending',
+              ],
+        visualLabel: weather != null ? 'Current' : 'Forecast',
+        visualValue:
+            weather != null ? '${weather.temperatureC.round()}°' : '--',
+        visualCaption: weather != null
+            ? '${_weatherCodeLabel(weather.weatherCode)} • updated ${_relativeFromNow(weather.observedAt)}'
+            : 'Open-Meteo forecast for Taichung refreshes automatically in the background.',
+        icon: _weatherCodeIcon(weather?.weatherCode ?? 1),
+        visual: DashboardStoryVisual.campus,
+        imageAssetPath: _weatherHeroImageAsset,
+        ctaLabel: 'View full forecast',
+        secondaryCtaLabel: 'Refresh',
+        onTap: () => _openExternal(weatherDetailsUrl),
+        onSecondaryTap: _loadWeatherForecast,
+      ),
+      DashboardStorySlide(
+        overline: 'Upcoming Events',
+        title: eventLead != null
+            ? _headlineSafe(eventLead.text, maxLength: 86)
+            : nextScheduleItem != null
+                ? _headlineSafe(nextScheduleItem.title, maxLength: 86)
+                : 'Upcoming events and school moments will appear here.',
+        description: eventLead != null
+            ? [
+                'Next up on ${_shortMonthDay(eventLead.timestamp)}${_optionalTimeInline(eventLead.timestamp)} for ${_reminderScopeText(eventLead)}.',
+                if (nextSchoolEvent != null &&
+                    nextReminder != null &&
+                    nextSchoolEvent != nextReminder)
+                  'The next school-wide moment is "${_headlineSafe(nextSchoolEvent.text, maxLength: 72)}".',
+                if (nextScheduleItem != null && nextScheduleItem.date != null)
+                  'Class timeline: ${_shortMonthDay(nextScheduleItem.date!)} ${_headlineSafe(nextScheduleItem.title, maxLength: 64)}.',
+              ].join(' ')
+            : nextScheduleItem != null && nextScheduleItem.date != null
+                ? 'The next dated class timeline item lands on ${_shortMonthDay(nextScheduleItem.date!)}. Open the calendar below to keep the broader school plan in view.'
+                : 'Use the calendar and reminder tools below to pin personal reminders, school events, and things coming up. This panel will keep the next important item in view.',
+        chips: [
+          '$openReminders upcoming',
+          if (schoolWideCount > 0) '$schoolWideCount school-wide',
+          if (nextScheduleItem?.date != null)
+            _shortMonthDay(nextScheduleItem!.date!),
+          'Calendar',
+        ],
+        visualLabel: nextSchoolEvent != null
+            ? 'School-wide'
+            : eventLead != null
+                ? _reminderScopeText(eventLead)
+                : nextScheduleItem != null
+                    ? 'Class timeline'
+                    : 'Events',
+        visualValue: eventDate != null ? _shortMonthDay(eventDate) : 'Clear',
+        visualCaption: followUpReminder != null
+            ? 'After that: ${_shortMonthDay(followUpReminder.timestamp)} ${_headlineSafe(followUpReminder.text, maxLength: 62)}'
+            : nextScheduleItem != null
+                ? _headlineSafe(nextScheduleItem.title, maxLength: 70)
+                : 'A clear runway gives you room to teach, improvise, and still stay ahead of what is coming up.',
+        icon: Icons.event_note_rounded,
+        visual: DashboardStoryVisual.studio,
+        imageAssetPath: _eventsHeroImageAsset,
+        ctaLabel: 'Open calendar',
+        secondaryCtaLabel: nextScheduleItem != null ? 'Class timeline' : null,
+        onTap: () => _scrollToSection(_calendarSectionKey),
+        onSecondaryTap: nextScheduleItem != null
+            ? () => _scrollToSection(_classToolsSectionKey)
+            : null,
+      ),
+    ];
+  }
+
+  List<String> _liveDashboardHeadlines({DateTime? referenceTime}) {
+    final now = referenceTime ?? DateTime.now();
+    final items = <String>[];
+    final selectedClass = _selectedClassBrief();
+    final nextReminder = _nextOpenReminder();
+    final nextSchoolEvent = _nextSchoolWideReminder();
+    final nextScheduleItem = _nextUpcomingScheduleItem();
+    final currentTimetableClass = _currentTimetableClass(now);
+    final nextTimetableClass = _nextTimetableClass(now);
+    final weather = _weatherSnapshot;
+
+    if (currentTimetableClass != null) {
+      final nextLabel = nextTimetableClass != null
+          ? ' • next ${_headlineSafe(nextTimetableClass.timetableClass.title, maxLength: 42)} ${_relativeTimetableTime(nextTimetableClass.startAt, now)}'
+          : '';
+      items.add(
+        'Now teaching • ${_headlineSafe(currentTimetableClass.timetableClass.title, maxLength: 54)} until ${_formatHourMinute(currentTimetableClass.endAt)}$nextLabel',
+      );
+    } else if (nextTimetableClass != null) {
+      items.add(
+        'Next class • ${_relativeTimetableTime(nextTimetableClass.startAt, now)} • ${_headlineSafe(nextTimetableClass.timetableClass.title, maxLength: 68)}',
+      );
+    }
+
+    if (_worldNewsStories.isNotEmpty) {
+      for (final story in _worldNewsStories.take(2)) {
+        items.add(
+          'World news • ${story.source} • ${_headlineSafe(story.title)}',
+        );
+      }
+    }
+
+    if (_localNewsStories.isNotEmpty) {
+      for (final story in _localNewsStories.take(2)) {
+        items.add(
+          'Local news • ${story.source} • ${_headlineSafe(story.title)}',
+        );
+      }
+    } else if (_worldNewsStories.isEmpty && _newsBusy) {
+      items.add('World news panel is refreshing the latest headlines...');
+    } else if (_worldNewsStories.isEmpty && _newsError != null) {
+      items.add(
+        'World and local news feeds are temporarily offline. Auto-refresh will retry.',
+      );
+    }
+
+    if (weather != null) {
+      final nextDay = weather.forecast.length > 1 ? weather.forecast[1] : null;
+      items.add(
+        'Weather • ${weather.locationName} ${weather.temperatureC.round()}° • ${_weatherCodeLabel(weather.weatherCode)}${nextDay != null ? ' • ${_weekdayLabel(nextDay.date)} ${nextDay.maxTempC.round()}°/${nextDay.minTempC.round()}°' : ''}',
+      );
+    } else if (_weatherBusy) {
+      items.add(
+        'Weather panel is refreshing the current forecast for Taichung.',
+      );
+    } else if (_weatherError != null) {
+      items.add(
+        'Weather feed is temporarily unavailable. Forecast refresh will retry.',
+      );
+    }
+
+    if (nextSchoolEvent != null) {
+      items.add(
+        'School event • ${_shortMonthDay(nextSchoolEvent.timestamp)} • ${_headlineSafe(nextSchoolEvent.text)}',
+      );
+    }
+
+    if (nextReminder != null) {
+      items.add(
+        'Coming up • ${_shortMonthDay(nextReminder.timestamp)} • ${_headlineSafe(nextReminder.text)}',
+      );
+    } else if (nextScheduleItem?.date != null) {
+      items.add(
+        'Class timeline • ${_shortMonthDay(nextScheduleItem!.date!)} • ${_headlineSafe(nextScheduleItem.title)}',
+      );
+    } else {
+      items.add(
+        'Upcoming events • no urgent reminders right now • add messages from the calendar below',
+      );
+    }
+
+    if (_classes.isNotEmpty || _totalStudents > 0) {
+      items.add(
+        '${_classes.length} classes live across $_totalStudents students in your workspace',
+      );
+    }
+
+    if (selectedClass != null) {
+      items.add(
+        'Focused class • ${selectedClass.name} • ready for tools, seating, and schedule work',
+      );
+    }
+
+    items.add(
+      'Quick polls, QR, timers, groups, and reminders are all one jump below the hero rail',
+    );
+    return items;
+  }
 
   void _openSeatingPlan() {
     final classId = _selectedClassId;
@@ -3941,6 +4822,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Future<void> _importScheduleFromDrive() async {
     if (!mounted) return;
     try {
+      if (!await _ensureDriveReady()) return;
       final drive = context.read<GoogleDriveService>();
       final picked = await showDialog<DriveFile>(
         context: context,
@@ -4039,9 +4921,35 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       // If this is a "school calendar" style sheet (Month/Week grid + a combined Date: Event cell),
       // parse it even when it doesn't have explicit Date/Title columns.
       if (dateIdx == -1 || titleIdx == -1) {
-        final monthIdx = _findHeaderIndex(header, ['month']);
+        int monthIdx = _findHeaderIndex(header, ['month']);
         int dateEventIdx = _findHeaderIndex(
             header, ['date: event', 'date event', 'event', 'events']);
+        if (monthIdx == -1) {
+          int bestIdx = -1;
+          int bestHits = 0;
+          final sampleEnd = rows.length < (headerRowIndex + 13)
+              ? rows.length
+              : (headerRowIndex + 13);
+          final maxCols = rows.fold<int>(
+            0,
+            (max, row) => row.length > max ? row.length : max,
+          );
+          for (int c = 0; c < maxCols; c++) {
+            int hits = 0;
+            for (int r = headerRowIndex + 1; r < sampleEnd; r++) {
+              final row = rows[r];
+              if (c >= row.length) continue;
+              if (_monthFromToken(row[c]) != null) hits++;
+            }
+            if (hits > bestHits) {
+              bestHits = hits;
+              bestIdx = c;
+            }
+          }
+          if (bestHits > 0) {
+            monthIdx = bestIdx;
+          }
+        }
         if (dateEventIdx == -1 && rows.length > headerRowIndex + 1) {
           // Some school templates use a date stamp as header (e.g. "(2025.01.05)")
           // and keep all event text in that column.
@@ -4214,6 +5122,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   int? _monthFromToken(String token) {
     final t = token.trim().toLowerCase();
     if (t.isEmpty) return null;
+    final compact = t
+        .replaceAll(RegExp(r'[^a-z]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (compact.isEmpty) return null;
     const map = {
       'jan': 1,
       'january': 1,
@@ -4241,7 +5154,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       'december': 12,
     };
     for (final e in map.entries) {
-      if (t == e.key || t.startsWith('${e.key} ')) return e.value;
+      if (compact == e.key || compact.startsWith('${e.key} ')) return e.value;
     }
     return null;
   }
@@ -4324,6 +5237,15 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       '月',
       '週',
     ];
+    const weekdayTokens = <String>{
+      'sun',
+      'mon',
+      'tue',
+      'wed',
+      'thu',
+      'fri',
+      'sat',
+    };
 
     for (int i = 0; i < limit; i++) {
       final normalized =
@@ -4341,13 +5263,26 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         }
       }
 
+      final weekdayCount = normalized.where((cell) {
+        final compact = cell.replaceAll(' ', '');
+        return weekdayTokens.contains(compact);
+      }).length;
+      final hasWeek = normalized.contains('week');
+      final hasMonth = normalized.contains('month');
+      final hasDateStamp = normalized.any(
+        (cell) => RegExp(r'^\d{4}\s+\d{1,2}\s+\d{1,2}$').hasMatch(cell),
+      );
+      if (hasWeek && weekdayCount >= 5) score += 8;
+      if (hasMonth) score += 3;
+      if (hasDateStamp) score += 2;
+
       if (score > bestScore) {
         bestScore = score;
         bestIndex = i;
       }
     }
 
-    return bestScore >= 2 ? bestIndex : 0;
+    return bestScore >= 1 ? bestIndex : 0;
   }
 
   String _normalize(String s) => s
@@ -4454,8 +5389,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   decoration: InputDecoration(
                     labelText: 'Attendance Portal URL',
                     hintText: _defaultAttendancePortalUrl,
-                    helperText:
-                        'Defaults to the school attendance portal URL.',
+                    helperText: 'Defaults to the school attendance portal URL.',
                   ),
                   onChanged: (_) {
                     _saveQuickLinks();
@@ -4621,8 +5555,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       final attendanceUrl = _attendanceUrlCtrl.text.trim().isEmpty
           ? _defaultAttendancePortalUrl
           : _attendanceUrlCtrl.text.trim();
-      await prefs.setString(
-          _attendanceUrlPrefsKey(), attendanceUrl);
+      await prefs.setString(_attendanceUrlPrefsKey(), attendanceUrl);
       await prefs.setString(
           _quickLinksPrefsKey(),
           jsonEncode(_customLinks
@@ -4845,6 +5778,18 @@ class _Timetable {
         uploadedAt: DateTime.tryParse(json['uploadedAt'] as String? ?? '') ??
             DateTime.now(),
       );
+}
+
+class _TimetableSlotMoment {
+  final TimeSlotClass timetableClass;
+  final DateTime startAt;
+  final DateTime endAt;
+
+  const _TimetableSlotMoment({
+    required this.timetableClass,
+    required this.startAt,
+    required this.endAt,
+  });
 }
 
 class _QuickLink {

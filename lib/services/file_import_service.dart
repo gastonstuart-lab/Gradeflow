@@ -10,10 +10,10 @@ import 'package:gradeflow/models/class.dart';
 import 'package:uuid/uuid.dart';
 
 enum ImportFileType {
-  roster,        // Student names/IDs
-  calendar,      // School calendar with dates/events
-  timetable,     // Weekly class schedule
-  examResults,   // Scores/grades
+  roster, // Student names/IDs
+  calendar, // School calendar with dates/events
+  timetable, // Weekly class schedule
+  examResults, // Scores/grades
   unknown,
 }
 
@@ -52,7 +52,7 @@ class ImportedStudent {
   final String? classCode;
   final bool isValid;
   final String? error;
-      // Calendar detection
+  // Calendar detection
   ImportedStudent({
     this.studentId,
     this.chineseName,
@@ -80,7 +80,9 @@ class FileImportService {
             final dtEnd = e['DTEND']?.value;
             final summary = e['SUMMARY']?.value?.toString() ?? '';
             final location = e['LOCATION']?.value?.toString();
-            if (dtStart is DateTime && dtEnd is DateTime && summary.isNotEmpty) {
+            if (dtStart is DateTime &&
+                dtEnd is DateTime &&
+                summary.isNotEmpty) {
               events.add(CalendarEvent(
                 start: dtStart,
                 end: dtEnd,
@@ -109,7 +111,8 @@ class FileImportService {
         .firstWhere((f) => f != null, orElse: () => null);
     if (docFile == null) return const [];
 
-    final xmlStr = utf8.decode(docFile.content as List<int>, allowMalformed: true);
+    final xmlStr =
+        utf8.decode(docFile.content as List<int>, allowMalformed: true);
     final doc = XmlDocument.parse(xmlStr);
 
     final weekdayTokens = <String>{
@@ -130,9 +133,30 @@ class FileImportService {
       '日',
     };
 
+    const scheduleTokens = <String>{
+      'week',
+      'date',
+      'lesson',
+      'subject',
+      'goals',
+      'activities',
+      'tests',
+      'quizzes',
+      'remarks',
+      'issues',
+      'topic',
+      'title',
+      'unit',
+      'homework',
+      'notes',
+      'assessment',
+    };
+
     int scoreTable(List<List<String>> grid) {
+      if (grid.isEmpty) return 0;
+
       int score = 0;
-      for (final row in grid.take(3)) {
+      for (final row in grid.take(8)) {
         for (final cell in row) {
           final t = cell.trim();
           if (t.isEmpty) continue;
@@ -140,14 +164,23 @@ class FileImportService {
           if (weekdayTokens.contains(t) || weekdayTokens.contains(lower)) {
             score += 3;
           }
-          if (lower.contains('semester') || lower.contains('fall') || lower.contains('spring')) {
+          for (final token in scheduleTokens) {
+            if (lower.contains(token)) {
+              score += 2;
+              break;
+            }
+          }
+          if (lower.contains('semester') ||
+              lower.contains('fall') ||
+              lower.contains('spring')) {
             score += 1;
           }
         }
       }
-      // Prefer moderately sized grids (typical timetable)
+      // Prefer moderately sized grids (typical timetable/class schedule)
       if (grid.length >= 6) score += 1;
-      if (grid.isNotEmpty && grid.first.length >= 5) score += 1;
+      if (grid.first.length >= 4) score += 2;
+      if (grid.first.length >= 6) score += 1;
       return score;
     }
 
@@ -201,7 +234,9 @@ class FileImportService {
     bool isLunchRow(List<String> row) {
       if (row.isEmpty) return false;
       final firstCell = row.first.toLowerCase();
-      return firstCell.contains('lunch') || firstCell.contains('12:') || firstCell.contains('13:');
+      return firstCell.contains('lunch') ||
+          firstCell.contains('12:') ||
+          firstCell.contains('13:');
     }
 
     // Helper: extract hour:minute from time string
@@ -252,7 +287,9 @@ class FileImportService {
         for (int col = 1; col < row.length; col++) {
           final prevCell = previousRow[col].trim();
           final currCell = row[col].trim();
-          if (prevCell.isNotEmpty && currCell.isNotEmpty && prevCell != currCell) {
+          if (prevCell.isNotEmpty &&
+              currCell.isNotEmpty &&
+              prevCell != currCell) {
             isSameClass = false;
             break;
           }
@@ -268,7 +305,8 @@ class FileImportService {
             final endMins = t2[0] * 60 + t2[1] + 50;
             final endH = (endMins ~/ 60) % 24;
             final endM = endMins % 60;
-            mergedRow[0] = '$prevTime-${endH.toString().padLeft(2, '0')}:${endM.toString().padLeft(2, '0')}';
+            mergedRow[0] =
+                '$prevTime-${endH.toString().padLeft(2, '0')}:${endM.toString().padLeft(2, '0')}';
           }
           for (int col = 1; col < row.length; col++) {
             if (mergedRow[col].trim().isEmpty && row[col].trim().isNotEmpty) {
@@ -349,7 +387,8 @@ class FileImportService {
       idxLesson = normalized.indexWhere((c) => c == 'lessoncontent');
       if (idxLesson == -1) {
         // best-effort: cell containing both words
-        idxLesson = normalized.indexWhere((c) => c.contains('lesson') && c.contains('content'));
+        idxLesson = normalized
+            .indexWhere((c) => c.contains('lesson') && c.contains('content'));
       }
       idxEvent = normalized.indexWhere((c) => c.contains('event'));
       if (idxEvent == -1) {
@@ -362,8 +401,7 @@ class FileImportService {
     bool looksLikeBookSection(String s) {
       final t = s.trim();
       if (t.isEmpty) return false;
-      return RegExp(r'^book\s*\d+\s*:', caseSensitive: false)
-              .hasMatch(t) ||
+      return RegExp(r'^book\s*\d+\s*:', caseSensitive: false).hasMatch(t) ||
           RegExp(r'^book\s*\d+\b', caseSensitive: false).hasMatch(t);
     }
 
@@ -409,9 +447,12 @@ class FileImportService {
         continue;
       }
 
-      final dateRange = (idxDate >= 0 && idxDate < r.length) ? r[idxDate].trim() : '';
-      final lessonContent = (idxLesson >= 0 && idxLesson < r.length) ? r[idxLesson].trim() : '';
-      final dateEvents = (idxEvent >= 0 && idxEvent < r.length) ? r[idxEvent].trim() : '';
+      final dateRange =
+          (idxDate >= 0 && idxDate < r.length) ? r[idxDate].trim() : '';
+      final lessonContent =
+          (idxLesson >= 0 && idxLesson < r.length) ? r[idxLesson].trim() : '';
+      final dateEvents =
+          (idxEvent >= 0 && idxEvent < r.length) ? r[idxEvent].trim() : '';
 
       if (dateRange.isEmpty && lessonContent.isEmpty && dateEvents.isEmpty) {
         continue;
@@ -441,7 +482,7 @@ class FileImportService {
         .where((h) => h.isNotEmpty)
         .toList(growable: false);
 
-    if (!normalized.contains('month') || !normalized.contains('week')) {
+    if (!normalized.contains('week')) {
       return false;
     }
 
@@ -464,12 +505,17 @@ class FileImportService {
     final dayCount = normalized.where(dayKeys.contains).length;
     final hasDateOrEvent =
         normalized.any((h) => h.contains('date') || h.contains('event'));
+    final hasMonth = normalized.contains('month');
+    final hasDateStamp = normalized.any(
+      (h) => RegExp(r'^\d{4}\s+\d{1,2}\s+\d{1,2}$').hasMatch(h),
+    );
 
-    return dayCount >= 5 && hasDateOrEvent;
+    return dayCount >= 5 && (hasMonth || hasDateOrEvent || hasDateStamp);
   }
 
   /// Intelligently detect what type of file this is based on headers and content
-  FileTypeDetection detectFileType(Uint8List bytes, {required String filename}) {
+  FileTypeDetection detectFileType(Uint8List bytes,
+      {required String filename}) {
     final lowerName = filename.toLowerCase();
     if (lowerName.endsWith('.ics')) {
       return const FileTypeDetection(
@@ -482,7 +528,7 @@ class FileImportService {
     try {
       final isZip = bytes.length > 3 && bytes[0] == 0x50 && bytes[1] == 0x4B;
       List<String> headers = [];
-      
+
       if (isZip) {
         final rows = rowsFromAnyBytes(bytes);
         if (rows.isNotEmpty) {
@@ -507,7 +553,8 @@ class FileImportService {
         return const FileTypeDetection(
           type: ImportFileType.calendar,
           message: 'This looks like a school calendar or schedule.',
-          suggestion: 'Import this in Teacher Dashboard → Select Class → Schedule tab → Upload button',
+          suggestion:
+              'Import this in Teacher Dashboard → Select Class → Schedule tab → Upload button',
         );
       }
 
@@ -516,7 +563,8 @@ class FileImportService {
         return const FileTypeDetection(
           type: ImportFileType.timetable,
           message: 'This looks like a weekly timetable/schedule.',
-          suggestion: 'Import this in Teacher Dashboard → Select Class → Schedule tab',
+          suggestion:
+              'Import this in Teacher Dashboard → Select Class → Schedule tab',
         );
       }
 
@@ -534,14 +582,16 @@ class FileImportService {
         return const FileTypeDetection(
           type: ImportFileType.roster,
           message: 'This looks like a student roster.',
-          suggestion: 'You\'re in the right place! Use the import function on this screen.',
+          suggestion:
+              'You\'re in the right place! Use the import function on this screen.',
         );
       }
 
       return const FileTypeDetection(
         type: ImportFileType.unknown,
         message: 'Could not determine file type.',
-        suggestion: 'Make sure the file has clear column headers like: Name, Student ID, Email',
+        suggestion:
+            'Make sure the file has clear column headers like: Name, Student ID, Email',
       );
     } catch (e) {
       return FileTypeDetection(
@@ -554,49 +604,64 @@ class FileImportService {
 
   bool _looksLikeTimetable(List<String> headers) {
     final normalized = headers.where((h) => h.isNotEmpty).toList();
-    
+
     // Look for period/time indicators
-    final hasPeriod = normalized.any((h) => 
-      h.contains('period') || h.contains('time') || h.contains('class'));
-    
+    final hasPeriod = normalized.any((h) =>
+        h.contains('period') || h.contains('time') || h.contains('class'));
+
     // Look for weekday columns
-    const weekdays = {'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 
-                      'mon', 'tue', 'wed', 'thu', 'fri'};
-    final weekdayCount = normalized.where((h) => weekdays.any(h.contains)).length;
-    
+    const weekdays = {
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'mon',
+      'tue',
+      'wed',
+      'thu',
+      'fri'
+    };
+    final weekdayCount =
+        normalized.where((h) => weekdays.any(h.contains)).length;
+
     return hasPeriod && weekdayCount >= 3;
   }
 
   bool _looksLikeExamResults(List<String> headers) {
     final normalized = headers.where((h) => h.isNotEmpty).toList();
-    
+
     // Look for score/grade indicators
-    final hasScores = normalized.any((h) => 
-      h.contains('score') || h.contains('grade') || h.contains('mark') ||
-      h.contains('result') || h.contains('exam') || h.contains('test'));
-    
+    final hasScores = normalized.any((h) =>
+        h.contains('score') ||
+        h.contains('grade') ||
+        h.contains('mark') ||
+        h.contains('result') ||
+        h.contains('exam') ||
+        h.contains('test'));
+
     // Look for student identifier
-    final hasStudent = normalized.any((h) => 
-      h.contains('name') || h.contains('student') || h.contains('id'));
-    
+    final hasStudent = normalized.any(
+        (h) => h.contains('name') || h.contains('student') || h.contains('id'));
+
     return hasScores && hasStudent;
   }
 
   bool _looksLikeRoster(List<String> headers) {
     final normalized = headers.where((h) => h.isNotEmpty).toList();
-    
+
     // Must have name field
-    final hasName = normalized.any((h) => 
-      h.contains('name') || h.contains('student'));
-    
+    final hasName =
+        normalized.any((h) => h.contains('name') || h.contains('student'));
+
     // Should have ID or email
-    final hasIdentifier = normalized.any((h) => 
-      h.contains('id') || h.contains('email') || h.contains('number'));
-    
+    final hasIdentifier = normalized.any(
+        (h) => h.contains('id') || h.contains('email') || h.contains('number'));
+
     // Should NOT look like scores/exams
-    final looksLikeScores = normalized.any((h) => 
-      h.contains('score') || h.contains('exam') || h.contains('test'));
-    
+    final looksLikeScores = normalized.any(
+        (h) => h.contains('score') || h.contains('exam') || h.contains('test'));
+
     return hasName && hasIdentifier && !looksLikeScores;
   }
 
@@ -702,10 +767,10 @@ class FileImportService {
               'First data row sample: ${(rows.length > headerIdx + 1 ? rows[headerIdx + 1] : const <String>[]).take(12).toList()}');
 
           if (_looksLikeCalendarScheduleHeaders(hdr)) {
-          lines.add(
-            'Detected file type: calendar/schedule (not a student roster)');
-          lines.add(
-            'Tip: Import schedules via Teacher Dashboard / Class Details schedule import.');
+            lines.add(
+                'Detected file type: calendar/schedule (not a student roster)');
+            lines.add(
+                'Tip: Import schedules via Teacher Dashboard / Class Details schedule import.');
           }
         }
         final roster = parseXlsxRoster(bytes);
@@ -1183,12 +1248,12 @@ class FileImportService {
 
         final studentId = _normalizeNumber(idRaw);
         final seatNo = _normalizeNumber(seatRaw);
-        String? classCode = (teachingClassCode != null &&
-                teachingClassCode.trim().isNotEmpty)
-            ? teachingClassCode.trim()
-            : (classCodeRaw.trim().isEmpty
-                ? null
-                : classCodeRaw.trim().replaceAll(' ', ''));
+        String? classCode =
+            (teachingClassCode != null && teachingClassCode.trim().isNotEmpty)
+                ? teachingClassCode.trim()
+                : (classCodeRaw.trim().isEmpty
+                    ? null
+                    : classCodeRaw.trim().replaceAll(' ', ''));
         String? chineseName =
             chineseNameRaw.trim().isEmpty ? null : chineseNameRaw.trim();
         String? first =
@@ -2019,7 +2084,7 @@ extension FileImportServiceClasses on FileImportService {
         final row = rows[i];
         if (row.every((c) => c.trim().isEmpty)) continue;
         String? cell(int idx) =>
-          idx != -1 && idx < row.length ? row[idx].toString().trim() : null;
+            idx != -1 && idx < row.length ? row[idx].toString().trim() : null;
 
         String? name = cell(nameIdx);
         String? subject = cell(subjectIdx);
@@ -2127,8 +2192,34 @@ extension FileImportServiceClasses on FileImportService {
   // --------------------
   // Helpers
   // --------------------
-  // Public helper to extract tabular rows from bytes (CSV or XLSX). Used by AI importer.
-  List<List<String>> rowsFromAnyBytes(Uint8List bytes) => _rowsFromExcel(bytes);
+  // Public helper to extract tabular rows from bytes (CSV, XLSX, or DOCX).
+  // Used by AI importer and schedule/timetable imports.
+  List<List<String>> rowsFromAnyBytes(Uint8List bytes) {
+    if (bytes.isEmpty) return const [];
+
+    final isZip =
+        bytes.length > 3 && bytes[0] == 0x50 && bytes[1] == 0x4B; // 'P''K'
+    if (isZip && _zipContainsPath(bytes, 'word/document.xml')) {
+      final rows = extractDocxBestTableGrid(bytes);
+      if (rows.isNotEmpty) {
+        return rows;
+      }
+    }
+
+    return _rowsFromExcel(bytes);
+  }
+
+  bool _zipContainsPath(Uint8List bytes, String expectedPath) {
+    try {
+      final normalizedExpected = expectedPath.replaceAll('\\', '/');
+      final archive = ZipDecoder().decodeBytes(bytes, verify: false);
+      return archive.files.any(
+        (file) => file.name.replaceAll('\\', '/') == normalizedExpected,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
 
   List<List<String>> _rowsFromExcel(Uint8List bytes) {
     try {

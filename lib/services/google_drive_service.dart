@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -75,6 +76,7 @@ class GoogleDriveService {
   Future<List<DriveFile>> _listFiles({
     required Map<String, String> queryParams,
     required bool interactiveAuth,
+    int? maxResults,
   }) async {
     final auth =
         await _auth.ensureAccessTokenDetailed(interactive: interactiveAuth);
@@ -87,7 +89,18 @@ class GoogleDriveService {
     String? pageToken;
 
     do {
+      final remaining = maxResults == null ? null : (maxResults - out.length);
+      if (remaining != null && remaining <= 0) {
+        break;
+      }
+
       final params = Map<String, String>.from(queryParams);
+      final perPage = int.tryParse(params['pageSize'] ?? '');
+      if (remaining != null) {
+        final effectivePageSize =
+            perPage == null ? remaining : math.min(perPage, remaining);
+        params['pageSize'] = '$effectivePageSize';
+      }
       if (pageToken != null && pageToken.isNotEmpty) {
         params['pageToken'] = pageToken;
       }
@@ -106,7 +119,7 @@ class GoogleDriveService {
       );
 
       if (resp.statusCode >= 400) {
-        throw StateError('Drive list failed (${resp.statusCode}).');
+        throw StateError(_describeDriveFailure('Drive list', resp));
       }
 
       final jsonBody = jsonDecode(resp.body);
@@ -121,6 +134,13 @@ class GoogleDriveService {
         }
         seen.add(file.id);
         out.add(file);
+        if (maxResults != null && out.length >= maxResults) {
+          break;
+        }
+      }
+
+      if (maxResults != null && out.length >= maxResults) {
+        break;
       }
 
       pageToken = (jsonBody is Map<String, dynamic>)
@@ -131,15 +151,48 @@ class GoogleDriveService {
     return out;
   }
 
+  String _describeDriveFailure(String action, http.Response resp) {
+    String? message;
+    try {
+      final body = jsonDecode(resp.body);
+      if (body is Map<String, dynamic>) {
+        final error = body['error'];
+        if (error is Map<String, dynamic>) {
+          message = error['message']?.toString();
+        } else {
+          message = body['message']?.toString();
+        }
+      }
+    } catch (_) {
+      // Ignore non-JSON error bodies and fall back to the status code only.
+    }
+
+    if (resp.statusCode == 401) {
+      return '$action failed (401): Drive authorization expired. Please sign in again.';
+    }
+    if (resp.statusCode == 403 &&
+        message != null &&
+        message.toLowerCase().contains('insufficient')) {
+      return '$action failed (403): Your Google account does not have permission to read these Drive files.';
+    }
+    if (message == null || message.isEmpty) {
+      return '$action failed (${resp.statusCode}).';
+    }
+    return '$action failed (${resp.statusCode}): $message';
+  }
+
   Future<List<DriveFile>> listRecentFiles(
       {int pageSize = 25, bool interactiveAuth = true}) async {
     return _listFiles(
       interactiveAuth: interactiveAuth,
+      maxResults: pageSize,
       queryParams: {
         'pageSize': '$pageSize',
         'orderBy': 'modifiedTime desc',
         'q': 'trashed=false',
         'fields': 'files(id,name,mimeType,modifiedTime,size,parents)',
+        'spaces': 'drive',
+        'corpora': 'user',
         'supportsAllDrives': 'true',
         'includeItemsFromAllDrives': 'true',
       },
@@ -156,10 +209,13 @@ class GoogleDriveService {
     final q = "'$folderId' in parents and trashed=false";
     final out = await _listFiles(
       interactiveAuth: interactiveAuth,
+      maxResults: pageSize,
       queryParams: {
         'pageSize': '$pageSize',
         'q': q,
         'fields': 'files(id,name,mimeType,modifiedTime,size,parents)',
+        'spaces': 'drive',
+        'corpora': 'user',
         'supportsAllDrives': 'true',
         'includeItemsFromAllDrives': 'true',
       },
@@ -184,11 +240,14 @@ class GoogleDriveService {
 
     final out = await _listFiles(
       interactiveAuth: interactiveAuth,
+      maxResults: pageSize,
       queryParams: {
         'pageSize': '$pageSize',
         'orderBy': 'modifiedTime desc',
         'q': "trashed=false and name contains '$escaped'",
         'fields': 'files(id,name,mimeType,modifiedTime,size,parents)',
+        'spaces': 'drive',
+        'corpora': 'user',
         'supportsAllDrives': 'true',
         'includeItemsFromAllDrives': 'true',
       },
@@ -229,7 +288,7 @@ class GoogleDriveService {
     );
 
     if (resp.statusCode >= 400) {
-      throw StateError('Drive export failed (${resp.statusCode}).');
+      throw StateError(_describeDriveFailure('Drive export', resp));
     }
 
     return resp.bodyBytes;
@@ -252,7 +311,7 @@ class GoogleDriveService {
     );
 
     if (resp.statusCode >= 400) {
-      throw StateError('Drive download failed (${resp.statusCode}).');
+      throw StateError(_describeDriveFailure('Drive download', resp));
     }
 
     return resp.bodyBytes;

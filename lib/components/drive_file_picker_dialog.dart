@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -70,21 +72,29 @@ class _DriveFilePickerDialogState extends State<DriveFilePickerDialog> {
 
     try {
       final q = _searchCtrl.text.trim();
-      final files = q.isNotEmpty
-          ? await widget.driveService.searchFiles(q, interactiveAuth: false)
+      final pending = q.isNotEmpty
+          ? widget.driveService.searchFiles(q, interactiveAuth: false)
           : _showRecent
-              ? await widget.driveService
+              ? widget.driveService
                   .listRecentFiles(pageSize: 80, interactiveAuth: false)
-              : await widget.driveService.listFolder(
+              : widget.driveService.listFolder(
                   folderId: _currentFolder.id, interactiveAuth: false);
+      final files = await pending.timeout(
+        const Duration(seconds: 20),
+        onTimeout: () => throw TimeoutException(
+          'Drive request timed out. Please refresh or sign in again.',
+        ),
+      );
       final filtered = files.where((f) {
         if (_isFolder(f)) return true;
         return _matchesExtension(f.name) || _isGoogleSheet(f);
       }).toList();
+      if (!mounted) return;
       setState(() {
         _files = filtered;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = '$e';
       });
