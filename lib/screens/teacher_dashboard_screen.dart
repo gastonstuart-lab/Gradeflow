@@ -896,7 +896,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         elevation: 0,
-        toolbarHeight: compactMasthead ? 118 : 136,
+        toolbarHeight: compactMasthead ? 152 : 174,
         titleSpacing: 0,
         automaticallyImplyLeading: false,
         flexibleSpace: ClipRect(
@@ -910,26 +910,32 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     end: Alignment.bottomRight,
                     colors: isDark
                         ? const [
-                            Color(0xFF081726),
-                            Color(0xFF123252),
-                            Color(0xFF2E5F85),
+                            Color(0xFF060F1C),
+                            Color(0xFF0E2744),
+                            Color(0xFF1D4A72),
                           ]
                         : const [
-                            Color(0xFF12314D),
-                            Color(0xFF20507C),
-                            Color(0xFF5F9BC6),
+                            Color(0xFF0B2440),
+                            Color(0xFF17497B),
+                            Color(0xFF3A80C0),
                           ],
                   ),
                   border: Border(
                     bottom: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.14),
+                      color: Colors.white.withValues(alpha: 0.16),
                     ),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.14),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
+                      color: Colors.black.withValues(alpha: 0.22),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF1A5294).withValues(alpha: 0.18),
+                      blurRadius: 40,
+                      spreadRadius: -8,
+                      offset: const Offset(0, 12),
                     ),
                   ],
                 ),
@@ -939,15 +945,17 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 right: -12,
                 child: IgnorePointer(
                   child: Container(
-                    width: 220,
-                    height: 220,
+                    width: 280,
+                    height: 280,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          Colors.white.withValues(alpha: 0.22),
+                          Colors.white.withValues(alpha: 0.18),
+                          const Color(0xFF5AB4E8).withValues(alpha: 0.08),
                           Colors.white.withValues(alpha: 0.0),
                         ],
+                        stops: const [0.0, 0.5, 1.0],
                       ),
                     ),
                   ),
@@ -988,66 +996,135 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               ),
               SafeArea(
                 bottom: false,
-                child: Stack(
+                child: Column(
                   children: [
-                    Positioned(
-                      top: compactMasthead ? 6 : 8,
-                      right: 20,
+                    // ── Main header row ──────────────────────────────────
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                          20, compactMasthead ? 8 : 10, 20, 0),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const PilotFeedbackIconButton(
-                            initialArea: 'Dashboard',
-                            initialRoute: '/dashboard',
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            style: IconButton.styleFrom(
-                              backgroundColor:
-                                  Colors.white.withValues(alpha: 0.08),
-                              foregroundColor: Colors.white,
+                          // User identity chip (desktop only)
+                          if (!compactMasthead) ...[
+                            _AppBarUserChip(
+                              name: user?.fullName ?? 'Teacher',
+                              photoBase64: user?.photoBase64,
                             ),
-                            tooltip: themeMode == ThemeMode.dark
-                                ? 'Switch to light mode'
-                                : 'Switch to dark mode',
-                            icon: Icon(themeMode == ThemeMode.dark
-                                ? Icons.light_mode
-                                : Icons.dark_mode),
-                            onPressed: () =>
-                                context.read<ThemeModeNotifier>().toggleTheme(),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            style: IconButton.styleFrom(
-                              backgroundColor:
-                                  Colors.white.withValues(alpha: 0.08),
-                              foregroundColor: Colors.white,
+                            const SizedBox(width: 10),
+                          ],
+                          // School masthead centred
+                          Expanded(
+                            child: Center(
+                              child: SchoolHeroMasthead(
+                                compact: compactMasthead,
+                                maxWidth: mastheadWidth,
+                              ),
                             ),
-                            tooltip: 'Log out',
-                            icon: const Icon(Icons.logout),
-                            onPressed: () async {
-                              await context.read<GoogleAuthService>().signOut();
-                              await context.read<AuthService>().logout();
-                              if (!context.mounted) return;
-                              context.go(AppRoutes.home);
-                            },
+                          ),
+                          if (!compactMasthead) const SizedBox(width: 10),
+                          // Premium action buttons
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const PilotFeedbackIconButton(
+                                initialArea: 'Dashboard',
+                                initialRoute: '/dashboard',
+                              ),
+                              const SizedBox(width: 6),
+                              _AppBarIconBtn(
+                                icon: themeMode == ThemeMode.dark
+                                    ? Icons.light_mode_rounded
+                                    : Icons.dark_mode_rounded,
+                                tooltip: themeMode == ThemeMode.dark
+                                    ? 'Switch to light mode'
+                                    : 'Switch to dark mode',
+                                onPressed: () => context
+                                    .read<ThemeModeNotifier>()
+                                    .toggleTheme(),
+                              ),
+                              const SizedBox(width: 6),
+                              _AppBarIconBtn(
+                                icon: Icons.logout_rounded,
+                                tooltip: 'Log out',
+                                onPressed: () async {
+                                  await context
+                                      .read<GoogleAuthService>()
+                                      .signOut();
+                                  await context
+                                      .read<AuthService>()
+                                      .logout();
+                                  if (!context.mounted) return;
+                                  context.go(AppRoutes.home);
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.center,
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
+                    // ── Navigation strip ─────────────────────────────────
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
                           20,
-                          compactMasthead ? 16 : 18,
+                          compactMasthead ? 5 : 7,
                           20,
-                          compactMasthead ? 10 : 12,
-                        ),
-                        child: SchoolHeroMasthead(
-                          compact: compactMasthead,
-                          maxWidth: mastheadWidth,
-                        ),
+                          compactMasthead ? 6 : 8),
+                      child: Row(
+                        children: [
+                          _NavChipItem(
+                            label: 'Dashboard',
+                            icon: Icons.dashboard_rounded,
+                            // Always selected on this screen (current route)
+                            isSelected: true,
+                          ),
+                          const SizedBox(width: 8),
+                          _NavChipItem(
+                            label: 'My Classes',
+                            icon: Icons.school_rounded,
+                            isSelected: false,
+                            onTap: () => context.go(AppRoutes.classes),
+                          ),
+                          const Spacer(),
+                          // Live clock chip
+                          ValueListenableBuilder<DateTime>(
+                            valueListenable: _nowNotifier,
+                            builder: (ctx, now, _) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color:
+                                      Colors.white.withValues(alpha: 0.14),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.schedule_rounded,
+                                    size: 13,
+                                    color: Colors.white
+                                        .withValues(alpha: 0.72),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    _formatTime(now),
+                                    style: TextStyle(
+                                      color: Colors.white
+                                          .withValues(alpha: 0.86),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -5861,3 +5938,167 @@ class _AddLinkPill extends StatelessWidget {
 }
 
 enum _SummaryRange { week, month }
+
+// ─── AppBar helper widgets ────────────────────────────────────────────────────
+
+/// A compact icon button with glassmorphic styling used in the dashboard AppBar.
+class _AppBarIconBtn extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  const _AppBarIconBtn({
+    required this.icon,
+    required this.tooltip,
+    this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(10),
+            border:
+                Border.all(color: Colors.white.withValues(alpha: 0.20)),
+          ),
+          child: Icon(icon, color: Colors.white, size: 19),
+        ),
+      ),
+    );
+  }
+}
+
+/// User identity chip displayed on the left side of the AppBar.
+class _AppBarUserChip extends StatelessWidget {
+  final String name;
+  final String? photoBase64;
+
+  const _AppBarUserChip({
+    required this.name,
+    this.photoBase64,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'T';
+    final hasPhoto = photoBase64 != null && photoBase64!.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(6, 4, 14, 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 13,
+            backgroundColor: Colors.white.withValues(alpha: 0.22),
+            backgroundImage: hasPhoto
+                ? MemoryImage(const Base64Decoder().convert(photoBase64!))
+                : null,
+            child: !hasPhoto
+                ? Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 140),
+            child: Text(
+              // Show first name only; for single-word names the full name is used
+              name.contains(' ') ? name.split(' ').first : name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.1,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Navigation chip for the horizontal nav strip inside the AppBar.
+class _NavChipItem extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback? onTap;
+
+  const _NavChipItem({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: onTap != null
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white
+                .withValues(alpha: isSelected ? 0.18 : 0.06),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: Colors.white
+                  .withValues(alpha: isSelected ? 0.30 : 0.12),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 14,
+                color: Colors.white
+                    .withValues(alpha: isSelected ? 1.0 : 0.70),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white
+                      .withValues(alpha: isSelected ? 1.0 : 0.70),
+                  fontSize: 13,
+                  fontWeight: isSelected
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

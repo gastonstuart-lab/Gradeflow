@@ -161,7 +161,7 @@ class _DashboardStoryCarouselState extends State<DashboardStoryCarousel> {
           radius: 30,
           borderWidth: 2.5,
           child: SizedBox(
-            height: isNarrow ? (isTightViewport ? 560 : 540) : 400,
+            height: isNarrow ? (isTightViewport ? 580 : 560) : 440,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(28),
               child: Stack(
@@ -202,12 +202,22 @@ class _DashboardStoryCarouselState extends State<DashboardStoryCarousel> {
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 350),
                               curve: Curves.easeOutCubic,
-                              height: isActive ? 5 : 3,
+                              height: isActive ? 6 : 3,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(999),
                                 color: isActive
-                                    ? Colors.white.withValues(alpha: 0.92)
-                                    : Colors.white.withValues(alpha: 0.26),
+                                    ? Colors.white.withValues(alpha: 0.96)
+                                    : Colors.white.withValues(alpha: 0.28),
+                                boxShadow: isActive
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.50),
+                                          blurRadius: 8,
+                                          spreadRadius: 1,
+                                        ),
+                                      ]
+                                    : null,
                               ),
                             ),
                           ),
@@ -948,44 +958,44 @@ class _StoryPalette {
       case DashboardStoryVisual.campus:
         return _StoryPalette(
           surfaceGradient: isDark
-              ? const [Color(0xFF10203C), Color(0xFF183B6B), Color(0xFF0C1629)]
-              : const [Color(0xFF113A70), Color(0xFF2B6EA6), Color(0xFF78C7E8)],
+              ? const [Color(0xFF081B33), Color(0xFF0F3160), Color(0xFF0A1E3A)]
+              : const [Color(0xFF0D2D56), Color(0xFF1A5491), Color(0xFF3F8DC7)],
           cardGradient: isDark
-              ? const [Color(0xFF17345F), Color(0xFF21578E), Color(0xFF11203C)]
-              : const [Color(0xFF295B93), Color(0xFF4FA4D8), Color(0xFF97DBF0)],
+              ? const [Color(0xFF122850), Color(0xFF1B4A7E), Color(0xFF0D1E3C)]
+              : const [Color(0xFF1A4A7C), Color(0xFF3A8FC4), Color(0xFF78D0F5)],
           accent: const Color(0xFFFFD166),
-          accentSoft: const Color(0xFFFFF0B8),
-          secondary: const Color(0xFF8EE3FF),
-          shadowColor: const Color(0xFF0F3B74).withValues(alpha: 0.42),
-          buttonForeground: const Color(0xFF163B70),
+          accentSoft: const Color(0xFFFFF5CC),
+          secondary: const Color(0xFF5DD9FF),
+          shadowColor: const Color(0xFF0A2C5C).withValues(alpha: 0.55),
+          buttonForeground: const Color(0xFF0E2E5C),
         );
       case DashboardStoryVisual.studio:
         return _StoryPalette(
           surfaceGradient: isDark
-              ? const [Color(0xFF171B34), Color(0xFF28306B), Color(0xFF0E1020)]
-              : const [Color(0xFF3D3FE0), Color(0xFF4C7DF7), Color(0xFF7ED7F8)],
+              ? const [Color(0xFF110E2C), Color(0xFF1E2456), Color(0xFF0C0A1C)]
+              : const [Color(0xFF2E2BD8), Color(0xFF3B6EF4), Color(0xFF62C4F7)],
           cardGradient: isDark
-              ? const [Color(0xFF202756), Color(0xFF3140A6), Color(0xFF171B34)]
-              : const [Color(0xFF4250E3), Color(0xFF6A89FF), Color(0xFFA2F2FF)],
-          accent: const Color(0xFFFF7A59),
-          accentSoft: const Color(0xFFFFC7A6),
-          secondary: const Color(0xFF6EE7F9),
-          shadowColor: const Color(0xFF2E37A4).withValues(alpha: 0.40),
-          buttonForeground: const Color(0xFF273496),
+              ? const [Color(0xFF18204A), Color(0xFF2A3A96), Color(0xFF111830)]
+              : const [Color(0xFF3440DA), Color(0xFF587EFF), Color(0xFF8FEDFF)],
+          accent: const Color(0xFFFF7040),
+          accentSoft: const Color(0xFFFFCBAA),
+          secondary: const Color(0xFF4AE9FC),
+          shadowColor: const Color(0xFF222A9C).withValues(alpha: 0.50),
+          buttonForeground: const Color(0xFF1E2480),
         );
       case DashboardStoryVisual.spotlight:
         return _StoryPalette(
           surfaceGradient: isDark
-              ? const [Color(0xFF1A1432), Color(0xFF4C2C77), Color(0xFF120E20)]
-              : const [Color(0xFF4F2B88), Color(0xFF7C4FC6), Color(0xFFEE9AD1)],
+              ? const [Color(0xFF14103A), Color(0xFF3A2070), Color(0xFF0E0C22)]
+              : const [Color(0xFF3C1E78), Color(0xFF6B38BE), Color(0xFFE080C8)],
           cardGradient: isDark
-              ? const [Color(0xFF251A46), Color(0xFF6A3AA8), Color(0xFF1A1432)]
-              : const [Color(0xFF5A35A0), Color(0xFF8D64D8), Color(0xFFFFC8D8)],
-          accent: const Color(0xFFFFD29D),
-          accentSoft: const Color(0xFFFFF0C8),
-          secondary: const Color(0xFFFF99C8),
-          shadowColor: const Color(0xFF51178C).withValues(alpha: 0.40),
-          buttonForeground: const Color(0xFF4B2D85),
+              ? const [Color(0xFF1E1640), Color(0xFF5A2E98), Color(0xFF14103A)]
+              : const [Color(0xFF4A2890), Color(0xFF7C54D0), Color(0xFFFFB8D8)],
+          accent: const Color(0xFFFFD08A),
+          accentSoft: const Color(0xFFFFF3D0),
+          secondary: const Color(0xFFFF80C8),
+          shadowColor: const Color(0xFF3E0E7E).withValues(alpha: 0.50),
+          buttonForeground: const Color(0xFF3A1E70),
         );
     }
   }
