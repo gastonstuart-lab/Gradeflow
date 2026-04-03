@@ -10,6 +10,7 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/class_schedule_service.dart';
+import 'package:gradeflow/models/class_health_model.dart';
 import 'package:gradeflow/models/class_schedule_item.dart';
 import 'package:gradeflow/models/communication_models.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
@@ -34,6 +35,7 @@ import 'package:gradeflow/services/dashboard_news_service.dart';
 import 'package:gradeflow/services/dashboard_weather_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/communication_workspace_service.dart';
+import 'package:gradeflow/services/class_health_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 import 'package:gradeflow/components/time_slot_timetable.dart';
@@ -163,6 +165,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       DashboardWeatherService();
   final CommunicationWorkspaceService _communicationWorkspaceService =
       const CommunicationWorkspaceService();
+  final ClassHealthService _classHealthService = ClassHealthService();
   List<DashboardNewsStory> _worldNewsStories = [];
   List<DashboardNewsStory> _localNewsStories = [];
   DashboardWeatherSnapshot? _weatherSnapshot;
@@ -170,6 +173,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   bool _weatherBusy = false;
   String? _newsError;
   String? _weatherError;
+  Map<String, ClassHealthStaticSignals> _classHealthSignalsByClassId = const {};
 
   Future<void> _showImportDiagnosticsDialog({
     required String title,
@@ -469,17 +473,26 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Future<void> _loadData() async {
     final auth = context.read<AuthService>();
     final classService = context.read<ClassService>();
-    final studentService = context.read<StudentService>();
 
     final user = auth.currentUser;
     if (user == null) return;
 
     await classService.loadClasses(user.userId);
+    final healthSignals = await _classHealthService.loadStaticSignals(
+      userId: user.userId,
+      classes: classService.classes,
+    );
     final classes = <_ClassBrief>[];
     int totalStudents = 0;
     for (final c in classService.classes) {
-      await studentService.loadStudents(c.classId);
-      final studentCount = studentService.students.length;
+      final staticSignals = healthSignals[c.classId] ??
+          ClassHealthStaticSignals.fallback(
+            classId: c.classId,
+            className: c.className,
+            studentCount: 0,
+            classUpdatedAt: c.updatedAt,
+          );
+      final studentCount = staticSignals.studentCount;
       totalStudents += studentCount;
       classes.add(
         _ClassBrief(
@@ -487,6 +500,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           name: c.className,
           subtitle: '${c.subject} • ${c.schoolYear} ${c.term}',
           studentCount: studentCount,
+          updatedAt: c.updatedAt,
         ),
       );
     }
@@ -497,6 +511,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       setState(() {
         _classes = classes;
         _totalStudents = totalStudents;
+        _classHealthSignalsByClassId = healthSignals;
         _selectedClassId = classes.isNotEmpty ? classes.first.id : null;
       });
       _refreshNames();
@@ -2121,11 +2136,13 @@ class _ClassBrief {
   final String name;
   final String subtitle;
   final int studentCount;
+  final DateTime? updatedAt;
   _ClassBrief({
     required this.id,
     required this.name,
     required this.subtitle,
     this.studentCount = 0,
+    this.updatedAt,
   });
 }
 

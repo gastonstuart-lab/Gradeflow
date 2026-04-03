@@ -231,20 +231,14 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     DateTime now, {
     required bool compact,
   }) {
-    final communication = _communicationWorkspaceSnapshot(now);
     return KeyedSubtree(
       key: _livePanelSectionKey,
       child: LivePanel(
-        title: compact ? 'Comms' : communication.railTitle,
-        subtitle: communication.railSubtitle,
-        channels: communication.channels
-            .map(
-              (channel) => channel.unreadCount > 0
-                  ? '${channel.name} - ${channel.unreadCount}'
-                  : channel.name,
-            )
-            .toList(),
-        stories: _dashboardLiveStories(context),
+        title: 'Live Brief',
+        subtitle:
+            'The top-right rail keeps time, news, weather, and calendar context one glance away.',
+        channels: _dashboardLiveSignals(now),
+        stories: _dashboardLiveStories(context, now),
         announcements: _dashboardAnnouncements(now),
         compact: compact,
       ),
@@ -516,82 +510,317 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     ];
   }
 
-  List<_DashboardClassStatusData> _dashboardClassCards(
+  List<DashboardClassStatusData> _dashboardClassCards(
     BuildContext context,
     DateTime now,
   ) {
-    final accents = <Color>[
-      _DashboardPalette.amber,
-      _DashboardPalette.accent,
-      _DashboardPalette.green,
-      _DashboardPalette.coral,
-      _DashboardPalette.cyan,
-      _DashboardPalette.purple,
-    ];
-
     return _classes.asMap().entries.map((entry) {
       final classBrief = entry.value;
       final classId = classBrief.id;
-      final reminders = _classReminders(classId);
-      final current = _classMatchingTimetable(classBrief, now, next: false);
-      final upcoming = _classMatchingTimetable(classBrief, now, next: true);
-      final accent = accents[entry.key % accents.length];
+      final health = _classHealthFor(classBrief, now);
+      final secondaryAction = _resolvedSecondaryAction(health);
 
-      String statusLabel;
-      String statusDetail;
-      IconData statusIcon;
-
-      if (current != null) {
-        statusLabel = 'Live now';
-        statusDetail = 'Ends ${_formatHourMinute(current.endAt)}';
-        statusIcon = Icons.wifi_tethering_rounded;
-      } else if (upcoming != null) {
-        statusLabel = 'Next on timetable';
-        statusDetail = _relativeTimetableTime(upcoming.startAt, now);
-        statusIcon = Icons.schedule_rounded;
-      } else if (reminders.isNotEmpty) {
-        statusLabel =
-            '${reminders.length} reminder${reminders.length == 1 ? '' : 's'}';
-        statusDetail = _headlineSafe(reminders.first.text, maxLength: 38);
-        statusIcon = Icons.flag_rounded;
-      } else if (classBrief.studentCount == 0) {
-        statusLabel = 'Roster needed';
-        statusDetail = 'No students imported yet';
-        statusIcon = Icons.group_add_rounded;
-      } else {
-        statusLabel = 'Ready for class';
-        statusDetail = 'Stable and ready for grading, seating, and attendance';
-        statusIcon = Icons.check_circle_rounded;
-      }
-
-      return _DashboardClassStatusData(
+      return DashboardClassStatusData(
         id: classId,
         title: classBrief.name,
         subtitle: classBrief.subtitle,
-        statusLabel: statusLabel,
-        statusDetail: statusDetail,
-        statusIcon: statusIcon,
-        accent: accent,
+        level: health.level,
+        levelLabel: health.levelLabel,
+        statusLabel: health.primaryReason,
+        statusDetail: health.secondaryDetail,
+        recommendedLabel: health.recommendedLabel,
+        recommendedDetail: health.recommendedDetail,
+        statusIcon: _healthStatusIcon(health),
+        accent: _DashboardPalette.accent,
         isSelected: classId == _selectedClassId,
         studentCount: classBrief.studentCount,
-        onTap: () {
-          setState(() => _selectedClassId = classId);
-          _refreshNames();
-        },
+        metrics: [
+          for (final metric in health.metrics)
+            DashboardClassMetricData(
+              icon: _healthMetricIcon(metric.label),
+              label: '${metric.label}: ${metric.value}',
+            ),
+        ],
+        onTap: () => _focusClass(classId),
         actions: [
-          _DashboardInlineActionData(
-            label: 'Gradebook',
-            icon: Icons.grading_outlined,
-            onTap: () => context.push('/class/$classId/gradebook'),
+          _dashboardActionForHealth(
+            context,
+            classBrief,
+            health.primaryAction,
           ),
-          _DashboardInlineActionData(
-            label: 'Seating',
-            icon: Icons.event_seat_outlined,
-            onTap: () => context.push('/class/$classId/seating'),
+          _dashboardActionForHealth(
+            context,
+            classBrief,
+            secondaryAction,
           ),
         ],
       );
     }).toList();
+  }
+
+  ClassHealthRecord _classHealthFor(
+    _ClassBrief classBrief,
+    DateTime now,
+  ) {
+    final staticSignals = _classHealthSignalsByClassId[classBrief.id] ??
+        ClassHealthStaticSignals.fallback(
+          classId: classBrief.id,
+          className: classBrief.name,
+          studentCount: classBrief.studentCount,
+          classUpdatedAt: classBrief.updatedAt ?? now,
+        );
+    final reminders = _classReminders(classBrief.id);
+    final current = _currentTimetableMomentForClass(classBrief, now);
+    final upcoming = _nextTimetableMomentForClass(classBrief, now);
+    return _classHealthService.build(
+      staticSignals: staticSignals,
+      runtimeSignals: ClassHealthRuntimeSignals(
+        now: now,
+        isFocused: classBrief.id == _selectedClassId,
+        hasSelectedTimetable: _selectedTimetableId != null,
+        hasTimetableContext: _classHasTimetableContext(classBrief),
+        isLiveNow: current != null,
+        currentClassEndsAt: current?.endAt,
+        nextClassStartsAt: upcoming?.startAt,
+        openReminderCount: reminders.length,
+        dueSoonReminderCount: _reminderCountWithin(reminders, now, days: 7),
+        overdueReminderCount: _overdueReminderCount(reminders, now),
+        nextReminderText: reminders.isEmpty ? null : reminders.first.text,
+        nextReminderAt: reminders.isEmpty ? null : reminders.first.timestamp,
+      ),
+    );
+  }
+
+  DashboardInlineActionData _dashboardActionForHealth(
+    BuildContext context,
+    _ClassBrief classBrief,
+    ClassHealthAction action,
+  ) {
+    return DashboardInlineActionData(
+      label: action.label,
+      icon: _healthActionIcon(action.type),
+      onTap: () {
+        _focusClass(classBrief.id);
+        switch (action.type) {
+          case ClassHealthActionType.openClassWorkspace:
+            context.push('/class/${classBrief.id}');
+            return;
+          case ClassHealthActionType.openClassesWorkspace:
+            context.go(AppRoutes.classes);
+            return;
+          case ClassHealthActionType.openGradebook:
+            context.push('/class/${classBrief.id}/gradebook');
+            return;
+          case ClassHealthActionType.openSeating:
+            context.push('/class/${classBrief.id}/seating');
+            return;
+          case ClassHealthActionType.openTimetable:
+            _openTimetableDialog();
+            return;
+          case ClassHealthActionType.reviewPlanning:
+            unawaited(_openPlanningSurface());
+            return;
+          case ClassHealthActionType.openExport:
+            context.push('/class/${classBrief.id}/export');
+            return;
+        }
+      },
+    );
+  }
+
+  ClassHealthAction _resolvedSecondaryAction(ClassHealthRecord health) {
+    if (health.secondaryAction.type != health.primaryAction.type ||
+        health.secondaryAction.label != health.primaryAction.label) {
+      return health.secondaryAction;
+    }
+
+    switch (health.primaryAction.type) {
+      case ClassHealthActionType.openClassWorkspace:
+        return const ClassHealthAction(
+          label: 'Open classes',
+          detail: 'Return to the classes workspace.',
+          type: ClassHealthActionType.openClassesWorkspace,
+        );
+      case ClassHealthActionType.openClassesWorkspace:
+        return const ClassHealthAction(
+          label: 'Open class',
+          detail: 'Jump into the full class workspace.',
+          type: ClassHealthActionType.openClassWorkspace,
+        );
+      case ClassHealthActionType.openGradebook:
+        return const ClassHealthAction(
+          label: 'Open class',
+          detail: 'Review students, notes, and setup around the gradebook.',
+          type: ClassHealthActionType.openClassWorkspace,
+        );
+      case ClassHealthActionType.openSeating:
+        return const ClassHealthAction(
+          label: 'Open class',
+          detail: 'Keep the wider class context visible while editing seats.',
+          type: ClassHealthActionType.openClassWorkspace,
+        );
+      case ClassHealthActionType.openTimetable:
+        return const ClassHealthAction(
+          label: 'Open class',
+          detail: 'Review setup while timetable context is still missing.',
+          type: ClassHealthActionType.openClassWorkspace,
+        );
+      case ClassHealthActionType.reviewPlanning:
+        return const ClassHealthAction(
+          label: 'Open class',
+          detail: 'Keep the class workspace close while planning follow-up.',
+          type: ClassHealthActionType.openClassWorkspace,
+        );
+      case ClassHealthActionType.openExport:
+        return const ClassHealthAction(
+          label: 'Open gradebook',
+          detail: 'Review grade items before the export pass.',
+          type: ClassHealthActionType.openGradebook,
+        );
+    }
+  }
+
+  void _focusClass(String classId) {
+    setState(() => _selectedClassId = classId);
+    _refreshNames();
+  }
+
+  Future<void> _openPlanningSurface() async {
+    if (MediaQuery.sizeOf(context).width <
+        TeacherDashboardShell._mobileBreakpoint) {
+      setState(() => _mobileDashboardIndex = 1);
+      await Future<void>.delayed(const Duration(milliseconds: 260));
+    }
+    if (!mounted) return;
+    await _scrollToSection(_planningSectionKey);
+  }
+
+  int _overdueReminderCount(List<_Reminder> reminders, DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    return reminders.where((reminder) {
+      final date = DateTime(
+        reminder.timestamp.year,
+        reminder.timestamp.month,
+        reminder.timestamp.day,
+      );
+      return date.isBefore(today);
+    }).length;
+  }
+
+  int _reminderCountWithin(
+    List<_Reminder> reminders,
+    DateTime now, {
+    required int days,
+  }) {
+    final today = DateTime(now.year, now.month, now.day);
+    final end = today.add(Duration(days: days));
+    return reminders.where((reminder) {
+      final date = DateTime(
+        reminder.timestamp.year,
+        reminder.timestamp.month,
+        reminder.timestamp.day,
+      );
+      return !date.isBefore(today) && !date.isAfter(end);
+    }).length;
+  }
+
+  bool _classHasTimetableContext(_ClassBrief classBrief) {
+    if (_selectedTimetableId == null) {
+      return false;
+    }
+    return _selectedTimetableClasses().any(
+      (slot) => _classMatchesTimetableLabel(classBrief, slot.title),
+    );
+  }
+
+  _TimetableSlotMoment? _currentTimetableMomentForClass(
+    _ClassBrief classBrief,
+    DateTime now,
+  ) {
+    for (final moment in _timetableMoments(now)) {
+      if (_classMatchesTimetableLabel(
+              classBrief, moment.timetableClass.title) &&
+          !now.isBefore(moment.startAt) &&
+          now.isBefore(moment.endAt)) {
+        return moment;
+      }
+    }
+    return null;
+  }
+
+  _TimetableSlotMoment? _nextTimetableMomentForClass(
+    _ClassBrief classBrief,
+    DateTime now,
+  ) {
+    for (final moment in _timetableMoments(now)) {
+      if (_classMatchesTimetableLabel(
+              classBrief, moment.timetableClass.title) &&
+          moment.startAt.isAfter(now)) {
+        return moment;
+      }
+    }
+    return null;
+  }
+
+  IconData _healthStatusIcon(ClassHealthRecord health) {
+    switch (health.primaryAction.type) {
+      case ClassHealthActionType.openClassesWorkspace:
+        return Icons.group_add_rounded;
+      case ClassHealthActionType.reviewPlanning:
+        return Icons.event_note_outlined;
+      case ClassHealthActionType.openSeating:
+        return Icons.event_seat_outlined;
+      case ClassHealthActionType.openTimetable:
+        return Icons.schedule_rounded;
+      case ClassHealthActionType.openGradebook:
+        return Icons.grading_outlined;
+      case ClassHealthActionType.openExport:
+        return Icons.ios_share_rounded;
+      case ClassHealthActionType.openClassWorkspace:
+        return health.level == ClassHealthLevel.ready
+            ? Icons.check_circle_rounded
+            : Icons.class_rounded;
+    }
+  }
+
+  IconData _healthActionIcon(ClassHealthActionType type) {
+    switch (type) {
+      case ClassHealthActionType.openClassWorkspace:
+        return Icons.open_in_new_rounded;
+      case ClassHealthActionType.openClassesWorkspace:
+        return Icons.upload_file_outlined;
+      case ClassHealthActionType.openGradebook:
+        return Icons.grading_outlined;
+      case ClassHealthActionType.openSeating:
+        return Icons.event_seat_outlined;
+      case ClassHealthActionType.openTimetable:
+        return Icons.schedule_rounded;
+      case ClassHealthActionType.reviewPlanning:
+        return Icons.event_note_outlined;
+      case ClassHealthActionType.openExport:
+        return Icons.ios_share_rounded;
+    }
+  }
+
+  IconData _healthMetricIcon(String label) {
+    switch (label) {
+      case 'Roster':
+        return Icons.people_alt_outlined;
+      case 'Timing':
+        return Icons.schedule_rounded;
+      case 'Follow-up':
+        return Icons.flag_outlined;
+      case 'Setup':
+        return Icons.event_seat_outlined;
+      case 'Gradebook':
+        return Icons.grading_outlined;
+      case 'Planning':
+        return Icons.event_note_outlined;
+      case 'Room':
+        return Icons.meeting_room_outlined;
+      default:
+        return Icons.info_outline_rounded;
+    }
   }
 
   List<_DashboardQuickActionData> _dashboardQuickActions(
@@ -689,22 +918,80 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     ];
   }
 
-  List<_DashboardLiveStoryData> _dashboardLiveStories(BuildContext context) {
-    final communication = _communicationWorkspaceSnapshot(DateTime.now());
-    return communication.deskCards.map((card) {
-      return _DashboardLiveStoryData(
-        label: card.overline,
-        title: card.title,
-        subtitle: card.description,
-        icon: _communicationKindIcon(card.kind),
-        accent: _communicationKindAccent(card.kind),
+  List<String> _dashboardLiveSignals(DateTime now) {
+    final weather = _weatherSnapshot;
+    final currentClass = _currentTimetableClass(now);
+    final nextClass = _nextTimetableClass(now);
+    final nextReminder = _nextOpenReminder();
+
+    return [
+      '${_weekdayLabel(now)} • ${_formatTime(now)}',
+      if (currentClass != null)
+        'Now • ${_headlineSafe(currentClass.timetableClass.title, maxLength: 28)}',
+      if (currentClass == null && nextClass != null)
+        'Next • ${_headlineSafe(nextClass.timetableClass.title, maxLength: 28)}',
+      if (weather != null)
+        '${weather.locationName} ${weather.temperatureC.round()}°',
+      if (weather == null && _weatherBusy) 'Weather syncing',
+      if (nextReminder != null) 'Calendar • ${_shortMonthDay(nextReminder.timestamp)}',
+      if (nextReminder == null) 'Calendar clear',
+    ];
+  }
+
+  List<_DashboardLiveStoryData> _dashboardLiveStories(
+    BuildContext context,
+    DateTime now,
+  ) {
+    final currentClass = _currentTimetableClass(now);
+    final nextClass = _nextTimetableClass(now);
+    final nextReminder = _nextOpenReminder();
+    final timeSubtitle = currentClass != null
+        ? 'Now teaching ${currentClass.timetableClass.title} until ${_formatHourMinute(currentClass.endAt)}.'
+        : nextClass != null
+            ? 'Next class ${_headlineSafe(nextClass.timetableClass.title, maxLength: 52)} ${_relativeTimetableTime(nextClass.startAt, now)}.'
+            : nextReminder != null
+                ? 'Next calendar item lands on ${_shortMonthDay(nextReminder.timestamp)}${_optionalTimeInline(nextReminder.timestamp)}.'
+                : 'No live class is active right now, so this rail keeps the day anchored while you work.';
+
+    return [
+      _DashboardLiveStoryData(
+        label: 'Time & Day',
+        title: '${_formatTime(now)} • ${_shortMonthDay(now)}',
+        subtitle: timeSubtitle,
+        icon: Icons.schedule_rounded,
+        accent: _DashboardPalette.accent,
         chips: [
-          ...card.chips.take(3),
-          if (card.unreadCount > 0) '${card.unreadCount} unread',
+          _formatDate(now),
+          if (_selectedTimetableId != null) 'Timetable ready',
+          if (_selectedTimetableId == null) 'Add timetable',
         ],
-        onTap: () => context.go(AppRoutes.communication),
-      );
-    }).toList();
+        onTap: () => _openDashboardSection(
+          DashboardWorkspaceSection.planning,
+          focusKey: _calendarSectionKey,
+        ),
+      ),
+      for (final slide in _dashboardStorySlides(context))
+        _DashboardLiveStoryData(
+          label: slide.overline,
+          title: slide.title,
+          subtitle: slide.description,
+          icon: slide.icon,
+          accent: _dashboardLiveStoryAccent(slide.visual),
+          chips: slide.chips.take(3).toList(),
+          onTap: slide.onTap,
+        ),
+    ];
+  }
+
+  Color _dashboardLiveStoryAccent(DashboardStoryVisual visual) {
+    switch (visual) {
+      case DashboardStoryVisual.spotlight:
+        return _DashboardPalette.accent;
+      case DashboardStoryVisual.campus:
+        return _DashboardPalette.cyan;
+      case DashboardStoryVisual.studio:
+        return _DashboardPalette.green;
+    }
   }
 
   List<_DashboardAnnouncementData> _dashboardAnnouncements(DateTime now) {
@@ -720,40 +1007,6 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
             : () => context.go(AppRoutes.communication),
       );
     }).toList();
-  }
-
-  IconData _communicationKindIcon(CommunicationChannelKind kind) {
-    switch (kind) {
-      case CommunicationChannelKind.adminAlerts:
-        return Icons.campaign_rounded;
-      case CommunicationChannelKind.staffRoom:
-        return Icons.groups_rounded;
-      case CommunicationChannelKind.department:
-        return Icons.forum_rounded;
-      case CommunicationChannelKind.gradeTeam:
-        return Icons.hub_rounded;
-      case CommunicationChannelKind.direct:
-        return Icons.chat_bubble_rounded;
-      case CommunicationChannelKind.sharedFiles:
-        return Icons.folder_shared_rounded;
-    }
-  }
-
-  Color _communicationKindAccent(CommunicationChannelKind kind) {
-    switch (kind) {
-      case CommunicationChannelKind.adminAlerts:
-        return _DashboardPalette.amber;
-      case CommunicationChannelKind.staffRoom:
-        return _DashboardPalette.accent;
-      case CommunicationChannelKind.department:
-        return _DashboardPalette.cyan;
-      case CommunicationChannelKind.gradeTeam:
-        return _DashboardPalette.purple;
-      case CommunicationChannelKind.direct:
-        return _DashboardPalette.green;
-      case CommunicationChannelKind.sharedFiles:
-        return _DashboardPalette.coral;
-    }
   }
 
   IconData _communicationAnnouncementIcon(
@@ -863,19 +1116,6 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
         .toList();
     items.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     return items;
-  }
-
-  _TimetableSlotMoment? _classMatchingTimetable(
-    _ClassBrief classBrief,
-    DateTime now, {
-    required bool next,
-  }) {
-    final target =
-        next ? _nextTimetableClass(now) : _currentTimetableClass(now);
-    if (target == null) return null;
-    return _classMatchesTimetableLabel(classBrief, target.timetableClass.title)
-        ? target
-        : null;
   }
 
   bool _classMatchesTimetableLabel(_ClassBrief classBrief, String title) {

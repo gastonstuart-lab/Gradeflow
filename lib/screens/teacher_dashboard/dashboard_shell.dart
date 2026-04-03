@@ -80,43 +80,63 @@ class _DashboardSummaryMetricData {
   });
 }
 
-class _DashboardInlineActionData {
+class DashboardInlineActionData {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
 
-  const _DashboardInlineActionData({
+  const DashboardInlineActionData({
     required this.label,
     required this.icon,
     required this.onTap,
   });
 }
 
-class _DashboardClassStatusData {
+class DashboardClassStatusData {
   final String id;
   final String title;
   final String subtitle;
+  final ClassHealthLevel level;
+  final String levelLabel;
   final String statusLabel;
   final String statusDetail;
+  final String recommendedLabel;
+  final String recommendedDetail;
   final IconData statusIcon;
   final Color accent;
   final bool isSelected;
   final int studentCount;
+  final List<DashboardClassMetricData> metrics;
   final VoidCallback onTap;
-  final List<_DashboardInlineActionData> actions;
+  final List<DashboardInlineActionData> actions;
 
-  const _DashboardClassStatusData({
+  const DashboardClassStatusData({
     required this.id,
     required this.title,
     required this.subtitle,
+    required this.level,
+    required this.levelLabel,
     required this.statusLabel,
     required this.statusDetail,
+    required this.recommendedLabel,
+    required this.recommendedDetail,
     required this.statusIcon,
     required this.accent,
     required this.isSelected,
     required this.studentCount,
+    required this.metrics,
     required this.onTap,
     required this.actions,
+  });
+}
+
+class DashboardClassMetricData {
+  final IconData icon;
+  final String label;
+
+  const DashboardClassMetricData({
+    required this.icon,
+    required this.label,
   });
 }
 
@@ -1086,7 +1106,7 @@ class _HeroSignalPill extends StatelessWidget {
 }
 
 class ClassStatusSection extends StatelessWidget {
-  final List<_DashboardClassStatusData> classes;
+  final List<DashboardClassStatusData> classes;
   final VoidCallback onOpenClasses;
   final bool compact;
 
@@ -1126,7 +1146,7 @@ class ClassStatusSection extends StatelessWidget {
               for (final classData in classes)
                 SizedBox(
                   width: cardWidth,
-                  child: _DashboardClassCard(data: classData),
+                  child: DashboardClassCard(data: classData),
                 ),
             ],
           );
@@ -1405,7 +1425,7 @@ class LivePanel extends StatelessWidget {
                             ),
                           ),
                           child: Text(
-                            '${channels.length} live lanes',
+                            '${channels.length} live signals',
                             style: Theme.of(context)
                                 .textTheme
                                 .labelMedium
@@ -1455,7 +1475,7 @@ class LivePanel extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                'Channel Activity',
+                'Live Brief',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.2,
@@ -1463,7 +1483,7 @@ class LivePanel extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Always-on staff signal for quick coordination, shared context, and upcoming decisions.',
+                'News, time, weather, and upcoming events stay visible here without crowding the main dashboard.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: _DashboardPalette.textSecondary,
                       height: 1.45,
@@ -1484,7 +1504,7 @@ class LivePanel extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'The most important notices stay compact and scannable instead of falling into a noisy feed.',
+                'Important notices stay compact and scannable instead of getting lost in a noisy feed.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: _DashboardPalette.textSecondary,
                       height: 1.45,
@@ -1853,20 +1873,23 @@ class _SummaryMetricTile extends StatelessWidget {
   }
 }
 
-class _DashboardClassCard extends StatelessWidget {
-  final _DashboardClassStatusData data;
+class DashboardClassCard extends StatelessWidget {
+  final DashboardClassStatusData data;
 
-  const _DashboardClassCard({required this.data});
+  const DashboardClassCard({
+    super.key,
+    required this.data,
+  });
 
   Color _statusAccent() {
-    final label = data.statusLabel.toLowerCase();
-    if (label.contains('live')) return _DashboardPalette.coral;
-    if (label.contains('next')) return _DashboardPalette.accent;
-    if (label.contains('roster') || label.contains('reminder')) {
-      return _DashboardPalette.amber;
+    switch (data.level) {
+      case ClassHealthLevel.ready:
+        return _DashboardPalette.green;
+      case ClassHealthLevel.attention:
+        return _DashboardPalette.amber;
+      case ClassHealthLevel.urgent:
+        return _DashboardPalette.coral;
     }
-    if (label.contains('ready')) return _DashboardPalette.green;
-    return data.accent;
   }
 
   @override
@@ -1874,7 +1897,7 @@ class _DashboardClassCard extends StatelessWidget {
     final statusAccent = _statusAccent();
     return DashboardPanelCard(
       onTap: data.onTap,
-      minHeight: 248,
+      minHeight: 302,
       radius: 26,
       padding: const EdgeInsets.all(18),
       gradientColors: [
@@ -1953,27 +1976,22 @@ class _DashboardClassCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (data.isSelected)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 5,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _ClassBadge(
+                        label: data.levelLabel,
+                        color: statusAccent,
                       ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(999),
-                        color: Colors.white.withValues(alpha: 0.08),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
+                      if (data.isSelected) ...[
+                        const SizedBox(height: 8),
+                        _ClassBadge(
+                          label: 'Focused',
+                          color: _DashboardPalette.accent,
                         ),
-                      ),
-                      child: Text(
-                        'Focused',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                    ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -2050,21 +2068,81 @@ class _DashboardClassCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: Colors.white.withValues(alpha: 0.035),
+                  border: Border.all(
+                    color: statusAccent.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: statusAccent.withValues(alpha: 0.14),
+                      ),
+                      child: Icon(
+                        Icons.arrow_outward_rounded,
+                        size: 18,
+                        color: statusAccent,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Next step',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
+                                  color: _DashboardPalette.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            data.recommendedLabel,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            data.recommendedDetail,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: _DashboardPalette.textSecondary,
+                                      height: 1.45,
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _ClassMetaChip(
-                    icon: Icons.people_alt_outlined,
-                    label:
-                        '${data.studentCount} student${data.studentCount == 1 ? '' : 's'}',
-                  ),
-                  _ClassMetaChip(
-                    icon: data.isSelected
-                        ? Icons.visibility_rounded
-                        : Icons.touch_app_rounded,
-                    label: data.isSelected ? 'Focus shortcuts' : 'Tap to focus',
-                  ),
+                  for (final metric in data.metrics)
+                    _ClassMetaChip(
+                      icon: metric.icon,
+                      label: metric.label,
+                    ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -2445,6 +2523,37 @@ class _DashboardAnnouncementTile extends StatelessWidget {
   }
 }
 
+class _ClassBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _ClassBadge({
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: color.withValues(alpha: 0.16),
+        border: Border.all(
+          color: color.withValues(alpha: 0.24),
+        ),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: _DashboardPalette.isLight ? color : Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+      ),
+    );
+  }
+}
+
 class _ClassMetaChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -2484,7 +2593,7 @@ class _ClassMetaChip extends StatelessWidget {
 }
 
 class _ClassActionButton extends StatelessWidget {
-  final _DashboardInlineActionData action;
+  final DashboardInlineActionData action;
   final Color accent;
   final bool primary;
 
@@ -2531,19 +2640,27 @@ class _ClassActionButton extends StatelessWidget {
                   : _DashboardPalette.border,
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(action.icon, size: 18, color: foreground),
-              const SizedBox(width: 8),
-              Text(
-                action.label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: foreground,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(action.icon, size: 18, color: foreground),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    action.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: foreground,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
