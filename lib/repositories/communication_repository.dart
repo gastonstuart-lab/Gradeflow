@@ -16,6 +16,23 @@ abstract class CommunicationRepository {
     required User user,
   });
 
+  Future<Map<String, DateTime>> loadReadMarkers({
+    required User user,
+  });
+
+  Future<void> markChannelRead({
+    required User user,
+    required String channelId,
+    required DateTime readAt,
+  });
+
+  Future<CommunicationChannelRecord> createChannel({
+    required User user,
+    required String name,
+    required String description,
+    required CommunicationChannelKind kind,
+  });
+
   Future<void> sendMessage({
     required User user,
     required CommunicationChannelRecord channel,
@@ -28,6 +45,22 @@ abstract class CommunicationRepository {
     required String text,
     required CommunicationAlertSeverity severity,
   });
+}
+
+String createCommunicationChannelId(
+  String name,
+  Iterable<String> existingIds,
+) {
+  final normalized = _slug(name);
+  final base = normalized.isEmpty ? 'staff-group' : normalized;
+  final existing = existingIds.toSet();
+  var candidate = base;
+  var suffix = 2;
+  while (existing.contains(candidate)) {
+    candidate = '$base-$suffix';
+    suffix += 1;
+  }
+  return candidate;
 }
 
 String communicationSchoolKeyForUser(User user) {

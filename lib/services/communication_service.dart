@@ -18,6 +18,8 @@ class CommunicationService extends ChangeNotifier {
   List<CommunicationChannelRecord> _channels = const [];
   String? _selectedChannelId;
   final Map<String, List<CommunicationMessage>> _messagesByChannel = {};
+  final Map<String, DateTime> _readMarkersByChannel = {};
+  final Map<String, int> _unreadCountsByChannel = {};
 
   bool get isLoading => _loading;
   bool get isSending => _sending;
@@ -39,6 +41,12 @@ class CommunicationService extends ChangeNotifier {
 
   List<CommunicationMessage> get adminAlertMessages =>
       _messagesByChannel['admin-alerts'] ?? const [];
+
+  int get totalUnreadCount =>
+      _unreadCountsByChannel.values.fold<int>(0, (sum, value) => sum + value);
+
+  int unreadCountForChannel(String channelId) =>
+      _unreadCountsByChannel[channelId] ?? 0;
 
   int get channelCount => _channels.length;
   int get totalMessageCount => _messagesByChannel.values
@@ -70,6 +78,8 @@ class CommunicationService extends ChangeNotifier {
       _channels = const [];
       _selectedChannelId = null;
       _messagesByChannel.clear();
+      _readMarkersByChannel.clear();
+      _unreadCountsByChannel.clear();
       _error = null;
       _loading = false;
       notifyListeners();
@@ -93,22 +103,23 @@ class CommunicationService extends ChangeNotifier {
     try {
       await repository.ensureDefaultChannels(user: user);
       final channels = await repository.loadChannels(user: user);
+      final readMarkers = await repository.loadReadMarkers(user: user);
       final selectedId = _resolveSelectedChannelId(channels);
       _channels = channels;
       _selectedChannelId = selectedId;
       _messagesByChannel.clear();
-      if (selectedId != null) {
-        _messagesByChannel[selectedId] = await repository.loadMessages(
+      _readMarkersByChannel
+        ..clear()
+        ..addAll(readMarkers);
+      for (final channel in channels) {
+        _messagesByChannel[channel.channelId] = await repository.loadMessages(
           user: user,
-          channelId: selectedId,
+          channelId: channel.channelId,
         );
       }
-      if (channels.any((channel) => channel.channelId == 'admin-alerts') &&
-          !_messagesByChannel.containsKey('admin-alerts')) {
-        _messagesByChannel['admin-alerts'] = await repository.loadMessages(
-          user: user,
-          channelId: 'admin-alerts',
-        );
+      _recomputeUnreadCounts();
+      if (selectedId != null) {
+        await _markChannelRead(selectedId, notify: false);
       }
     } catch (error) {
       _error = error.toString();
@@ -126,20 +137,61 @@ class CommunicationService extends ChangeNotifier {
     }
 
     _selectedChannelId = channelId;
-    notifyListeners();
-
-    if (_messagesByChannel.containsKey(channelId)) {
-      return;
-    }
-
     try {
-      _messagesByChannel[channelId] = await repository.loadMessages(
-        user: user,
-        channelId: channelId,
-      );
+      if (!_messagesByChannel.containsKey(channelId)) {
+        _messagesByChannel[channelId] = await repository.loadMessages(
+          user: user,
+          channelId: channelId,
+        );
+      }
+      await _markChannelRead(channelId, notify: false);
       notifyListeners();
     } catch (error) {
       _error = error.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<bool> createChannel({
+    required String name,
+    required String description,
+    required CommunicationChannelKind kind,
+  }) async {
+    final user = _user;
+    final repository = _repository;
+    final trimmedName = name.trim();
+    final trimmedDescription = description.trim();
+    if (user == null ||
+        repository == null ||
+        trimmedName.isEmpty ||
+        trimmedDescription.isEmpty) {
+      return false;
+    }
+
+    _sending = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final channel = await repository.createChannel(
+        user: user,
+        name: trimmedName,
+        description: trimmedDescription,
+        kind: kind,
+      );
+      _channels = await repository.loadChannels(user: user);
+      _messagesByChannel[channel.channelId] = await repository.loadMessages(
+        user: user,
+        channelId: channel.channelId,
+      );
+      _selectedChannelId = channel.channelId;
+      await _markChannelRead(channel.channelId, notify: false);
+      return true;
+    } catch (error) {
+      _error = error.toString();
+      return false;
+    } finally {
+      _sending = false;
       notifyListeners();
     }
   }
@@ -168,6 +220,7 @@ class CommunicationService extends ChangeNotifier {
         text: trimmed,
       );
       await _refreshChannel(channel.channelId);
+      await _markChannelRead(channel.channelId, notify: false);
     } catch (error) {
       _error = error.toString();
     } finally {
@@ -197,6 +250,9 @@ class CommunicationService extends ChangeNotifier {
         severity: severity,
       );
       await _refreshChannel('admin-alerts');
+      if (_selectedChannelId == 'admin-alerts') {
+        await _markChannelRead('admin-alerts', notify: false);
+      }
     } catch (error) {
       _error = error.toString();
     } finally {
@@ -243,6 +299,53 @@ class CommunicationService extends ChangeNotifier {
       user: user,
       channelId: channelId,
     );
+    _recomputeUnreadCounts();
     _selectedChannelId ??= _resolveSelectedChannelId(channels);
+  }
+
+  Future<void> _markChannelRead(
+    String channelId, {
+    bool notify = true,
+  }) async {
+    final user = _user;
+    final repository = _repository;
+    if (user == null || repository == null) {
+      return;
+    }
+
+    final messages = _messagesByChannel[channelId] ?? const [];
+    final latestMessage =
+        messages.isNotEmpty ? messages.last.createdAt : DateTime.now();
+    _readMarkersByChannel[channelId] = latestMessage;
+    await repository.markChannelRead(
+      user: user,
+      channelId: channelId,
+      readAt: latestMessage,
+    );
+    _recomputeUnreadCounts();
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  void _recomputeUnreadCounts() {
+    final userId = _user?.userId;
+    if (userId == null) {
+      _unreadCountsByChannel.clear();
+      return;
+    }
+
+    _unreadCountsByChannel
+      ..clear()
+      ..addEntries(
+        _messagesByChannel.entries.map((entry) {
+          final readAt = _readMarkersByChannel[entry.key];
+          final unreadCount = entry.value.where((message) {
+            final unseen = readAt == null || message.createdAt.isAfter(readAt);
+            return unseen && message.authorId != userId;
+          }).length;
+          return MapEntry(entry.key, unreadCount);
+        }),
+      );
   }
 }

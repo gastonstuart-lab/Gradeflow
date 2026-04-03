@@ -293,6 +293,8 @@ class CommunicationWorkspaceContext {
   final String? focusedClassName;
   final String? focusedDepartmentName;
   final List<CommunicationAlertSeed> schoolAlerts;
+  final List<CommunicationChannelPreview> liveChannels;
+  final int? liveTotalUnread;
 
   const CommunicationWorkspaceContext({
     required this.schoolName,
@@ -304,6 +306,8 @@ class CommunicationWorkspaceContext {
     required this.totalStudents,
     required this.pendingReminderCount,
     required this.schoolAlerts,
+    this.liveChannels = const [],
+    this.liveTotalUnread,
     this.focusedClassName,
     this.focusedDepartmentName,
   });

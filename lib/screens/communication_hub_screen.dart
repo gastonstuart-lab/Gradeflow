@@ -36,6 +36,13 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
   }
 
   Future<void> _load() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
     final auth = context.read<AuthService>();
     final user = auth.currentUser;
     if (user == null) {
@@ -71,6 +78,130 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
     await context.read<AuthService>().logout();
     if (!mounted) return;
     context.go(AppRoutes.home);
+  }
+
+  Future<void> _showCreateGroupDialog(BuildContext context) async {
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+    var kind = CommunicationChannelKind.department;
+    var submitting = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Create staff group'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Group name',
+                        hintText:
+                            'English team, Grade 8 support, Shared resources',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: descriptionController,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Purpose',
+                        hintText:
+                            'Explain what this group is for so teachers know when to use it.',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<CommunicationChannelKind>(
+                      initialValue: kind,
+                      decoration:
+                          const InputDecoration(labelText: 'Group type'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: CommunicationChannelKind.department,
+                          child: Text('Department space'),
+                        ),
+                        DropdownMenuItem(
+                          value: CommunicationChannelKind.gradeTeam,
+                          child: Text('Team group'),
+                        ),
+                        DropdownMenuItem(
+                          value: CommunicationChannelKind.sharedFiles,
+                          child: Text('Shared resources'),
+                        ),
+                      ],
+                      onChanged: submitting
+                          ? null
+                          : (value) {
+                              if (value == null) return;
+                              setDialogState(() {
+                                kind = value;
+                              });
+                            },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed:
+                      submitting ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: submitting
+                      ? null
+                      : () async {
+                          final service =
+                              this.context.read<CommunicationService>();
+                          setDialogState(() {
+                            submitting = true;
+                          });
+                          final created = await service.createChannel(
+                            name: nameController.text,
+                            description: descriptionController.text,
+                            kind: kind,
+                          );
+                          if (!mounted) return;
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                created
+                                    ? 'Staff group created'
+                                    : 'Could not create that group yet',
+                              ),
+                            ),
+                          );
+                        },
+                  icon: submitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_circle_outline_rounded),
+                  label: const Text('Create group'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+    descriptionController.dispose();
   }
 
   @override
@@ -120,9 +251,9 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
           ? const []
           : [
               WorkspaceMetricData(
-                label: 'Live activity',
-                value: communicationService.activityCount.toString(),
-                detail: 'Messages and alerts posted in the last 24 hours',
+                label: 'Unread',
+                value: communicationService.totalUnreadCount.toString(),
+                detail: 'Channels waiting for your attention right now',
                 icon: Icons.mark_chat_unread_outlined,
                 accent: Theme.of(context).colorScheme.primary,
               ),
@@ -149,12 +280,13 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
               ),
             ],
       headerActions: [
+        OutlinedButton.icon(
+          onPressed: () => _showCreateGroupDialog(context),
+          icon: const Icon(Icons.add_circle_outline_rounded),
+          label: const Text('New group'),
+        ),
         FilledButton.icon(
-          onPressed: () async {
-            await _load();
-            if (!mounted) return;
-            await context.read<CommunicationService>().load();
-          },
+          onPressed: _load,
           icon: const Icon(Icons.refresh_rounded),
           label: const Text('Refresh'),
         ),
@@ -185,11 +317,7 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
         subtitle: activeError,
         actions: [
           FilledButton.icon(
-            onPressed: () async {
-              await _load();
-              if (!mounted) return;
-              await context.read<CommunicationService>().load();
-            },
+            onPressed: _load,
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('Try again'),
           ),
@@ -243,7 +371,7 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
                             accent: _severityColor(context, alert.severity),
                             title: alert.text,
                             subtitle:
-                                '${alert.authorName} • ${_messageTimeLabel(alert.createdAt)}',
+                                '${alert.authorName} - ${_messageTimeLabel(alert.createdAt)}',
                           ),
                         ),
                     ],
@@ -259,7 +387,7 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
                 const WorkspaceSectionHeader(
                   title: 'Teacher Channels',
                   subtitle:
-                      'All-staff, teaching-team, and shared-resource lanes are now real destinations with messages behind them.',
+                      'All-staff, teaching-team, and custom staff groups now work as real destinations with messages behind them.',
                 ),
                 const SizedBox(height: 16),
                 Wrap(
@@ -272,6 +400,10 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
                         child: _CommunicationChannelCard(
                           channel: channel,
                           cloudReady: RepositoryFactory.isUsingFirestore,
+                          unreadCount:
+                              communicationService.unreadCountForChannel(
+                            channel.channelId,
+                          ),
                           selected:
                               communicationService.selectedChannel?.channelId ==
                                   channel.channelId,
@@ -387,12 +519,14 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
 class _CommunicationChannelCard extends StatelessWidget {
   final CommunicationChannelRecord channel;
   final bool cloudReady;
+  final int unreadCount;
   final bool selected;
   final VoidCallback onTap;
 
   const _CommunicationChannelCard({
     required this.channel,
     required this.cloudReady,
+    required this.unreadCount,
     required this.selected,
     required this.onTap,
   });
@@ -427,7 +561,23 @@ class _CommunicationChannelCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (selected)
+              if (unreadCount > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    color: accent.withValues(alpha: 0.18),
+                  ),
+                  child: Text(
+                    '$unreadCount new',
+                    style: context.textStyles.labelSmall?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                )
+              else if (selected)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -884,7 +1034,7 @@ class _CommunicationThreadPanelState extends State<_CommunicationThreadPanel> {
         : (createdAt.hour > 12 ? createdAt.hour - 12 : createdAt.hour);
     final minute = createdAt.minute.toString().padLeft(2, '0');
     final period = createdAt.hour >= 12 ? 'PM' : 'AM';
-    return '${createdAt.month}/${createdAt.day} • $hour:$minute $period';
+    return '${createdAt.month}/${createdAt.day} - $hour:$minute $period';
   }
 
   String _roleLabel(CommunicationRole role) {

@@ -403,6 +403,23 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
         pendingReminderCount: _pendingReminders().length,
         focusedClassName: _selectedClassBrief()?.name,
         focusedDepartmentName: _focusedDepartmentName(),
+        liveChannels: [
+          for (final channel in communicationService.channels)
+            CommunicationChannelPreview(
+              channelId: channel.channelId,
+              name: channel.name,
+              kind: channel.kind,
+              description: channel.description,
+              readOnly: channel.readOnly,
+              unreadCount:
+                  communicationService.unreadCountForChannel(channel.channelId),
+              memberCount: channel.memberCount,
+              lastMessagePreview: channel.lastMessagePreview,
+              lastSenderName: channel.lastSenderName,
+              lastMessageAt: channel.lastMessageAt,
+            ),
+        ],
+        liveTotalUnread: communicationService.totalUnreadCount,
         schoolAlerts: [
           for (final alert in liveAdminAlerts.take(3))
             CommunicationAlertSeed(

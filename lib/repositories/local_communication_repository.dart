@@ -12,6 +12,48 @@ class LocalCommunicationRepository implements CommunicationRepository {
   static const Uuid _uuid = Uuid();
 
   @override
+  Future<CommunicationChannelRecord> createChannel({
+    required User user,
+    required String name,
+    required String description,
+    required CommunicationChannelKind kind,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final schoolKey = communicationSchoolKeyForUser(user);
+    final channels = await loadChannels(user: user);
+    final now = DateTime.now();
+    final channel = CommunicationChannelRecord(
+      channelId: createCommunicationChannelId(
+        name,
+        channels.map((item) => item.channelId),
+      ),
+      schoolKey: schoolKey,
+      name: name.trim(),
+      description: description.trim(),
+      kind: kind,
+      readOnly: false,
+      memberCount: _defaultMemberCountForKind(kind),
+      sortOrder: channels.isEmpty
+          ? 0
+          : channels
+                  .map((item) => item.sortOrder)
+                  .reduce((a, b) => a > b ? a : b) +
+              1,
+      createdBy:
+          user.fullName.trim().isEmpty ? user.email : user.fullName.trim(),
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final updatedChannels = [...channels, channel];
+    await prefs.setString(
+      _channelsKey(schoolKey),
+      jsonEncode(updatedChannels.map((item) => item.toJson()).toList()),
+    );
+    return channel;
+  }
+
+  @override
   Future<void> ensureDefaultChannels({
     required User user,
   }) async {
@@ -60,6 +102,43 @@ class LocalCommunicationRepository implements CommunicationRepository {
         createdAt: message.createdAt,
       );
     }
+  }
+
+  @override
+  Future<Map<String, DateTime>> loadReadMarkers({
+    required User user,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(
+      _readMarkersKey(communicationSchoolKeyForUser(user), user.userId),
+    );
+    if (raw == null || raw.trim().isEmpty) {
+      return {};
+    }
+
+    final decoded = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    return decoded.map(
+      (key, value) => MapEntry(key, DateTime.parse(value as String)),
+    );
+  }
+
+  @override
+  Future<void> markChannelRead({
+    required User user,
+    required String channelId,
+    required DateTime readAt,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = await loadReadMarkers(user: user);
+    current[channelId] = readAt;
+    await prefs.setString(
+      _readMarkersKey(communicationSchoolKeyForUser(user), user.userId),
+      jsonEncode(
+        current.map(
+          (key, value) => MapEntry(key, value.toIso8601String()),
+        ),
+      ),
+    );
   }
 
   @override
@@ -223,4 +302,24 @@ class LocalCommunicationRepository implements CommunicationRepository {
 
   String _messagesKey(String schoolKey, String channelId) =>
       'communication_messages_v1:$schoolKey:$channelId';
+
+  String _readMarkersKey(String schoolKey, String userId) =>
+      'communication_reads_v1:$schoolKey:$userId';
+
+  int _defaultMemberCountForKind(CommunicationChannelKind kind) {
+    switch (kind) {
+      case CommunicationChannelKind.adminAlerts:
+        return 12;
+      case CommunicationChannelKind.staffRoom:
+        return 18;
+      case CommunicationChannelKind.department:
+        return 8;
+      case CommunicationChannelKind.gradeTeam:
+        return 6;
+      case CommunicationChannelKind.direct:
+        return 2;
+      case CommunicationChannelKind.sharedFiles:
+        return 5;
+    }
+  }
 }

@@ -11,6 +11,44 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
+  Future<CommunicationChannelRecord> createChannel({
+    required User user,
+    required String name,
+    required String description,
+    required CommunicationChannelKind kind,
+  }) async {
+    final schoolKey = communicationSchoolKeyForUser(user);
+    final channels = await loadChannels(user: user);
+    final now = DateTime.now();
+    final channel = CommunicationChannelRecord(
+      channelId: createCommunicationChannelId(
+        name,
+        channels.map((item) => item.channelId),
+      ),
+      schoolKey: schoolKey,
+      name: name.trim(),
+      description: description.trim(),
+      kind: kind,
+      readOnly: false,
+      memberCount: _defaultMemberCountForKind(kind),
+      sortOrder: channels.isEmpty
+          ? 0
+          : channels
+                  .map((item) => item.sortOrder)
+                  .reduce((a, b) => a > b ? a : b) +
+              1,
+      createdBy:
+          user.fullName.trim().isEmpty ? user.email : user.fullName.trim(),
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await _channelDoc(schoolKey, channel.channelId)
+        .set(_channelToFirestore(channel));
+    return channel;
+  }
+
+  @override
   Future<void> ensureDefaultChannels({
     required User user,
   }) async {
@@ -44,6 +82,38 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
         SetOptions(merge: true),
       );
     }
+  }
+
+  @override
+  Future<Map<String, DateTime>> loadReadMarkers({
+    required User user,
+  }) async {
+    final schoolKey = communicationSchoolKeyForUser(user);
+    final snapshot = await _readMarkersCollection(user.userId)
+        .where('schoolKey', isEqualTo: schoolKey)
+        .get();
+    return {
+      for (final doc in snapshot.docs)
+        (doc.data()['channelId'] as String? ?? doc.id):
+            (doc.data()['readAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    };
+  }
+
+  @override
+  Future<void> markChannelRead({
+    required User user,
+    required String channelId,
+    required DateTime readAt,
+  }) async {
+    final schoolKey = communicationSchoolKeyForUser(user);
+    await _readMarkersCollection(user.userId)
+        .doc(_readMarkerDocId(schoolKey, channelId))
+        .set({
+      'channelId': channelId,
+      'schoolKey': schoolKey,
+      'readAt': Timestamp.fromDate(readAt),
+      'updatedBy': user.userId,
+    }, SetOptions(merge: true));
   }
 
   @override
@@ -173,6 +243,15 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
     return _channelDoc(schoolKey, channelId).collection('messages');
   }
 
+  CollectionReference<Map<String, dynamic>> _readMarkersCollection(
+    String userId,
+  ) {
+    return _firestore.collection('users/$userId/communicationReads');
+  }
+
+  String _readMarkerDocId(String schoolKey, String channelId) =>
+      '${schoolKey}__$channelId';
+
   Map<String, dynamic> _channelToFirestore(CommunicationChannelRecord channel) {
     return {
       'channelId': channel.channelId,
@@ -241,5 +320,22 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
       isAlert: data['isAlert'] as bool? ?? false,
       severity: communicationAlertSeverityFromKey(data['severity'] as String?),
     );
+  }
+
+  int _defaultMemberCountForKind(CommunicationChannelKind kind) {
+    switch (kind) {
+      case CommunicationChannelKind.adminAlerts:
+        return 12;
+      case CommunicationChannelKind.staffRoom:
+        return 18;
+      case CommunicationChannelKind.department:
+        return 8;
+      case CommunicationChannelKind.gradeTeam:
+        return 6;
+      case CommunicationChannelKind.direct:
+        return 2;
+      case CommunicationChannelKind.sharedFiles:
+        return 5;
+    }
   }
 }

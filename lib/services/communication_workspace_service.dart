@@ -9,53 +9,76 @@ class CommunicationWorkspaceService {
     CommunicationWorkspaceContext context,
   ) {
     final departmentName = _departmentName(context);
-    final adminAlertCount = context.schoolAlerts.length;
-    final teamUnread = context.cloudSyncEnabled
+    final fallbackAdminAlertCount = context.schoolAlerts.length;
+    final fallbackTeamUnread = context.cloudSyncEnabled
         ? math.min(math.max(context.activeClassCount - 1, 1), 4)
         : 0;
-    final directUnread =
+    final fallbackDirectUnread =
         context.cloudSyncEnabled && context.pendingReminderCount > 0 ? 1 : 0;
-    final totalUnread = adminAlertCount + teamUnread + directUnread;
-
-    final channels = <CommunicationChannelPreview>[
-      CommunicationChannelPreview(
-        channelId: 'admin-alerts',
-        name: 'Admin alerts',
-        kind: CommunicationChannelKind.adminAlerts,
-        description:
-            'School-wide announcements and urgent operational notices.',
-        readOnly: true,
-        unreadCount: adminAlertCount,
-        memberCount: 6,
-      ),
-      CommunicationChannelPreview(
-        channelId: 'all-staff',
-        name: 'All staff',
-        kind: CommunicationChannelKind.staffRoom,
-        description: 'Daily coordination for staff, cover, and quick updates.',
-        unreadCount: teamUnread,
-        memberCount: math.max(context.activeClassCount * 3, 12),
-      ),
-      CommunicationChannelPreview(
-        channelId: 'teaching-team',
-        name: '$departmentName team',
-        kind: CommunicationChannelKind.department,
-        description:
-            'Department planning, interventions, and shared teaching notes.',
-        unreadCount: context.cloudSyncEnabled
-            ? math.min(context.activeClassCount, 3)
-            : 0,
-        memberCount: math.max(context.activeClassCount + 4, 8),
-      ),
-      CommunicationChannelPreview(
-        channelId: 'shared-files',
-        name: 'Shared files',
-        kind: CommunicationChannelKind.sharedFiles,
-        description: 'Pinned resources, follow-ups, and department documents.',
-        unreadCount: context.cloudSyncEnabled ? directUnread : 0,
-        memberCount: math.max(context.totalStudents > 0 ? 3 : 2, 2),
-      ),
-    ];
+    final channels = context.liveChannels.isNotEmpty
+        ? context.liveChannels
+        : <CommunicationChannelPreview>[
+            CommunicationChannelPreview(
+              channelId: 'admin-alerts',
+              name: 'Admin alerts',
+              kind: CommunicationChannelKind.adminAlerts,
+              description:
+                  'School-wide announcements and urgent operational notices.',
+              readOnly: true,
+              unreadCount: fallbackAdminAlertCount,
+              memberCount: 6,
+            ),
+            CommunicationChannelPreview(
+              channelId: 'all-staff',
+              name: 'All staff',
+              kind: CommunicationChannelKind.staffRoom,
+              description:
+                  'Daily coordination for staff, cover, and quick updates.',
+              unreadCount: fallbackTeamUnread,
+              memberCount: math.max(context.activeClassCount * 3, 12),
+            ),
+            CommunicationChannelPreview(
+              channelId: 'teaching-team',
+              name: '$departmentName team',
+              kind: CommunicationChannelKind.department,
+              description:
+                  'Department planning, interventions, and shared teaching notes.',
+              unreadCount: context.cloudSyncEnabled
+                  ? math.min(context.activeClassCount, 3)
+                  : 0,
+              memberCount: math.max(context.activeClassCount + 4, 8),
+            ),
+            CommunicationChannelPreview(
+              channelId: 'shared-files',
+              name: 'Shared files',
+              kind: CommunicationChannelKind.sharedFiles,
+              description:
+                  'Pinned resources, follow-ups, and department documents.',
+              unreadCount: context.cloudSyncEnabled ? fallbackDirectUnread : 0,
+              memberCount: math.max(context.totalStudents > 0 ? 3 : 2, 2),
+            ),
+          ];
+    final adminAlertCount = _totalUnreadForKinds(
+      channels,
+      const [CommunicationChannelKind.adminAlerts],
+      fallbackAdminAlertCount,
+    );
+    final teamUnread = _totalUnreadForKinds(
+      channels,
+      const [
+        CommunicationChannelKind.staffRoom,
+        CommunicationChannelKind.department,
+        CommunicationChannelKind.gradeTeam,
+      ],
+      fallbackTeamUnread,
+    );
+    final directUnread = _totalUnreadForKinds(
+      channels,
+      const [CommunicationChannelKind.sharedFiles],
+      fallbackDirectUnread,
+    );
+    final totalUnread = context.liveTotalUnread ??
+        channels.fold<int>(0, (sum, channel) => sum + channel.unreadCount);
 
     final deskCards = <CommunicationDeskCard>[
       CommunicationDeskCard(
@@ -169,6 +192,23 @@ class CommunicationWorkspaceService {
       return candidate;
     }
     return 'Teaching';
+  }
+
+  int _totalUnreadForKinds(
+    List<CommunicationChannelPreview> channels,
+    List<CommunicationChannelKind> kinds,
+    int fallback,
+  ) {
+    var total = 0;
+    for (final channel in channels) {
+      if (kinds.contains(channel.kind)) {
+        total += channel.unreadCount;
+      }
+    }
+    if (total > 0) {
+      return total;
+    }
+    return fallback;
   }
 
   String _timeLabel(DateTime timestamp) {

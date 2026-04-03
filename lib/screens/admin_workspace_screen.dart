@@ -424,7 +424,7 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
                     _AdminCapabilityCard(
                       title: 'Communication foundation',
                       subtitle:
-                          'Admin notices, staff communication, and school-wide workflows now have a clear home to grow from.',
+                          'Admin notices, shared staff channels, and custom school groups now have a real home to grow from.',
                       icon: Icons.forum_outlined,
                     ),
                   ],
@@ -445,9 +445,9 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
                 SizedBox(height: 16),
                 _AdminStatusRow(
                   icon: Icons.hub_outlined,
-                  title: 'Build the shared communication repository',
+                  title: 'Finish the shared communication layer',
                   subtitle:
-                      'Next milestone: shared memberships, channels, admin alerts, unread counts, and attachments.',
+                      'Next milestone: shared memberships, attachments, and stronger group controls on top of the live channel system.',
                 ),
                 SizedBox(height: 12),
                 _AdminStatusRow(
