@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/models/pilot_feedback_entry.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -91,7 +92,7 @@ class PilotFeedbackService extends ChangeNotifier {
     String? teacherName,
   }) {
     final buffer = StringBuffer()
-      ..writeln('GradeFlow Pilot Feedback')
+      ..writeln('${GradeFlowProductConfig.appName} Pilot Feedback')
       ..writeln(
           'Teacher: ${teacherName?.trim().isNotEmpty == true ? teacherName!.trim() : 'Unknown'}')
       ..writeln('Submitted: ${entry.createdAt.toIso8601String()}')

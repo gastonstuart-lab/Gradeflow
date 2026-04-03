@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:gradeflow/config/gradeflow_product_config.dart';
 
 class DashboardForecastDay {
   final DateTime date;
@@ -39,19 +40,20 @@ class DashboardWeatherSnapshot {
 }
 
 class DashboardWeatherService {
-  static const String _locationName = 'Taichung City';
+  static const String _locationName =
+      GradeFlowProductConfig.dashboardWeatherLocationName;
   static final Uri _forecastUri = Uri.https(
     'api.open-meteo.com',
     '/v1/forecast',
     {
-      'latitude': '24.1469',
-      'longitude': '120.6839',
+      'latitude': '${GradeFlowProductConfig.dashboardWeatherLatitude}',
+      'longitude': '${GradeFlowProductConfig.dashboardWeatherLongitude}',
       'current':
           'temperature_2m,apparent_temperature,weather_code,wind_speed_10m',
       'daily':
           'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max',
       'forecast_days': '4',
-      'timezone': 'Asia/Taipei',
+      'timezone': GradeFlowProductConfig.dashboardWeatherTimeZone,
     },
   );
 

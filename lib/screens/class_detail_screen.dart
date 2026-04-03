@@ -15,9 +15,9 @@ import 'package:gradeflow/models/class_schedule_item.dart';
 import 'package:gradeflow/models/class_note_item.dart';
 import 'package:gradeflow/services/class_note_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
-import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
-import 'package:gradeflow/components/animated_page_background.dart';
+import 'package:gradeflow/theme.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -373,27 +373,86 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     final classItem = classService.getClassById(widget.classId);
 
     if (classItem == null) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: Text('Class not found')),
+      return const Scaffold(
+        body: Center(child: Text('Class not found')),
       );
     }
 
     final studentCount = studentService.students.length;
     final categoryCount = categoryService.categories.length;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(classItem.className),
-      ),
-      body: AnimatedPageBackground(
-        child: studentService.isLoading || categoryService.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: AppSpacing.paddingLg,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+    return WorkspaceScaffold(
+      eyebrow: 'Class Workspace',
+      title: classItem.className,
+      subtitle:
+          '${classItem.subject} • ${classItem.schoolYear} • ${classItem.term}',
+      leadingActions: [
+        WorkspaceNavButton(
+          icon: Icons.dashboard_outlined,
+          label: 'Dashboard',
+          onPressed: () => context.go('/dashboard'),
+        ),
+        WorkspaceNavButton(
+          icon: Icons.class_rounded,
+          label: 'Classes',
+          onPressed: () => context.go('/classes'),
+        ),
+        WorkspaceNavButton(
+          icon: Icons.auto_stories_outlined,
+          label: 'Class Home',
+          selected: true,
+          onPressed: () {},
+        ),
+      ],
+      trailingActions: [
+        OutlinedButton.icon(
+          onPressed: () => _showScheduleDialog(context),
+          icon: const Icon(Icons.calendar_month_outlined),
+          label: const Text('Schedule'),
+        ),
+      ],
+      headerActions: [
+        FilledButton.icon(
+          onPressed: () => context.push('/class/${widget.classId}/gradebook'),
+          icon: const Icon(Icons.edit_note),
+          label: const Text('Open Gradebook'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => context.push('/class/${widget.classId}/students'),
+          icon: const Icon(Icons.people_alt_outlined),
+          label: const Text('Roster'),
+        ),
+      ],
+      metrics: [
+        WorkspaceMetricData(
+          label: 'Students',
+          value: '$studentCount',
+          detail: 'Roster currently loaded for this class',
+          icon: Icons.people_alt_outlined,
+        ),
+        WorkspaceMetricData(
+          label: 'Categories',
+          value: '$categoryCount',
+          detail: 'Assessment categories currently configured',
+          icon: Icons.category_outlined,
+        ),
+        WorkspaceMetricData(
+          label: 'Schedule',
+          value: _scheduleItems.isEmpty ? 'None' : '${_scheduleItems.length}',
+          detail: _scheduleItems.isEmpty
+              ? 'No class schedule imported yet'
+              : 'Imported sessions and planning points are available',
+          icon: Icons.calendar_month_outlined,
+          accent: Theme.of(context).colorScheme.tertiary,
+        ),
+      ],
+      child: studentService.isLoading || categoryService.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                     AnimatedGlowBorder(
                       child: Card(
                         child: Padding(
@@ -525,7 +584,6 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                   ],
                 ),
               ),
-      ),
     );
   }
 
@@ -1236,22 +1294,16 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedGlowBorder(
-      radius: AppRadius.md,
-      child: Container(
-        padding: AppSpacing.paddingMd,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: AppSpacing.xs),
-            Text(value, style: context.textStyles.headlineMedium?.bold),
-            Text(label, style: context.textStyles.bodySmall),
-          ],
-        ),
+    return WorkspaceSurfaceCard(
+      radius: AppRadius.lg,
+      padding: AppSpacing.paddingMd,
+      child: Column(
+        children: [
+          Icon(icon, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(height: AppSpacing.xs),
+          Text(value, style: context.textStyles.headlineMedium?.bold),
+          Text(label, style: context.textStyles.bodySmall),
+        ],
       ),
     );
   }
@@ -1272,46 +1324,43 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedGlowBorder(
-      child: Card(
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Padding(
-            padding: AppSpacing.paddingMd,
-            child: Row(
+    return WorkspaceSurfaceCard(
+      onTap: onTap,
+      radius: 20,
+      padding: AppSpacing.paddingMd,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(
+              icon,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Icon(icon,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title,
-                          style: context.textStyles.titleMedium?.semiBold),
-                      Text(
-                        subtitle,
-                        style: context.textStyles.bodySmall?.withColor(
-                          Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                Text(title, style: context.textStyles.titleMedium?.semiBold),
+                Text(
+                  subtitle,
+                  style: context.textStyles.bodySmall?.withColor(
+                    Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-                Icon(Icons.chevron_right,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
               ],
             ),
           ),
-        ),
+          Icon(
+            Icons.chevron_right,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ],
       ),
     );
   }

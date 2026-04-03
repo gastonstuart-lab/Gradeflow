@@ -14,6 +14,8 @@ import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/services/pilot_feedback_service.dart';
 import 'package:gradeflow/services/seating_service.dart';
+import 'package:gradeflow/services/communication_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppProviders extends StatelessWidget {
   final Widget child;
@@ -31,6 +33,14 @@ class AppProviders extends StatelessWidget {
             auth ??= AuthService();
             auth.setGoogleAuthService(googleAuth);
             return auth;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthService, CommunicationService>(
+          create: (_) => CommunicationService(),
+          update: (_, auth, service) {
+            service ??= CommunicationService();
+            service.syncAuth(auth);
+            return service;
           },
         ),
         ProxyProvider<GoogleAuthService, GoogleDriveService>(
@@ -55,18 +65,55 @@ class AppProviders extends StatelessWidget {
 }
 
 class ThemeModeNotifier extends ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.light;
+  static const String _prefsKey = 'theme_mode_v1';
+
+  ThemeMode _themeMode = ThemeMode.dark;
 
   ThemeMode get themeMode => _themeMode;
+
+  ThemeModeNotifier() {
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_prefsKey);
+      if (saved == 'light') {
+        _themeMode = ThemeMode.light;
+      } else if (saved == 'dark') {
+        _themeMode = ThemeMode.dark;
+      } else {
+        _themeMode = ThemeMode.dark;
+      }
+      notifyListeners();
+    } catch (_) {
+      // Fall back to dark mode if preferences are unavailable.
+    }
+  }
+
+  Future<void> _persist() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _prefsKey,
+        _themeMode == ThemeMode.light ? 'light' : 'dark',
+      );
+    } catch (_) {
+      // Ignore persistence failures and keep the in-memory selection.
+    }
+  }
 
   void toggleTheme() {
     _themeMode =
         _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
+    _persist();
   }
 
   void setThemeMode(ThemeMode mode) {
     _themeMode = mode;
     notifyListeners();
+    _persist();
   }
 }

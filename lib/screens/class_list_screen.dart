@@ -14,9 +14,9 @@ import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/services/student_score_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:gradeflow/theme.dart';
-import 'package:gradeflow/components/school_banner.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/components/class_card.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:uuid/uuid.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gradeflow/services/file_import_service.dart';
@@ -32,7 +32,6 @@ import 'package:gradeflow/services/class_trash_service.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
-import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum _ImportSource { local, driveLink, driveBrowse }
@@ -2089,234 +2088,331 @@ class _ClassListScreenState extends State<ClassListScreen> {
     );
   }
 
+  List<WorkspaceMetricData> _workspaceMetrics(ClassService classService) {
+    return [
+      WorkspaceMetricData(
+        label: 'Active classes',
+        value: classService.activeClasses.length.toString(),
+        detail: 'Daily teaching spaces ready for roster, grading, and seating',
+        icon: Icons.class_rounded,
+      ),
+      WorkspaceMetricData(
+        label: 'Archived',
+        value: classService.archivedClasses.length.toString(),
+        detail: 'Past classes kept accessible for rollover and reporting',
+        icon: Icons.inventory_2_outlined,
+        accent: Theme.of(context).colorScheme.secondary,
+      ),
+      WorkspaceMetricData(
+        label: 'Import channel',
+        value: _driveAccessToken == null ? 'Local-first' : 'Drive connected',
+        detail: _driveAccessToken == null
+            ? 'CSV, Excel, and Drive links can still be imported manually'
+            : 'Google Drive browsing is available for roster and class imports',
+        icon: _driveAccessToken == null ? Icons.file_upload_outlined : Icons.cloud_done_outlined,
+        accent: _driveAccessToken == null
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.tertiary,
+      ),
+    ];
+  }
+
+  Widget _buildCollectionToolbar(ClassService classService) {
+    final theme = Theme.of(context);
+    final title = _showArchived ? 'Archived classes' : 'Active classes';
+    final count = _showArchived
+        ? classService.archivedClasses.length
+        : classService.activeClasses.length;
+    final subtitle = _showArchived
+        ? '$count archived teaching spaces kept ready for rollover, restore, and reporting.'
+        : '$count daily classes ready to open, act on, and reorder around your teaching day.';
+    final canReorder = !_showArchived && classService.activeClasses.length > 1;
+
+    return WorkspaceSurfaceCard(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      radius: 20,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 1040;
+          final controls = Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ChoiceChip(
+                label: const Text('Active'),
+                selected: !_showArchived,
+                onSelected: (_) => setState(() => _showArchived = false),
+              ),
+              ChoiceChip(
+                label: const Text('Archived'),
+                selected: _showArchived,
+                onSelected: (_) => setState(() => _showArchived = true),
+              ),
+              if (canReorder)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    color: theme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.42),
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.36),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.drag_indicator_rounded,
+                        size: 18,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Drag to reorder',
+                        style: context.textStyles.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+
+          final copy = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: context.textStyles.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: context.textStyles.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                copy,
+                const SizedBox(height: 14),
+                controls,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: copy),
+              const SizedBox(width: 18),
+              controls,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCollectionShell(ClassService classService) {
+    final showing = _showArchived
+        ? classService.archivedClasses
+        : classService.activeClasses;
+
+    Widget content;
+    if (classService.isLoading) {
+      content = const Center(child: CircularProgressIndicator());
+    } else if (showing.isEmpty) {
+      content = WorkspaceEmptyState(
+        icon: _showArchived ? Icons.inventory_2_outlined : Icons.school_outlined,
+        title: _showArchived ? 'No archived classes yet' : 'No classes yet',
+        subtitle: _showArchived
+            ? 'Archived classes and semester rollovers will appear here when you need them.'
+            : 'Create your first class or import rosters from Excel, CSV, or Drive to start building your workspace.',
+        actions: _showArchived
+            ? [
+                OutlinedButton.icon(
+                  onPressed: () => setState(() => _showArchived = false),
+                  icon: const Icon(Icons.class_rounded),
+                  label: const Text('View active classes'),
+                ),
+              ]
+            : [
+                FilledButton.icon(
+                  onPressed: _showCreateClassDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create Class'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _showImportClassesDialog,
+                  icon: const Icon(Icons.upload_file),
+                  label: const Text('Import'),
+                ),
+              ],
+      );
+    } else if (_showArchived) {
+      content = GridView.builder(
+        padding: EdgeInsets.zero,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 380,
+          childAspectRatio: 1.22,
+          crossAxisSpacing: AppSpacing.md,
+          mainAxisSpacing: AppSpacing.md,
+        ),
+        itemCount: classService.archivedClasses.length,
+        itemBuilder: (context, index) {
+          final classItem = classService.archivedClasses[index];
+          return _buildClassTile(
+            classItem: classItem,
+            archived: true,
+          );
+        },
+      );
+    } else {
+      content = Builder(
+        builder: (context) {
+          final orderedActive = _orderedActiveClasses(classService.activeClasses);
+          return ReorderableListView.builder(
+            padding: EdgeInsets.zero,
+            itemCount: orderedActive.length,
+            onReorder: (oldIndex, newIndex) =>
+                _reorderActiveClasses(oldIndex, newIndex, orderedActive),
+            proxyDecorator: (child, index, animation) => Material(
+              elevation: 6,
+              color: Colors.transparent,
+              child: child,
+            ),
+            buildDefaultDragHandles: false,
+            itemBuilder: (context, index) {
+              final classItem = orderedActive[index];
+              return Padding(
+                key: ValueKey(classItem.classId),
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: SizedBox(
+                  height: 228,
+                  child: _buildClassTile(
+                    classItem: classItem,
+                    archived: false,
+                    dragHandle: ReorderableDragStartListener(
+                      index: index,
+                      child: Icon(
+                        Icons.drag_indicator_rounded,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildCollectionToolbar(classService),
+        const SizedBox(height: 14),
+        Expanded(child: content),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
     final classService = context.watch<ClassService>();
     final themeModeNotifier = context.watch<ThemeModeNotifier>();
-    final colors = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      backgroundColor: colors.surface,
-      appBar: AppBar(
-        title: const Text('My Classes'),
-        leading: IconButton(
-          icon: const Icon(Icons.dashboard_outlined),
-          tooltip: 'Dashboard',
+    return WorkspaceScaffold(
+      eyebrow: 'Teacher Workspace',
+      title: 'Classes workspace',
+      subtitle:
+          'Manage rosters, imports, class lifecycle, and semester rollover from one place that feels ready for daily use.',
+      leadingActions: [
+        WorkspaceNavButton(
+          icon: Icons.dashboard_outlined,
+          label: 'Dashboard',
           onPressed: () => context.go(AppRoutes.dashboard),
         ),
-        actions: [
-          const PilotFeedbackIconButton(
-            initialArea: 'Classes',
-            initialRoute: '/classes',
-          ),
-          IconButton(
-            icon: _driveSigningIn
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  )
-                : const Icon(Icons.login),
-            tooltip: _driveAccessToken == null
-                ? 'Drive uses your Google login (auto-connect)'
-                : 'Google Drive connected',
-            onPressed: _driveSigningIn ? null : _ensureDriveAccessToken,
-          ),
-          IconButton(
-            icon: const Icon(Icons.upload_file),
-            onPressed: _showImportClassesDialog,
-            tooltip: 'Import (Classes + Students)',
-          ),
-          IconButton(
-            icon: const Icon(Icons.restore_from_trash_outlined),
-            onPressed: () => context.push(AppRoutes.classTrash),
-            tooltip: 'Class Recycle Bin',
-          ),
-          IconButton(
-            icon: Icon(themeModeNotifier.themeMode == ThemeMode.light
-                ? Icons.dark_mode
-                : Icons.light_mode),
-            onPressed: () => themeModeNotifier.toggleTheme(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await context.read<GoogleAuthService>().signOut();
-              await authService.logout();
-              if (context.mounted) context.go('/');
-            },
-          ),
-        ],
-        bottom: const SchoolBannerBar(height: 56),
-      ),
-      body: AnimatedPageBackground(
-        child: classService.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : (!_showArchived
-                        ? classService.activeClasses
-                        : classService.archivedClasses)
-                    .isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.school_outlined,
-                            size: 64,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                            _showArchived
-                                ? 'No archived classes'
-                                : 'No classes yet',
-                            style: context.textStyles.titleLarge),
-                        const SizedBox(height: AppSpacing.sm),
-                        if (!_showArchived)
-                          Text(
-                              'Create your first class or import from Excel/CSV',
-                              style: context.textStyles.bodyMedium),
-                        const SizedBox(height: AppSpacing.lg),
-                        if (!_showArchived)
-                          Wrap(
-                            spacing: AppSpacing.sm,
-                            runSpacing: AppSpacing.sm,
-                            alignment: WrapAlignment.center,
-                            children: [
-                              FilledButton.icon(
-                                onPressed: _showCreateClassDialog,
-                                icon: const Icon(Icons.add),
-                                label: const Text('Create Class'),
-                              ),
-                              TextButton.icon(
-                                onPressed: _showImportClassesDialog,
-                                icon: const Icon(Icons.upload_file),
-                                label: const Text('Import'),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  )
-                : Padding(
-                    padding: AppSpacing.paddingMd,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            ChoiceChip(
-                              label: const Text('Active'),
-                              selected: !_showArchived,
-                              onSelected: (v) =>
-                                  setState(() => _showArchived = false),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            ChoiceChip(
-                              label: const Text('Archived'),
-                              selected: _showArchived,
-                              onSelected: (v) =>
-                                  setState(() => _showArchived = true),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.sm,
-                          children: [
-                            TextButton.icon(
-                              onPressed: _showImportClassesDialog,
-                              icon: Icon(Icons.upload_file,
-                                  color: Theme.of(context).colorScheme.primary),
-                              label: const Text('Import'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Expanded(
-                          child: !_showArchived
-                              ? Builder(builder: (context) {
-                                  final orderedActive = _orderedActiveClasses(
-                                      classService.activeClasses);
-                                  return ReorderableListView.builder(
-                                    itemCount: orderedActive.length,
-                                    onReorder: (oldIndex, newIndex) =>
-                                        _reorderActiveClasses(
-                                            oldIndex, newIndex, orderedActive),
-                                    proxyDecorator: (child, index, animation) =>
-                                        Material(
-                                      elevation: 4,
-                                      color: Colors.transparent,
-                                      child: child,
-                                    ),
-                                    buildDefaultDragHandles: false,
-                                    itemBuilder: (context, index) {
-                                      final classItem = orderedActive[index];
-                                      return Padding(
-                                        key: ValueKey(classItem.classId),
-                                        padding: const EdgeInsets.only(
-                                            bottom: AppSpacing.md),
-                                        child: SizedBox(
-                                          height: 210,
-                                          child: _buildClassTile(
-                                            classItem: classItem,
-                                            archived: false,
-                                            dragHandle:
-                                                ReorderableDragStartListener(
-                                              index: index,
-                                              child: Icon(Icons.drag_indicator,
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurfaceVariant),
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                })
-                              : GridView.builder(
-                                  gridDelegate:
-                                      const SliverGridDelegateWithMaxCrossAxisExtent(
-                                    maxCrossAxisExtent: 400,
-                                    childAspectRatio: 1.5,
-                                    crossAxisSpacing: AppSpacing.md,
-                                    mainAxisSpacing: AppSpacing.md,
-                                  ),
-                                  itemCount:
-                                      classService.archivedClasses.length,
-                                  itemBuilder: (context, index) {
-                                    final classItem =
-                                        classService.archivedClasses[index];
-                                    return _buildClassTile(
-                                      classItem: classItem,
-                                      archived: true,
-                                    );
-                                  },
-                                ),
-                        ),
-                      ],
-                    ),
+        WorkspaceNavButton(
+          icon: Icons.class_rounded,
+          label: 'Classes',
+          selected: true,
+          onPressed: () {},
+        ),
+      ],
+      trailingActions: [
+        TextButton.icon(
+          onPressed: _driveSigningIn ? null : _ensureDriveAccessToken,
+          icon: _driveSigningIn
+              ? SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-      ),
-      floatingActionButton: classService.classes.isNotEmpty
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                FloatingActionButton.extended(
-                  heroTag: 'newClassFab',
-                  onPressed: _showCreateClassDialog,
-                  icon: const Icon(Icons.add),
-                  label: const Text('New Class'),
+                )
+              : Icon(
+                  _driveAccessToken == null ? Icons.login : Icons.cloud_done_outlined,
                 ),
-              ],
-            )
-          : null,
+          label: Text(_driveAccessToken == null ? 'Connect Drive' : 'Drive ready'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => context.push(AppRoutes.classTrash),
+          icon: const Icon(Icons.restore_from_trash_outlined),
+          label: const Text('Recycle bin'),
+        ),
+        const PilotFeedbackIconButton(
+          initialArea: 'Classes',
+          initialRoute: '/classes',
+        ),
+        IconButton(
+          tooltip: 'Toggle theme',
+          icon: Icon(
+            themeModeNotifier.themeMode == ThemeMode.light
+                ? Icons.dark_mode
+                : Icons.light_mode,
+          ),
+          onPressed: () => themeModeNotifier.toggleTheme(),
+        ),
+        IconButton(
+          tooltip: 'Log out',
+          icon: const Icon(Icons.logout),
+          onPressed: () async {
+            await context.read<GoogleAuthService>().signOut();
+            await authService.logout();
+            if (context.mounted) context.go('/');
+          },
+        ),
+      ],
+      headerActions: [
+        FilledButton.icon(
+          onPressed: _showCreateClassDialog,
+          icon: const Icon(Icons.add),
+          label: const Text('Create Class'),
+        ),
+        OutlinedButton.icon(
+          onPressed: _showImportClassesDialog,
+          icon: const Icon(Icons.upload_file_outlined),
+          label: const Text('Import'),
+        ),
+      ],
+      metrics: _workspaceMetrics(classService),
+      child: _buildCollectionShell(classService),
     );
   }
 }

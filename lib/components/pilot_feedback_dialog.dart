@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/pilot_feedback_service.dart';
 import 'package:provider/provider.dart';
@@ -88,7 +89,7 @@ Future<void> showPilotFeedbackDialog(
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'When you submit, GradeFlow saves the feedback and copies a ready-to-share report to your clipboard.',
+                      'When you submit, ${GradeFlowProductConfig.appName} saves the feedback and copies a ready-to-share report to your clipboard.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],

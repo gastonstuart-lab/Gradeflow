@@ -1,16 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/services/grade_item_service.dart';
 import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/models/student_score.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:uuid/uuid.dart';
 import 'package:gradeflow/models/grade_item.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 
 class GradebookScreen extends StatefulWidget {
   final String classId;
@@ -548,10 +551,12 @@ class _GradebookScreenState extends State<GradebookScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final classService = context.watch<ClassService>();
     final studentService = context.watch<StudentService>();
     final categoryService = context.watch<GradingCategoryService>();
     final gradeItemService = context.watch<GradeItemService>();
     final scoreService = context.watch<StudentScoreService>();
+    final classItem = classService.getClassById(widget.classId);
 
     final categoryItems = selectedCategoryId != null
         ? (gradeItemService.gradeItems
@@ -579,7 +584,9 @@ class _GradebookScreenState extends State<GradebookScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Gradebook'),
+          title: Text(
+            classItem == null ? 'Gradebook' : 'Gradebook • ${classItem.className}',
+          ),
           actions: [
             if (selectedCategoryId != null)
               IconButton(
@@ -763,13 +770,66 @@ class _GradebookScreenState extends State<GradebookScreen> {
               ),
           ],
         ),
-        body: Column(
+        body: AnimatedPageBackground(
+          child: Column(
           children: [
-            if (categoryService.categories.isNotEmpty)
-              Container(
-                padding: AppSpacing.paddingMd,
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            Padding(
+              padding: AppSpacing.paddingMd,
+              child: WorkspaceSurfaceCard(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    WorkspaceSectionHeader(
+                      title: classItem == null
+                          ? 'Gradebook workspace'
+                          : '${classItem.className} gradebook',
+                      subtitle: selectedGradeItemId == null
+                          ? 'Choose a category and grade item to start entering scores without losing sight of the class context.'
+                          : 'Scores, item selection, and quick grading stay in one focused workspace for this class.',
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        _GradebookMetricChip(
+                          icon: Icons.people_alt_outlined,
+                          label: '${studentService.students.length} students',
+                        ),
+                        _GradebookMetricChip(
+                          icon: Icons.category_outlined,
+                          label: '${categoryService.categories.length} categories',
+                        ),
+                        _GradebookMetricChip(
+                          icon: scoreService.hasPendingWrites
+                              ? Icons.sync
+                              : Icons.cloud_done_outlined,
+                          label: scoreService.hasPendingWrites
+                              ? 'Pending saves'
+                              : 'Synced',
+                        ),
+                        if (selectedCategoryId != null)
+                          _GradebookMetricChip(
+                            icon: Icons.bookmark_outline,
+                            label: categoryService.categories
+                                .firstWhere(
+                                  (c) => c.categoryId == selectedCategoryId,
+                                  orElse: () => categoryService.categories.first,
+                                )
+                                .name,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (categoryService.categories.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: WorkspaceSurfaceCard(
+                  padding: AppSpacing.paddingMd,
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text('Category', style: context.textStyles.labelLarge),
@@ -988,6 +1048,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
                   ],
                 ),
               ),
+            ),
             Expanded(
               child: selectedGradeItemId == null
                   ? (selectedCategoryId != null && categoryItems.isEmpty
@@ -1116,6 +1177,48 @@ class _GradebookScreenState extends State<GradebookScreen> {
             ),
           ],
         ),
+      ),
+      ),
+    );
+  }
+}
+
+class _GradebookMetricChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _GradebookMetricChip({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.26),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.34),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: context.textStyles.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/providers/app_providers.dart';
@@ -55,7 +56,7 @@ class _MyAppState extends State<MyApp> {
           }
 
           return MaterialApp.router(
-            title: 'The Affiliated High School of Tunghai University',
+            title: GradeFlowProductConfig.appName,
             debugShowCheckedModeBanner: false,
             theme: lightTheme,
             darkTheme: darkTheme,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/demo_data_service.dart';
@@ -10,6 +12,7 @@ import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +25,11 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+
+  bool get _shouldUseLocalhostForGoogleSignIn =>
+      kIsWeb && Uri.base.host == '127.0.0.1';
+
+  Uri get _localhostSignInUri => Uri.base.replace(host: 'localhost');
 
   @override
   void dispose() {
@@ -39,11 +47,12 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final authService = context.read<AuthService>();
-    final success = await authService.login(_emailController.text, _passwordController.text);
+    final success = await authService.login(
+        _emailController.text, _passwordController.text);
 
     if (mounted) {
       setState(() => _isLoading = false);
-      
+
       if (success) {
         context.go('/dashboard');
       } else {
@@ -54,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleDemoLogin() async {
     setState(() => _isLoading = true);
-    
+
     final authService = context.read<AuthService>();
     await authService.seedDemoUser();
     final success = await authService.login('teacher@demo.com', 'demo');
@@ -76,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (mounted) {
       setState(() => _isLoading = false);
-      
+
       if (success) {
         context.go('/dashboard');
       }
@@ -87,6 +96,19 @@ class _LoginScreenState extends State<LoginScreen> {
     final router = GoRouter.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final errorColor = Theme.of(context).colorScheme.error;
+
+    if (_shouldUseLocalhostForGoogleSignIn) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Google sign-in on local web should use localhost. Opening ${_localhostSignInUri.toString()}',
+          ),
+        ),
+      );
+      await _openLocalhostSignIn();
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     final authService = context.read<AuthService>();
@@ -100,16 +122,32 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       messenger.showSnackBar(
         SnackBar(
-          content: const Text('Google sign-in failed.'),
+          content: Text(
+            _shouldUseLocalhostForGoogleSignIn
+                ? 'Google sign-in failed on 127.0.0.1. Open localhost and try again.'
+                : 'Google sign-in failed.',
+          ),
           backgroundColor: errorColor,
+          action: _shouldUseLocalhostForGoogleSignIn
+              ? SnackBarAction(
+                  label: 'Open localhost',
+                  onPressed: _openLocalhostSignIn,
+                )
+              : null,
         ),
       );
     }
   }
 
+  Future<void> _openLocalhostSignIn() async {
+    await launchUrl(_localhostSignInUri, webOnlyWindowName: '_self');
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Theme.of(context).colorScheme.error),
+      SnackBar(
+          content: Text(message),
+          backgroundColor: Theme.of(context).colorScheme.error),
     );
   }
 
@@ -117,7 +155,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final router = GoRouter.of(context);
-    debugPrint('LoginScreen.build | isAuth=${auth.isAuthenticated} isLoading=${auth.isLoading} isInit=${auth.isInitialized}');
+    debugPrint(
+        'LoginScreen.build | isAuth=${auth.isAuthenticated} isLoading=${auth.isLoading} isInit=${auth.isInitialized}');
     if (auth.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -141,20 +180,64 @@ class _LoginScreenState extends State<LoginScreen> {
                   filterQuality: FilterQuality.high,
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text('The Affiliated High School of Tunghai University', style: context.textStyles.headlineLarge, textAlign: TextAlign.center),
-                const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Professional Class Management for Teachers',
-                  style: context.textStyles.bodyMedium?.withColor(Theme.of(context).colorScheme.onSurfaceVariant),
+                  GradeFlowProductConfig.appName,
+                  style: context.textStyles.headlineLarge,
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  GradeFlowProductConfig.marketingTagline,
+                  style: context.textStyles.bodyMedium?.withColor(
+                      Theme.of(context).colorScheme.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  GradeFlowProductConfig.defaultSchoolName,
+                  style: context.textStyles.bodySmall?.withColor(
+                    Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (_shouldUseLocalhostForGoogleSignIn) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Google sign-in works better on localhost',
+                            style: context.textStyles.titleSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'This local run opened on 127.0.0.1, which Firebase web auth often rejects. Switch to localhost for Google sign-in.',
+                            style: context.textStyles.bodySmall?.withColor(
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          OutlinedButton.icon(
+                            onPressed: _isLoading ? null : _openLocalhostSignIn,
+                            icon: const Icon(Icons.open_in_new),
+                            label: const Text('Open localhost sign-in'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.xxl),
                 TextField(
                   controller: _emailController,
                   decoration: InputDecoration(
                     labelText: 'Email',
                     prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md)),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   enabled: !_isLoading,
@@ -165,7 +248,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md)),
                   ),
                   obscureText: true,
                   enabled: !_isLoading,
@@ -175,7 +259,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 FilledButton(
                   onPressed: _isLoading ? null : _handleLogin,
                   child: _isLoading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Sign In'),
                 ),
                 const SizedBox(height: AppSpacing.md),

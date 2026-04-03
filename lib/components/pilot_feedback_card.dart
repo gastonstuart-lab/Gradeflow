@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/components/pilot_feedback_dialog.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/pilot_feedback_service.dart';
@@ -80,7 +81,7 @@ class PilotFeedbackCard extends StatelessWidget {
               ),
               const _PilotGuideLine(
                 text:
-                    'GradeFlow copies a ready-to-share report for you automatically.',
+                    '${GradeFlowProductConfig.appName} copies a ready-to-share report for you automatically.',
               ),
               const SizedBox(height: 14),
               Wrap(

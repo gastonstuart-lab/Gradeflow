@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/theme.dart';
 
 class SchoolIdentityPill extends StatelessWidget {
@@ -12,7 +13,7 @@ class SchoolIdentityPill extends StatelessWidget {
     super.key,
     this.compact = false,
     this.maxWidth,
-    this.schoolName = 'The Affiliated High School of Tunghai University',
+    this.schoolName = GradeFlowProductConfig.defaultSchoolName,
   });
 
   @override
@@ -202,7 +203,7 @@ class SchoolIdentityHeaderMark extends StatelessWidget {
 
   const SchoolIdentityHeaderMark({
     super.key,
-    this.schoolName = 'The Affiliated High School of Tunghai University',
+    this.schoolName = GradeFlowProductConfig.defaultSchoolName,
     this.maxWidth,
     this.compact = false,
   });
@@ -334,7 +335,7 @@ class SchoolHeroMasthead extends StatelessWidget {
 
   const SchoolHeroMasthead({
     super.key,
-    this.schoolName = 'The Affiliated High School of Tunghai University',
+    this.schoolName = GradeFlowProductConfig.defaultSchoolName,
     this.subtitle = 'Teacher Dashboard',
     this.maxWidth,
     this.compact = false,

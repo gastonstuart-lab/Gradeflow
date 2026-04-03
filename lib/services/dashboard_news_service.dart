@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:gradeflow/config/gradeflow_product_config.dart';
 
 enum DashboardNewsDesk {
   world,
@@ -55,7 +56,7 @@ class DashboardNewsService {
     'https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en',
   );
   static final Uri _localRssFallbackUri = _rss2JsonUri(
-    'https://news.google.com/rss/search?q=Taichung%20school&hl=en-US&gl=TW&ceid=TW:en',
+    'https://news.google.com/rss/search?q=${Uri.encodeComponent(GradeFlowProductConfig.dashboardLocalNewsQuery)}&hl=${GradeFlowProductConfig.dashboardLocalNewsLanguage}&gl=${GradeFlowProductConfig.dashboardLocalNewsGeo}&ceid=${GradeFlowProductConfig.dashboardLocalNewsEdition}',
   );
 
   Future<DashboardNewsBundle> fetchNewsBundle() async {

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/services/auth_service.dart';
@@ -14,6 +13,9 @@ import 'package:gradeflow/screens/export_screen.dart';
 import 'package:gradeflow/screens/final_results_screen.dart';
 import 'package:gradeflow/screens/class_seating_screen.dart';
 import 'package:gradeflow/screens/teacher_dashboard_screen.dart';
+import 'package:gradeflow/screens/demo_dashboard_preview_screen.dart';
+import 'package:gradeflow/screens/communication_hub_screen.dart';
+import 'package:gradeflow/screens/admin_workspace_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/screens/deleted_students_screen.dart';
 import 'package:gradeflow/screens/deleted_classes_screen.dart';
@@ -25,8 +27,12 @@ class AppRouter {
       try {
         final auth = Provider.of<AuthService>(context, listen: false);
         final loggingIn = state.matchedLocation == AppRoutes.home;
-        debugPrint('GoRouter.redirect from \'${state.matchedLocation}\' | isAuth=${auth.isAuthenticated} isInit=${auth.isInitialized} isLoading=${auth.isLoading}');
-        if (!auth.isAuthenticated && !loggingIn) return AppRoutes.home;
+        final previewing =
+            kDebugMode && state.matchedLocation == AppRoutes.previewDashboard;
+        debugPrint(
+            'GoRouter.redirect from \'${state.matchedLocation}\' | isAuth=${auth.isAuthenticated} isInit=${auth.isInitialized} isLoading=${auth.isLoading}');
+        if (!auth.isAuthenticated && !loggingIn && !previewing)
+          return AppRoutes.home;
         if (auth.isAuthenticated && loggingIn) return AppRoutes.dashboard;
       } catch (e) {
         debugPrint('GoRouter.redirect error: $e');
@@ -38,22 +44,45 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
-        pageBuilder: (context, state) => const NoTransitionPage(child: LoginScreen()),
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: LoginScreen()),
       ),
       GoRoute(
         path: AppRoutes.dashboard,
         name: 'dashboard',
-        pageBuilder: (context, state) => const NoTransitionPage(child: TeacherDashboardScreen()),
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: TeacherDashboardScreen()),
+      ),
+      if (kDebugMode)
+        GoRoute(
+          path: AppRoutes.previewDashboard,
+          name: 'previewDashboard',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: DemoDashboardPreviewScreen()),
+        ),
+      GoRoute(
+        path: AppRoutes.communication,
+        name: 'communication',
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: CommunicationHubScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.admin,
+        name: 'admin',
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: AdminWorkspaceScreen()),
       ),
       GoRoute(
         path: AppRoutes.classes,
         name: 'classes',
-        pageBuilder: (context, state) => const NoTransitionPage(child: ClassListScreen()),
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: ClassListScreen()),
       ),
       GoRoute(
         path: AppRoutes.classTrash,
         name: 'classTrash',
-        pageBuilder: (context, state) => const NoTransitionPage(child: DeletedClassesScreen()),
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: DeletedClassesScreen()),
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId',
@@ -76,7 +105,8 @@ class AppRouter {
         name: 'studentsTrash',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return NoTransitionPage(child: DeletedStudentsScreen(classId: classId));
+          return NoTransitionPage(
+              child: DeletedStudentsScreen(classId: classId));
         },
       ),
       GoRoute(
@@ -85,7 +115,9 @@ class AppRouter {
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
           final studentId = state.pathParameters['studentId']!;
-          return NoTransitionPage(child: StudentDetailScreen(classId: classId, studentId: studentId));
+          return NoTransitionPage(
+              child:
+                  StudentDetailScreen(classId: classId, studentId: studentId));
         },
       ),
       GoRoute(
@@ -109,7 +141,8 @@ class AppRouter {
         name: 'categories',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return NoTransitionPage(child: CategoryManagementScreen(classId: classId));
+          return NoTransitionPage(
+              child: CategoryManagementScreen(classId: classId));
         },
       ),
       GoRoute(
@@ -117,8 +150,11 @@ class AppRouter {
         name: 'exams',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          final highlightStudentId = state.uri.queryParameters['highlightStudentId'];
-          return NoTransitionPage(child: ExamInputScreen(classId: classId, highlightStudentId: highlightStudentId));
+          final highlightStudentId =
+              state.uri.queryParameters['highlightStudentId'];
+          return NoTransitionPage(
+              child: ExamInputScreen(
+                  classId: classId, highlightStudentId: highlightStudentId));
         },
       ),
       GoRoute(
@@ -144,6 +180,9 @@ class AppRouter {
 class AppRoutes {
   static const String home = '/';
   static const String dashboard = '/dashboard';
+  static const String previewDashboard = '/preview/dashboard';
+  static const String communication = '/communication';
+  static const String admin = '/admin';
   static const String classes = '/classes';
   static const String classTrash = '/classes/trash';
   static const String classDetail = '/class';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/theme.dart';
-import 'package:gradeflow/components/animated_glow_border.dart';
 
 class ClassCard extends StatelessWidget {
   final Class classItem;
@@ -25,8 +25,10 @@ class ClassCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (s.sourceFilename != null && s.sourceFilename!.isNotEmpty)
-                    Text('Source: ${s.sourceFilename!}',
-                        style: Theme.of(ctx).textTheme.bodySmall),
+                    Text(
+                      'Source: ${s.sourceFilename!}',
+                      style: Theme.of(ctx).textTheme.bodySmall,
+                    ),
                   if (s.headerLines.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Container(
@@ -55,59 +57,73 @@ class ClassCard extends StatelessWidget {
                       lastSection = e.section;
                       widgets.addAll([
                         const SizedBox(height: 10),
-                        Text(e.section!,
-                            style: Theme.of(ctx).textTheme.titleSmall),
+                        Text(
+                          e.section!,
+                          style: Theme.of(ctx).textTheme.titleSmall,
+                        ),
                         const SizedBox(height: 6),
                       ]);
                     }
-                    widgets.add(Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: Theme.of(ctx).colorScheme.outlineVariant),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Week ${e.week}${e.dateRange.isEmpty ? '' : ' • ${e.dateRange}'}',
-                            style: Theme.of(ctx).textTheme.titleSmall,
+                    widgets.add(
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(ctx).colorScheme.outlineVariant,
                           ),
-                          if (e.lessonContent.trim().isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(e.lessonContent,
-                                style: Theme.of(ctx).textTheme.bodyMedium),
-                          ],
-                          if ((e.dateEvents ?? '').trim().isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text('Events',
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Week ${e.week}${e.dateRange.isEmpty ? '' : ' • ${e.dateRange}'}',
+                              style: Theme.of(ctx).textTheme.titleSmall,
+                            ),
+                            if (e.lessonContent.trim().isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                e.lessonContent,
+                                style: Theme.of(ctx).textTheme.bodyMedium,
+                              ),
+                            ],
+                            if ((e.dateEvents ?? '').trim().isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Events',
                                 style: Theme.of(ctx)
                                     .textTheme
                                     .labelLarge
                                     ?.copyWith(
-                                        color: Theme.of(ctx)
-                                            .colorScheme
-                                            .onSurfaceVariant)),
-                            const SizedBox(height: 4),
-                            Text(e.dateEvents!,
+                                      color: Theme.of(ctx)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                e.dateEvents!,
                                 style: Theme.of(ctx)
                                     .textTheme
                                     .bodySmall
                                     ?.copyWith(
-                                        color: Theme.of(ctx)
-                                            .colorScheme
-                                            .onSurfaceVariant)),
+                                      color: Theme.of(ctx)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ));
+                    );
                     return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: widgets);
-                  })
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: widgets,
+                    );
+                  }),
                 ],
               ),
             ),
@@ -125,94 +141,165 @@ class ClassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedGlowBorder(
-      borderWidth: 2,
-      radius: AppRadius.lg,
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: AppSpacing.paddingLg,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                      child: Icon(
-                        Icons.class_outlined,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            classItem.className,
-                            style: context.textStyles.titleLarge?.semiBold,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            classItem.subject,
-                            style: context.textStyles.bodyMedium?.withColor(
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today,
-                        size: 14,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      '${classItem.schoolYear} • ${classItem.term}',
-                      style: context.textStyles.bodySmall?.withColor(
-                        Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-                if (classItem.syllabus != null &&
-                    classItem.syllabus!.entries.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () => _showSyllabusDialog(context),
-                      icon: const Icon(Icons.menu_book_outlined, size: 18),
-                      label: const Text('View schedule'),
-                    ),
+    final theme = Theme.of(context);
+
+    return WorkspaceSurfaceCard(
+      onTap: onTap,
+      padding: AppSpacing.paddingLg,
+      radius: 22,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.28),
                   ),
-                ],
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                ),
+                child: Icon(
+                  Icons.class_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.arrow_forward,
-                        size: 20, color: Theme.of(context).colorScheme.primary),
+                    Text(
+                      classItem.className,
+                      style: context.textStyles.titleLarge?.semiBold,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      classItem.subject,
+                      style: context.textStyles.bodyMedium?.withColor(
+                        theme.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
-              ],
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color: classItem.isArchived
+                      ? theme.colorScheme.secondary.withValues(alpha: 0.16)
+                      : theme.colorScheme.tertiary.withValues(alpha: 0.16),
+                ),
+                child: Text(
+                  classItem.isArchived ? 'Archived' : 'Active',
+                  style: context.textStyles.labelSmall?.copyWith(
+                    color: classItem.isArchived
+                        ? theme.colorScheme.secondary
+                        : theme.colorScheme.tertiary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ClassMetaChip(
+                icon: Icons.calendar_today_outlined,
+                label: classItem.schoolYear,
+              ),
+              _ClassMetaChip(
+                icon: Icons.timeline_outlined,
+                label: classItem.term,
+              ),
+              if ((classItem.groupNumber ?? '').trim().isNotEmpty)
+                _ClassMetaChip(
+                  icon: Icons.groups_2_outlined,
+                  label: 'Group ${classItem.groupNumber!.trim()}',
+                ),
+            ],
+          ),
+          const Spacer(),
+          if (classItem.syllabus != null &&
+              classItem.syllabus!.entries.isNotEmpty) ...[
+            TextButton.icon(
+              onPressed: () => _showSyllabusDialog(context),
+              icon: const Icon(Icons.menu_book_outlined, size: 18),
+              label: const Text('View schedule'),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          Row(
+            children: [
+              Text(
+                'Open class workspace',
+                style: context.textStyles.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClassMetaChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _ClassMetaChip({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.22),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: context.textStyles.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ),
+        ],
       ),
     );
   }

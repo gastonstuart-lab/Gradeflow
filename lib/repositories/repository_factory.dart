@@ -4,19 +4,21 @@ import 'package:gradeflow/repositories/firestore_repository.dart';
 import 'package:gradeflow/services/firebase_service.dart';
 import 'package:flutter/foundation.dart';
 
+enum RepositoryBackend { local, firestore }
+
 /// Factory for creating the appropriate DataRepository implementation.
 /// Returns LocalRepository (SharedPreferences) if Firebase unavailable,
 /// otherwise returns FirestoreRepository (cloud sync).
 class RepositoryFactory {
   static DataRepository? _instance;
-  
+
   /// Get the current repository instance.
   /// Creates LocalRepository by default; call `initialize()` first for Firestore.
   static DataRepository get instance {
     _instance ??= LocalRepository();
     return _instance!;
   }
-  
+
   /// Initialize the repository based on Firebase availability.
   /// Call this after FirebaseService.maybeInitialize() in main().
   static Future<void> initialize({String? userId}) async {
@@ -28,13 +30,34 @@ class RepositoryFactory {
       debugPrint('RepositoryFactory: Using local storage (SharedPreferences)');
     }
   }
-  
+
   /// Force reset to local-only mode (useful for testing or logout).
   static void useLocal() {
     _instance = LocalRepository();
     debugPrint('RepositoryFactory: Switched to local storage');
   }
-  
+
   /// Check if using cloud sync.
   static bool get isUsingFirestore => _instance is FirestoreRepository;
+
+  static RepositoryBackend get backend =>
+      isUsingFirestore ? RepositoryBackend.firestore : RepositoryBackend.local;
+
+  static String get sourceOfTruthLabel {
+    switch (backend) {
+      case RepositoryBackend.firestore:
+        return 'Cloud sync';
+      case RepositoryBackend.local:
+        return 'Local-only';
+    }
+  }
+
+  static String get sourceOfTruthDescription {
+    switch (backend) {
+      case RepositoryBackend.firestore:
+        return 'Core academic records are syncing through Firestore.';
+      case RepositoryBackend.local:
+        return 'Core academic records are stored on this device only.';
+    }
+  }
 }
