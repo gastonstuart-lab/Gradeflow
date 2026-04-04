@@ -46,6 +46,13 @@ class _DashboardPalette {
       _isLight ? const Color(0xFF7869E8) : const Color(0xFF8C7CF8);
 }
 
+Color _dashboardInteractiveOverlay({
+  double emphasis = 1,
+}) {
+  final baseAlpha = _DashboardPalette.isLight ? 0.06 : 0.11;
+  return _DashboardPalette.accent.withValues(alpha: baseAlpha * emphasis);
+}
+
 class _DashboardNavItemData {
   final String label;
   final IconData icon;
@@ -68,6 +75,7 @@ class _DashboardSummaryMetricData {
   final String detail;
   final IconData icon;
   final List<Color> gradientColors;
+  final String actionLabel;
   final VoidCallback? onTap;
 
   const _DashboardSummaryMetricData({
@@ -76,6 +84,7 @@ class _DashboardSummaryMetricData {
     required this.detail,
     required this.icon,
     required this.gradientColors,
+    required this.actionLabel,
     this.onTap,
   });
 }
@@ -188,61 +197,55 @@ class _DashboardInsightData {
   });
 }
 
-class _DashboardLiveStoryData {
-  final String label;
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color accent;
-  final List<String> chips;
-  final VoidCallback? onTap;
-
-  const _DashboardLiveStoryData({
-    required this.label,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.accent,
-    required this.chips,
-    this.onTap,
-  });
-}
-
-class _DashboardAnnouncementData {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color accent;
-  final VoidCallback? onTap;
-
-  const _DashboardAnnouncementData({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.accent,
-    this.onTap,
-  });
-}
-
 class DashboardSystemWidgetData {
   final String timeLabel;
   final String weekdayLabel;
   final String dateLabel;
-  final String statusLabel;
-  final String statusDetail;
+  final String locationLabel;
   final String weatherLabel;
+  final String weatherDetail;
+  final IconData weatherIcon;
   final String nextLabel;
-  final String focusLabel;
+  final String nextDetail;
+  final String liveLabel;
 
   const DashboardSystemWidgetData({
     required this.timeLabel,
     required this.weekdayLabel,
     required this.dateLabel,
-    required this.statusLabel,
-    required this.statusDetail,
+    required this.locationLabel,
     required this.weatherLabel,
+    required this.weatherDetail,
+    required this.weatherIcon,
     required this.nextLabel,
-    required this.focusLabel,
+    required this.nextDetail,
+    required this.liveLabel,
+  });
+}
+
+class DashboardSystemStatusItemData {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color accent;
+
+  const DashboardSystemStatusItemData({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.accent,
+  });
+}
+
+class DashboardAudioWidgetData {
+  final String stationName;
+  final String programLabel;
+  final String detail;
+
+  const DashboardAudioWidgetData({
+    required this.stationName,
+    required this.programLabel,
+    required this.detail,
   });
 }
 
@@ -358,7 +361,19 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: _DashboardPalette.panelElevated,
         contentTextStyle: textTheme.bodyMedium,
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(
+            color: _DashboardPalette.border.withValues(alpha: 0.84),
+          ),
+        ),
       ),
+      splashColor: _dashboardInteractiveOverlay(emphasis: 1.1),
+      highlightColor: _dashboardInteractiveOverlay(emphasis: 1.3),
+      hoverColor: _dashboardInteractiveOverlay(),
+      focusColor: _dashboardInteractiveOverlay(),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: _DashboardPalette.brightness == Brightness.light
@@ -501,69 +516,30 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
                 colors: [
                   _DashboardPalette.background,
                   _DashboardPalette.backgroundAlt,
-                  Color(0xFF131A27),
+                  _DashboardPalette.background,
                 ],
               ),
             ),
           ),
         ),
-        Positioned(
-          top: -120,
-          left: -80,
+        Positioned.fill(
           child: IgnorePointer(
-            child: Container(
-              width: 280,
-              height: 280,
+            child: DecoratedBox(
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                   colors: [
-                    _DashboardPalette.accent.withValues(alpha: 0.22),
+                    Colors.white.withValues(alpha: 0.012),
+                    Colors.transparent,
                     Colors.transparent,
                   ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: -120,
-          top: 120,
-          child: IgnorePointer(
-            child: Container(
-              width: 320,
-              height: 320,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    _DashboardPalette.cyan.withValues(alpha: 0.14),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: -120,
-          left: 180,
-          child: IgnorePointer(
-            child: Container(
-              width: 360,
-              height: 360,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    _DashboardPalette.purple.withValues(alpha: 0.12),
-                    Colors.transparent,
-                  ],
+                  stops: const [0, 0.28, 1],
                 ),
               ),
             ),
@@ -591,16 +567,16 @@ class DashboardShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(width: 236, child: sidebar),
+            SizedBox(width: 216, child: sidebar),
             const SizedBox(width: 20),
             Expanded(child: main),
             const SizedBox(width: 20),
             SizedBox(
-              width: 330,
+              width: 336,
               child: SingleChildScrollView(child: livePanel),
             ),
           ],
@@ -730,10 +706,10 @@ class SidebarNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DashboardPanelCard(
-      padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
       gradientColors: [
-        _DashboardPalette.sidebarAlt,
         _DashboardPalette.sidebar,
+        _DashboardPalette.sidebarAlt,
       ],
       child: Column(
         crossAxisAlignment:
@@ -742,12 +718,14 @@ class SidebarNavigation extends StatelessWidget {
           Container(
             padding: EdgeInsets.symmetric(
               horizontal: compact ? 12 : 14,
-              vertical: compact ? 12 : 14,
+              vertical: compact ? 12 : 12,
             ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: _DashboardPalette.border),
-              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(
+                color: _DashboardPalette.border.withValues(alpha: 0.84),
+              ),
+              color: Colors.white.withValues(alpha: 0.02),
             ),
             child: compact
                 ? Container(
@@ -755,16 +733,11 @@ class SidebarNavigation extends StatelessWidget {
                     height: 36,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      gradient: LinearGradient(
-                        colors: [
-                          _DashboardPalette.cyan,
-                          _DashboardPalette.accent,
-                        ],
-                      ),
+                      color: _DashboardPalette.accent.withValues(alpha: 0.16),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.grading_rounded,
-                      color: Colors.white,
+                      color: _DashboardPalette.accentSoft,
                     ),
                   )
                 : Row(
@@ -774,16 +747,12 @@ class SidebarNavigation extends StatelessWidget {
                         height: 40,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
-                          gradient: LinearGradient(
-                            colors: [
-                              _DashboardPalette.cyan,
-                              _DashboardPalette.accent,
-                            ],
-                          ),
+                          color:
+                              _DashboardPalette.accent.withValues(alpha: 0.16),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.grading_rounded,
-                          color: Colors.white,
+                          color: _DashboardPalette.accentSoft,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -823,7 +792,7 @@ class SidebarNavigation extends StatelessWidget {
                 children: [
                   for (final item in primaryItems)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(bottom: 6),
                       child: _SidebarNavButton(
                         compact: compact,
                         item: item,
@@ -834,7 +803,7 @@ class SidebarNavigation extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(left: 8, bottom: 10),
                       child: Text(
-                        'Editions',
+                        'Connected',
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
                               color: _DashboardPalette.textSecondary,
                             ),
@@ -842,7 +811,7 @@ class SidebarNavigation extends StatelessWidget {
                     ),
                   for (final item in secondaryItems)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(bottom: 6),
                       child: _SidebarNavButton(
                         compact: compact,
                         item: item,
@@ -858,8 +827,10 @@ class SidebarNavigation extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
-                color: Colors.white.withValues(alpha: 0.04),
-                border: Border.all(color: _DashboardPalette.border),
+                color: Colors.white.withValues(alpha: 0.02),
+                border: Border.all(
+                  color: _DashboardPalette.border.withValues(alpha: 0.82),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -872,7 +843,7 @@ class SidebarNavigation extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Admin and Communication are available when you need them without crowding the daily teaching workspace.',
+                    'Admin and Communication stay nearby without crowding the daily dashboard.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -908,310 +879,244 @@ class DashboardTopSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final metricMinWidth = compact ? 220.0 : 224.0;
-    const heroPrimary = Color(0xFFF8FAFF);
-    final heroSecondary = Colors.white.withValues(alpha: 0.74);
-    final heroOutline = Colors.white.withValues(alpha: 0.18);
+    final primaryMetric = metrics.isNotEmpty ? metrics.first : null;
+    final secondaryMetrics = metrics.length > 1
+        ? metrics.sublist(1)
+        : const <_DashboardSummaryMetricData>[];
+    final summaryPills = todayLine
+        .split('•')
+        .map((segment) => segment.trim())
+        .where((segment) => segment.isNotEmpty)
+        .toList(growable: false);
+    final deckAccent = _commandDeckAccent(
+      presentation: presentation,
+      backgroundImage: backgroundImage,
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final showControlsCard =
-            actions.isNotEmpty && !compact && constraints.maxWidth > 860;
         final baseTheme = Theme.of(context);
-        final actionTheme = baseTheme.copyWith(
-          iconButtonTheme: IconButtonThemeData(
-            style: IconButton.styleFrom(
-              foregroundColor: heroPrimary,
-              backgroundColor: Colors.white.withValues(alpha: 0.08),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-              padding: const EdgeInsets.all(12),
-            ),
-          ),
-        );
+        final wide = !compact && constraints.maxWidth > 1060;
 
         return DashboardPanelCard(
-          padding: EdgeInsets.all(compact ? 20 : 26),
-          radius: compact ? 24 : 28,
-          gradientColors: presentation.gradientColors,
-          child: Stack(
+          padding: EdgeInsets.all(compact ? 18 : 22),
+          radius: 24,
+          gradientColors: [
+            _DashboardPalette.sidebarAlt,
+            _DashboardPalette.sidebar,
+          ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (backgroundImage != null)
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(compact ? 24 : 28),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: backgroundImage!,
-                          fit: BoxFit.cover,
-                          alignment: Alignment.topCenter,
-                          opacity: 0.34,
-                        ),
-                      ),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              const Color(0xFF081019).withValues(alpha: 0.76),
-                              const Color(0xFF101723).withValues(alpha: 0.64),
-                              const Color(0xFF0C131D).withValues(alpha: 0.84),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              Positioned(
-                top: -72,
-                right: -56,
-                child: IgnorePointer(
-                  child: Container(
-                    width: compact ? 180 : 260,
-                    height: compact ? 180 : 260,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          presentation.primaryGlow.withValues(alpha: 0.28),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: -40,
-                bottom: -90,
-                child: IgnorePointer(
-                  child: Container(
-                    width: compact ? 160 : 220,
-                    height: compact ? 160 : 220,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          presentation.secondaryGlow.withValues(alpha: 0.18),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: compact ? 120 : 180,
-                top: compact ? -36 : -28,
-                child: IgnorePointer(
-                  child: Container(
-                    width: compact ? 100 : 140,
-                    height: compact ? 100 : 140,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          presentation.tertiaryGlow.withValues(alpha: 0.16),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Column(
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
                               'Command deck',
                               style: baseTheme.textTheme.labelLarge?.copyWith(
-                                color: heroSecondary,
-                                letterSpacing: 0.9,
+                                color: _DashboardPalette.textSecondary,
+                                letterSpacing: 0.5,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 10),
-                            Text(
-                              title,
-                              style: (compact
-                                      ? baseTheme.textTheme.headlineSmall
-                                      : baseTheme.textTheme.headlineMedium)
-                                  ?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: heroPrimary,
-                                letterSpacing: -0.6,
-                                height: 1.05,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              subtitle,
-                              style: baseTheme.textTheme.bodyMedium?.copyWith(
-                                color: heroSecondary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 620),
-                              child: Text(
-                                'Today, classes, and live communication stay pinned.',
-                                style: baseTheme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.78),
-                                  height: 1.45,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: [
-                                _HeroSignalPill(
-                                  icon: Icons.today_rounded,
-                                  label: todayLine,
-                                  borderColor: heroOutline,
-                                ),
-                                _HeroSignalPill(
-                                  icon: Icons.palette_outlined,
-                                  label: backgroundImage != null
-                                      ? '${presentation.label} + custom backdrop'
-                                      : '${presentation.label} hero style',
-                                  borderColor:
-                                      Colors.white.withValues(alpha: 0.12),
-                                  backgroundColor:
-                                      Colors.white.withValues(alpha: 0.035),
-                                ),
-                              ],
-                            ),
+                            _CommandDeckLiveBadge(accent: deckAccent),
                           ],
                         ),
-                      ),
-                      if (showControlsCard) ...[
-                        const SizedBox(width: 18),
-                        SizedBox(
-                          width: 228,
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(22),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.08),
-                              ),
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.08),
-                                  Colors.white.withValues(alpha: 0.04),
-                                ],
-                              ),
-                            ),
-                            child: Theme(
-                              data: actionTheme,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Controls',
-                                    style: baseTheme.textTheme.labelLarge
-                                        ?.copyWith(
-                                      color: heroPrimary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Theme, feedback, and sign-out stay close.',
-                                    style:
-                                        baseTheme.textTheme.bodySmall?.copyWith(
-                                      color: heroSecondary,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  Wrap(
-                                    spacing: 10,
-                                    runSpacing: 10,
-                                    children: actions,
-                                  ),
-                                ],
-                              ),
-                            ),
+                        const SizedBox(height: 12),
+                        Text(
+                          title,
+                          style: (compact
+                                  ? baseTheme.textTheme.headlineSmall
+                                  : baseTheme.textTheme.headlineMedium)
+                              ?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
                           ),
                         ),
-                      ] else if (actions.isNotEmpty) ...[
-                        const SizedBox(width: 14),
-                        Theme(
-                          data: actionTheme,
-                          child: Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: actions,
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle,
+                          style: baseTheme.textTheme.bodyMedium?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(width: 16),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: wide ? 232 : 180,
+                      ),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.end,
+                        children: actions,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final pill in summaryPills)
+                    _CommandDeckSummaryPill(
+                      label: pill,
+                      accent: deckAccent,
+                    ),
+                  _CommandDeckSummaryPill(
+                    label: backgroundImage != null
+                        ? 'Personalized deck'
+                        : presentation.label,
+                    icon: backgroundImage != null
+                        ? Icons.image_outlined
+                        : Icons.palette_outlined,
+                    accent: deckAccent,
+                  ),
+                ],
+              ),
+              if (primaryMetric != null) ...[
+                const SizedBox(height: 16),
+                if (wide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 8,
+                        child: _CommandDeckPrimaryPanel(
+                          metric: primaryMetric,
+                          accent: deckAccent,
+                        ),
+                      ),
+                      if (secondaryMetrics.isNotEmpty) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 5,
+                          child: Column(
+                            children: [
+                              for (int index = 0;
+                                  index < secondaryMetrics.length;
+                                  index++) ...[
+                                _CommandDeckSecondaryPanel(
+                                  metric: secondaryMetrics[index],
+                                  accent: deckAccent,
+                                ),
+                                if (index != secondaryMetrics.length - 1)
+                                  const SizedBox(height: 12),
+                              ],
+                            ],
                           ),
                         ),
                       ],
                     ],
+                  )
+                else ...[
+                  _CommandDeckPrimaryPanel(
+                    metric: primaryMetric,
+                    accent: deckAccent,
                   ),
-                  const SizedBox(height: 22),
-                  Container(
-                    height: 1,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white.withValues(alpha: 0.18),
-                          Colors.white.withValues(alpha: 0.04),
-                          Colors.transparent,
-                        ],
+                  if (secondaryMetrics.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    for (int index = 0;
+                        index < secondaryMetrics.length;
+                        index++) ...[
+                      _CommandDeckSecondaryPanel(
+                        metric: secondaryMetrics[index],
+                        accent: deckAccent,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const _DashboardSectionTag(
-                        label: 'Snapshot',
-                        icon: Icons.stacked_bar_chart_rounded,
-                        foregroundColor: Color(0xFFF8FAFF),
-                        backgroundColor: Color.fromRGBO(255, 255, 255, 0.06),
-                        borderColor: Color.fromRGBO(255, 255, 255, 0.12),
-                      ),
-                      Text(
-                        'Tap a tile to jump.',
-                        style: baseTheme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.72),
-                          height: 1.4,
-                        ),
-                      ),
+                      if (index != secondaryMetrics.length - 1)
+                        const SizedBox(height: 12),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    children: [
-                      for (final metric in metrics)
-                        SizedBox(
-                          width: metricMinWidth,
-                          child: _SummaryMetricTile(metric: metric),
-                        ),
-                    ],
-                  ),
+                  ],
                 ],
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CommandDeckLiveBadge extends StatefulWidget {
+  final Color accent;
+
+  const _CommandDeckLiveBadge({
+    required this.accent,
+  });
+
+  @override
+  State<_CommandDeckLiveBadge> createState() => _CommandDeckLiveBadgeState();
+}
+
+class _CommandDeckLiveBadgeState extends State<_CommandDeckLiveBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final pulse = 0.14 + (_controller.value * 0.16);
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: widget.accent.withValues(alpha: 0.10),
+            border: Border.all(
+              color: widget.accent.withValues(alpha: 0.18 + pulse),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.accent.withValues(alpha: 0.92),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.accent.withValues(alpha: 0.18 + pulse),
+                      blurRadius: 10,
+                      spreadRadius: 0.8,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Live',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: _DashboardPalette.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ],
           ),
@@ -1221,46 +1126,362 @@ class DashboardTopSummary extends StatelessWidget {
   }
 }
 
-class _HeroSignalPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color borderColor;
-  final Color? backgroundColor;
+Color _commandDeckAccent({
+  required DashboardHeroPresentation presentation,
+  required ImageProvider<Object>? backgroundImage,
+}) {
+  final base = backgroundImage != null
+      ? presentation.secondaryGlow
+      : presentation.primaryGlow;
+  return Color.lerp(base, _DashboardPalette.accent, 0.38)!;
+}
 
-  const _HeroSignalPill({
-    required this.icon,
+class _CommandDeckSummaryPill extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final Color accent;
+
+  const _CommandDeckSummaryPill({
     required this.label,
-    required this.borderColor,
-    this.backgroundColor,
+    this.icon,
+    required this.accent,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-        color: backgroundColor ?? Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: accent.withValues(alpha: 0.18),
+        ),
+        color: Colors.white.withValues(alpha: 0.04),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.92)),
-          const SizedBox(width: 10),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: const Color(0xFFF8FAFF),
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
-            ),
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: accent),
+            const SizedBox(width: 8),
+          ],
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: _DashboardPalette.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CommandDeckPrimaryPanel extends StatefulWidget {
+  final _DashboardSummaryMetricData metric;
+  final Color accent;
+
+  const _CommandDeckPrimaryPanel({
+    required this.metric,
+    required this.accent,
+  });
+
+  @override
+  State<_CommandDeckPrimaryPanel> createState() =>
+      _CommandDeckPrimaryPanelState();
+}
+
+class _CommandDeckPrimaryPanelState extends State<_CommandDeckPrimaryPanel>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 6400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final metric = widget.metric;
+    final panelAccent =
+        Color.lerp(metric.gradientColors.first, widget.accent, 0.6)!;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: metric.onTap,
+        borderRadius: BorderRadius.circular(22),
+        hoverColor: _dashboardInteractiveOverlay(),
+        focusColor: _dashboardInteractiveOverlay(),
+        highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
+        splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            color: Colors.white.withValues(alpha: 0.04),
+            border: Border.all(
+              color: panelAccent.withValues(alpha: 0.22),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) {
+                        return Align(
+                          alignment:
+                              Alignment(-1.15 + (_controller.value * 2.3), 0),
+                          child: FractionallySizedBox(
+                            widthFactor: 0.4,
+                            heightFactor: 1.25,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    Colors.transparent,
+                                    panelAccent.withValues(alpha: 0.08),
+                                    Colors.transparent,
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  metric.label,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelLarge
+                                      ?.copyWith(
+                                        color: _DashboardPalette.textSecondary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  metric.value,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.45,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              color: panelAccent.withValues(alpha: 0.14),
+                              border: Border.all(
+                                color: panelAccent.withValues(alpha: 0.22),
+                              ),
+                            ),
+                            child: Icon(
+                              metric.icon,
+                              size: 20,
+                              color: panelAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        metric.detail,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: _DashboardPalette.textSecondary,
+                              height: 1.4,
+                            ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          FilledButton.icon(
+                            onPressed: metric.onTap,
+                            style: FilledButton.styleFrom(
+                              backgroundColor:
+                                  panelAccent.withValues(alpha: 0.16),
+                              foregroundColor: _DashboardPalette.textPrimary,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(
+                                  color: panelAccent.withValues(alpha: 0.22),
+                                ),
+                              ),
+                            ),
+                            icon:
+                                Icon(metric.icon, size: 18, color: panelAccent),
+                            label: Text(
+                              metric.actionLabel,
+                              style: TextStyle(
+                                color: _DashboardPalette.textPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            'Primary focus',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                  color: _DashboardPalette.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CommandDeckSecondaryPanel extends StatelessWidget {
+  final _DashboardSummaryMetricData metric;
+  final Color accent;
+
+  const _CommandDeckSecondaryPanel({
+    required this.metric,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final panelAccent = Color.lerp(metric.gradientColors.first, accent, 0.55)!;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: metric.onTap,
+        borderRadius: BorderRadius.circular(20),
+        hoverColor: _dashboardInteractiveOverlay(),
+        focusColor: _dashboardInteractiveOverlay(),
+        highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
+        splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.white.withValues(alpha: 0.035),
+            border: Border.all(
+              color: panelAccent.withValues(alpha: 0.18),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      metric.label,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: panelAccent.withValues(alpha: 0.12),
+                    ),
+                    child: Icon(metric.icon, size: 18, color: panelAccent),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                metric.value,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.25,
+                    ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                metric.detail,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: _DashboardPalette.textSecondary,
+                      height: 1.4,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text(
+                    metric.actionLabel,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: panelAccent,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 18,
+                    color: panelAccent,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1332,7 +1553,7 @@ class ClassStatusSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _DashboardSectionFrame(
       title: 'Your Classes',
-      subtitle: 'Live status and direct class actions.',
+      subtitle: 'Compact class summaries and direct actions.',
       action: TextButton.icon(
         onPressed: onOpenClasses,
         icon: const Icon(Icons.arrow_forward_rounded, size: 18),
@@ -1343,9 +1564,11 @@ class ClassStatusSection extends StatelessWidget {
           final width = constraints.maxWidth;
           final columns = compact
               ? 1
-              : width > 980
-                  ? 3
-                  : 2;
+              : width > 1320
+                  ? 4
+                  : width > 980
+                      ? 3
+                      : 2;
           final gap = 14.0;
           final cardWidth =
               columns == 1 ? width : (width - (gap * (columns - 1))) / columns;
@@ -1437,7 +1660,7 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DashboardPanelCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       radius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1734,285 +1957,44 @@ class WorkspaceSection extends StatelessWidget {
 }
 
 class LivePanel extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final List<String> channels;
   final DashboardSystemWidgetData systemWidget;
+  final DashboardAudioWidgetData audioWidget;
+  final List<DashboardSystemStatusItemData> statusItems;
   final DashboardCommunicationWidgetData communicationWidget;
-  final List<_DashboardLiveStoryData> stories;
-  final List<_DashboardAnnouncementData> announcements;
   final bool compact;
 
   const LivePanel({
     super.key,
-    required this.title,
-    required this.subtitle,
-    required this.channels,
     required this.systemWidget,
+    required this.audioWidget,
+    required this.statusItems,
     required this.communicationWidget,
-    required this.stories,
-    required this.announcements,
     this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return DashboardPanelCard(
-      padding: const EdgeInsets.all(16),
-      radius: 28,
-      gradientColors: [
-        _DashboardPalette.sidebarAlt,
-        _DashboardPalette.sidebar,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _DashboardSystemWidgetCard(
+          data: systemWidget,
+          compact: compact,
+        ),
+        const SizedBox(height: 12),
+        _DashboardAudioWidgetCard(
+          data: audioWidget,
+        ),
+        const SizedBox(height: 12),
+        _DashboardSystemStatusCard(
+          items: statusItems,
+        ),
+        const SizedBox(height: 12),
+        _DashboardCommunicationWidgetCard(
+          data: communicationWidget,
+          compact: compact,
+        ),
       ],
-      child: Stack(
-        children: [
-          Positioned(
-            top: -64,
-            right: -34,
-            child: IgnorePointer(
-              child: Container(
-                width: 170,
-                height: 170,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      _DashboardPalette.accent.withValues(alpha: 0.14),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -76,
-            left: -56,
-            child: IgnorePointer(
-              child: Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      _DashboardPalette.cyan.withValues(alpha: 0.12),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: _DashboardPalette.border.withValues(alpha: 0.9),
-                  ),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.07),
-                      Colors.white.withValues(alpha: 0.03),
-                    ],
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _DashboardSectionTag(
-                      label: 'Live rail',
-                      icon: Icons.radar_rounded,
-                      foregroundColor: _DashboardPalette.accentSoft,
-                      backgroundColor:
-                          _DashboardPalette.accent.withValues(alpha: 0.10),
-                      borderColor:
-                          _DashboardPalette.accent.withValues(alpha: 0.18),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.3,
-                                    ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                subtitle,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(height: 1.45),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(999),
-                            color: _DashboardPalette.accent
-                                .withValues(alpha: 0.18),
-                            border: Border.all(
-                              color: _DashboardPalette.accent
-                                  .withValues(alpha: 0.28),
-                            ),
-                          ),
-                          child: Text(
-                            '${channels.length} signals',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelMedium
-                                ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (channels.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final channel in channels.take(compact ? 3 : 4))
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: _DashboardPalette.border,
-                                ),
-                                color: Colors.white.withValues(alpha: 0.05),
-                              ),
-                              child: Text(
-                                channel,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelMedium
-                                    ?.copyWith(
-                                      color: _DashboardPalette.textSecondary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              const _DashboardSectionTag(
-                label: 'Widget',
-                icon: Icons.schedule_rounded,
-              ),
-              const SizedBox(height: 10),
-              _DashboardSystemWidgetCard(
-                data: systemWidget,
-                compact: compact,
-              ),
-              const SizedBox(height: 12),
-              const _DashboardSectionTag(
-                label: 'Messages',
-                icon: Icons.forum_outlined,
-              ),
-              const SizedBox(height: 10),
-              _DashboardCommunicationWidgetCard(
-                data: communicationWidget,
-                compact: compact,
-              ),
-              const SizedBox(height: 12),
-              const _DashboardSectionTag(
-                label: 'Live',
-                icon: Icons.public_outlined,
-              ),
-              const SizedBox(height: 10),
-              for (final story in stories) ...[
-                _DashboardLiveStoryCard(story: story, compact: compact),
-                const SizedBox(height: 12),
-              ],
-              Row(
-                children: [
-                  const _DashboardSectionTag(
-                    label: 'Updates',
-                    icon: Icons.campaign_outlined,
-                  ),
-                  if (announcements.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    _DashboardSectionTag(
-                      label: '${announcements.length}',
-                      foregroundColor: _DashboardPalette.accentSoft,
-                      backgroundColor:
-                          _DashboardPalette.accent.withValues(alpha: 0.10),
-                      borderColor:
-                          _DashboardPalette.accent.withValues(alpha: 0.18),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 10),
-              DashboardPanelCard(
-                padding: const EdgeInsets.all(14),
-                radius: 22,
-                gradientColors: const [
-                  Color(0xFF171F2C),
-                  Color(0xFF131A26),
-                ],
-                minHeight: 120,
-                child: Column(
-                  children: [
-                    if (announcements.isEmpty)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'No new staff updates.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    for (int index = 0;
-                        index < announcements.length;
-                        index++) ...[
-                      _DashboardAnnouncementTile(item: announcements[index]),
-                      if (index != announcements.length - 1)
-                        const SizedBox(height: 10),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }
@@ -2031,9 +2013,9 @@ class _DashboardSystemWidgetCard extends StatelessWidget {
     return DashboardPanelCard(
       padding: const EdgeInsets.all(16),
       radius: 22,
-      minHeight: compact ? 0 : 176,
+      minHeight: compact ? 0 : 188,
       gradientColors: [
-        Color.lerp(_DashboardPalette.accent, _DashboardPalette.panelAlt, 0.82)!,
+        _DashboardPalette.sidebarAlt,
         _DashboardPalette.panel,
       ],
       child: Stack(
@@ -2061,18 +2043,18 @@ class _DashboardSystemWidgetCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              Row(
                 children: [
                   _SystemWidgetBadge(
-                    label: 'Local',
-                    icon: Icons.schedule_rounded,
-                  ),
-                  _SystemWidgetBadge(
-                    label: data.focusLabel,
-                    icon: Icons.adjust_rounded,
+                    label: data.liveLabel,
+                    icon: Icons.cloud_done_outlined,
                     emphasized: true,
+                  ),
+                  const Spacer(),
+                  Icon(
+                    data.weatherIcon,
+                    size: 20,
+                    color: _DashboardPalette.accent,
                   ),
                 ],
               ),
@@ -2096,9 +2078,9 @@ class _DashboardSystemWidgetCard extends StatelessWidget {
                 child: Text(
                   data.timeLabel,
                   key: ValueKey<String>(data.timeLabel),
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                         fontWeight: FontWeight.w800,
-                        letterSpacing: -1.1,
+                        letterSpacing: -1.15,
                       ),
                 ),
               ),
@@ -2121,18 +2103,17 @@ class _DashboardSystemWidgetCard extends StatelessWidget {
                   ),
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
-                        color: _DashboardPalette.accent.withValues(alpha: 0.14),
+                        color: _DashboardPalette.accent.withValues(alpha: 0.12),
                       ),
                       child: Icon(
-                        Icons.auto_awesome_rounded,
-                        size: 18,
+                        data.weatherIcon,
+                        size: 20,
                         color: _DashboardPalette.accent,
                       ),
                     ),
@@ -2142,24 +2123,24 @@ class _DashboardSystemWidgetCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            data.statusLabel,
+                            '${data.weatherLabel} ${data.weatherDetail}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.2,
                                 ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           Text(
-                            data.statusDetail,
-                            maxLines: 2,
+                            data.locationLabel,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: _DashboardPalette.textSecondary,
-                                      height: 1.45,
                                     ),
                           ),
                         ],
@@ -2173,22 +2154,227 @@ class _DashboardSystemWidgetCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _SystemMetricTile(
-                      label: 'Weather',
-                      value: data.weatherLabel,
-                      icon: Icons.cloud_outlined,
+                      label: 'Location',
+                      value: data.locationLabel,
+                      icon: Icons.location_on_outlined,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _SystemMetricTile(
-                      label: 'Next',
-                      value: data.nextLabel,
+                      label: data.nextLabel,
+                      value: data.nextDetail,
                       icon: Icons.schedule_rounded,
                     ),
                   ),
                 ],
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardAudioWidgetCard extends StatefulWidget {
+  final DashboardAudioWidgetData data;
+
+  const _DashboardAudioWidgetCard({
+    required this.data,
+  });
+
+  @override
+  State<_DashboardAudioWidgetCard> createState() =>
+      _DashboardAudioWidgetCardState();
+}
+
+class _DashboardAudioWidgetCardState extends State<_DashboardAudioWidgetCard> {
+  bool _playing = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return DashboardPanelCard(
+      padding: const EdgeInsets.all(16),
+      radius: 22,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Audio',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: _DashboardPalette.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            widget.data.stationName,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.data.programLabel,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: _DashboardPalette.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            widget.data.detail,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: _DashboardPalette.textSecondary,
+                  height: 1.4,
+                ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              InkWell(
+                onTap: () => setState(() => _playing = !_playing),
+                borderRadius: BorderRadius.circular(14),
+                child: Ink(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: _DashboardPalette.accent.withValues(alpha: 0.14),
+                    border: Border.all(
+                      color: _DashboardPalette.accent.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        size: 18,
+                        color: _DashboardPalette.accentSoft,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _playing ? 'Pause' : 'Play',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: _DashboardPalette.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _playing ? 'Live' : 'Paused',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: _DashboardPalette.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardSystemStatusCard extends StatelessWidget {
+  final List<DashboardSystemStatusItemData> items;
+
+  const _DashboardSystemStatusCard({
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DashboardPanelCard(
+      padding: const EdgeInsets.all(16),
+      radius: 22,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'System',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: _DashboardPalette.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 12),
+          for (int index = 0; index < items.length; index++) ...[
+            _DashboardSystemStatusRow(item: items[index]),
+            if (index != items.length - 1) const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardSystemStatusRow extends StatelessWidget {
+  final DashboardSystemStatusItemData item;
+
+  const _DashboardSystemStatusRow({
+    required this.item,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: 0.03),
+        border: Border.all(
+          color: _DashboardPalette.border.withValues(alpha: 0.74),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: item.accent.withValues(alpha: 0.12),
+            ),
+            child: Icon(
+              item.icon,
+              size: 18,
+              color: item.accent,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              item.label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              item.value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _DashboardPalette.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
           ),
         ],
       ),
@@ -2217,8 +2403,8 @@ class _DashboardCommunicationWidgetCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       radius: 22,
       gradientColors: [
-        Color.lerp(accent, _DashboardPalette.panelAlt, 0.84)!,
         _DashboardPalette.panel,
+        _DashboardPalette.panelAlt,
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2230,6 +2416,14 @@ class _DashboardCommunicationWidgetCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      'Messages',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
                       data.headline,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -2258,9 +2452,9 @@ class _DashboardCommunicationWidgetCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: accent.withValues(alpha: 0.14),
+                  color: accent.withValues(alpha: 0.12),
                   border: Border.all(
-                    color: accent.withValues(alpha: 0.24),
+                    color: accent.withValues(alpha: 0.20),
                   ),
                 ),
                 child: Text(
@@ -2279,13 +2473,13 @@ class _DashboardCommunicationWidgetCard extends StatelessWidget {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
-                color: Colors.white.withValues(alpha: 0.04),
+                color: Colors.white.withValues(alpha: 0.03),
                 border: Border.all(
                   color: _DashboardPalette.border.withValues(alpha: 0.78),
                 ),
               ),
               child: Text(
-                'No new messages.',
+                'Inbox clear.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: _DashboardPalette.textSecondary,
                     ),
@@ -2300,16 +2494,16 @@ class _DashboardCommunicationWidgetCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              color: Colors.white.withValues(alpha: 0.04),
+              color: accent.withValues(alpha: 0.08),
               border: Border.all(
-                color: _DashboardPalette.border.withValues(alpha: 0.78),
+                color: accent.withValues(alpha: 0.16),
               ),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
-                    'Open communication',
+                    'Open inbox',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
@@ -2317,7 +2511,7 @@ class _DashboardCommunicationWidgetCard extends StatelessWidget {
                 ),
                 Icon(
                   Icons.arrow_forward_rounded,
-                  color: _DashboardPalette.textSecondary,
+                  color: accent,
                   size: 18,
                 ),
               ],
@@ -2564,26 +2758,23 @@ class DashboardPanelCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: _DashboardPalette.border),
+      border: Border.all(
+        color: _DashboardPalette.border.withValues(alpha: 0.86),
+      ),
       gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
         colors: gradientColors ??
             [
-              _DashboardPalette.panelAlt,
               _DashboardPalette.panel,
+              _DashboardPalette.panelAlt,
             ],
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.22),
-          blurRadius: 22,
-          offset: const Offset(0, 14),
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.12),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
+          color: Colors.black.withValues(alpha: 0.18),
+          blurRadius: 20,
+          offset: const Offset(0, 10),
         ),
       ],
     );
@@ -2600,13 +2791,11 @@ class DashboardPanelCard extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withValues(
-                      alpha: _DashboardPalette.isLight ? 0.06 : 0.05,
-                    ),
+                    Colors.white.withValues(alpha: 0.018),
                     Colors.transparent,
                     Colors.transparent,
                   ],
-                  stops: const [0.0, 0.32, 1.0],
+                  stops: const [0.0, 0.24, 1.0],
                 ),
               ),
             ),
@@ -2634,6 +2823,10 @@ class DashboardPanelCard extends StatelessWidget {
               ? body
               : InkWell(
                   onTap: onTap,
+                  hoverColor: _dashboardInteractiveOverlay(),
+                  focusColor: _dashboardInteractiveOverlay(),
+                  highlightColor: _dashboardInteractiveOverlay(emphasis: 1.3),
+                  splashColor: _dashboardInteractiveOverlay(emphasis: 1.4),
                   child: body,
                 ),
         ),
@@ -2659,34 +2852,35 @@ class _SidebarNavButton extends StatelessWidget {
     final child = AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 10 : 14,
-        vertical: compact ? 12 : 13,
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 11 : 11,
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: active
-            ? _DashboardPalette.accent.withValues(alpha: 0.18)
+            ? _DashboardPalette.accent.withValues(alpha: 0.12)
             : Colors.white.withValues(alpha: secondary ? 0.02 : 0.0),
         border: Border.all(
           color: active
-              ? _DashboardPalette.accent.withValues(alpha: 0.45)
-              : _DashboardPalette.border.withValues(alpha: secondary ? 0.8 : 0),
+              ? _DashboardPalette.accent.withValues(alpha: 0.22)
+              : _DashboardPalette.border
+                  .withValues(alpha: secondary ? 0.64 : 0),
         ),
       ),
       child: compact
           ? Icon(
               item.icon,
               color: active
-                  ? _DashboardPalette.textPrimary
+                  ? _DashboardPalette.accentSoft
                   : _DashboardPalette.textSecondary,
             )
           : Row(
               children: [
                 Icon(
                   item.icon,
-                  size: 20,
+                  size: 19,
                   color: active
-                      ? _DashboardPalette.textPrimary
+                      ? _DashboardPalette.accentSoft
                       : _DashboardPalette.textSecondary,
                 ),
                 const SizedBox(width: 12),
@@ -2695,7 +2889,7 @@ class _SidebarNavButton extends StatelessWidget {
                     item.label,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: active
-                              ? _DashboardPalette.textPrimary
+                              ? Colors.white
                               : _DashboardPalette.textSecondary,
                           fontWeight:
                               active ? FontWeight.w700 : FontWeight.w600,
@@ -2710,7 +2904,7 @@ class _SidebarNavButton extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
-                      color: Colors.white.withValues(alpha: 0.05),
+                      color: Colors.white.withValues(alpha: 0.04),
                     ),
                     child: Text(
                       item.badge!,
@@ -2726,6 +2920,10 @@ class _SidebarNavButton extends StatelessWidget {
     final tappable = InkWell(
       onTap: item.onTap,
       borderRadius: BorderRadius.circular(16),
+      hoverColor: _dashboardInteractiveOverlay(),
+      focusColor: _dashboardInteractiveOverlay(),
+      highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
+      splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
       child: child,
     );
 
@@ -2800,84 +2998,6 @@ class _DashboardSectionFrame extends StatelessWidget {
   }
 }
 
-class _SummaryMetricTile extends StatelessWidget {
-  final _DashboardSummaryMetricData metric;
-
-  const _SummaryMetricTile({required this.metric});
-
-  @override
-  Widget build(BuildContext context) {
-    return DashboardPanelCard(
-      onTap: metric.onTap,
-      padding: const EdgeInsets.all(18),
-      minHeight: 132,
-      radius: 22,
-      gradientColors: metric.gradientColors,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  metric.label,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.84),
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                ),
-              ),
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: Colors.white.withValues(alpha: 0.14),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: Icon(metric.icon, color: Colors.white),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            metric.value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  letterSpacing: -0.45,
-                ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            metric.detail,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.82),
-                  height: 1.45,
-                ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            width: 58,
-            height: 4,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              color: Colors.white.withValues(alpha: 0.5),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class DashboardClassCard extends StatelessWidget {
   final DashboardClassStatusData data;
 
@@ -2903,344 +3023,104 @@ class DashboardClassCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compactCard = constraints.maxWidth < 390;
+        final primaryAction = data.actions.isNotEmpty ? data.actions.first : null;
 
         return DashboardPanelCard(
           onTap: data.onTap,
-          minHeight: compactCard ? 280 : 292,
-          radius: 26,
-          padding: EdgeInsets.all(compactCard ? 16 : 18),
+          minHeight: compactCard ? 140 : 148,
+          radius: 20,
+          padding: EdgeInsets.all(compactCard ? 12 : 14),
           gradientColors: [
-            Color.lerp(statusAccent, _DashboardPalette.panelAlt, 0.86)!,
             _DashboardPalette.panel,
+            _DashboardPalette.panelAlt,
           ],
-          child: Stack(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Positioned(
-                top: -20,
-                right: -18,
-                child: IgnorePointer(
-                  child: Container(
-                    width: compactCard ? 84 : 94,
-                    height: compactCard ? 84 : 94,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          statusAccent.withValues(alpha: 0.24),
-                          Colors.transparent,
-                        ],
-                      ),
+              Text(
+                data.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.15,
                     ),
-                  ),
-                ),
               ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 2),
+              Text(
+                data.subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: _DashboardPalette.textSecondary,
+                      height: 1.25,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Row(
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          color: statusAccent.withValues(alpha: 0.16),
-                          border: Border.all(
-                            color: statusAccent.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.class_rounded,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              data.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.45,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              data.subtitle,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: _DashboardPalette.textSecondary,
-                                    height: 1.4,
-                                  ),
-                            ),
-                            if (!compactCard) ...[
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  _ClassMetaChip(
-                                    icon: Icons.people_alt_outlined,
-                                    label: data.studentCount == 0
-                                        ? 'Roster empty'
-                                        : '${data.studentCount} students',
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          _ClassBadge(
-                            label: data.levelLabel,
-                            color: statusAccent,
-                          ),
-                          if (data.isSelected) ...[
-                            const SizedBox(height: 8),
-                            _ClassBadge(
-                              label: 'Focused',
-                              color: _DashboardPalette.accent,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
+                  Icon(
+                    Icons.people_alt_outlined,
+                    size: 15,
+                    color: _DashboardPalette.textSecondary,
                   ),
-                  SizedBox(height: compactCard ? 10 : 12),
-                  Container(
-                    padding: EdgeInsets.all(compactCard ? 12 : 14),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          statusAccent.withValues(alpha: 0.28),
-                          statusAccent.withValues(alpha: 0.12),
-                        ],
-                      ),
-                      border: Border.all(
-                        color: statusAccent.withValues(alpha: 0.4),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: statusAccent.withValues(alpha: 0.16),
-                          blurRadius: 18,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                color: Colors.white.withValues(alpha: 0.16),
-                              ),
-                              child: Icon(
-                                data.statusIcon,
-                                size: 18,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'State',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelLarge
-                                  ?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.86),
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          data.statusLabel,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.2,
-                                  ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          data.statusDetail,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.86),
-                                    height: 1.45,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: compactCard ? 10 : 12),
-                  Container(
-                    padding: EdgeInsets.all(compactCard ? 12 : 14),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          statusAccent.withValues(alpha: 0.10),
-                          Colors.white.withValues(alpha: 0.02),
-                        ],
-                      ),
-                      border: Border.all(
-                        color: statusAccent.withValues(alpha: 0.22),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            color: statusAccent.withValues(alpha: 0.14),
-                          ),
-                          child: Icon(
-                            Icons.arrow_outward_rounded,
-                            size: 18,
-                            color: statusAccent,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text(
-                                    'Next',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(
-                                          color:
-                                              _DashboardPalette.textSecondary,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                  ),
-                                  _DashboardSectionTag(
-                                    label: data.studentCount == 0
-                                        ? 'Roster empty'
-                                        : '${data.studentCount} students',
-                                    icon: Icons.people_alt_outlined,
-                                    foregroundColor:
-                                        _DashboardPalette.textSecondary,
-                                    backgroundColor:
-                                        Colors.white.withValues(alpha: 0.04),
-                                    borderColor: _DashboardPalette.border
-                                        .withValues(alpha: 0.72),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: compactCard ? 4 : 6),
-                              Text(
-                                data.recommendedLabel,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                data.recommendedDetail,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: _DashboardPalette.textSecondary,
-                                      height: 1.45,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: compactCard ? 10 : 12),
-                  if (!compactCard) ...[
-                    Text(
-                      'Signals',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      data.studentCount == 0
+                          ? 'Roster empty'
+                          : '${data.studentCount} students',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: _DashboardPalette.textSecondary,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                           ),
                     ),
-                    const SizedBox(height: 8),
-                  ],
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final metric in data.metrics)
-                        _ClassMetaChip(
-                          icon: metric.icon,
-                          label: metric.label,
-                        ),
-                    ],
-                  ),
-                  SizedBox(height: compactCard ? 10 : 12),
-                  Row(
-                    children: [
-                      for (int index = 0;
-                          index < data.actions.length;
-                          index++) ...[
-                        Expanded(
-                          child: _ClassActionButton(
-                            action: data.actions[index],
-                            accent: statusAccent,
-                            primary: index == 0,
-                          ),
-                        ),
-                        if (index != data.actions.length - 1)
-                          const SizedBox(width: 10),
-                      ],
-                    ],
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: statusAccent.withValues(alpha: 0.08),
+                  border: Border.all(
+                    color: statusAccent.withValues(alpha: 0.14),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      data.statusIcon,
+                      size: 16,
+                      color: statusAccent,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        data.statusLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (primaryAction != null)
+                _ClassActionButton(
+                  action: primaryAction,
+                  accent: statusAccent,
+                  primary: true,
+                  compact: true,
+                ),
             ],
           ),
         );
@@ -3373,240 +3253,6 @@ class _DashboardInsightCard extends StatelessWidget {
   }
 }
 
-class _DashboardLiveStoryCard extends StatelessWidget {
-  final _DashboardLiveStoryData story;
-  final bool compact;
-
-  const _DashboardLiveStoryCard({
-    required this.story,
-    required this.compact,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isLight = _DashboardPalette.isLight;
-    final storyTitleColor =
-        isLight ? _DashboardPalette.textPrimary : Colors.white;
-    final storySecondaryColor = isLight
-        ? _DashboardPalette.textSecondary
-        : Colors.white.withValues(alpha: 0.82);
-    final storyChipColor = isLight
-        ? _DashboardPalette.muted
-        : Colors.white.withValues(alpha: 0.84);
-    final iconColor = isLight ? story.accent : Colors.white;
-    final iconSurface = isLight
-        ? story.accent.withValues(alpha: 0.14)
-        : Colors.white.withValues(alpha: 0.12);
-    final chipSurface = isLight
-        ? story.accent.withValues(alpha: 0.1)
-        : Colors.white.withValues(alpha: 0.1);
-    return DashboardPanelCard(
-      onTap: story.onTap,
-      padding: const EdgeInsets.all(16),
-      radius: 22,
-      minHeight: compact ? 0 : 144,
-      gradientColors: [
-        if (isLight) ...[
-          Color.lerp(story.accent, Colors.white, 0.78)!,
-          Color.lerp(story.accent, Colors.white, 0.92)!,
-        ] else ...[
-          Color.lerp(story.accent, _DashboardPalette.panelAlt, 0.78)!,
-          Color.lerp(
-            story.accent,
-            _DashboardPalette.panel,
-            0.92,
-          )!,
-        ],
-      ],
-      child: Stack(
-        children: [
-          Positioned(
-            top: -24,
-            right: -18,
-            child: IgnorePointer(
-              child: Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      story.accent.withValues(alpha: isLight ? 0.16 : 0.24),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: iconSurface,
-                      border: Border.all(
-                        color: story.accent.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: Icon(story.icon, color: iconColor, size: 20),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      story.label,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: storySecondaryColor,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                  ),
-                  if (story.onTap != null)
-                    Icon(
-                      Icons.arrow_outward_rounded,
-                      size: 18,
-                      color: storySecondaryColor,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Text(
-                story.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: storyTitleColor,
-                      letterSpacing: -0.2,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                story.subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: storySecondaryColor,
-                      height: 1.45,
-                    ),
-              ),
-              if (story.chips.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final chip in story.chips.take(compact ? 2 : 3))
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(999),
-                          color: chipSurface,
-                          border: Border.all(
-                            color: story.accent.withValues(alpha: 0.15),
-                          ),
-                        ),
-                        child: Text(
-                          chip,
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: storyChipColor,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DashboardAnnouncementTile extends StatelessWidget {
-  final _DashboardAnnouncementData item;
-
-  const _DashboardAnnouncementTile({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: item.onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: Colors.white.withValues(alpha: 0.035),
-            border: Border.all(
-              color: item.accent.withValues(alpha: 0.22),
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: item.accent.withValues(alpha: 0.16),
-                ),
-                child: Icon(item.icon, size: 18, color: item.accent),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: _DashboardPalette.textSecondary,
-                            height: 1.4,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              if (item.onTap != null) ...[
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 18,
-                  color: _DashboardPalette.textSecondary,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _ClassBadge extends StatelessWidget {
   final String label;
   final Color color;
@@ -3619,18 +3265,18 @@ class _ClassBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: color.withValues(alpha: 0.16),
+        color: color.withValues(alpha: 0.12),
         border: Border.all(
-          color: color.withValues(alpha: 0.24),
+          color: color.withValues(alpha: 0.18),
         ),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: _DashboardPalette.isLight ? color : Colors.white,
+              color: _DashboardPalette.isLight ? color : color,
               fontWeight: FontWeight.w700,
             ),
       ),
@@ -3650,7 +3296,7 @@ class _ClassMetaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         color: Colors.white.withValues(alpha: 0.04),
@@ -3680,65 +3326,50 @@ class _ClassActionButton extends StatelessWidget {
   final DashboardInlineActionData action;
   final Color accent;
   final bool primary;
+  final bool compact;
 
   const _ClassActionButton({
     required this.action,
     required this.accent,
     required this.primary,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final foreground = primary ? Colors.white : _DashboardPalette.textPrimary;
-    final background = primary
-        ? LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              accent.withValues(alpha: 0.92),
-              accent.withValues(alpha: 0.72),
-            ],
-          )
-        : LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white.withValues(alpha: 0.05),
-              Colors.white.withValues(alpha: 0.02),
-            ],
-          );
+    final foreground = primary
+        ? (_DashboardPalette.isLight ? accent : accent)
+        : _DashboardPalette.textPrimary;
+    final backgroundColor = primary
+        ? accent.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.03);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: action.onTap,
         borderRadius: BorderRadius.circular(16),
+        hoverColor: _dashboardInteractiveOverlay(),
+        focusColor: _dashboardInteractiveOverlay(),
+        highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
+        splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
         child: Container(
-          height: 46,
+          height: compact ? 40 : 44,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: background,
+            borderRadius: BorderRadius.circular(14),
+            color: backgroundColor,
             border: Border.all(
               color: primary
-                  ? accent.withValues(alpha: 0.34)
-                  : _DashboardPalette.border,
+                  ? accent.withValues(alpha: 0.20)
+                  : _DashboardPalette.border.withValues(alpha: 0.78),
             ),
-            boxShadow: primary
-                ? [
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.20),
-                      blurRadius: 18,
-                      offset: const Offset(0, 10),
-                    ),
-                  ]
-                : null,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(action.icon, size: 18, color: foreground),
+                Icon(action.icon, size: compact ? 17 : 18, color: foreground),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
@@ -3749,6 +3380,7 @@ class _ClassActionButton extends StatelessWidget {
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                           color: foreground,
                           fontWeight: FontWeight.w700,
+                          fontSize: compact ? 13 : null,
                         ),
                   ),
                 ),
