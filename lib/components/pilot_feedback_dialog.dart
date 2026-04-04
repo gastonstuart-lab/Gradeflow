@@ -160,7 +160,6 @@ class PilotFeedbackIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      tooltip: 'Pilot feedback',
       icon: const Icon(Icons.rate_review_outlined),
       onPressed: () => showPilotFeedbackDialog(
         context,

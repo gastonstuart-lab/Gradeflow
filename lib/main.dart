@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/components/gradeflow_launch_experience.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/nav.dart';
@@ -64,7 +65,9 @@ class _MyAppState extends State<MyApp> {
             routerConfig: AppRouter.router,
             builder: (context, child) {
               return ResponsiveBreakpoints.builder(
-                child: child!,
+                child: GradeFlowLaunchGate(
+                  child: child!,
+                ),
                 breakpoints: const [
                   Breakpoint(start: 0, end: 479, name: PHONE),
                   Breakpoint(start: 480, end: 767, name: TABLET),

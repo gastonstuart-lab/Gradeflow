@@ -80,6 +80,22 @@ class _DashboardSummaryMetricData {
   });
 }
 
+class DashboardHeroPresentation {
+  final String label;
+  final List<Color> gradientColors;
+  final Color primaryGlow;
+  final Color secondaryGlow;
+  final Color tertiaryGlow;
+
+  const DashboardHeroPresentation({
+    required this.label,
+    required this.gradientColors,
+    required this.primaryGlow,
+    required this.secondaryGlow,
+    required this.tertiaryGlow,
+  });
+}
+
 class DashboardInlineActionData {
   final String label;
   final IconData icon;
@@ -208,6 +224,62 @@ class _DashboardAnnouncementData {
   });
 }
 
+class DashboardSystemWidgetData {
+  final String timeLabel;
+  final String weekdayLabel;
+  final String dateLabel;
+  final String statusLabel;
+  final String statusDetail;
+  final String weatherLabel;
+  final String nextLabel;
+  final String focusLabel;
+
+  const DashboardSystemWidgetData({
+    required this.timeLabel,
+    required this.weekdayLabel,
+    required this.dateLabel,
+    required this.statusLabel,
+    required this.statusDetail,
+    required this.weatherLabel,
+    required this.nextLabel,
+    required this.focusLabel,
+  });
+}
+
+class DashboardCommunicationWidgetData {
+  final String headline;
+  final String detail;
+  final int unreadCount;
+  final List<DashboardCommunicationThreadData> threads;
+  final VoidCallback onTap;
+
+  const DashboardCommunicationWidgetData({
+    required this.headline,
+    required this.detail,
+    required this.unreadCount,
+    required this.threads,
+    required this.onTap,
+  });
+}
+
+class DashboardCommunicationThreadData {
+  final String title;
+  final String preview;
+  final String meta;
+  final IconData icon;
+  final Color accent;
+  final int unreadCount;
+
+  const DashboardCommunicationThreadData({
+    required this.title,
+    required this.preview,
+    required this.meta,
+    required this.icon,
+    required this.accent,
+    required this.unreadCount,
+  });
+}
+
 class _DashboardMobileTabData {
   final String label;
   final IconData icon;
@@ -245,8 +317,10 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
       shadow: Colors.black,
     );
 
-    final textTheme =
-        GoogleFonts.plusJakartaSansTextTheme(base.textTheme).apply(
+    final dashboardBaseTextTheme = kIsWeb
+        ? base.textTheme
+        : GoogleFonts.plusJakartaSansTextTheme(base.textTheme);
+    final textTheme = dashboardBaseTextTheme.apply(
       bodyColor: _DashboardPalette.textPrimary,
       displayColor: _DashboardPalette.textPrimary,
     );
@@ -362,22 +436,28 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
 
         if (width < _mobileBreakpoint) {
           return _buildDashboardBackdrop(
-            child: MobileDashboardLayout(
-              body: _buildMobileDashboardBody(context, now),
-              bottomNavigation: MobileBottomNavigation(
-                currentIndex: _mobileDashboardIndex,
-                onSelected: (index) {
-                  setState(() => _mobileDashboardIndex = index);
-                },
-                destinations: const [
-                  _DashboardMobileTabData(label: 'Home', icon: Icons.grid_view),
-                  _DashboardMobileTabData(
-                      label: 'Planning', icon: Icons.event_note_outlined),
-                  _DashboardMobileTabData(
-                      label: 'Tools', icon: Icons.widgets_outlined),
-                  _DashboardMobileTabData(
-                      label: 'Live', icon: Icons.campaign_outlined),
-                ],
+            child: _buildDashboardOperatingSurface(
+              context,
+              now: now,
+              width: width,
+              surface: MobileDashboardLayout(
+                body: _buildMobileDashboardBody(context, now),
+                bottomNavigation: MobileBottomNavigation(
+                  currentIndex: _mobileDashboardIndex,
+                  onSelected: (index) {
+                    setState(() => _mobileDashboardIndex = index);
+                  },
+                  destinations: const [
+                    _DashboardMobileTabData(
+                        label: 'Home', icon: Icons.grid_view),
+                    _DashboardMobileTabData(
+                        label: 'Schedule', icon: Icons.event_note_outlined),
+                    _DashboardMobileTabData(
+                        label: 'Tools', icon: Icons.widgets_outlined),
+                    _DashboardMobileTabData(
+                        label: 'Live', icon: Icons.campaign_outlined),
+                  ],
+                ),
               ),
             ),
           );
@@ -385,18 +465,28 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
 
         if (width < _desktopBreakpoint) {
           return _buildDashboardBackdrop(
-            child: TabletDashboardLayout(
-              sidebar: sidebar,
-              main: _buildTabletMainContent(context, now, livePanel),
+            child: _buildDashboardOperatingSurface(
+              context,
+              now: now,
+              width: width,
+              surface: TabletDashboardLayout(
+                sidebar: sidebar,
+                main: _buildTabletMainContent(context, now, livePanel),
+              ),
             ),
           );
         }
 
         return _buildDashboardBackdrop(
-          child: DashboardShell(
-            sidebar: sidebar,
-            main: _buildDesktopMainContent(context, now),
-            livePanel: livePanel,
+          child: _buildDashboardOperatingSurface(
+            context,
+            now: now,
+            width: width,
+            surface: DashboardShell(
+              sidebar: sidebar,
+              main: _buildDesktopMainContent(context, now),
+              livePanel: livePanel,
+            ),
           ),
         );
       },
@@ -800,6 +890,8 @@ class DashboardTopSummary extends StatelessWidget {
   final String todayLine;
   final List<Widget> actions;
   final List<_DashboardSummaryMetricData> metrics;
+  final DashboardHeroPresentation presentation;
+  final ImageProvider<Object>? backgroundImage;
   final bool compact;
 
   const DashboardTopSummary({
@@ -809,6 +901,8 @@ class DashboardTopSummary extends StatelessWidget {
     required this.todayLine,
     required this.actions,
     required this.metrics,
+    required this.presentation,
+    required this.backgroundImage,
     this.compact = false,
   });
 
@@ -840,12 +934,38 @@ class DashboardTopSummary extends StatelessWidget {
         return DashboardPanelCard(
           padding: EdgeInsets.all(compact ? 20 : 26),
           radius: compact ? 24 : 28,
-          gradientColors: const [
-            Color(0xFF171E2B),
-            Color(0xFF121926),
-          ],
+          gradientColors: presentation.gradientColors,
           child: Stack(
             children: [
+              if (backgroundImage != null)
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(compact ? 24 : 28),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: backgroundImage!,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                          opacity: 0.34,
+                        ),
+                      ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              const Color(0xFF081019).withValues(alpha: 0.76),
+                              const Color(0xFF101723).withValues(alpha: 0.64),
+                              const Color(0xFF0C131D).withValues(alpha: 0.84),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 top: -72,
                 right: -56,
@@ -857,7 +977,7 @@ class DashboardTopSummary extends StatelessWidget {
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          _DashboardPalette.accent.withValues(alpha: 0.26),
+                          presentation.primaryGlow.withValues(alpha: 0.28),
                           Colors.transparent,
                         ],
                       ),
@@ -876,7 +996,26 @@ class DashboardTopSummary extends StatelessWidget {
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          _DashboardPalette.cyan.withValues(alpha: 0.14),
+                          presentation.secondaryGlow.withValues(alpha: 0.18),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: compact ? 120 : 180,
+                top: compact ? -36 : -28,
+                child: IgnorePointer(
+                  child: Container(
+                    width: compact ? 100 : 140,
+                    height: compact ? 100 : 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          presentation.tertiaryGlow.withValues(alpha: 0.16),
                           Colors.transparent,
                         ],
                       ),
@@ -895,7 +1034,7 @@ class DashboardTopSummary extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Teacher command center',
+                              'Command deck',
                               style: baseTheme.textTheme.labelLarge?.copyWith(
                                 color: heroSecondary,
                                 letterSpacing: 0.9,
@@ -927,7 +1066,7 @@ class DashboardTopSummary extends StatelessWidget {
                             ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 620),
                               child: Text(
-                                'Classes, planning, and communication stay aligned here so the day feels controlled before the first interruption arrives.',
+                                'Today, classes, and live communication stay pinned.',
                                 style: baseTheme.textTheme.bodySmall?.copyWith(
                                   color: Colors.white.withValues(alpha: 0.78),
                                   height: 1.45,
@@ -945,10 +1084,10 @@ class DashboardTopSummary extends StatelessWidget {
                                   borderColor: heroOutline,
                                 ),
                                 _HeroSignalPill(
-                                  icon: Icons.desktop_windows_rounded,
-                                  label: compact
-                                      ? 'Teacher workspace'
-                                      : 'Desktop workflow ready',
+                                  icon: Icons.palette_outlined,
+                                  label: backgroundImage != null
+                                      ? '${presentation.label} + custom backdrop'
+                                      : '${presentation.label} hero style',
                                   borderColor:
                                       Colors.white.withValues(alpha: 0.12),
                                   backgroundColor:
@@ -985,7 +1124,7 @@ class DashboardTopSummary extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Workspace controls',
+                                    'Controls',
                                     style: baseTheme.textTheme.labelLarge
                                         ?.copyWith(
                                       color: heroPrimary,
@@ -994,7 +1133,7 @@ class DashboardTopSummary extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Theme, feedback, and session tools stay close without fighting the core dashboard.',
+                                    'Theme, feedback, and sign-out stay close.',
                                     style:
                                         baseTheme.textTheme.bodySmall?.copyWith(
                                       color: heroSecondary,
@@ -1039,6 +1178,28 @@ class DashboardTopSummary extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const _DashboardSectionTag(
+                        label: 'Snapshot',
+                        icon: Icons.stacked_bar_chart_rounded,
+                        foregroundColor: Color(0xFFF8FAFF),
+                        backgroundColor: Color.fromRGBO(255, 255, 255, 0.06),
+                        borderColor: Color.fromRGBO(255, 255, 255, 0.12),
+                      ),
+                      Text(
+                        'Tap a tile to jump.',
+                        style: baseTheme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   Wrap(
                     spacing: 16,
                     runSpacing: 16,
@@ -1105,6 +1266,56 @@ class _HeroSignalPill extends StatelessWidget {
   }
 }
 
+class _DashboardSectionTag extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final Color? foregroundColor;
+  final Color? backgroundColor;
+  final Color? borderColor;
+
+  const _DashboardSectionTag({
+    required this.label,
+    this.icon,
+    this.foregroundColor,
+    this.backgroundColor,
+    this.borderColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedForeground =
+        foregroundColor ?? _DashboardPalette.textSecondary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: backgroundColor ?? Colors.white.withValues(alpha: 0.05),
+        border: Border.all(
+          color: borderColor ?? Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: resolvedForeground),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: resolvedForeground,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.25,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ClassStatusSection extends StatelessWidget {
   final List<DashboardClassStatusData> classes;
   final VoidCallback onOpenClasses;
@@ -1121,8 +1332,7 @@ class ClassStatusSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _DashboardSectionFrame(
       title: 'Your Classes',
-      subtitle:
-          'Live status, focus shifts, and direct actions for the classes that matter today.',
+      subtitle: 'Live status and direct class actions.',
       action: TextButton.icon(
         onPressed: onOpenClasses,
         icon: const Icon(Icons.arrow_forward_rounded, size: 18),
@@ -1170,8 +1380,7 @@ class QuickActionsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _DashboardSectionFrame(
       title: 'Quick Actions',
-      subtitle:
-          'The few moves teachers reach for repeatedly, kept close without crowding the dashboard.',
+      subtitle: 'Fast moves for setup and live teaching.',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -1200,6 +1409,241 @@ class QuickActionsSection extends StatelessWidget {
   }
 }
 
+class DashboardWorkspaceModeStrip extends StatelessWidget {
+  final DashboardWorkspaceSection selectedSection;
+  final ValueChanged<DashboardWorkspaceSection> onSelected;
+  final String description;
+
+  const DashboardWorkspaceModeStrip({
+    super.key,
+    required this.selectedSection,
+    required this.onSelected,
+    required this.description,
+  });
+
+  String _selectionLabel() {
+    switch (selectedSection) {
+      case DashboardWorkspaceSection.today:
+        return 'Today';
+      case DashboardWorkspaceSection.classroom:
+        return 'Studio';
+      case DashboardWorkspaceSection.planning:
+        return 'Schedule';
+      case DashboardWorkspaceSection.workspace:
+        return 'Tools';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DashboardPanelCard(
+      padding: const EdgeInsets.all(16),
+      radius: 22,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: _DashboardPalette.accent.withValues(alpha: 0.16),
+                ),
+                child: Icon(
+                  Icons.view_carousel_outlined,
+                  size: 18,
+                  color: _DashboardPalette.accent,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Workspace',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Primary surfaces stay pinned while one secondary surface takes focus.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              _DashboardSectionTag(
+                label: _selectionLabel(),
+                icon: Icons.tune_rounded,
+                foregroundColor: _DashboardPalette.accent,
+                backgroundColor:
+                    _DashboardPalette.accent.withValues(alpha: 0.12),
+                borderColor: _DashboardPalette.accent.withValues(alpha: 0.18),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.white.withValues(alpha: 0.03),
+              border: Border.all(
+                color: _DashboardPalette.border.withValues(alpha: 0.85),
+              ),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<DashboardWorkspaceSection>(
+                segments: const [
+                  ButtonSegment(
+                    value: DashboardWorkspaceSection.today,
+                    icon: Icon(Icons.insights_outlined),
+                    label: Text('Today'),
+                  ),
+                  ButtonSegment(
+                    value: DashboardWorkspaceSection.classroom,
+                    icon: Icon(Icons.draw_outlined),
+                    label: Text('Classroom'),
+                  ),
+                  ButtonSegment(
+                    value: DashboardWorkspaceSection.planning,
+                    icon: Icon(Icons.event_note_outlined),
+                    label: Text('Schedule'),
+                  ),
+                  ButtonSegment(
+                    value: DashboardWorkspaceSection.workspace,
+                    icon: Icon(Icons.workspaces_outline),
+                    label: Text('Workspace'),
+                  ),
+                ],
+                selected: {selectedSection},
+                onSelectionChanged: (selection) => onSelected(selection.first),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white.withValues(alpha: 0.03),
+              border: Border.all(
+                color: _DashboardPalette.border.withValues(alpha: 0.72),
+              ),
+            ),
+            child: Text(
+              description,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _DashboardPalette.textSecondary,
+                    height: 1.45,
+                  ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DashboardSectionPreviewCard extends StatelessWidget {
+  final String title;
+  final String detail;
+  final IconData icon;
+  final String actionLabel;
+  final VoidCallback onTap;
+
+  const DashboardSectionPreviewCard({
+    super.key,
+    required this.title,
+    required this.detail,
+    required this.icon,
+    required this.actionLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DashboardPanelCard(
+      padding: const EdgeInsets.all(16),
+      radius: 22,
+      minHeight: 170,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DashboardSectionTag(
+            label: 'Standby',
+            icon: icon,
+            foregroundColor: _DashboardPalette.accent,
+            backgroundColor: _DashboardPalette.accent.withValues(alpha: 0.12),
+            borderColor: _DashboardPalette.accent.withValues(alpha: 0.18),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: _DashboardPalette.textSecondary,
+                  height: 1.45,
+                ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(
+                color: _DashboardPalette.border.withValues(alpha: 0.78),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    actionLabel,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: _DashboardPalette.accent.withValues(alpha: 0.12),
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 18,
+                    color: _DashboardPalette.accent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class InsightsSection extends StatelessWidget {
   final List<_DashboardInsightData> insights;
   final bool compact;
@@ -1214,8 +1658,7 @@ class InsightsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _DashboardSectionFrame(
       title: 'Insights',
-      subtitle:
-          'Signal over noise: operational cues that help you steer the week without dashboard theater.',
+      subtitle: 'Signal over noise for the week ahead.',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -1257,9 +1700,8 @@ class PlanningSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _DashboardSectionFrame(
-      title: 'Planning',
-      subtitle:
-          'Reminders, calendar runway, and timetable context without burying the teaching flow.',
+      title: 'Schedule',
+      subtitle: 'Reminders, calendar, and timetable.',
       child: _ResponsivePanelWrap(
         compact: compact,
         children: panels,
@@ -1282,8 +1724,7 @@ class WorkspaceSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _DashboardSectionFrame(
       title: 'Workspace',
-      subtitle:
-          'Secondary tools stay available and composable, without turning the dashboard into a dumping ground.',
+      subtitle: 'Secondary tools and links on standby.',
       child: _ResponsivePanelWrap(
         compact: compact,
         children: panels,
@@ -1296,6 +1737,8 @@ class LivePanel extends StatelessWidget {
   final String title;
   final String subtitle;
   final List<String> channels;
+  final DashboardSystemWidgetData systemWidget;
+  final DashboardCommunicationWidgetData communicationWidget;
   final List<_DashboardLiveStoryData> stories;
   final List<_DashboardAnnouncementData> announcements;
   final bool compact;
@@ -1305,6 +1748,8 @@ class LivePanel extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.channels,
+    required this.systemWidget,
+    required this.communicationWidget,
     required this.stories,
     required this.announcements,
     this.compact = false,
@@ -1313,7 +1758,7 @@ class LivePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DashboardPanelCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       radius: 28,
       gradientColors: [
         _DashboardPalette.sidebarAlt,
@@ -1360,10 +1805,11 @@ class LivePanel extends StatelessWidget {
             ),
           ),
           Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
@@ -1381,6 +1827,16 @@ class LivePanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _DashboardSectionTag(
+                      label: 'Live rail',
+                      icon: Icons.radar_rounded,
+                      foregroundColor: _DashboardPalette.accentSoft,
+                      backgroundColor:
+                          _DashboardPalette.accent.withValues(alpha: 0.10),
+                      borderColor:
+                          _DashboardPalette.accent.withValues(alpha: 0.18),
+                    ),
+                    const SizedBox(height: 12),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1401,6 +1857,8 @@ class LivePanel extends StatelessWidget {
                               const SizedBox(height: 6),
                               Text(
                                 subtitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
@@ -1425,7 +1883,7 @@ class LivePanel extends StatelessWidget {
                             ),
                           ),
                           child: Text(
-                            '${channels.length} live signals',
+                            '${channels.length} signals',
                             style: Theme.of(context)
                                 .textTheme
                                 .labelMedium
@@ -1438,12 +1896,12 @@ class LivePanel extends StatelessWidget {
                       ],
                     ),
                     if (channels.isNotEmpty) ...[
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          for (final channel in channels)
+                          for (final channel in channels.take(compact ? 3 : 4))
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
@@ -1473,44 +1931,56 @@ class LivePanel extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
-              Text(
-                'Live Brief',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.2,
-                    ),
+              const SizedBox(height: 16),
+              const _DashboardSectionTag(
+                label: 'Widget',
+                icon: Icons.schedule_rounded,
               ),
-              const SizedBox(height: 6),
-              Text(
-                'News, time, weather, and upcoming events stay visible here without crowding the main dashboard.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: _DashboardPalette.textSecondary,
-                      height: 1.45,
-                    ),
+              const SizedBox(height: 10),
+              _DashboardSystemWidgetCard(
+                data: systemWidget,
+                compact: compact,
               ),
               const SizedBox(height: 12),
+              const _DashboardSectionTag(
+                label: 'Messages',
+                icon: Icons.forum_outlined,
+              ),
+              const SizedBox(height: 10),
+              _DashboardCommunicationWidgetCard(
+                data: communicationWidget,
+                compact: compact,
+              ),
+              const SizedBox(height: 12),
+              const _DashboardSectionTag(
+                label: 'Live',
+                icon: Icons.public_outlined,
+              ),
+              const SizedBox(height: 10),
               for (final story in stories) ...[
                 _DashboardLiveStoryCard(story: story, compact: compact),
                 const SizedBox(height: 12),
               ],
-              const SizedBox(height: 6),
-              Text(
-                'Admin And Team Updates',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.2,
+              Row(
+                children: [
+                  const _DashboardSectionTag(
+                    label: 'Updates',
+                    icon: Icons.campaign_outlined,
+                  ),
+                  if (announcements.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    _DashboardSectionTag(
+                      label: '${announcements.length}',
+                      foregroundColor: _DashboardPalette.accentSoft,
+                      backgroundColor:
+                          _DashboardPalette.accent.withValues(alpha: 0.10),
+                      borderColor:
+                          _DashboardPalette.accent.withValues(alpha: 0.18),
                     ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Important notices stay compact and scannable instead of getting lost in a noisy feed.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: _DashboardPalette.textSecondary,
-                      height: 1.45,
-                    ),
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               DashboardPanelCard(
                 padding: const EdgeInsets.all(14),
                 radius: 22,
@@ -1525,7 +1995,7 @@ class LivePanel extends StatelessWidget {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'No communication updates yet. Admin alerts, staff-channel activity, and shared resource notices will appear here.',
+                          'No new staff updates.',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -1540,6 +2010,531 @@ class LivePanel extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardSystemWidgetCard extends StatelessWidget {
+  final DashboardSystemWidgetData data;
+  final bool compact;
+
+  const _DashboardSystemWidgetCard({
+    required this.data,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DashboardPanelCard(
+      padding: const EdgeInsets.all(16),
+      radius: 22,
+      minHeight: compact ? 0 : 176,
+      gradientColors: [
+        Color.lerp(_DashboardPalette.accent, _DashboardPalette.panelAlt, 0.82)!,
+        _DashboardPalette.panel,
+      ],
+      child: Stack(
+        children: [
+          Positioned(
+            top: -28,
+            right: -24,
+            child: IgnorePointer(
+              child: Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      _DashboardPalette.accent.withValues(alpha: 0.20),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _SystemWidgetBadge(
+                    label: 'Local',
+                    icon: Icons.schedule_rounded,
+                  ),
+                  _SystemWidgetBadge(
+                    label: data.focusLabel,
+                    icon: Icons.adjust_rounded,
+                    emphasized: true,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.08),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Text(
+                  data.timeLabel,
+                  key: ValueKey<String>(data.timeLabel),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1.1,
+                      ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${data.weekdayLabel} • ${data.dateLabel}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: _DashboardPalette.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: Colors.white.withValues(alpha: 0.04),
+                  border: Border.all(
+                    color: _DashboardPalette.border.withValues(alpha: 0.82),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: _DashboardPalette.accent.withValues(alpha: 0.14),
+                      ),
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 18,
+                        color: _DashboardPalette.accent,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            data.statusLabel,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            data.statusDetail,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: _DashboardPalette.textSecondary,
+                                      height: 1.45,
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SystemMetricTile(
+                      label: 'Weather',
+                      value: data.weatherLabel,
+                      icon: Icons.cloud_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _SystemMetricTile(
+                      label: 'Next',
+                      value: data.nextLabel,
+                      icon: Icons.schedule_rounded,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardCommunicationWidgetCard extends StatelessWidget {
+  final DashboardCommunicationWidgetData data;
+  final bool compact;
+
+  const _DashboardCommunicationWidgetCard({
+    required this.data,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final previewThreads = data.threads.take(compact ? 2 : 3).toList();
+    final accent = previewThreads.isNotEmpty
+        ? previewThreads.first.accent
+        : _DashboardPalette.accent;
+
+    return DashboardPanelCard(
+      onTap: data.onTap,
+      padding: const EdgeInsets.all(16),
+      radius: 22,
+      gradientColors: [
+        Color.lerp(accent, _DashboardPalette.panelAlt, 0.84)!,
+        _DashboardPalette.panel,
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data.headline,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      data.detail,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                            height: 1.45,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color: accent.withValues(alpha: 0.14),
+                  border: Border.all(
+                    color: accent.withValues(alpha: 0.24),
+                  ),
+                ),
+                child: Text(
+                  data.unreadCount > 0 ? '${data.unreadCount}' : 'Open',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (previewThreads.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: Colors.white.withValues(alpha: 0.04),
+                border: Border.all(
+                  color: _DashboardPalette.border.withValues(alpha: 0.78),
+                ),
+              ),
+              child: Text(
+                'No new messages.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: _DashboardPalette.textSecondary,
+                    ),
+              ),
+            ),
+          for (int index = 0; index < previewThreads.length; index++) ...[
+            _CommunicationPreviewRow(thread: previewThreads[index]),
+            if (index != previewThreads.length - 1) const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(
+                color: _DashboardPalette.border.withValues(alpha: 0.78),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Open communication',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  color: _DashboardPalette.textSecondary,
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommunicationPreviewRow extends StatelessWidget {
+  final DashboardCommunicationThreadData thread;
+
+  const _CommunicationPreviewRow({
+    required this.thread,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(
+          color: _DashboardPalette.border.withValues(alpha: 0.78),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: thread.accent.withValues(alpha: 0.14),
+              border: Border.all(
+                color: thread.accent.withValues(alpha: 0.22),
+              ),
+            ),
+            child: Icon(
+              thread.icon,
+              size: 18,
+              color: thread.accent,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  thread.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  thread.preview,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: _DashboardPalette.textSecondary,
+                        height: 1.4,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (thread.unreadCount > 0)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    color: thread.accent.withValues(alpha: 0.16),
+                    border: Border.all(
+                      color: thread.accent.withValues(alpha: 0.24),
+                    ),
+                  ),
+                  child: Text(
+                    '${thread.unreadCount}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: thread.accent,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+              if (thread.unreadCount > 0) const SizedBox(height: 6),
+              Text(
+                thread.meta,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: _DashboardPalette.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SystemMetricTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _SystemMetricTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(
+          color: _DashboardPalette.border.withValues(alpha: 0.74),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: _DashboardPalette.accent.withValues(alpha: 0.14),
+            ),
+            child: Icon(icon, size: 18, color: _DashboardPalette.accent),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: _DashboardPalette.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SystemWidgetBadge extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool emphasized;
+
+  const _SystemWidgetBadge({
+    required this.label,
+    required this.icon,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = emphasized
+        ? _DashboardPalette.accentSoft
+        : _DashboardPalette.textSecondary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: emphasized
+            ? _DashboardPalette.accent.withValues(alpha: 0.12)
+            : Colors.white.withValues(alpha: 0.04),
+        border: Border.all(
+          color: emphasized
+              ? _DashboardPalette.accent.withValues(alpha: 0.18)
+              : _DashboardPalette.border.withValues(alpha: 0.78),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: foreground),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
       ),
@@ -1728,14 +2723,20 @@ class _SidebarNavButton extends StatelessWidget {
             ),
     );
 
+    final tappable = InkWell(
+      onTap: item.onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: child,
+    );
+
+    if (!compact || kIsWeb) {
+      return tappable;
+    }
+
     return Tooltip(
       message:
           item.badge == null ? item.label : '${item.label} (${item.badge})',
-      child: InkWell(
-        onTap: item.onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: child,
-      ),
+      child: tappable,
     );
   }
 }
@@ -1809,7 +2810,7 @@ class _SummaryMetricTile extends StatelessWidget {
     return DashboardPanelCard(
       onTap: metric.onTap,
       padding: const EdgeInsets.all(18),
-      minHeight: 136,
+      minHeight: 132,
       radius: 22,
       gradientColors: metric.gradientColors,
       child: Column(
@@ -1844,6 +2845,8 @@ class _SummaryMetricTile extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             metric.value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
@@ -1853,6 +2856,8 @@ class _SummaryMetricTile extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             metric.detail,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.white.withValues(alpha: 0.82),
                   height: 1.45,
@@ -1895,276 +2900,351 @@ class DashboardClassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusAccent = _statusAccent();
-    return DashboardPanelCard(
-      onTap: data.onTap,
-      minHeight: 302,
-      radius: 26,
-      padding: const EdgeInsets.all(18),
-      gradientColors: [
-        Color.lerp(statusAccent, _DashboardPalette.panelAlt, 0.86)!,
-        _DashboardPalette.panel,
-      ],
-      child: Stack(
-        children: [
-          Positioned(
-            top: -20,
-            right: -18,
-            child: IgnorePointer(
-              child: Container(
-                width: 94,
-                height: 94,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      statusAccent.withValues(alpha: 0.24),
-                      Colors.transparent,
-                    ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactCard = constraints.maxWidth < 390;
+
+        return DashboardPanelCard(
+          onTap: data.onTap,
+          minHeight: compactCard ? 280 : 292,
+          radius: 26,
+          padding: EdgeInsets.all(compactCard ? 16 : 18),
+          gradientColors: [
+            Color.lerp(statusAccent, _DashboardPalette.panelAlt, 0.86)!,
+            _DashboardPalette.panel,
+          ],
+          child: Stack(
+            children: [
+              Positioned(
+                top: -20,
+                right: -18,
+                child: IgnorePointer(
+                  child: Container(
+                    width: compactCard ? 84 : 94,
+                    height: compactCard ? 84 : 94,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          statusAccent.withValues(alpha: 0.24),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+              Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: statusAccent.withValues(alpha: 0.16),
-                      border: Border.all(
-                        color: statusAccent.withValues(alpha: 0.3),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          color: statusAccent.withValues(alpha: 0.16),
+                          border: Border.all(
+                            color: statusAccent.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.class_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
                       ),
-                    ),
-                    child: Icon(
-                      Icons.class_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          data.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.45,
                                   ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              data.subtitle,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: _DashboardPalette.textSecondary,
+                                    height: 1.4,
+                                  ),
+                            ),
+                            if (!compactCard) ...[
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _ClassMetaChip(
+                                    icon: Icons.people_alt_outlined,
+                                    label: data.studentCount == 0
+                                        ? 'Roster empty'
+                                        : '${data.studentCount} students',
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 4),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _ClassBadge(
+                            label: data.levelLabel,
+                            color: statusAccent,
+                          ),
+                          if (data.isSelected) ...[
+                            const SizedBox(height: 8),
+                            _ClassBadge(
+                              label: 'Focused',
+                              color: _DashboardPalette.accent,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: compactCard ? 10 : 12),
+                  Container(
+                    padding: EdgeInsets.all(compactCard ? 12 : 14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          statusAccent.withValues(alpha: 0.28),
+                          statusAccent.withValues(alpha: 0.12),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: statusAccent.withValues(alpha: 0.4),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: statusAccent.withValues(alpha: 0.16),
+                          blurRadius: 18,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                color: Colors.white.withValues(alpha: 0.16),
+                              ),
+                              child: Icon(
+                                data.statusIcon,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              'State',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.86),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
                         Text(
-                          data.subtitle,
+                          data.statusLabel,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.2,
+                                  ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          data.statusDetail,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: _DashboardPalette.textSecondary,
-                                    height: 1.4,
+                                    color: Colors.white.withValues(alpha: 0.86),
+                                    height: 1.45,
                                   ),
                         ),
                       ],
                     ),
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _ClassBadge(
-                        label: data.levelLabel,
-                        color: statusAccent,
+                  SizedBox(height: compactCard ? 10 : 12),
+                  Container(
+                    padding: EdgeInsets.all(compactCard ? 12 : 14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          statusAccent.withValues(alpha: 0.10),
+                          Colors.white.withValues(alpha: 0.02),
+                        ],
                       ),
-                      if (data.isSelected) ...[
-                        const SizedBox(height: 8),
-                        _ClassBadge(
-                          label: 'Focused',
-                          color: _DashboardPalette.accent,
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      statusAccent.withValues(alpha: 0.28),
-                      statusAccent.withValues(alpha: 0.12),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: statusAccent.withValues(alpha: 0.4),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: statusAccent.withValues(alpha: 0.16),
-                      blurRadius: 18,
-                      offset: const Offset(0, 10),
+                      border: Border.all(
+                        color: statusAccent.withValues(alpha: 0.22),
+                      ),
                     ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          width: 32,
-                          height: 32,
+                          width: 34,
+                          height: 34,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            color: Colors.white.withValues(alpha: 0.16),
+                            color: statusAccent.withValues(alpha: 0.14),
                           ),
                           child: Icon(
-                            data.statusIcon,
+                            Icons.arrow_outward_rounded,
                             size: 18,
-                            color: Colors.white,
+                            color: statusAccent,
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Text(
-                          'Status',
-                          style:
-                              Theme.of(context).textTheme.labelLarge?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.86),
-                                    fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    'Next',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                          color:
+                                              _DashboardPalette.textSecondary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                   ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      data.statusLabel,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      data.statusDetail,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.86),
-                            height: 1.45,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: Colors.white.withValues(alpha: 0.035),
-                  border: Border.all(
-                    color: statusAccent.withValues(alpha: 0.22),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: statusAccent.withValues(alpha: 0.14),
-                      ),
-                      child: Icon(
-                        Icons.arrow_outward_rounded,
-                        size: 18,
-                        color: statusAccent,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Next step',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelLarge
-                                ?.copyWith(
-                                  color: _DashboardPalette.textSecondary,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            data.recommendedLabel,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            data.recommendedDetail,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  _DashboardSectionTag(
+                                    label: data.studentCount == 0
+                                        ? 'Roster empty'
+                                        : '${data.studentCount} students',
+                                    icon: Icons.people_alt_outlined,
+                                    foregroundColor:
+                                        _DashboardPalette.textSecondary,
+                                    backgroundColor:
+                                        Colors.white.withValues(alpha: 0.04),
+                                    borderColor: _DashboardPalette.border
+                                        .withValues(alpha: 0.72),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: compactCard ? 4 : 6),
+                              Text(
+                                data.recommendedLabel,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                data.recommendedDetail,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
                                       color: _DashboardPalette.textSecondary,
                                       height: 1.45,
                                     ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                  ),
+                  SizedBox(height: compactCard ? 10 : 12),
+                  if (!compactCard) ...[
+                    Text(
+                      'Signals',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
                   ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final metric in data.metrics)
-                    _ClassMetaChip(
-                      icon: metric.icon,
-                      label: metric.label,
-                    ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  for (int index = 0; index < data.actions.length; index++) ...[
-                    Expanded(
-                      child: _ClassActionButton(
-                        action: data.actions[index],
-                        accent: statusAccent,
-                        primary: index == 0,
-                      ),
-                    ),
-                    if (index != data.actions.length - 1)
-                      const SizedBox(width: 10),
-                  ],
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final metric in data.metrics)
+                        _ClassMetaChip(
+                          icon: metric.icon,
+                          label: metric.label,
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: compactCard ? 10 : 12),
+                  Row(
+                    children: [
+                      for (int index = 0;
+                          index < data.actions.length;
+                          index++) ...[
+                        Expanded(
+                          child: _ClassActionButton(
+                            action: data.actions[index],
+                            accent: statusAccent,
+                            primary: index == 0,
+                          ),
+                        ),
+                        if (index != data.actions.length - 1)
+                          const SizedBox(width: 10),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -2178,14 +3258,14 @@ class _DashboardActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DashboardPanelCard(
       onTap: data.onTap,
-      minHeight: 116,
+      minHeight: 108,
       padding: const EdgeInsets.all(16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 46,
-            height: 46,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               color: data.accent.withValues(alpha: 0.18),
@@ -2207,6 +3287,8 @@ class _DashboardActionCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   data.detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -2395,7 +3477,7 @@ class _DashboardLiveStoryCard extends StatelessWidget {
               const SizedBox(height: 14),
               Text(
                 story.title,
-                maxLines: compact ? 2 : 3,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
@@ -2406,7 +3488,7 @@ class _DashboardLiveStoryCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 story.subtitle,
-                maxLines: compact ? 2 : 3,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: storySecondaryColor,
@@ -2499,6 +3581,8 @@ class _DashboardAnnouncementTile extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       item.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: _DashboardPalette.textSecondary,
                             height: 1.4,
@@ -2566,7 +3650,7 @@ class _ClassMetaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         color: Colors.white.withValues(alpha: 0.04),
@@ -2630,7 +3714,7 @@ class _ClassActionButton extends StatelessWidget {
         onTap: action.onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          height: 44,
+          height: 46,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             gradient: background,
@@ -2639,9 +3723,18 @@ class _ClassActionButton extends StatelessWidget {
                   ? accent.withValues(alpha: 0.34)
                   : _DashboardPalette.border,
             ),
+            boxShadow: primary
+                ? [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.20),
+                      blurRadius: 18,
+                      offset: const Offset(0, 10),
+                    ),
+                  ]
+                : null,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

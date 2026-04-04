@@ -56,9 +56,9 @@ void main() {
       expect(find.text('EEP 4 J1FG'), findsOneWidget);
       expect(find.text('Urgent'), findsOneWidget);
       expect(find.text('Focused'), findsOneWidget);
-      expect(find.text('Status'), findsOneWidget);
+      expect(find.text('State'), findsOneWidget);
       expect(find.text('Roster still missing for this class'), findsOneWidget);
-      expect(find.text('Next step'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
       expect(find.text('Import roster'), findsOneWidget);
       expect(find.text('Roster: Missing'), findsOneWidget);
       expect(find.text('Timing: 8:45 AM'), findsOneWidget);
@@ -119,9 +119,11 @@ void main() {
       await tester.tapAt(tester.getCenter(cardFinder));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.text('Primary route'));
       await tester.tap(find.text('Primary route'));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.text('Secondary route'));
       await tester.tap(find.text('Secondary route'));
       await tester.pumpAndSettle();
 
@@ -136,10 +138,13 @@ Widget _buildHarness(Widget child) {
   return MaterialApp(
     theme: darkTheme,
     home: Scaffold(
-      body: Center(
-        child: SizedBox(
-          width: 420,
-          child: child,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: SizedBox(
+            width: 420,
+            child: child,
+          ),
         ),
       ),
     ),

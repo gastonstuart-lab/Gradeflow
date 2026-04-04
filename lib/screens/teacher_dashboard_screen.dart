@@ -19,6 +19,7 @@ import 'package:gradeflow/components/dashboard_story_carousel.dart';
 import 'package:gradeflow/components/drive_file_picker_dialog.dart';
 import 'package:gradeflow/components/pilot_feedback_card.dart';
 import 'package:gradeflow/components/pilot_feedback_dialog.dart';
+import 'package:gradeflow/components/teacher_whiteboard.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -36,6 +37,7 @@ import 'package:gradeflow/services/dashboard_weather_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/communication_workspace_service.dart';
 import 'package:gradeflow/services/class_health_service.dart';
+import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 import 'package:gradeflow/components/time_slot_timetable.dart';
@@ -43,9 +45,11 @@ import 'package:gradeflow/components/time_slot_timetable.dart';
 part 'teacher_dashboard/dashboard_class_tools.dart';
 part 'teacher_dashboard/dashboard_imports.dart';
 part 'teacher_dashboard/dashboard_live_brief.dart';
+part 'teacher_dashboard/dashboard_personalization.dart';
 part 'teacher_dashboard/dashboard_persistence.dart';
 part 'teacher_dashboard/dashboard_redesign_sections.dart';
 part 'teacher_dashboard/dashboard_shell.dart';
+part 'teacher_dashboard/dashboard_system_overlays.dart';
 part 'teacher_dashboard/dashboard_timetable.dart';
 part 'teacher_dashboard/dashboard_workspace_sections.dart';
 
@@ -126,7 +130,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     'Schedule',
     'Quick Poll',
     'Timer',
-    'QR Code'
+    'QR Code',
+    'Whiteboard',
   ];
   int _selectedToolTab = 0;
 
@@ -134,6 +139,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   _SummaryRange _summaryRange = _SummaryRange.week;
   DashboardWorkspaceSection _workspaceSection = DashboardWorkspaceSection.today;
   int _mobileDashboardIndex = 0;
+  bool _notificationCenterOpen = false;
 
   // Participation counters (per class)
   final Map<String, Map<String, int>> _participation =
@@ -166,6 +172,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   final CommunicationWorkspaceService _communicationWorkspaceService =
       const CommunicationWorkspaceService();
   final ClassHealthService _classHealthService = ClassHealthService();
+  final TeacherWhiteboardController _dashboardWhiteboardController =
+      TeacherWhiteboardController();
   List<DashboardNewsStory> _worldNewsStories = [];
   List<DashboardNewsStory> _localNewsStories = [];
   DashboardWeatherSnapshot? _weatherSnapshot;
@@ -174,6 +182,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   String? _newsError;
   String? _weatherError;
   Map<String, ClassHealthStaticSignals> _classHealthSignalsByClassId = const {};
+  DashboardHeroStyle _dashboardHeroStyle = DashboardHeroStyle.midnight;
+  Uint8List? _dashboardHeroImageBytes;
+  String? _dashboardHeroImageBase64;
+  bool _updatingHeroBackground = false;
 
   Future<void> _showImportDiagnosticsDialog({
     required String title,
@@ -326,6 +338,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     unawaited(_loadReminders());
     unawaited(_loadQuickLinks());
     unawaited(_loadTimetables());
+    unawaited(_loadHeroPersonalization());
   }
 
   Widget _buildQrTool(BuildContext context) {
@@ -344,7 +357,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           labelText: 'Text or URL',
           isDense: true,
           suffixIcon: IconButton(
-            tooltip: 'Clear',
             icon: const Icon(Icons.clear),
             onPressed: () => setState(() => _qrCtrl.clear()),
           ),
@@ -432,7 +444,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                         style: Theme.of(ctx).textTheme.titleLarge)),
                 IconButton(
                     icon: const Icon(Icons.copy_all_outlined),
-                    tooltip: 'Copy text',
                     onPressed: () async {
                       await Clipboard.setData(ClipboardData(text: text));
                       if (mounted) {
@@ -443,7 +454,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 if (_isLikelyUrl(text))
                   IconButton(
                       icon: const Icon(Icons.open_in_new),
-                      tooltip: 'Open',
                       onPressed: () => _openExternal(text)),
               ]),
               const SizedBox(height: 16),
@@ -675,6 +685,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     _countdownTimer?.cancel();
     _liveCarouselRefreshTimer?.cancel();
     _nowNotifier.dispose();
+    _dashboardWhiteboardController.dispose();
     super.dispose();
   }
 

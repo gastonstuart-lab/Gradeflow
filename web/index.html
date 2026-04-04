@@ -19,7 +19,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Professional workflow operating system for teachers.">
+  <meta name="theme-color" content="#071019">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -36,8 +37,288 @@
 
   <title>IEP Team</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      color-scheme: dark;
+      --gf-bg: #071019;
+      --gf-bg-soft: #101a28;
+      --gf-border: rgba(255, 255, 255, 0.1);
+      --gf-text: #f5f7fb;
+      --gf-muted: rgba(245, 247, 251, 0.72);
+      --gf-accent: #5c88ff;
+      --gf-cyan: #46c6e9;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background:
+        radial-gradient(circle at top right, rgba(92, 136, 255, 0.22), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(70, 198, 233, 0.16), transparent 36%),
+        linear-gradient(140deg, #050912 0%, var(--gf-bg) 48%, var(--gf-bg-soft) 100%);
+      color: var(--gf-text);
+    }
+
+    body {
+      overflow: hidden;
+      font-family: "Segoe UI", "SF Pro Display", system-ui, sans-serif;
+    }
+
+    body.gradeflow-ready {
+      overflow: auto;
+    }
+
+    #gradeflow-loader {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top right, rgba(92, 136, 255, 0.26), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(70, 198, 233, 0.18), transparent 40%),
+        linear-gradient(140deg, #050912 0%, var(--gf-bg) 50%, var(--gf-bg-soft) 100%);
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 360ms ease, visibility 360ms ease;
+      z-index: 9999;
+    }
+
+    #gradeflow-loader.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .gf-loader-shell {
+      position: relative;
+      width: min(100%, 540px);
+      padding: 28px;
+      border-radius: 28px;
+      border: 1px solid var(--gf-border);
+      background:
+        linear-gradient(145deg, rgba(17, 27, 40, 0.92), rgba(11, 18, 28, 0.82));
+      box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.38),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+
+    .gf-loader-shell::before {
+      content: "";
+      position: absolute;
+      inset: auto -64px -96px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(92, 136, 255, 0.2), transparent 68%);
+      pointer-events: none;
+    }
+
+    .gf-loader-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .gf-loader-mark {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      border-radius: 22px;
+      background: linear-gradient(145deg, var(--gf-accent), var(--gf-cyan));
+      box-shadow: 0 16px 34px rgba(92, 136, 255, 0.3);
+      flex: 0 0 auto;
+    }
+
+    .gf-loader-mark::before,
+    .gf-loader-mark::after {
+      content: "";
+      position: absolute;
+      inset: 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+    }
+
+    .gf-loader-mark::after {
+      inset: 24px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 0;
+    }
+
+    .gf-loader-title {
+      margin: 0;
+      font-size: clamp(1.8rem, 3vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .gf-loader-kicker {
+      margin: 0 0 10px;
+      color: var(--gf-muted);
+      font-size: 0.86rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .gf-loader-copy {
+      margin: 8px 0 0;
+      color: var(--gf-muted);
+      line-height: 1.55;
+      max-width: 34rem;
+    }
+
+    .gf-loader-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .gf-loader-pill {
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--gf-text);
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .gf-loader-progress {
+      position: relative;
+      height: 6px;
+      margin-top: 24px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .gf-loader-progress::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: 42%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--gf-accent), var(--gf-cyan));
+      box-shadow: 0 0 18px rgba(92, 136, 255, 0.28);
+      animation: gradeflow-loader 1.35s ease-in-out infinite;
+    }
+
+    .gf-loader-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+      color: var(--gf-muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .gf-loader-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--gf-cyan);
+      box-shadow: 0 0 18px rgba(70, 198, 233, 0.5);
+      animation: gradeflow-pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes gradeflow-loader {
+      0% {
+        transform: translateX(-115%);
+      }
+      50% {
+        transform: translateX(120%);
+      }
+      100% {
+        transform: translateX(240%);
+      }
+    }
+
+    @keyframes gradeflow-pulse {
+      0%,
+      100% {
+        opacity: 0.5;
+        transform: scale(0.92);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.08);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .gf-loader-shell {
+        padding: 22px;
+        border-radius: 24px;
+      }
+
+      .gf-loader-head {
+        flex-direction: column;
+      }
+
+      .gf-loader-mark {
+        width: 64px;
+        height: 64px;
+      }
+    }
+  </style>
 </head>
 <body>
+  <div id="gradeflow-loader" aria-hidden="true">
+    <div class="gf-loader-shell">
+      <div class="gf-loader-head">
+        <div class="gf-loader-mark"></div>
+        <div>
+          <p class="gf-loader-kicker">Teacher Operating System</p>
+          <h1 class="gf-loader-title">IEP Team</h1>
+          <p class="gf-loader-copy">
+            Bringing the dashboard, classes, and live classroom tools online.
+          </p>
+        </div>
+      </div>
+      <div class="gf-loader-row">
+        <div class="gf-loader-pill">Dashboard</div>
+        <div class="gf-loader-pill">Class tools</div>
+        <div class="gf-loader-pill">Live context</div>
+      </div>
+      <div class="gf-loader-progress"></div>
+      <div class="gf-loader-status">
+        <span class="gf-loader-status-dot"></span>
+        Loading workspace shell
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const loader = document.getElementById('gradeflow-loader');
+      let removed = false;
+
+      function removeLoader() {
+        if (!loader || removed) {
+          return;
+        }
+        removed = true;
+        document.body.classList.add('gradeflow-ready');
+        loader.classList.add('is-hidden');
+        window.setTimeout(() => loader.remove(), 420);
+      }
+
+      window.addEventListener('flutter-first-frame', removeLoader);
+      window.addEventListener('load', () => {
+        window.setTimeout(() => {
+          if (!removed) {
+            loader?.classList.remove('is-hidden');
+          }
+        }, 0);
+      });
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

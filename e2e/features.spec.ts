@@ -1,46 +1,29 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import {
+  classesPath,
+  dashboardPath,
+  ensureDemoSignedIn,
+  expectDashboardShell,
+  gotoClasses,
+  gotoDashboard,
+  gotoDemoClassRoute,
+} from './helpers';
 
-async function ensureFlutterSemantics(page: Page) {
-  const enable = page.locator('button[aria-label="Enable accessibility"]');
-  if ((await enable.count()) > 0) {
-    await enable.first().click({ timeout: 10_000 });
-    await page.waitForSelector('flt-semantics-host', { timeout: 20_000 });
-  }
-}
-
-async function ensureDemoSignedIn(page: Page) {
-  await ensureFlutterSemantics(page);
-
-  if (/\/dashboard(\b|\/|\?|#)/.test(page.url())) return;
-
-  const demo = page.getByRole('button', { name: 'Try Demo Account' });
-  await demo.first().waitFor({ timeout: 30_000 });
-  await demo.first().click();
-  await expect(page).toHaveURL(/\/dashboard/);
-}
-
-test('Export: Grade export screen loads', async ({ page }) => {
+test('Export: grade export screen loads with actionable controls', async ({
+  page,
+}) => {
   test.setTimeout(120_000);
 
   await page.goto('/');
   await ensureDemoSignedIn(page);
 
-  // Navigate directly to export screen (Grade 10A = demo-class-1)
-  await page.goto('/#/classes/demo-class-1/export');
-  await ensureFlutterSemantics(page);
+  await gotoDemoClassRoute(page, 'export');
 
-  // Should show export options
-  const heading = page.getByRole('heading');
-  const scopeRadios = page.getByRole('radio');
-  
-  // Wait for export screen to load
-  const hasContent = await page.locator('body').evaluate((el) => el.textContent?.includes('Export') || false);
-  
-  if (hasContent) {
-    console.log('✓ Export screen loaded successfully');
-  } else {
-    console.log('⚠ Export screen may have loaded but content detection uncertain');
-  }
+  await expect(page.getByText('Export Options', { exact: true })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByRole('button', { name: /^Export(?: \(PDF\))?$/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Preview$/i })).toBeVisible();
 });
 
 test('Seating: editor and full screen flow loads', async ({ page }) => {
@@ -49,8 +32,7 @@ test('Seating: editor and full screen flow loads', async ({ page }) => {
   await page.goto('/');
   await ensureDemoSignedIn(page);
 
-  await page.goto('/#/class/demo-class-1/seating');
-  await ensureFlutterSemantics(page);
+  await gotoDemoClassRoute(page, 'seating');
 
   await expect(page.getByRole('heading', { name: /Grade 10A Seating/i })).toBeVisible({
     timeout: 60_000,
@@ -77,139 +59,74 @@ test('Seating: editor and full screen flow loads', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /Grade 10A Seating/i })).toBeVisible();
 });
 
-test('Routing: Direct navigation works without refresh', async ({ page }) => {
+test('Routing: direct navigation to classes works without refresh', async ({
+  page,
+}) => {
   test.setTimeout(120_000);
 
   await page.goto('/');
   await ensureDemoSignedIn(page);
 
-  // Navigate directly to /classes using URL (without going through dashboard first)
-  const initialUrl = page.url();
-  await page.goto('/#/classes');
-  await ensureFlutterSemantics(page);
-  
-  // Should show classes immediately
-  await expect(page.getByRole('button', { name: /^Grade 10A\b/i })).toBeVisible({
-    timeout: 30_000,
-  });
-  
-  const classesUrl = page.url();
-  console.log(`✓ Direct navigation works: ${initialUrl} → ${classesUrl}`);
+  await gotoClasses(page);
+  await expect(page).toHaveURL(new RegExp(`${classesPath.replace('/', '\\/')}(?:\\?|$)`));
 });
 
-test('Schedule: Scrollable tabs show Schedule tool', async ({ page }) => {
+test('Dashboard: utility dock keeps schedule reachable', async ({ page }) => {
   test.setTimeout(120_000);
 
   await page.goto('/');
   await ensureDemoSignedIn(page);
 
-  // Navigate to teacher dashboard
-  await page.goto('/#/dashboard');
-  await ensureFlutterSemantics(page);
-  
-  await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({
-    timeout: 30_000,
-  });
-
-  // Look for tools tabs area
-  const tabsArea = page.locator('div[role="tablist"]');
-  if ((await tabsArea.count()) > 0) {
-    // Check if scrollbar is visible
-    const scrollbarVisible = await page.locator('.scrollbar-thumb, [class*="scrollbar"]').isVisible();
-    console.log(`✓ Scrollbar visible: ${scrollbarVisible}`);
-    
-    // Try to find Schedule tab
-    const scheduleTab = page.getByRole('tab', { name: /schedule/i });
-    if ((await scheduleTab.count()) > 0) {
-      console.log('✓ Schedule tab found');
-    } else {
-      console.log('✓ Schedule tab may be scrolled out of view (expected)');
-    }
-  }
+  await gotoDashboard(page);
+  await expectDashboardShell(page);
+  await expect(
+    page.getByRole('button', { name: /^Schedule\b/i }).last(),
+  ).toBeVisible();
 });
 
-test('CSV Import: Detects wrong file type', async ({ page }) => {
+test('Import: classes workspace opens source chooser', async ({ page }) => {
   test.setTimeout(120_000);
 
   await page.goto('/');
   await ensureDemoSignedIn(page);
 
-  // Navigate to students section
-  await page.goto('/#/classes');
-  await ensureFlutterSemantics(page);
-  
-  await expect(page.getByRole('button', { name: /^Grade 10A\b/i })).toBeVisible({
-    timeout: 30_000,
-  });
-  await page.getByRole('button', { name: /^Grade 10A\b/i }).first().click();
+  await gotoClasses(page);
 
-  // Look for a student import button or similar
-  const studentTab = page.getByRole('button', { name: /students/i });
-  if ((await studentTab.count()) > 0) {
-    await studentTab.first().click();
-    console.log('✓ Found students section');
-    
-    // Look for import button
-    const importBtn = page.getByRole('button', { name: /import|add.*student/i });
-    if ((await importBtn.count()) > 0) {
-      console.log('✓ Import button found (file type detection tested via manual import)');
-    }
-  }
+  await page.getByRole('button', { name: /^Import$/i }).first().click();
+  await expect(
+    page.getByText('Import from Google Drive or local file', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Local file' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'From Google Drive link' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Browse Google Drive' }),
+  ).toBeVisible();
 });
 
-test('Dashboard: Quick stats and layout responsive', async ({ page }) => {
+test('Navigation: browser back returns from classes to dashboard', async ({
+  page,
+}) => {
   test.setTimeout(120_000);
 
   await page.goto('/');
   await ensureDemoSignedIn(page);
 
-  // Navigate to dashboard
-  await page.goto('/#/dashboard');
-  await ensureFlutterSemantics(page);
+  await gotoDashboard(page);
+  await page.goto(classesPath);
+  await gotoClasses(page);
 
-  // Check for key dashboard elements
-  const heading = page.getByRole('heading', { name: /dashboard/i });
-  await expect(heading).toBeVisible({ timeout: 30_000 });
-
-  // Check for quick stats
-  const stats = page.locator('[class*="stat"], [class*="card"]');
-  const statCount = await stats.count();
-  console.log(`✓ Found ${statCount} dashboard elements`);
-
-  // Check viewport
-  const viewport = page.viewportSize();
-  console.log(`✓ Viewport: ${viewport?.width}x${viewport?.height}`);
-});
-
-test('Navigation: Back button works correctly', async ({ page }) => {
-  test.setTimeout(120_000);
-
-  await page.goto('/');
-  await ensureDemoSignedIn(page);
-
-  // Navigate to classes
-  const initialUrl = page.url();
-  await page.goto('/#/classes');
-  await ensureFlutterSemantics(page);
-
-  await expect(page.getByRole('button', { name: /^Grade 10A\b/i })).toBeVisible({
-    timeout: 30_000,
-  });
-
-  // Go back
   await page.goBack();
-  
-  // Should be back on dashboard
-  const newUrl = page.url();
-  console.log(`✓ Navigation: ${initialUrl} → /#/classes → ${newUrl}`);
-  expect(newUrl).not.toMatch(/\/classes/);
+  await expect(page).toHaveURL(new RegExp(`${dashboardPath.replace('/', '\\/')}(?:\\?|$)`));
+  await expectDashboardShell(page);
 });
 
-test('Console: No critical errors during navigation', async ({ page }) => {
+test('Console: no critical errors during primary navigation', async ({ page }) => {
   test.setTimeout(120_000);
 
   const errors: string[] = [];
-  
+
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
       errors.push(msg.text());
@@ -219,24 +136,21 @@ test('Console: No critical errors during navigation', async ({ page }) => {
   await page.goto('/');
   await ensureDemoSignedIn(page);
 
-  // Navigate through several screens
-  await page.goto('/#/classes');
-  await ensureFlutterSemantics(page);
-  
-  await page.goto('/#/dashboard');
-  await ensureFlutterSemantics(page);
+  await page.goto(classesPath);
+  await gotoClasses(page);
 
-  // Filter out known non-critical errors
-  const criticalErrors = errors.filter(e => 
-    !e.includes('favicon') && 
-    !e.includes('404') &&
-    !e.includes('Failed to load')
+  await page.goto('/class/demo-class-1/seating');
+  await gotoDemoClassRoute(page, 'seating');
+
+  await page.goto(dashboardPath);
+  await gotoDashboard(page);
+
+  const criticalErrors = errors.filter(
+    (error) =>
+      !error.includes('favicon') &&
+      !error.includes('404') &&
+      !error.includes('Failed to load'),
   );
 
-  console.log(`✓ Console errors during navigation: ${criticalErrors.length}`);
-  if (criticalErrors.length > 0) {
-    console.log('  Errors:', criticalErrors);
-  }
-  
   expect(criticalErrors).toHaveLength(0);
 });

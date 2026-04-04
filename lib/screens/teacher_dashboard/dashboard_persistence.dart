@@ -85,6 +85,16 @@ extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
         userId: _dashboardStorageUserId(),
       );
 
+  String _heroStylePrefsKey() => _dashboardPreferencesService.scopedKey(
+        baseKey: 'dashboard_hero_style_v1',
+        userId: _dashboardStorageUserId(),
+      );
+
+  String _heroImagePrefsKey() => _dashboardPreferencesService.scopedKey(
+        baseKey: 'dashboard_hero_image_v1',
+        userId: _dashboardStorageUserId(),
+      );
+
   Future<void> _loadTimetables() async {
     try {
       final raw = await _dashboardPreferencesService.readScopedString(
@@ -194,6 +204,45 @@ extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
       );
     } catch (e) {
       debugPrint('Failed to save quick links: $e');
+    }
+  }
+
+  Future<void> _loadHeroPersonalization() async {
+    try {
+      final rawStyle = await _dashboardPreferencesService.readScopedString(
+        scopedKey: _heroStylePrefsKey(),
+      );
+      final rawImage = await _dashboardPreferencesService.readScopedString(
+        scopedKey: _heroImagePrefsKey(),
+      );
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _dashboardHeroStyle = _dashboardHeroStyleFromId(rawStyle);
+        _dashboardHeroImageBase64 = rawImage;
+        _dashboardHeroImageBytes = rawImage == null || rawImage.trim().isEmpty
+            ? null
+            : base64Decode(rawImage);
+      });
+    } catch (e) {
+      debugPrint('Failed to load dashboard hero personalization: $e');
+    }
+  }
+
+  Future<void> _saveHeroPersonalization() async {
+    try {
+      await _dashboardPreferencesService.writeString(
+        key: _heroStylePrefsKey(),
+        value: _dashboardHeroStyleId(_dashboardHeroStyle),
+      );
+      await _dashboardPreferencesService.writeString(
+        key: _heroImagePrefsKey(),
+        value: _dashboardHeroImageBase64,
+      );
+    } catch (e) {
+      debugPrint('Failed to save dashboard hero personalization: $e');
     }
   }
 }

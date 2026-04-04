@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Cinematic aurora backdrop with soft motion and a designed pattern layer.
@@ -30,14 +31,18 @@ class _AnimatedPageBackgroundState extends State<AnimatedPageBackground>
   @override
   void initState() {
     super.initState();
-    _controller.repeat();
+    if (kIsWeb) {
+      _controller.value = 0.22;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final disableAnimations =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+        (MediaQuery.maybeOf(context)?.disableAnimations ?? false) || kIsWeb;
 
     if (disableAnimations == _animationsDisabled) {
       if (!disableAnimations && !_controller.isAnimating) {

@@ -26,6 +26,8 @@ extension TeacherDashboardClassTools on _TeacherDashboardScreenState {
         return _buildTimerTool(context);
       case 6:
         return _buildQrTool(context);
+      case 7:
+        return _buildWhiteboardTool(context, compact: true);
       default:
         return const SizedBox.shrink();
     }
@@ -735,6 +737,12 @@ extension TeacherDashboardClassTools on _TeacherDashboardScreenState {
                   label: const Text('Close'))),
         ]);
 
+      case 7:
+        return TeacherWhiteboardWorkspace(
+          controller: _dashboardWhiteboardController,
+          title: 'Presenting whiteboard',
+        );
+
       default:
         return const SizedBox.shrink();
     }
@@ -1115,5 +1123,18 @@ extension TeacherDashboardClassTools on _TeacherDashboardScreenState {
             label: const Text('Stop')),
       ]),
     ]);
+  }
+
+  Widget _buildWhiteboardTool(
+    BuildContext context, {
+    required bool compact,
+  }) {
+    return TeacherWhiteboardWorkspace(
+      controller: _dashboardWhiteboardController,
+      compact: compact,
+      title: 'Classroom whiteboard',
+      onOpenFullscreen: () =>
+          context.push(AppRoutes.whiteboard, extra: _dashboardWhiteboardController),
+    );
   }
 }

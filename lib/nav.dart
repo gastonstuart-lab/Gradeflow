@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/services/auth_service.dart';
@@ -16,6 +17,9 @@ import 'package:gradeflow/screens/teacher_dashboard_screen.dart';
 import 'package:gradeflow/screens/demo_dashboard_preview_screen.dart';
 import 'package:gradeflow/screens/communication_hub_screen.dart';
 import 'package:gradeflow/screens/admin_workspace_screen.dart';
+import 'package:gradeflow/screens/teacher_whiteboard_screen.dart';
+import 'package:gradeflow/components/teacher_whiteboard.dart';
+import 'package:gradeflow/components/global_system_shell.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/screens/deleted_students_screen.dart';
 import 'package:gradeflow/screens/deleted_classes_screen.dart';
@@ -51,7 +55,22 @@ class AppRouter {
         path: AppRoutes.dashboard,
         name: 'dashboard',
         pageBuilder: (context, state) =>
-            const NoTransitionPage(child: TeacherDashboardScreen()),
+            _shellPage(state, const TeacherDashboardScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.whiteboard,
+        name: 'whiteboard',
+        pageBuilder: (context, state) => _fadePage(
+          GlobalSystemShellFrame(
+            location: state.uri.path,
+            focusMode: true,
+            child: TeacherWhiteboardScreen(
+              controller: state.extra is TeacherWhiteboardController
+                  ? state.extra as TeacherWhiteboardController
+                  : null,
+            ),
+          ),
+        ),
       ),
       if (kDebugMode)
         GoRoute(
@@ -64,32 +83,32 @@ class AppRouter {
         path: AppRoutes.communication,
         name: 'communication',
         pageBuilder: (context, state) =>
-            const NoTransitionPage(child: CommunicationHubScreen()),
+            _shellPage(state, const CommunicationHubScreen()),
       ),
       GoRoute(
         path: AppRoutes.admin,
         name: 'admin',
         pageBuilder: (context, state) =>
-            const NoTransitionPage(child: AdminWorkspaceScreen()),
+            _shellPage(state, const AdminWorkspaceScreen()),
       ),
       GoRoute(
         path: AppRoutes.classes,
         name: 'classes',
         pageBuilder: (context, state) =>
-            const NoTransitionPage(child: ClassListScreen()),
+            _shellPage(state, const ClassListScreen()),
       ),
       GoRoute(
         path: AppRoutes.classTrash,
         name: 'classTrash',
         pageBuilder: (context, state) =>
-            const NoTransitionPage(child: DeletedClassesScreen()),
+            _shellPage(state, const DeletedClassesScreen()),
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId',
         name: 'classDetail',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return NoTransitionPage(child: ClassDetailScreen(classId: classId));
+          return _shellPage(state, ClassDetailScreen(classId: classId));
         },
       ),
       GoRoute(
@@ -97,7 +116,7 @@ class AppRouter {
         name: 'students',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return NoTransitionPage(child: StudentListScreen(classId: classId));
+          return _shellPage(state, StudentListScreen(classId: classId));
         },
       ),
       GoRoute(
@@ -105,8 +124,7 @@ class AppRouter {
         name: 'studentsTrash',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return NoTransitionPage(
-              child: DeletedStudentsScreen(classId: classId));
+          return _shellPage(state, DeletedStudentsScreen(classId: classId));
         },
       ),
       GoRoute(
@@ -115,9 +133,10 @@ class AppRouter {
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
           final studentId = state.pathParameters['studentId']!;
-          return NoTransitionPage(
-              child:
-                  StudentDetailScreen(classId: classId, studentId: studentId));
+          return _shellPage(
+            state,
+            StudentDetailScreen(classId: classId, studentId: studentId),
+          );
         },
       ),
       GoRoute(
@@ -125,7 +144,7 @@ class AppRouter {
         name: 'gradebook',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return NoTransitionPage(child: GradebookScreen(classId: classId));
+          return _shellPage(state, GradebookScreen(classId: classId));
         },
       ),
       GoRoute(
@@ -133,7 +152,7 @@ class AppRouter {
         name: 'classSeating',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return NoTransitionPage(child: ClassSeatingScreen(classId: classId));
+          return _shellPage(state, ClassSeatingScreen(classId: classId));
         },
       ),
       GoRoute(
@@ -141,8 +160,10 @@ class AppRouter {
         name: 'categories',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return NoTransitionPage(
-              child: CategoryManagementScreen(classId: classId));
+          return _shellPage(
+            state,
+            CategoryManagementScreen(classId: classId),
+          );
         },
       ),
       GoRoute(
@@ -152,9 +173,13 @@ class AppRouter {
           final classId = state.pathParameters['classId']!;
           final highlightStudentId =
               state.uri.queryParameters['highlightStudentId'];
-          return NoTransitionPage(
-              child: ExamInputScreen(
-                  classId: classId, highlightStudentId: highlightStudentId));
+          return _shellPage(
+            state,
+            ExamInputScreen(
+              classId: classId,
+              highlightStudentId: highlightStudentId,
+            ),
+          );
         },
       ),
       GoRoute(
@@ -162,7 +187,7 @@ class AppRouter {
         name: 'export',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return NoTransitionPage(child: ExportScreen(classId: classId));
+          return _shellPage(state, ExportScreen(classId: classId));
         },
       ),
       GoRoute(
@@ -170,7 +195,7 @@ class AppRouter {
         name: 'results',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return NoTransitionPage(child: FinalResultsScreen(classId: classId));
+          return _shellPage(state, FinalResultsScreen(classId: classId));
         },
       ),
     ],
@@ -180,10 +205,45 @@ class AppRouter {
 class AppRoutes {
   static const String home = '/';
   static const String dashboard = '/dashboard';
+  static const String whiteboard = '/whiteboard';
   static const String previewDashboard = '/preview/dashboard';
   static const String communication = '/communication';
   static const String admin = '/admin';
   static const String classes = '/classes';
   static const String classTrash = '/classes/trash';
   static const String classDetail = '/class';
+}
+
+CustomTransitionPage<void> _fadePage(Widget child) {
+  return CustomTransitionPage<void>(
+    child: child,
+    transitionDuration: const Duration(milliseconds: 280),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.985, end: 1.0).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+NoTransitionPage<void> _shellPage(
+  GoRouterState state,
+  Widget child,
+) {
+  return NoTransitionPage<void>(
+    child: GlobalSystemShellFrame(
+      location: state.uri.path,
+      child: child,
+    ),
+  );
 }

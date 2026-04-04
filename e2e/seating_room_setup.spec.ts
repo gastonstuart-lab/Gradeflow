@@ -1,27 +1,9 @@
-import { test, expect, type Page } from '@playwright/test';
-
-async function ensureFlutterSemantics(page: Page) {
-  const enable = page.locator('button[aria-label="Enable accessibility"]');
-  if ((await enable.count()) > 0) {
-    await enable.first().click({ timeout: 10_000 });
-    await page.waitForSelector('flt-semantics-host', { timeout: 20_000 });
-  }
-}
-
-async function ensureDemoSignedIn(page: Page) {
-  await ensureFlutterSemantics(page);
-
-  if (/\/dashboard(\b|\/|\?|#)/.test(page.url())) return;
-
-  const demo = page.getByRole('button', { name: 'Try Demo Account' });
-  await demo.first().waitFor({ timeout: 30_000 });
-  await demo.first().click();
-  await expect(page).toHaveURL(/\/dashboard/);
-}
-
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+import { test, expect } from '@playwright/test';
+import {
+  ensureDemoSignedIn,
+  escapeRegex,
+  gotoDemoClassRoute,
+} from './helpers';
 
 test('Seating: toolbar actions and room setup save flow work', async ({ page }) => {
   test.setTimeout(180_000);
@@ -32,8 +14,7 @@ test('Seating: toolbar actions and room setup save flow work', async ({ page }) 
   await page.goto('/');
   await ensureDemoSignedIn(page);
 
-  await page.goto('/#/class/demo-class-1/seating');
-  await ensureFlutterSemantics(page);
+  await gotoDemoClassRoute(page, 'seating');
 
   await expect(page.getByRole('heading', { name: /Grade 10A Seating/i })).toBeVisible({
     timeout: 60_000,
@@ -73,14 +54,9 @@ test('Seating: toolbar actions and room setup save flow work', async ({ page }) 
   await page.getByRole('button', { name: /^Save room$/i }).click();
 
   await expect(
-    page.getByRole('group', {
-      name: new RegExp(`${escapeRegex(roomName)}.*Linked here`),
-    }),
+    page.getByText(roomName, { exact: true }),
   ).toBeVisible();
-  await page.getByRole('button', { name: /^Dismiss$/i }).click();
-  await expect(
-    page.getByRole('button', {
-      name: new RegExp(`Using room: ${escapeRegex(roomName)}`),
-    }),
-  ).toBeVisible();
+  await expect(page.getByText('Linked here', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /^Close$/i }).click();
+  await expect(page.getByText(new RegExp(`Using room: ${escapeRegex(roomName)}`))).toBeVisible();
 });

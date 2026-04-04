@@ -1,36 +1,13 @@
 import { test, expect, type Page } from '@playwright/test';
-
-async function ensureFlutterSemantics(page: Page) {
-  const enable = page.locator('button[aria-label="Enable accessibility"]');
-  if ((await enable.count()) > 0) {
-    await enable.first().click({ timeout: 10_000 });
-    await page.waitForSelector('flt-semantics-host', { timeout: 20_000 });
-  }
-}
-
-async function ensureDemoSignedIn(page: Page) {
-  await ensureFlutterSemantics(page);
-
-  if (/\/dashboard(\b|\/|\?|#)/.test(page.url())) return;
-
-  const demo = page.getByRole('button', { name: 'Try Demo Account' });
-  await demo.first().waitFor({ timeout: 30_000 });
-  await demo.first().click();
-  await expect(page).toHaveURL(/\/dashboard/);
-}
+import { demoClassId, ensureDemoSignedIn, gotoDemoClassRoute } from './helpers';
 
 async function openDemoClassGradebook(page: Page) {
-  await page.goto('/#/classes');
-  await ensureFlutterSemantics(page);
-  await expect(page.getByRole('button', { name: /^Grade 10A\b/i })).toBeVisible({
+  await gotoDemoClassRoute(page, 'gradebook');
+  await expect(
+    page.getByText(/Gradebook workspace|Gradebook/i).first(),
+  ).toBeVisible({
     timeout: 60_000,
   });
-
-  await page.getByRole('button', { name: /^Grade 10A\b/i }).first().click();
-  await expect(page.getByRole('heading', { name: 'Grade 10A' })).toBeVisible();
-
-  await page.getByRole('button', { name: /^Gradebook\b/i }).first().click();
-  await expect(page.getByText('Gradebook')).toBeVisible();
 
   // Select a category and a specific grade item so we can edit a score.
   await page.getByRole('checkbox', { name: /^Homework$/i }).first().click();
@@ -117,7 +94,7 @@ test('core loop: edit score persists; undo reverts', async ({ page }) => {
 
   // Go back to class detail, re-enter gradebook, and verify the score persisted.
   await goBack(page);
-  await expect(page.getByRole('heading', { name: 'Grade 10A' })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/class/${demoClassId}(?:\\?|$)`));
   await page.getByRole('button', { name: /^Gradebook\b/i }).first().click();
   await expect(page.getByText('Gradebook')).toBeVisible();
   await page.getByRole('checkbox', { name: /^Homework$/i }).first().click();
@@ -135,7 +112,7 @@ test('core loop: edit score persists; undo reverts', async ({ page }) => {
 
   // Go back and re-enter again to ensure undo persisted.
   await goBack(page);
-  await expect(page.getByRole('heading', { name: 'Grade 10A' })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/class/${demoClassId}(?:\\?|$)`));
   await page.getByRole('button', { name: /^Gradebook\b/i }).first().click();
   await expect(page.getByText('Gradebook')).toBeVisible();
   await page.getByRole('checkbox', { name: /^Homework$/i }).first().click();

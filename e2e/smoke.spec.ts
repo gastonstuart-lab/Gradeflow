@@ -1,21 +1,16 @@
-import { test, expect, type Page } from '@playwright/test';
-
-async function ensureFlutterSemantics(page: Page) {
-  const enable = page.locator('button[aria-label="Enable accessibility"]');
-  if ((await enable.count()) > 0) {
-    await enable.first().click({ timeout: 10_000 });
-    await page.waitForSelector('flt-semantics-host', { timeout: 20_000 });
-  }
-}
+import { test, expect } from '@playwright/test';
+import {
+  ensureDemoSignedIn,
+  ensureFlutterSemantics,
+  expectDashboardShell,
+} from './helpers';
 
 test('login screen loads', async ({ page }) => {
   await page.goto('/');
 
   await ensureFlutterSemantics(page);
 
-  await expect(
-    page.getByText('Professional Class Management for Teachers'),
-  ).toBeVisible();
+  await expect(page.getByText('Enter GradeFlow')).toBeVisible();
 
   await expect(page.getByLabel('Email')).toBeVisible();
   await expect(page.getByLabel('Password')).toBeVisible();
@@ -32,15 +27,7 @@ test('demo login navigates to dashboard', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/');
 
-  await ensureFlutterSemantics(page);
-
-  await page.getByRole('button', { name: 'Try Demo Account' }).click();
-
-  // App uses GoRouter; dashboard is routed to /dashboard.
-  await expect(page).toHaveURL(/\/dashboard/);
-
-  // Sanity: dashboard contains at least one of these common labels.
-  await expect(
-    page.getByText(/Dashboard|Teacher Dashboard|Classes|Class/i).first(),
-  ).toBeVisible();
+  await ensureDemoSignedIn(page);
+  await expect(page).toHaveURL(/\/dashboard(?:\?|$)/);
+  await expectDashboardShell(page);
 });

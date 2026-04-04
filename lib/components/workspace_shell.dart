@@ -26,6 +26,7 @@ class WorkspaceScaffold extends StatelessWidget {
   final List<Widget> trailingActions;
   final List<Widget> headerActions;
   final List<WorkspaceMetricData> metrics;
+  final Widget? contextBar;
   final Widget child;
   final Widget? floatingActionButton;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
@@ -41,6 +42,7 @@ class WorkspaceScaffold extends StatelessWidget {
     this.trailingActions = const [],
     this.headerActions = const [],
     this.metrics = const [],
+    this.contextBar,
     this.floatingActionButton,
     this.floatingActionButtonLocation,
     this.maxContentWidth = 1480,
@@ -48,6 +50,13 @@ class WorkspaceScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final defaultContextBar = headerActions.isEmpty && metrics.isEmpty
+        ? null
+        : _WorkspaceDefaultContextBar(
+            actions: headerActions,
+            metrics: metrics,
+          );
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: floatingActionButton,
@@ -58,7 +67,7 @@ class WorkspaceScaffold extends StatelessWidget {
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxContentWidth),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -68,13 +77,14 @@ class WorkspaceScaffold extends StatelessWidget {
                         trailingActions: trailingActions,
                       ),
                     if (leadingActions.isNotEmpty || trailingActions.isNotEmpty)
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 14),
                     WorkspaceSurfaceCard(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (eyebrow != null && eyebrow!.trim().isNotEmpty) ...[
+                          if (eyebrow != null &&
+                              eyebrow!.trim().isNotEmpty) ...[
                             Text(
                               eyebrow!.toUpperCase(),
                               style: context.textStyles.labelMedium?.copyWith(
@@ -83,71 +93,22 @@ class WorkspaceScaffold extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                           ],
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final narrow = constraints.maxWidth < 920;
-                              if (narrow) {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _WorkspaceHeaderCopy(
-                                      title: title,
-                                      subtitle: subtitle,
-                                    ),
-                                    if (headerActions.isNotEmpty) ...[
-                                      const SizedBox(height: 18),
-                                      Wrap(
-                                        spacing: 10,
-                                        runSpacing: 10,
-                                        children: headerActions,
-                                      ),
-                                    ],
-                                  ],
-                                );
-                              }
-
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: _WorkspaceHeaderCopy(
-                                      title: title,
-                                      subtitle: subtitle,
-                                    ),
-                                  ),
-                                  if (headerActions.isNotEmpty) ...[
-                                    const SizedBox(width: 18),
-                                    Wrap(
-                                      spacing: 10,
-                                      runSpacing: 10,
-                                      alignment: WrapAlignment.end,
-                                      children: headerActions,
-                                    ),
-                                  ],
-                                ],
-                              );
-                            },
+                          _WorkspaceHeaderCopy(
+                            title: title,
+                            subtitle: subtitle,
                           ),
-                          if (metrics.isNotEmpty) ...[
-                            const SizedBox(height: 22),
-                            Wrap(
-                              spacing: 14,
-                              runSpacing: 14,
-                              children: [
-                                for (final metric in metrics)
-                                  SizedBox(
-                                    width: 220,
-                                    child: _WorkspaceMetricTile(metric: metric),
-                                  ),
-                              ],
-                            ),
-                          ],
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    if (defaultContextBar != null || contextBar != null)
+                      const SizedBox(height: 12),
+                    if (defaultContextBar != null) defaultContextBar,
+                    if (defaultContextBar != null && contextBar != null)
+                      const SizedBox(height: 12),
+                    if (contextBar != null) contextBar!,
+                    const SizedBox(height: 16),
                     Expanded(child: child),
                   ],
                 ),
@@ -198,7 +159,8 @@ class WorkspaceSurfaceCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             Color.lerp(surface, elevated, isDark ? 0.62 : 0.35)!,
-            Color.lerp(surface, theme.colorScheme.primary, isDark ? 0.06 : 0.03)!,
+            Color.lerp(
+                surface, theme.colorScheme.primary, isDark ? 0.06 : 0.03)!,
           ],
         ),
         boxShadow: [
@@ -376,7 +338,10 @@ class WorkspaceEmptyState extends StatelessWidget {
                 height: 72,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.16),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.16),
                 ),
                 child: Icon(
                   icon,
@@ -417,6 +382,106 @@ class WorkspaceEmptyState extends StatelessWidget {
   }
 }
 
+class WorkspaceContextBar extends StatelessWidget {
+  final String? title;
+  final String? subtitle;
+  final Widget? leading;
+  final Widget? trailing;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+
+  const WorkspaceContextBar({
+    super.key,
+    this.title,
+    this.subtitle,
+    this.leading,
+    this.trailing,
+    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    this.radius = 18,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasCopy = (title?.trim().isNotEmpty ?? false) ||
+        (subtitle?.trim().isNotEmpty ?? false);
+
+    Widget? copy;
+    if (hasCopy) {
+      copy = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title?.trim().isNotEmpty ?? false)
+            Text(
+              title!,
+              style: context.textStyles.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          if ((title?.trim().isNotEmpty ?? false) &&
+              (subtitle?.trim().isNotEmpty ?? false))
+            const SizedBox(height: 4),
+          if (subtitle?.trim().isNotEmpty ?? false)
+            Text(
+              subtitle!,
+              style: context.textStyles.bodySmall?.copyWith(
+                color: _workspaceMuted(context),
+                height: 1.35,
+              ),
+            ),
+        ],
+      );
+    }
+
+    return WorkspaceSurfaceCard(
+      padding: padding,
+      radius: radius,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 980;
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (copy != null) copy,
+                if (copy != null && leading != null) const SizedBox(height: 10),
+                if (leading != null) leading!,
+                if ((copy != null || leading != null) && trailing != null)
+                  const SizedBox(height: 10),
+                if (trailing != null) trailing!,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (copy != null)
+                Expanded(
+                  child: copy,
+                ),
+              if (copy != null && leading != null) const SizedBox(width: 12),
+              if (leading != null)
+                Flexible(
+                  flex: copy != null ? 3 : 1,
+                  child: leading!,
+                ),
+              if ((copy != null || leading != null) && trailing != null)
+                const SizedBox(width: 12),
+              if (trailing != null)
+                Flexible(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: trailing!,
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _WorkspaceTopBar extends StatelessWidget {
   final List<Widget> leadingActions;
   final List<Widget> trailingActions;
@@ -428,6 +493,28 @@ class _WorkspaceTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasLeading = leadingActions.isNotEmpty;
+    final hasTrailing = trailingActions.isNotEmpty;
+
+    if (hasLeading != hasTrailing) {
+      final actions = hasLeading ? leadingActions : trailingActions;
+      return Align(
+        alignment: hasLeading ? Alignment.centerLeft : Alignment.centerRight,
+        child: WorkspaceSurfaceCard(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          radius: 18,
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: hasLeading
+                ? WrapAlignment.start
+                : WrapAlignment.end,
+            children: actions,
+          ),
+        ),
+      );
+    }
+
     return WorkspaceSurfaceCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       radius: 20,
@@ -494,19 +581,22 @@ class _WorkspaceHeaderCopy extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: context.textStyles.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.4,
+        Semantics(
+          header: true,
+          child: Text(
+            title,
+            style: context.textStyles.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+            ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           subtitle,
           style: context.textStyles.bodyMedium?.copyWith(
             color: _workspaceMuted(context),
-            height: 1.5,
+            height: 1.4,
           ),
         ),
       ],
@@ -514,10 +604,44 @@ class _WorkspaceHeaderCopy extends StatelessWidget {
   }
 }
 
-class _WorkspaceMetricTile extends StatelessWidget {
+class _WorkspaceDefaultContextBar extends StatelessWidget {
+  final List<Widget> actions;
+  final List<WorkspaceMetricData> metrics;
+
+  const _WorkspaceDefaultContextBar({
+    required this.actions,
+    required this.metrics,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceContextBar(
+      leading: metrics.isEmpty
+          ? null
+          : Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final metric in metrics)
+                  _WorkspaceMetricPill(metric: metric),
+              ],
+            ),
+      trailing: actions.isEmpty
+          ? null
+          : Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.end,
+              children: actions,
+            ),
+    );
+  }
+}
+
+class _WorkspaceMetricPill extends StatelessWidget {
   final WorkspaceMetricData metric;
 
-  const _WorkspaceMetricTile({
+  const _WorkspaceMetricPill({
     required this.metric,
   });
 
@@ -526,50 +650,66 @@ class _WorkspaceMetricTile extends StatelessWidget {
     final theme = Theme.of(context);
     final accent = metric.accent ?? theme.colorScheme.primary;
 
-    return WorkspaceSurfaceCard(
-      padding: const EdgeInsets.all(16),
-      radius: 20,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final pill = Container(
+      constraints: const BoxConstraints(minWidth: 144),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: theme.colorScheme.surface.withValues(alpha: 0.26),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: accent.withValues(alpha: 0.16),
+              border: Border.all(color: accent.withValues(alpha: 0.26)),
+            ),
+            child: Icon(metric.icon, color: accent, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
                   metric.label,
-                  style: context.textStyles.labelLarge?.copyWith(
+                  style: context.textStyles.labelSmall?.copyWith(
                     color: _workspaceMuted(context),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: accent.withValues(alpha: 0.18),
-                  border: Border.all(color: accent.withValues(alpha: 0.32)),
+                const SizedBox(height: 2),
+                Text(
+                  metric.value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                child: Icon(metric.icon, color: accent, size: 20),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            metric.value,
-            style: context.textStyles.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            metric.detail,
-            style: context.textStyles.bodySmall?.copyWith(
-              color: _workspaceMuted(context),
+              ],
             ),
           ),
         ],
       ),
+    );
+
+    if (metric.detail.trim().isEmpty) {
+      return pill;
+    }
+
+    return Tooltip(
+      message: metric.detail,
+      child: pill,
     );
   }
 }

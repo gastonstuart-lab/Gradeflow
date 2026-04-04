@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
@@ -151,6 +152,440 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _buildExperiencePanel(
+    BuildContext context, {
+    required bool compact,
+  }) {
+    final theme = Theme.of(context);
+    final panelColor = theme.colorScheme.surface.withValues(alpha: 0.82);
+    final secondaryPanel =
+        theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.26);
+
+    return Container(
+      padding: EdgeInsets.all(compact ? 22 : 30),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(compact ? 28 : 34),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            panelColor,
+            secondaryPanel,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withValues(alpha: 0.24),
+            blurRadius: 34,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              color: theme.colorScheme.primary.withValues(alpha: 0.12),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.22),
+              ),
+            ),
+            child: Text(
+              'Teacher Operating System',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: compact ? 74 : 88,
+                height: compact ? 74 : 88,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.colorScheme.primary.withValues(alpha: 0.94),
+                      const Color(0xFF38BDF8).withValues(alpha: 0.88),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.28),
+                      blurRadius: 24,
+                      offset: const Offset(0, 14),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Image.asset(
+                    'assets/images/school_logo2.png',
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      GradeFlowProductConfig.appName,
+                      style: (compact
+                              ? theme.textTheme.headlineSmall
+                              : theme.textTheme.headlineMedium)
+                          ?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.7,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      GradeFlowProductConfig.marketingTagline,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Class health, live context, and classroom tools stay close.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.55,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: const [
+              _LoginSignalChip(
+                icon: Icons.dashboard_customize_outlined,
+                label: 'Premium dashboard',
+              ),
+              _LoginSignalChip(
+                icon: Icons.draw_rounded,
+                label: 'Quick whiteboard',
+              ),
+              _LoginSignalChip(
+                icon: Icons.schedule_rounded,
+                label: 'Live system widgets',
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                _LoginSectionTag(
+                  label: 'What opens next',
+                ),
+                SizedBox(height: 14),
+                _LoginFeatureTile(
+                  icon: Icons.flash_on_outlined,
+                  title: 'Launch ready',
+                  detail: 'The workspace opens with a controlled dark launch.',
+                ),
+                SizedBox(height: 14),
+                _LoginFeatureTile(
+                  icon: Icons.meeting_room_outlined,
+                  title: 'Classroom ready',
+                  detail: 'Jump into class tools and the whiteboard quickly.',
+                ),
+                SizedBox(height: 14),
+                _LoginFeatureTile(
+                  icon: Icons.public_outlined,
+                  title: 'Live context',
+                  detail:
+                      'Time, messages, weather, and class signals stay visible.',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccessPanel(
+    BuildContext context, {
+    required bool compact,
+  }) {
+    final theme = Theme.of(context);
+    final primaryButtonStyle = FilledButton.styleFrom(
+      minimumSize: const Size.fromHeight(52),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+    );
+    final secondaryButtonStyle = OutlinedButton.styleFrom(
+      minimumSize: const Size.fromHeight(48),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      side: BorderSide(
+        color: Colors.white.withValues(alpha: 0.10),
+      ),
+    );
+
+    return Container(
+      padding: EdgeInsets.all(compact ? 22 : 28),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(compact ? 28 : 32),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.colorScheme.surface.withValues(alpha: 0.90),
+            theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.82),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withValues(alpha: 0.28),
+            blurRadius: 32,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: const [
+              _LoginSectionTag(label: 'Secure sign in'),
+              _LoginSectionTag(label: 'Demo-safe preview'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Enter GradeFlow',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Sign in to open your workspace and live tools.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.apartment_rounded,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    GradeFlowProductConfig.defaultSchoolName,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_shouldUseLocalhostForGoogleSignIn) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: theme.colorScheme.tertiaryContainer.withValues(
+                  alpha: 0.34,
+                ),
+                border: Border.all(
+                  color: theme.colorScheme.tertiary.withValues(alpha: 0.28),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Google sign-in works better on localhost',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'This local run opened on 127.0.0.1, which Firebase web auth often rejects. Switch to localhost for Google sign-in.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _openLocalhostSignIn,
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Open localhost sign-in'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          AutofillGroup(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.username],
+                  enabled: !_isLoading,
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                  ),
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.password],
+                  enabled: !_isLoading,
+                  onSubmitted: (_) => _handleLogin(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: _isLoading ? null : _handleLogin,
+            style: primaryButtonStyle,
+            icon: _isLoading
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.arrow_forward_rounded),
+            label: Text(_isLoading ? 'Entering workspace...' : 'Sign In'),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Divider(
+                  color: Colors.white.withValues(alpha: 0.10),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  'or continue with',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Divider(
+                  color: Colors.white.withValues(alpha: 0.10),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _isLoading ? null : _handleGoogleLogin,
+            style: secondaryButtonStyle,
+            icon: const Icon(Icons.login),
+            label: const Text('Continue with Google'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _isLoading ? null : _handleDemoLogin,
+            style: secondaryButtonStyle,
+            icon: const Icon(Icons.visibility_outlined),
+            label: const Text('Try Demo Account'),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: Colors.white.withValues(alpha: 0.04),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Text(
+              'Demo mode opens a safe sample workspace for the dashboard, live rail, and class tools.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
@@ -163,124 +598,178 @@ class _LoginScreenState extends State<LoginScreen> {
         router.go('/dashboard');
       });
     }
+
+    final size = MediaQuery.sizeOf(context);
+    final wideLayout = size.width >= 980;
+    final shortViewport = size.height < 780;
+    final edgePadding = shortViewport ? 18.0 : 24.0;
+    final panelGap = wideLayout ? 28.0 : 20.0;
+
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: AppSpacing.paddingLg,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Image.asset(
-                  'assets/images/school_logo2.png',
-                  height: 120,
-                  fit: BoxFit.contain,
-                  filterQuality: FilterQuality.high,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  GradeFlowProductConfig.appName,
-                  style: context.textStyles.headlineLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  GradeFlowProductConfig.marketingTagline,
-                  style: context.textStyles.bodyMedium?.withColor(
-                      Theme.of(context).colorScheme.onSurfaceVariant),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  GradeFlowProductConfig.defaultSchoolName,
-                  style: context.textStyles.bodySmall?.withColor(
-                    Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                if (_shouldUseLocalhostForGoogleSignIn) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
+      body: AnimatedPageBackground(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(edgePadding),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: wideLayout
+                    ? Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Google sign-in works better on localhost',
-                            style: context.textStyles.titleSmall,
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            'This local run opened on 127.0.0.1, which Firebase web auth often rejects. Switch to localhost for Google sign-in.',
-                            style: context.textStyles.bodySmall?.withColor(
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          Expanded(
+                            child: _buildExperiencePanel(
+                              context,
+                              compact: false,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.sm),
-                          OutlinedButton.icon(
-                            onPressed: _isLoading ? null : _openLocalhostSignIn,
-                            icon: const Icon(Icons.open_in_new),
-                            label: const Text('Open localhost sign-in'),
+                          SizedBox(width: panelGap),
+                          SizedBox(
+                            width: 420,
+                            child: _buildAccessPanel(
+                              context,
+                              compact: false,
+                            ),
                           ),
                         ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildExperiencePanel(context, compact: true),
+                          SizedBox(height: panelGap),
+                          _buildAccessPanel(context, compact: true),
+                        ],
                       ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.xxl),
-                TextField(
-                  controller: _emailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md)),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  enabled: !_isLoading,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextField(
-                  controller: _passwordController,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md)),
-                  ),
-                  obscureText: true,
-                  enabled: !_isLoading,
-                  onSubmitted: (_) => _handleLogin(),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FilledButton(
-                  onPressed: _isLoading ? null : _handleLogin,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Sign In'),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _handleGoogleLogin,
-                  icon: const Icon(Icons.login),
-                  label: const Text('Continue with Google'),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                OutlinedButton(
-                  onPressed: _isLoading ? null : _handleDemoLogin,
-                  child: const Text('Try Demo Account'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LoginSignalChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _LoginSignalChip({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoginSectionTag extends StatelessWidget {
+  final String label;
+
+  const _LoginSectionTag({
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: theme.colorScheme.primary.withValues(alpha: 0.10),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginFeatureTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String detail;
+
+  const _LoginFeatureTile({
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: theme.colorScheme.primary.withValues(alpha: 0.14),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.22),
+            ),
+          ),
+          child: Icon(icon, size: 20, color: theme.colorScheme.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                detail,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

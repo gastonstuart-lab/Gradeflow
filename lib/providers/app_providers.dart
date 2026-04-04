@@ -15,6 +15,7 @@ import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/services/pilot_feedback_service.dart';
 import 'package:gradeflow/services/seating_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
+import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppProviders extends StatelessWidget {
@@ -41,6 +42,14 @@ class AppProviders extends StatelessWidget {
             service ??= CommunicationService();
             service.syncAuth(auth);
             return service;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthService, GlobalSystemShellController>(
+          create: (_) => GlobalSystemShellController(),
+          update: (_, auth, controller) {
+            controller ??= GlobalSystemShellController();
+            controller.syncAuth(auth);
+            return controller;
           },
         ),
         ProxyProvider<GoogleAuthService, GoogleDriveService>(

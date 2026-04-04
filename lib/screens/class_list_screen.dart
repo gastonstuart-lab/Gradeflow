@@ -2088,140 +2088,133 @@ class _ClassListScreenState extends State<ClassListScreen> {
     );
   }
 
-  List<WorkspaceMetricData> _workspaceMetrics(ClassService classService) {
-    return [
-      WorkspaceMetricData(
-        label: 'Active classes',
-        value: classService.activeClasses.length.toString(),
-        detail: 'Daily teaching spaces ready for roster, grading, and seating',
-        icon: Icons.class_rounded,
-      ),
-      WorkspaceMetricData(
-        label: 'Archived',
-        value: classService.archivedClasses.length.toString(),
-        detail: 'Past classes kept accessible for rollover and reporting',
-        icon: Icons.inventory_2_outlined,
-        accent: Theme.of(context).colorScheme.secondary,
-      ),
-      WorkspaceMetricData(
-        label: 'Import channel',
-        value: _driveAccessToken == null ? 'Local-first' : 'Drive connected',
-        detail: _driveAccessToken == null
-            ? 'CSV, Excel, and Drive links can still be imported manually'
-            : 'Google Drive browsing is available for roster and class imports',
-        icon: _driveAccessToken == null ? Icons.file_upload_outlined : Icons.cloud_done_outlined,
-        accent: _driveAccessToken == null
-            ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.tertiary,
-      ),
-    ];
-  }
-
   Widget _buildCollectionToolbar(ClassService classService) {
     final theme = Theme.of(context);
-    final title = _showArchived ? 'Archived classes' : 'Active classes';
     final count = _showArchived
         ? classService.archivedClasses.length
         : classService.activeClasses.length;
-    final subtitle = _showArchived
-        ? '$count archived teaching spaces kept ready for rollover, restore, and reporting.'
-        : '$count daily classes ready to open, act on, and reorder around your teaching day.';
+    final summary = _showArchived
+        ? '$count archived class${count == 1 ? '' : 'es'} kept ready for rollover, restore, and reporting.'
+        : '$count active class${count == 1 ? '' : 'es'} ready to open, act on, and reorder around your teaching day.';
     final canReorder = !_showArchived && classService.activeClasses.length > 1;
+    final importReady = _driveAccessToken != null;
 
-    return WorkspaceSurfaceCard(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      radius: 20,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final narrow = constraints.maxWidth < 1040;
-          final controls = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              ChoiceChip(
-                label: const Text('Active'),
-                selected: !_showArchived,
-                onSelected: (_) => setState(() => _showArchived = false),
+    Widget statusPill({
+      required IconData icon,
+      required String label,
+      Color? accent,
+    }) {
+      final resolvedAccent = accent ?? theme.colorScheme.primary;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: resolvedAccent.withValues(alpha: 0.10),
+          border: Border.all(
+            color: resolvedAccent.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: resolvedAccent),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: context.textStyles.labelMedium?.copyWith(
+                color: resolvedAccent,
+                fontWeight: FontWeight.w700,
               ),
-              ChoiceChip(
-                label: const Text('Archived'),
-                selected: _showArchived,
-                onSelected: (_) => setState(() => _showArchived = true),
-              ),
-              if (canReorder)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.42),
-                    border: Border.all(
-                      color: theme.colorScheme.outline.withValues(alpha: 0.36),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.drag_indicator_rounded,
-                        size: 18,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Drag to reorder',
-                        style: context.textStyles.labelMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          );
+            ),
+          ],
+        ),
+      );
+    }
 
-          final copy = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: context.textStyles.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                subtitle,
-                style: context.textStyles.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          );
+    final filterGroup = Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.32),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.24),
+        ),
+      ),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          ChoiceChip(
+            label: const Text('Active'),
+            selected: !_showArchived,
+            onSelected: (_) => setState(() => _showArchived = false),
+          ),
+          ChoiceChip(
+            label: const Text('Archived'),
+            selected: _showArchived,
+            onSelected: (_) => setState(() => _showArchived = true),
+          ),
+        ],
+      ),
+    );
 
-          if (narrow) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                copy,
-                const SizedBox(height: 14),
-                controls,
-              ],
-            );
-          }
+    final status = Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        statusPill(
+          icon: _showArchived ? Icons.inventory_2_outlined : Icons.class_rounded,
+          label: '$count ${_showArchived ? 'archived' : 'active'}',
+          accent: _showArchived
+              ? theme.colorScheme.secondary
+              : theme.colorScheme.primary,
+        ),
+        statusPill(
+          icon: importReady
+              ? Icons.cloud_done_outlined
+              : Icons.file_upload_outlined,
+          label: importReady ? 'Drive connected' : 'Local import ready',
+          accent: importReady
+              ? theme.colorScheme.tertiary
+              : theme.colorScheme.primary,
+        ),
+        if (canReorder)
+          statusPill(
+            icon: Icons.drag_indicator_rounded,
+            label: 'Drag to reorder',
+            accent: theme.colorScheme.onSurfaceVariant,
+          ),
+      ],
+    );
 
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: copy),
-              const SizedBox(width: 18),
-              controls,
-            ],
-          );
-        },
+    return WorkspaceContextBar(
+      subtitle: summary,
+      leading: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          filterGroup,
+          status,
+        ],
+      ),
+      trailing: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        alignment: WrapAlignment.end,
+        children: [
+          FilledButton.icon(
+            onPressed: _showCreateClassDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('Create Class'),
+          ),
+          OutlinedButton.icon(
+            onPressed: _showImportClassesDialog,
+            icon: const Icon(Icons.upload_file_outlined),
+            label: const Text('Import'),
+          ),
+        ],
       ),
     );
   }
@@ -2236,7 +2229,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
       content = const Center(child: CircularProgressIndicator());
     } else if (showing.isEmpty) {
       content = WorkspaceEmptyState(
-        icon: _showArchived ? Icons.inventory_2_outlined : Icons.school_outlined,
+        icon:
+            _showArchived ? Icons.inventory_2_outlined : Icons.school_outlined,
         title: _showArchived ? 'No archived classes yet' : 'No classes yet',
         subtitle: _showArchived
             ? 'Archived classes and semester rollovers will appear here when you need them.'
@@ -2283,7 +2277,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
     } else {
       content = Builder(
         builder: (context) {
-          final orderedActive = _orderedActiveClasses(classService.activeClasses);
+          final orderedActive =
+              _orderedActiveClasses(classService.activeClasses);
           return ReorderableListView.builder(
             padding: EdgeInsets.zero,
             itemCount: orderedActive.length,
@@ -2321,14 +2316,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildCollectionToolbar(classService),
-        const SizedBox(height: 14),
-        Expanded(child: content),
-      ],
-    );
+    return content;
   }
 
   @override
@@ -2341,19 +2329,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
       title: 'Classes workspace',
       subtitle:
           'Manage rosters, imports, class lifecycle, and semester rollover from one place that feels ready for daily use.',
-      leadingActions: [
-        WorkspaceNavButton(
-          icon: Icons.dashboard_outlined,
-          label: 'Dashboard',
-          onPressed: () => context.go(AppRoutes.dashboard),
-        ),
-        WorkspaceNavButton(
-          icon: Icons.class_rounded,
-          label: 'Classes',
-          selected: true,
-          onPressed: () {},
-        ),
-      ],
       trailingActions: [
         TextButton.icon(
           onPressed: _driveSigningIn ? null : _ensureDriveAccessToken,
@@ -2367,9 +2342,12 @@ class _ClassListScreenState extends State<ClassListScreen> {
                   ),
                 )
               : Icon(
-                  _driveAccessToken == null ? Icons.login : Icons.cloud_done_outlined,
+                  _driveAccessToken == null
+                      ? Icons.login
+                      : Icons.cloud_done_outlined,
                 ),
-          label: Text(_driveAccessToken == null ? 'Connect Drive' : 'Drive ready'),
+          label:
+              Text(_driveAccessToken == null ? 'Connect Drive' : 'Drive ready'),
         ),
         OutlinedButton.icon(
           onPressed: () => context.push(AppRoutes.classTrash),
@@ -2399,19 +2377,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
           },
         ),
       ],
-      headerActions: [
-        FilledButton.icon(
-          onPressed: _showCreateClassDialog,
-          icon: const Icon(Icons.add),
-          label: const Text('Create Class'),
-        ),
-        OutlinedButton.icon(
-          onPressed: _showImportClassesDialog,
-          icon: const Icon(Icons.upload_file_outlined),
-          label: const Text('Import'),
-        ),
-      ],
-      metrics: _workspaceMetrics(classService),
+      contextBar: _buildCollectionToolbar(classService),
       child: _buildCollectionShell(classService),
     );
   }

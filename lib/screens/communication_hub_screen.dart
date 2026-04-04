@@ -215,24 +215,6 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
       title: 'Communication hub',
       subtitle:
           'Staff coordination, admin alerts, and shared-school updates stay together in one calm workspace.',
-      leadingActions: [
-        WorkspaceNavButton(
-          icon: Icons.dashboard_outlined,
-          label: 'Dashboard',
-          onPressed: () => context.go(AppRoutes.dashboard),
-        ),
-        WorkspaceNavButton(
-          icon: Icons.forum_outlined,
-          label: 'Communication',
-          onPressed: () {},
-          selected: true,
-        ),
-        WorkspaceNavButton(
-          icon: Icons.admin_panel_settings_outlined,
-          label: 'Admin',
-          onPressed: () => context.go(AppRoutes.admin),
-        ),
-      ],
       trailingActions: [
         IconButton(
           tooltip: 'Switch app theme',
@@ -289,11 +271,6 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
           onPressed: _load,
           icon: const Icon(Icons.refresh_rounded),
           label: const Text('Refresh'),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => context.go(AppRoutes.classes),
-          icon: const Icon(Icons.class_outlined),
-          label: const Text('Open classes'),
         ),
       ],
       child: _buildBody(context, communicationService),

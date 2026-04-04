@@ -196,24 +196,6 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
       title: 'School operations workspace',
       subtitle:
           'Shared-school oversight, lifecycle management, and communication readiness now live in one operational workspace.',
-      leadingActions: [
-        WorkspaceNavButton(
-          icon: Icons.dashboard_outlined,
-          label: 'Dashboard',
-          onPressed: () => context.go(AppRoutes.dashboard),
-        ),
-        WorkspaceNavButton(
-          icon: Icons.forum_outlined,
-          label: 'Communication',
-          onPressed: () => context.go(AppRoutes.communication),
-        ),
-        WorkspaceNavButton(
-          icon: Icons.admin_panel_settings_outlined,
-          label: 'Admin',
-          onPressed: () {},
-          selected: true,
-        ),
-      ],
       trailingActions: [
         IconButton(
           tooltip: themeMode == ThemeMode.dark

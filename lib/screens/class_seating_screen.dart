@@ -352,9 +352,26 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Room setups',
-                        style: context.textStyles.headlineSmall?.semiBold,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Semantics(
+                              header: true,
+                              child: Text(
+                                'Room setups',
+                                style:
+                                    context.textStyles.headlineSmall?.semiBold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          OutlinedButton.icon(
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            icon: const Icon(Icons.close),
+                            label: const Text('Close'),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
@@ -421,113 +438,122 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                               final roomSetup = roomSetups[index];
                               final isLinked = linkedRoom?.roomSetupId ==
                                   roomSetup.roomSetupId;
-                              return Card(
-                                child: Padding(
-                                  padding: AppSpacing.paddingMd,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              roomSetup.name,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: context.textStyles
-                                                  .titleMedium?.semiBold,
-                                            ),
-                                          ),
-                                          if (isLinked)
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 10,
-                                                vertical: 6,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .primaryContainer,
-                                                borderRadius:
-                                                    BorderRadius.circular(999),
-                                              ),
+                              return Semantics(
+                                container: true,
+                                label: isLinked
+                                    ? '${roomSetup.name}, Linked here'
+                                    : roomSetup.name,
+                                child: Card(
+                                  child: Padding(
+                                    padding: AppSpacing.paddingMd,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
                                               child: Text(
-                                                'Linked here',
-                                                style: context
-                                                    .textStyles.labelSmall
-                                                    ?.withColor(
-                                                  Theme.of(context)
+                                                roomSetup.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: context.textStyles
+                                                    .titleMedium?.semiBold,
+                                              ),
+                                            ),
+                                            if (isLinked)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 6,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
                                                       .colorScheme
-                                                      .onPrimaryContainer,
+                                                      .primaryContainer,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          999),
+                                                ),
+                                                child: Text(
+                                                  'Linked here',
+                                                  style: context
+                                                      .textStyles.labelSmall
+                                                      ?.withColor(
+                                                    Theme.of(context)
+                                                        .colorScheme
+                                                        .onPrimaryContainer,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: AppSpacing.sm),
-                                      Text(
-                                        '${roomSetup.tables.length} tables • ${roomSetup.seats.length} seats',
-                                        style: context.textStyles.bodyMedium
-                                            ?.withColor(
-                                          Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
+                                          ],
                                         ),
-                                      ),
-                                      const SizedBox(height: AppSpacing.md),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: [
-                                          FilledButton.tonalIcon(
-                                            onPressed: () async {
-                                              final result =
-                                                  await seatingService
-                                                      .applyRoomSetupToClass(
-                                                classId: widget.classId,
-                                                roomSetupId:
-                                                    roomSetup.roomSetupId,
-                                              );
-                                              if (!mounted || result == null) {
-                                                return;
-                                              }
-                                              Navigator.of(sheetContext).pop();
-                                              _showMessage(
-                                                result.createdNewLayout
-                                                    ? 'Applied "${roomSetup.name}" to a fresh layout for this class.'
-                                                    : 'Applied "${roomSetup.name}" to this class.',
-                                              );
-                                            },
-                                            icon: const Icon(
-                                              Icons.meeting_room_outlined,
-                                            ),
-                                            label: const Text(
-                                              'Use for this class',
-                                            ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        Text(
+                                          '${roomSetup.tables.length} tables • ${roomSetup.seats.length} seats',
+                                          style: context.textStyles.bodyMedium
+                                              ?.withColor(
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
                                           ),
-                                          OutlinedButton.icon(
-                                            onPressed: () =>
-                                                _showSaveRoomSetupDialog(
-                                              existingRoomSetup: roomSetup,
+                                        ),
+                                        const SizedBox(height: AppSpacing.md),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            FilledButton.tonalIcon(
+                                              onPressed: () async {
+                                                final result =
+                                                    await seatingService
+                                                        .applyRoomSetupToClass(
+                                                  classId: widget.classId,
+                                                  roomSetupId:
+                                                      roomSetup.roomSetupId,
+                                                );
+                                                if (!mounted ||
+                                                    result == null) {
+                                                  return;
+                                                }
+                                                Navigator.of(sheetContext)
+                                                    .pop();
+                                                _showMessage(
+                                                  result.createdNewLayout
+                                                      ? 'Applied "${roomSetup.name}" to a fresh layout for this class.'
+                                                      : 'Applied "${roomSetup.name}" to this class.',
+                                                );
+                                              },
+                                              icon: const Icon(
+                                                Icons.meeting_room_outlined,
+                                              ),
+                                              label: const Text(
+                                                'Use for this class',
+                                              ),
                                             ),
-                                            icon:
-                                                const Icon(Icons.edit_outlined),
-                                            label:
-                                                const Text('Rename / update'),
-                                          ),
-                                          OutlinedButton.icon(
-                                            onPressed: () => _deleteRoomSetup(
-                                              roomSetup,
+                                            OutlinedButton.icon(
+                                              onPressed: () =>
+                                                  _showSaveRoomSetupDialog(
+                                                existingRoomSetup: roomSetup,
+                                              ),
+                                              icon: const Icon(
+                                                  Icons.edit_outlined),
+                                              label:
+                                                  const Text('Rename / update'),
                                             ),
-                                            icon: const Icon(
-                                                Icons.delete_outline),
-                                            label: const Text('Delete'),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                            OutlinedButton.icon(
+                                              onPressed: () => _deleteRoomSetup(
+                                                roomSetup,
+                                              ),
+                                              icon: const Icon(
+                                                  Icons.delete_outline),
+                                              label: const Text('Delete'),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               );

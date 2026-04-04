@@ -31,7 +31,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
       case DashboardWorkspaceSection.classroom:
         return 'Classroom';
       case DashboardWorkspaceSection.planning:
-        return 'Planning';
+        return 'Schedule';
       case DashboardWorkspaceSection.workspace:
         return 'Workspace';
     }
@@ -40,13 +40,13 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
   String _workspaceSectionDescription(DashboardWorkspaceSection section) {
     switch (section) {
       case DashboardWorkspaceSection.today:
-        return 'Daily priorities, next actions, and your immediate teaching runway.';
+        return 'Priorities, cues, and next moves.';
       case DashboardWorkspaceSection.classroom:
-        return 'Live classroom tools for calling on students, grouping, polling, timing, and presenting.';
+        return 'Whiteboard, timer, grouping, and live tools.';
       case DashboardWorkspaceSection.planning:
-        return 'Calendar, reminders, and schedule imports for staying ahead of the term.';
+        return 'Calendar, reminders, and timetable.';
       case DashboardWorkspaceSection.workspace:
-        return 'Optional links, research helpers, and product feedback tools.';
+        return 'Links, research, and extra tools.';
     }
   }
 
@@ -207,7 +207,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                     focusKey: _calendarSectionKey,
                   ),
                   icon: const Icon(Icons.event_note_outlined),
-                  label: const Text('Planning'),
+                  label: const Text('Schedule'),
                 ),
               ],
             ),
@@ -345,7 +345,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                 ButtonSegment(
                   value: DashboardWorkspaceSection.planning,
                   icon: Icon(Icons.event_note_outlined),
-                  label: Text('Planning'),
+                  label: Text('Schedule'),
                 ),
                 ButtonSegment(
                   value: DashboardWorkspaceSection.workspace,
@@ -429,7 +429,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
       if (nextReminder != null) {
         return 'Next reminder ${_shortMonthDay(nextReminder.timestamp)}: ${_headlineSafe(nextReminder.text, maxLength: 72)}.';
       }
-      return 'No immediate blockers right now. Use planning to add reminders before they become urgent.';
+      return 'No immediate blockers right now. Add a reminder or calendar note if something needs to stay visible.';
     }
 
     String secondaryLine() {
@@ -439,7 +439,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
       if (nextScheduleItem?.date != null) {
         return 'The next dated class plan lands on ${_shortMonthDay(nextScheduleItem!.date!)}.';
       }
-      return 'Your dashboard is set up to keep classroom operations and planning one click away.';
+      return 'Your dashboard is set up to keep classroom tools and schedule context one click away.';
     }
 
     return _Card(
@@ -484,7 +484,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                   focusKey: _calendarSectionKey,
                 ),
                 icon: const Icon(Icons.event_note_outlined),
-                label: const Text('Open planning'),
+                label: const Text('Open schedule'),
               ),
             ],
           ),
@@ -560,7 +560,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'No items in this period yet. Add some from the planning section below.',
+                  'No items in this period yet. Add some from the schedule section below.',
                   style: context.textStyles.bodySmall?.withColor(
                     Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -660,7 +660,6 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Present on projector',
                       icon: const Icon(Icons.fullscreen),
                       onPressed: _openPresent,
                     ),
@@ -686,7 +685,6 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                 Flexible(child: classPicker),
                 const SizedBox(width: 8),
                 IconButton(
-                  tooltip: 'Present on projector',
                   icon: const Icon(Icons.fullscreen),
                   onPressed: _openPresent,
                 ),
@@ -742,7 +740,6 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
               ),
               const Spacer(),
               IconButton(
-                tooltip: 'Manage links',
                 icon: const Icon(Icons.edit_outlined),
                 onPressed: _promptEditCustomLinks,
               ),
@@ -810,7 +807,6 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
             hintText: 'Type and press Enter',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(
-              tooltip: 'Search',
               icon: const Icon(Icons.open_in_new),
               onPressed: _submitGoogleSearch,
             ),
@@ -828,7 +824,6 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
             hintText: 'Type your question and press Enter',
             prefixIcon: const Icon(Icons.auto_awesome_outlined),
             suffixIcon: IconButton(
-              tooltip: 'Open',
               icon: const Icon(Icons.open_in_new),
               onPressed: _submitAiSearch,
             ),

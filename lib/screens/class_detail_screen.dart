@@ -386,24 +386,6 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       title: classItem.className,
       subtitle:
           '${classItem.subject} • ${classItem.schoolYear} • ${classItem.term}',
-      leadingActions: [
-        WorkspaceNavButton(
-          icon: Icons.dashboard_outlined,
-          label: 'Dashboard',
-          onPressed: () => context.go('/dashboard'),
-        ),
-        WorkspaceNavButton(
-          icon: Icons.class_rounded,
-          label: 'Classes',
-          onPressed: () => context.go('/classes'),
-        ),
-        WorkspaceNavButton(
-          icon: Icons.auto_stories_outlined,
-          label: 'Class Home',
-          selected: true,
-          onPressed: () {},
-        ),
-      ],
       trailingActions: [
         OutlinedButton.icon(
           onPressed: () => _showScheduleDialog(context),
@@ -453,137 +435,135 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                    AnimatedGlowBorder(
-                      child: Card(
-                        child: Padding(
-                          padding: AppSpacing.paddingLg,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(classItem.subject,
-                                  style: context
-                                      .textStyles.headlineSmall?.semiBold),
-                              const SizedBox(height: AppSpacing.sm),
-                              Text(
-                                  '${classItem.schoolYear} • ${classItem.term}',
-                                  style: context.textStyles.bodyMedium),
-                              const SizedBox(height: AppSpacing.lg),
-                              Row(
-                                children: [
-                                  Expanded(
+                  AnimatedGlowBorder(
+                    child: Card(
+                      child: Padding(
+                        padding: AppSpacing.paddingLg,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(classItem.subject,
+                                style:
+                                    context.textStyles.headlineSmall?.semiBold),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text('${classItem.schoolYear} • ${classItem.term}',
+                                style: context.textStyles.bodyMedium),
+                            const SizedBox(height: AppSpacing.lg),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _StatCard(
+                                    icon: Icons.people,
+                                    label: 'Students',
+                                    value: '$studentCount',
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: _StatCard(
+                                    icon: Icons.category,
+                                    label: 'Categories',
+                                    value: '$categoryCount',
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => _showScheduleDialog(context),
                                     child: _StatCard(
-                                      icon: Icons.people,
-                                      label: 'Students',
-                                      value: '$studentCount',
+                                      icon: Icons.calendar_today,
+                                      label: 'Schedule',
+                                      value: _scheduleItems.isEmpty
+                                          ? '—'
+                                          : '${_scheduleItems.length}',
                                     ),
                                   ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  Expanded(
-                                    child: _StatCard(
-                                      icon: Icons.category,
-                                      label: 'Categories',
-                                      value: '$categoryCount',
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () => _showScheduleDialog(context),
-                                      child: _StatCard(
-                                        icon: Icons.calendar_today,
-                                        label: 'Schedule',
-                                        value: _scheduleItems.isEmpty
-                                            ? '—'
-                                            : '${_scheduleItems.length}',
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: AppSpacing.lg),
-                              _buildOverviewPanels(context),
-                            ],
-                          ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            _buildOverviewPanels(context),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Text('Quick Actions',
-                        style: context.textStyles.titleLarge?.semiBold),
-                    const SizedBox(height: AppSpacing.md),
-                    AnimatedGlowBorder(
-                      child: _ActionButton(
-                        icon: Icons.people,
-                        title: 'Student Roster',
-                        subtitle: 'View and manage students',
-                        onTap: () =>
-                            context.push('/class/${widget.classId}/students'),
-                      ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Text('Quick Actions',
+                      style: context.textStyles.titleLarge?.semiBold),
+                  const SizedBox(height: AppSpacing.md),
+                  AnimatedGlowBorder(
+                    child: _ActionButton(
+                      icon: Icons.people,
+                      title: 'Student Roster',
+                      subtitle: 'View and manage students',
+                      onTap: () =>
+                          context.push('/class/${widget.classId}/students'),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    AnimatedGlowBorder(
-                      child: _ActionButton(
-                        icon: Icons.event_seat_outlined,
-                        title: 'Seating Plan',
-                        subtitle:
-                            'Design layouts and print substitute handouts',
-                        onTap: () =>
-                            context.push('/class/${widget.classId}/seating'),
-                      ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AnimatedGlowBorder(
+                    child: _ActionButton(
+                      icon: Icons.event_seat_outlined,
+                      title: 'Seating Plan',
+                      subtitle: 'Design layouts and print substitute handouts',
+                      onTap: () =>
+                          context.push('/class/${widget.classId}/seating'),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    AnimatedGlowBorder(
-                      child: _ActionButton(
-                        icon: Icons.edit_note,
-                        title: 'Gradebook',
-                        subtitle: 'Enter and view grades',
-                        onTap: () =>
-                            context.push('/class/${widget.classId}/gradebook'),
-                      ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AnimatedGlowBorder(
+                    child: _ActionButton(
+                      icon: Icons.edit_note,
+                      title: 'Gradebook',
+                      subtitle: 'Enter and view grades',
+                      onTap: () =>
+                          context.push('/class/${widget.classId}/gradebook'),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    AnimatedGlowBorder(
-                      child: _ActionButton(
-                        icon: Icons.category,
-                        title: 'Grading Categories',
-                        subtitle: 'Manage weights and categories',
-                        onTap: () =>
-                            context.push('/class/${widget.classId}/categories'),
-                      ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AnimatedGlowBorder(
+                    child: _ActionButton(
+                      icon: Icons.category,
+                      title: 'Grading Categories',
+                      subtitle: 'Manage weights and categories',
+                      onTap: () =>
+                          context.push('/class/${widget.classId}/categories'),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    AnimatedGlowBorder(
-                      child: _ActionButton(
-                        icon: Icons.description,
-                        title: 'Final Exam Scores',
-                        subtitle: 'Enter exam scores (60% weight)',
-                        onTap: () =>
-                            context.push('/class/${widget.classId}/exams'),
-                      ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AnimatedGlowBorder(
+                    child: _ActionButton(
+                      icon: Icons.description,
+                      title: 'Final Exam Scores',
+                      subtitle: 'Enter exam scores (60% weight)',
+                      onTap: () =>
+                          context.push('/class/${widget.classId}/exams'),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    AnimatedGlowBorder(
-                      child: _ActionButton(
-                        icon: Icons.assessment,
-                        title: 'Final Results',
-                        subtitle: 'Process, Exam, Final scores per student',
-                        onTap: () =>
-                            context.push('/class/${widget.classId}/results'),
-                      ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AnimatedGlowBorder(
+                    child: _ActionButton(
+                      icon: Icons.assessment,
+                      title: 'Final Results',
+                      subtitle: 'Process, Exam, Final scores per student',
+                      onTap: () =>
+                          context.push('/class/${widget.classId}/results'),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    AnimatedGlowBorder(
-                      child: _ActionButton(
-                        icon: Icons.download,
-                        title: 'Export Results',
-                        subtitle: 'Download grades as CSV',
-                        onTap: () =>
-                            context.push('/class/${widget.classId}/export'),
-                      ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AnimatedGlowBorder(
+                    child: _ActionButton(
+                      icon: Icons.download,
+                      title: 'Export Results',
+                      subtitle: 'Download grades as CSV',
+                      onTap: () =>
+                          context.push('/class/${widget.classId}/export'),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
     );
   }
 

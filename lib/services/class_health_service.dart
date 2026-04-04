@@ -245,7 +245,7 @@ class ClassHealthService {
           : 'Review the overdue reminders and class note dates tied to ${staticSignals.className}.',
       primaryAction: const ClassHealthAction(
         label: 'Review reminders',
-        detail: 'Open planning and clear the overdue follow-up items first.',
+        detail: 'Open reminders and clear the overdue follow-up items first.',
         type: ClassHealthActionType.reviewPlanning,
       ),
       secondaryAction: const ClassHealthAction(
@@ -460,12 +460,12 @@ class ClassHealthService {
           : 'Review the upcoming reminders and class note dates before they stack up for ${staticSignals.className}.',
       primaryAction: const ClassHealthAction(
         label: 'Review reminders',
-        detail: 'Open planning and clear the next due follow-up items.',
+        detail: 'Open reminders and clear the next due follow-up items.',
         type: ClassHealthActionType.reviewPlanning,
       ),
       secondaryAction: const ClassHealthAction(
         label: 'Open class',
-        detail: 'Keep the class context visible while you plan the follow-up.',
+        detail: 'Keep the class context visible while you handle the follow-up.',
         type: ClassHealthActionType.openClassWorkspace,
       ),
     );
@@ -477,18 +477,18 @@ class ClassHealthService {
     return _ClassHealthIssue(
       priority: 42,
       level: ClassHealthLevel.attention,
-      primaryReason: 'Planning context is still thin',
+      primaryReason: 'Teaching context is still thin',
       secondaryDetail:
           'Add a syllabus import or class notes so ${staticSignals.className} carries more teaching context than the roster alone.',
       primaryAction: const ClassHealthAction(
         label: 'Open class',
-        detail: 'Review the class workspace and add planning context.',
+        detail: 'Review the class workspace and add notes or syllabus context.',
         type: ClassHealthActionType.openClassWorkspace,
       ),
       secondaryAction: const ClassHealthAction(
         label: 'Open gradebook',
         detail:
-            'If planning is in your head already, at least anchor grading structure.',
+            'If the lesson is already mapped out, at least anchor grading structure.',
         type: ClassHealthActionType.openGradebook,
       ),
     );
@@ -536,7 +536,7 @@ class ClassHealthService {
               ? '${_startsInLabel(runtimeSignals.nextClassStartsAt!, runtimeSignals.now)} and ready for class'
               : 'Ready for today and no immediate follow-up is needed',
       secondaryDetail: hasStrongSetup
-          ? 'Roster, seating, gradebook, and planning context are already in place for ${staticSignals.className}.'
+          ? 'Roster, seating, gradebook, and teaching context are already in place for ${staticSignals.className}.'
           : 'The core setup is stable, and there is no urgent follow-up blocking ${staticSignals.className} right now.',
       primaryAction: primaryAction,
       secondaryAction: const ClassHealthAction(
@@ -635,11 +635,11 @@ class ClassHealthService {
               '${staticSignals.gradeItemCount} item${staticSignals.gradeItemCount == 1 ? '' : 's'}',
         ),
       );
-    } else if (staticSignals.hasSyllabusPlan) {
-      metrics.add(
-        const ClassHealthMetric(label: 'Planning', value: 'Plan saved'),
-      );
-    }
+      } else if (staticSignals.hasSyllabusPlan) {
+        metrics.add(
+          const ClassHealthMetric(label: 'Context', value: 'Notes ready'),
+        );
+      }
 
     if (staticSignals.hasAssignedRoomSetup &&
         metrics.length < 4 &&

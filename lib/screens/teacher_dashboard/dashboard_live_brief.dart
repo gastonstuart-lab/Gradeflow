@@ -120,7 +120,7 @@ extension TeacherDashboardLiveBrief on _TeacherDashboardScreenState {
             ? (_weatherError != null
                 ? 'The local forecast is temporarily unavailable. This panel refreshes automatically, so it should recover on the next pass.'
                 : 'Current temperature, feel-like temperature, wind, and the next few days will live here.')
-            : 'Feels like ${weather.apparentTempC.round()}°, wind ${weather.windSpeedKph.round()} km/h, with the next days ready for quick planning before class starts. Tap through for the fuller forecast.',
+            : 'Feels like ${weather.apparentTempC.round()}°, wind ${weather.windSpeedKph.round()} km/h, with the next few days visible before class starts. Tap through for the fuller forecast.',
         chips: weatherChips.isNotEmpty
             ? weatherChips
             : [
@@ -159,7 +159,7 @@ extension TeacherDashboardLiveBrief on _TeacherDashboardScreenState {
                   'Class timeline: ${_shortMonthDay(nextScheduleItem.date!)} ${_headlineSafe(nextScheduleItem.title, maxLength: 64)}.',
               ].join(' ')
             : nextScheduleItem != null && nextScheduleItem.date != null
-                ? 'The next dated class timeline item lands on ${_shortMonthDay(nextScheduleItem.date!)}. Open the calendar below to keep the broader school plan in view.'
+                ? 'The next dated class timeline item lands on ${_shortMonthDay(nextScheduleItem.date!)}. Open the calendar below to keep the broader school day in view.'
                 : 'Use the calendar and reminder tools below to pin personal reminders, school events, and things coming up. This panel will keep the next important item in view.',
         chips: [
           '$openReminders upcoming',
@@ -180,7 +180,7 @@ extension TeacherDashboardLiveBrief on _TeacherDashboardScreenState {
             ? 'After that: ${_shortMonthDay(followUpReminder.timestamp)} ${_headlineSafe(followUpReminder.text, maxLength: 62)}'
             : nextScheduleItem != null
                 ? _headlineSafe(nextScheduleItem.title, maxLength: 70)
-                : 'A clear runway gives you room to teach, improvise, and still stay ahead of what is coming up.',
+                : 'A clear board gives you room to teach, improvise, and still stay ahead of what is coming up.',
         icon: Icons.event_note_rounded,
         visual: DashboardStoryVisual.studio,
         imageAssetPath: _TeacherDashboardScreenState._eventsHeroImageAsset,
