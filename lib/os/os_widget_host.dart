@@ -76,11 +76,6 @@ const List<OSWidgetConfig> kHomePrimaryWidgets = [
     type: OSWidgetType.classHealth,
     size: OSWidgetSize.wide,
   ),
-  OSWidgetConfig(
-    id: 'w-class-deck',
-    type: OSWidgetType.classDeck,
-    size: OSWidgetSize.full,
-  ),
 ];
 
 const List<OSWidgetConfig> kDefaultWidgetLayout = kHomePrimaryWidgets;
