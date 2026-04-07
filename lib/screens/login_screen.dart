@@ -599,7 +599,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (auth.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        router.go('/dashboard');
+        router.go(AppRoutes.osHome);
       });
     }
 
