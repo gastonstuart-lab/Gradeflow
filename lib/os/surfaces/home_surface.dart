@@ -716,11 +716,9 @@ class _PrimaryActionChip extends StatelessWidget {
 
 class _LaunchPanel extends StatelessWidget {
   const _LaunchPanel({
-    required this.primaryClass,
     required this.unread,
   });
 
-  final Class? primaryClass;
   final int unread;
 
   @override
@@ -742,15 +740,27 @@ class _LaunchPanel extends StatelessWidget {
           ),
           const SizedBox(height: 10),
         ],
+        const SizedBox(height: 2),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 10),
+            child: Text(
+              'All classes',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+                color: OSColors.textSecondary(context.isDark),
+              ),
+            ),
+          ),
+        ),
         _DashboardNavCard(
           icon: Icons.class_rounded,
-          title: primaryClass != null ? primaryClass!.className : 'Classes',
-          subtitle: primaryClass != null
-              ? 'Open ${primaryClass!.subject} workspace'
-              : 'Open class list and pick a workspace',
-          onTap: () => primaryClass != null
-              ? context.go('${AppRoutes.osClass}/${primaryClass!.classId}')
-              : context.go(AppRoutes.classes),
+          title: 'Class list',
+          subtitle: 'Browse every class and open a workspace',
+          onTap: () => context.go(AppRoutes.classes),
         ),
       ],
     );
@@ -816,7 +826,6 @@ class _LaunchAppTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    app.description ?? 'Open app',
                     style: TextStyle(
                       fontSize: 11,
                       color: OSColors.textSecondary(dark),
