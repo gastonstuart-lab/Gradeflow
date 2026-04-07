@@ -876,11 +876,16 @@ class _LegacyAccessPanel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: OSColors.surface(dark),
+          color: dark
+              ? Colors.white.withValues(alpha: 0.035)
+              : Colors.black.withValues(alpha: 0.018),
           borderRadius: OSRadius.xlBr,
-          border: Border.all(color: OSColors.border(dark), width: 1),
+          border: Border.all(
+            color: OSColors.border(dark).withValues(alpha: 0.65),
+            width: 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -888,22 +893,23 @@ class _LegacyAccessPanel extends StatelessWidget {
             Text(
               'More',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: OSColors.text(dark),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Full workspace views, admin tools, and settings.',
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.45,
+                letterSpacing: 0.2,
                 color: OSColors.textSecondary(dark),
               ),
             ),
-            const SizedBox(height: 14),
-            _DashboardNavCard(
+            const SizedBox(height: 4),
+            Text(
+              'Full workspace views, admin tools, and settings.',
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.35,
+                color: OSColors.textMuted(dark),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _SecondaryUtilityTile(
               icon: Icons.space_dashboard_outlined,
               title: 'Full Dashboard',
               subtitle: pendingReminderCount > 0
@@ -911,12 +917,86 @@ class _LegacyAccessPanel extends StatelessWidget {
                   : 'Open the legacy workspace and planning views',
               onTap: () => context.go(AppRoutes.dashboard),
             ),
-            const SizedBox(height: 10),
-            _DashboardNavCard(
+            const SizedBox(height: 6),
+            _SecondaryUtilityTile(
               icon: Icons.admin_panel_settings_rounded,
               title: 'Connected Workspace',
               subtitle: 'Admin tools, school links, and settings',
               onTap: () => context.go(AppRoutes.admin),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryUtilityTile extends StatelessWidget {
+  const _SecondaryUtilityTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return OSTouchFeedback(
+      onTap: onTap,
+      borderRadius: OSRadius.mdBr,
+      minSize: const Size(120, 48),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.03)
+              : Colors.black.withValues(alpha: 0.012),
+          borderRadius: OSRadius.mdBr,
+          border: Border.all(
+            color: OSColors.border(dark).withValues(alpha: 0.55),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: OSColors.textSecondary(dark)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: OSColors.text(dark),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: OSColors.textMuted(dark),
+                      height: 1.25,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: OSColors.textMuted(dark),
             ),
           ],
         ),
