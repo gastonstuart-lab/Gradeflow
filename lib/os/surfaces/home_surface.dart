@@ -338,8 +338,8 @@ class _HomeCommandDeck extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             firstClass != null
-                ? 'Next focus: ${firstClass!.className} in ${firstClass!.subject}. Keep classes, teaching tools, and AI support one gesture away.'
-                : 'Home now centers your classes, teaching tools, and assistant without routing back through the legacy dashboard.',
+                ? '${firstClass!.className} · ${firstClass!.subject}. Your classes, tools, and assistant are always one tap away.'
+                : 'Your classes, teaching tools, and assistant are always one tap away.',
             style: TextStyle(
               fontSize: 13,
               height: 1.45,
@@ -877,7 +877,7 @@ class _LegacyAccessPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Legacy access',
+              'More',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -886,7 +886,7 @@ class _LegacyAccessPanel extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'The full dashboard stays available, but it now sits behind the native OS home instead of acting as the home itself.',
+              'Full workspace views, admin tools, and settings.',
               style: TextStyle(
                 fontSize: 12,
                 height: 1.45,

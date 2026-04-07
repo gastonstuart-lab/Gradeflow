@@ -13,6 +13,7 @@ import 'package:gradeflow/services/grade_item_service.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/student_service.dart';
+import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -56,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
 
       if (success) {
-        context.go('/dashboard');
+        context.go(AppRoutes.osHome);
       } else {
         _showError('Login failed. Please check your credentials.');
       }
@@ -94,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
 
       if (success) {
-        context.go('/dashboard');
+        context.go(AppRoutes.osHome);
       } else {
         _showError('Demo login failed. Please try again.');
       }
@@ -124,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      router.go('/dashboard');
+      router.go(AppRoutes.osHome);
     } else {
       showWorkspaceSnackBar(
         context,
