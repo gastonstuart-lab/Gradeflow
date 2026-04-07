@@ -16,6 +16,11 @@ class SeatingDesignerView extends StatefulWidget {
   final bool presentationMode;
   final bool showStudentPanel;
   final bool showFullScreenButton;
+  final VoidCallback? onOpenRoomSetups;
+  final VoidCallback? onPreviewPdf;
+  final VoidCallback? onPrint;
+  final VoidCallback? onDownload;
+  final bool webMode;
 
   const SeatingDesignerView({
     super.key,
@@ -25,6 +30,11 @@ class SeatingDesignerView extends StatefulWidget {
     this.presentationMode = false,
     this.showStudentPanel = true,
     this.showFullScreenButton = true,
+    this.onOpenRoomSetups,
+    this.onPreviewPdf,
+    this.onPrint,
+    this.onDownload,
+    this.webMode = true,
   });
 
   @override
@@ -98,6 +108,8 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
         return LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 900;
+            final crampedHeight = constraints.maxHeight < 460;
+            final showStudentPanel = widget.showStudentPanel && !crampedHeight;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -141,6 +153,11 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                       _confirmClearAssignments(context, service, active),
                   onPickStudent: () => _showStudentPicker(
                       context, service, active, studentsById),
+                    onOpenRoomSetups: widget.onOpenRoomSetups,
+                    onPreviewPdf: widget.onPreviewPdf,
+                    onPrint: widget.onPrint,
+                    onDownload: widget.onDownload,
+                    webMode: widget.webMode,
                   showFullScreenButton: widget.showFullScreenButton,
                   onFullScreen: () =>
                       Navigator.of(context).push(MaterialPageRoute(
@@ -151,18 +168,18 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                   )),
                 ),
                 if (_designMode) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _EditRoomHint(
                     hasSeats: active.seats.isNotEmpty,
                   ),
                 ] else if (active.seats.isNotEmpty &&
                     widget.students.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   const _SeatingUseHint(),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Expanded(
-                  child: !widget.showStudentPanel
+                  child: !showStudentPanel
                       ? _buildCanvas(context, service, active, studentsById)
                       : isNarrow
                           ? Column(

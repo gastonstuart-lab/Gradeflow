@@ -25,6 +25,11 @@ class SeatingToolbar extends StatelessWidget {
   final VoidCallback onPickStudent;
   final VoidCallback onFullScreen;
   final bool showFullScreenButton;
+  final VoidCallback? onOpenRoomSetups;
+  final VoidCallback? onPreviewPdf;
+  final VoidCallback? onPrint;
+  final VoidCallback? onDownload;
+  final bool webMode;
 
   const SeatingToolbar({
     super.key,
@@ -50,6 +55,11 @@ class SeatingToolbar extends StatelessWidget {
     required this.onPickStudent,
     required this.onFullScreen,
     this.showFullScreenButton = true,
+    this.onOpenRoomSetups,
+    this.onPreviewPdf,
+    this.onPrint,
+    this.onDownload,
+    this.webMode = true,
   });
 
   @override
@@ -59,11 +69,12 @@ class SeatingToolbar extends StatelessWidget {
       orElse: () => layouts.isEmpty ? _emptyLayout : layouts.first,
     );
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
+    return SizedBox(
+      height: 42,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
         SizedBox(
           width: 200,
           child: DropdownButtonFormField<String>(
@@ -86,16 +97,19 @@ class SeatingToolbar extends StatelessWidget {
             },
           ),
         ),
+        const SizedBox(width: 8),
         FilledButton.icon(
           onPressed: onAddLayout,
           icon: const Icon(Icons.add),
           label: const Text('New layout'),
         ),
+        const SizedBox(width: 8),
         OutlinedButton.icon(
           onPressed: onDuplicateLayout,
           icon: const Icon(Icons.copy),
           label: const Text('Duplicate'),
         ),
+        const SizedBox(width: 8),
         PopupMenuButton<_LayoutAction>(
           onSelected: (value) {
             switch (value) {
@@ -141,6 +155,7 @@ class SeatingToolbar extends StatelessWidget {
             label: 'Layout',
           ),
         ),
+        const SizedBox(width: 8),
         PopupMenuButton<SeatingTemplateType>(
           onSelected: onApplyTemplate,
           itemBuilder: (context) => const [
@@ -166,6 +181,7 @@ class SeatingToolbar extends StatelessWidget {
             label: 'Templates',
           ),
         ),
+        const SizedBox(width: 8),
         PopupMenuButton<_AssignmentAction>(
           onSelected: (value) {
             switch (value) {
@@ -207,7 +223,7 @@ class SeatingToolbar extends StatelessWidget {
             label: 'Roster Actions',
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         FilterChip(
           avatar: const Icon(Icons.draw_outlined, size: 18),
           label: const Text('Edit room'),
@@ -215,7 +231,7 @@ class SeatingToolbar extends StatelessWidget {
           onSelected: (_) => onToggleDesignMode(),
         ),
         if (designMode) ...[
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           PopupMenuButton<_FurnitureAction>(
             onSelected: (value) {
               switch (value) {
@@ -257,15 +273,49 @@ class SeatingToolbar extends StatelessWidget {
             ),
           ),
         ],
+        if (onOpenRoomSetups != null) ...[
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: onOpenRoomSetups,
+            icon: const Icon(Icons.meeting_room_outlined),
+            label: const Text('Room setups'),
+          ),
+        ],
+        if (onPreviewPdf != null) ...[
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: onPreviewPdf,
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: Text(webMode ? 'Preview PDF' : 'Build PDF'),
+          ),
+        ],
+        if (onPrint != null) ...[
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: onPrint,
+            icon: const Icon(Icons.print_outlined),
+            label: const Text('Print'),
+          ),
+        ],
+        if (onDownload != null) ...[
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: onDownload,
+            icon: Icon(webMode ? Icons.download_outlined : Icons.share_outlined),
+            label: Text(webMode ? 'Download' : 'Share PDF'),
+          ),
+        ],
         if (showFullScreenButton) ...[
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           FilledButton.icon(
             onPressed: onFullScreen,
             icon: const Icon(Icons.fullscreen),
             label: const Text('Full screen'),
           ),
         ],
-      ],
+          ],
+        ),
+      ),
     );
   }
 }

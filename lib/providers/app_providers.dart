@@ -17,6 +17,7 @@ import 'package:gradeflow/services/seating_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gradeflow/os/os_controller.dart';
 
 class AppProviders extends StatelessWidget {
   final Widget child;
@@ -52,6 +53,7 @@ class AppProviders extends StatelessWidget {
             return controller;
           },
         ),
+        ChangeNotifierProvider(create: (_) => GradeFlowOSController()),
         ProxyProvider<GoogleAuthService, GoogleDriveService>(
           update: (_, auth, __) => GoogleDriveService(authService: auth),
         ),

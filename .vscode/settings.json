@@ -7,6 +7,32 @@
   // Optional: keep Java tooling quieter in Flutter-first workspace.
   "java.autobuild.enabled": false,
 
+  // Keep VS Code's Dart/Flutter extension on the same SDK that passes
+  // `flutter analyze` in this workspace.
+  "dart.flutterSdkPath": "C:\\Users\\Stuart\\flutter",
+  "chat.tools.terminal.autoApprove": {
+    "/^npx\\.cmd playwright test e2e/features\\.spec\\.ts --project=chromium --grep \"Export: browser export action shows download feedback\\|Seating: substitute handout preview supports download action\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^npx playwright test e2e/features\\.spec\\.ts --project=chromium --grep \"Export: browser export action shows download feedback\\|Export: CSV preview supports download action\\|Seating: substitute handout preview supports download action\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "flutter": true,
+    "Move-Item": true,
+    "Get-Process": true,
+    "npx playwright": true,
+    "Tee-Object": true,
+    "/^powershell -NoProfile -ExecutionPolicy Bypass -File \"scripts/run-playwright-verified\\.ps1\" \"e2e/features\\.spec\\.ts\" \"e2e/core_flow\\.spec\\.ts\" \"e2e/seating_room_setup\\.spec\\.ts\" --project chromium$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "ConvertFrom-Json": true,
+    "ForEach-Object": true,
+    "Test-Path": true
+  },
+
   // ============================================
   // 🤖 AI SETUP - SET VIA ENVIRONMENT
   // ============================================

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
@@ -66,22 +67,27 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final authService = context.read<AuthService>();
-    await authService.seedDemoUser();
-    final success = await authService.login('teacher@demo.com', 'demo');
+    bool success = false;
+    try {
+      await authService.seedDemoUser();
+      success = await authService.login('teacher@demo.com', 'demo');
 
-    if (success && mounted) {
-      final user = authService.currentUser;
-      if (DemoDataService.isDemoUser(user)) {
-        await DemoDataService.ensureDemoWorkspace(
-          teacherId: user!.userId,
-          classService: context.read<ClassService>(),
-          studentService: context.read<StudentService>(),
-          categoryService: context.read<GradingCategoryService>(),
-          gradeItemService: context.read<GradeItemService>(),
-          scoreService: context.read<StudentScoreService>(),
-          examService: context.read<FinalExamService>(),
-        );
+      if (success && mounted) {
+        final user = authService.currentUser;
+        if (DemoDataService.isDemoUser(user) && user != null) {
+          await DemoDataService.ensureDemoWorkspace(
+            teacherId: user.userId,
+            classService: context.read<ClassService>(),
+            studentService: context.read<StudentService>(),
+            categoryService: context.read<GradingCategoryService>(),
+            gradeItemService: context.read<GradeItemService>(),
+            scoreService: context.read<StudentScoreService>(),
+            examService: context.read<FinalExamService>(),
+          );
+        }
       }
+    } catch (_) {
+      success = false;
     }
 
     if (mounted) {
@@ -89,22 +95,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (success) {
         context.go('/dashboard');
+      } else {
+        _showError('Demo login failed. Please try again.');
       }
     }
   }
 
   Future<void> _handleGoogleLogin() async {
     final router = GoRouter.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    final errorColor = Theme.of(context).colorScheme.error;
 
     if (_shouldUseLocalhostForGoogleSignIn) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
+      showWorkspaceSnackBar(
+        context,
+        message:
             'Google sign-in on local web should use localhost. Opening ${_localhostSignInUri.toString()}',
-          ),
-        ),
+        title: 'Opening localhost',
       );
       await _openLocalhostSignIn();
       return;
@@ -121,21 +126,19 @@ class _LoginScreenState extends State<LoginScreen> {
     if (success) {
       router.go('/dashboard');
     } else {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            _shouldUseLocalhostForGoogleSignIn
-                ? 'Google sign-in failed on 127.0.0.1. Open localhost and try again.'
-                : 'Google sign-in failed.',
-          ),
-          backgroundColor: errorColor,
-          action: _shouldUseLocalhostForGoogleSignIn
-              ? SnackBarAction(
-                  label: 'Open localhost',
-                  onPressed: _openLocalhostSignIn,
-                )
-              : null,
-        ),
+      showWorkspaceSnackBar(
+        context,
+        message: _shouldUseLocalhostForGoogleSignIn
+            ? 'Google sign-in failed on 127.0.0.1. Open localhost and try again.'
+            : 'Google sign-in failed.',
+        tone: WorkspaceFeedbackTone.error,
+        actionLabel:
+            _shouldUseLocalhostForGoogleSignIn ? 'Open localhost' : null,
+        onAction: _shouldUseLocalhostForGoogleSignIn
+            ? () {
+                _openLocalhostSignIn();
+              }
+            : null,
       );
     }
   }
@@ -145,10 +148,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(message),
-          backgroundColor: Theme.of(context).colorScheme.error),
+    showWorkspaceSnackBar(
+      context,
+      message: message,
+      tone: WorkspaceFeedbackTone.error,
     );
   }
 
@@ -162,10 +165,10 @@ class _LoginScreenState extends State<LoginScreen> {
         theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.26);
 
     return Container(
-      padding: EdgeInsets.all(compact ? 22 : 30),
+      padding: EdgeInsets.all(compact ? 22 : 28),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(compact ? 28 : 34),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -176,9 +179,9 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.24),
-            blurRadius: 34,
-            offset: const Offset(0, 18),
+            color: theme.shadowColor.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -297,9 +300,9 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
-              color: Colors.white.withValues(alpha: 0.04),
+              color: Colors.white.withValues(alpha: 0.03),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.08),
+                color: Colors.white.withValues(alpha: 0.06),
               ),
             ),
             child: Column(
@@ -357,10 +360,10 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     return Container(
-      padding: EdgeInsets.all(compact ? 22 : 28),
+      padding: EdgeInsets.all(compact ? 22 : 26),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(compact ? 28 : 32),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -371,9 +374,9 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.28),
-            blurRadius: 32,
-            offset: const Offset(0, 18),
+            color: theme.shadowColor.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -568,9 +571,9 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              color: Colors.white.withValues(alpha: 0.04),
+              color: Colors.white.withValues(alpha: 0.03),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.08),
+                color: Colors.white.withValues(alpha: 0.06),
               ),
             ),
             child: Text(
@@ -603,7 +606,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final wideLayout = size.width >= 980;
     final shortViewport = size.height < 780;
     final edgePadding = shortViewport ? 18.0 : 24.0;
-    final panelGap = wideLayout ? 28.0 : 20.0;
+    final panelGap = wideLayout ? 24.0 : 18.0;
 
     return Scaffold(
       body: AnimatedPageBackground(
@@ -612,7 +615,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: SingleChildScrollView(
               padding: EdgeInsets.all(edgePadding),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
+                constraints: const BoxConstraints(maxWidth: 1160),
                 child: wideLayout
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -625,7 +628,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           SizedBox(width: panelGap),
                           SizedBox(
-                            width: 420,
+                            width: 404,
                             child: _buildAccessPanel(
                               context,
                               compact: false,

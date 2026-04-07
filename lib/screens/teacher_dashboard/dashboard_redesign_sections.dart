@@ -143,12 +143,48 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     DateTime now, {
     required bool compact,
   }) {
+    final showTimetableWarning = _selectedTimetableId == null;
     return KeyedSubtree(
       key: _classStatusSectionKey,
       child: ClassStatusSection(
         classes: _dashboardClassCards(context, now),
         onOpenClasses: () => context.go(AppRoutes.classes),
         compact: compact,
+        warning: showTimetableWarning
+            ? _buildTimetableMissingWarning(context)
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildTimetableMissingWarning(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: _DashboardPalette.amber.withValues(alpha: 0.10),
+        border: Border.all(
+          color: _DashboardPalette.amber.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            size: 18,
+            color: _DashboardPalette.amber,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Review setup while timetable details are still missing.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _DashboardPalette.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -393,70 +429,67 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     return KeyedSubtree(
       key: _livePanelSectionKey,
       child: LivePanel(
-        title: 'System',
-        subtitle: 'Time, messages, and live context.',
-        channels: _dashboardLiveSignals(now),
         systemWidget: _dashboardSystemWidgetData(now),
+        audioWidget: _dashboardAudioWidgetData(now),
+        statusItems: _dashboardSystemStatusItems(now),
         communicationWidget: communicationWidget,
-        stories: _dashboardLiveStories(context, now),
-        announcements: _dashboardAnnouncements(now),
         compact: compact,
       ),
     );
   }
 
-  List<_DashboardNavItemData> _dashboardNavItems(BuildContext context) => [
-        _DashboardNavItemData(
+    List<DashboardNavItemData> _dashboardNavItems(BuildContext context) => [
+      DashboardNavItemData(
           label: 'Dashboard',
           icon: Icons.dashboard_rounded,
           onTap: () => unawaited(_scrollToSection(_summarySectionKey)),
           isActive: true,
         ),
-        _DashboardNavItemData(
+        DashboardNavItemData(
           label: 'Classes',
           icon: Icons.class_rounded,
           onTap: () => context.go(AppRoutes.classes),
         ),
-        _DashboardNavItemData(
+        DashboardNavItemData(
           label: 'Gradebook',
           icon: Icons.grading_rounded,
           onTap: () => _openSelectedClassRoute(context, 'gradebook'),
         ),
-        _DashboardNavItemData(
+        DashboardNavItemData(
           label: 'Seating',
           icon: Icons.event_seat_rounded,
           onTap: () => _openSelectedClassRoute(context, 'seating'),
         ),
-        _DashboardNavItemData(
+        DashboardNavItemData(
           label: 'Timetable',
           icon: Icons.table_chart_rounded,
           onTap: _openTimetableDialog,
         ),
-        _DashboardNavItemData(
+        DashboardNavItemData(
           label: 'Imports',
           icon: Icons.file_upload_outlined,
           onTap: () => context.go(AppRoutes.classes),
         ),
-        _DashboardNavItemData(
+        DashboardNavItemData(
           label: 'Reports',
           icon: Icons.assessment_outlined,
           onTap: () => _openSelectedClassRoute(context, 'export'),
         ),
-        _DashboardNavItemData(
+        DashboardNavItemData(
           label: 'Tools',
           icon: Icons.widgets_outlined,
           onTap: () => unawaited(_scrollToSection(_classToolsSectionKey)),
         ),
       ];
 
-  List<_DashboardNavItemData> _editionNavItems(BuildContext context) => [
-        _DashboardNavItemData(
+    List<DashboardNavItemData> _editionNavItems(BuildContext context) => [
+      DashboardNavItemData(
           label: 'Admin',
           icon: Icons.admin_panel_settings_outlined,
           badge: 'Live',
           onTap: () => context.go(AppRoutes.admin),
         ),
-        _DashboardNavItemData(
+        DashboardNavItemData(
           label: 'Communication',
           icon: Icons.forum_outlined,
           badge: 'Live',
@@ -514,10 +547,10 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
   }
 
   String _dashboardTodayLine(DateTime now) {
-    final todayClasses = _dashboardTodaySessionCount(now);
+    final activeClasses = _classes.length;
     final reminders = _pendingReminders().length;
     final actionsNeeded = _dashboardAttentionCount(now);
-    return '$todayClasses class${todayClasses == 1 ? '' : 'es'} • '
+    return '$activeClasses class${activeClasses == 1 ? '' : 'es'} • '
         '$reminders reminder${reminders == 1 ? '' : 's'} • '
         '$actionsNeeded to review';
   }
@@ -633,7 +666,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     return CommunicationAlertSeverity.info;
   }
 
-  List<_DashboardSummaryMetricData> _dashboardSummaryMetrics(DateTime now) {
+  List<DashboardSummaryMetricData> _dashboardSummaryMetrics(DateTime now) {
     final currentClass = _currentTimetableClass(now);
     final nextClass = _nextTimetableClass(now);
     final nextReminder = _nextOpenReminder();
@@ -643,7 +676,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
         .length;
 
     return [
-      _DashboardSummaryMetricData(
+      DashboardSummaryMetricData(
         label: currentClass != null ? 'Now Teaching' : 'Next Class',
         value: currentClass?.timetableClass.title ??
             nextClass?.timetableClass.title ??
@@ -657,21 +690,23 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
             ? Icons.play_circle_fill_rounded
             : Icons.badge_rounded,
         gradientColors: const [Color(0xFF3457A9), Color(0xFF253552)],
+        actionLabel: 'Open timetable',
         onTap: _openTimetableDialog,
       ),
-      _DashboardSummaryMetricData(
-        label: 'Next Up',
+      DashboardSummaryMetricData(
+        label: 'Attention',
         value: nextReminder != null
             ? _headlineSafe(nextReminder.text, maxLength: 26)
             : 'Clear for now',
         detail: nextReminder != null
             ? '${_shortMonthDay(nextReminder.timestamp)}${_optionalTimeInline(nextReminder.timestamp)}'
-            : 'No urgent reminders',
-        icon: Icons.assignment_late_rounded,
+            : 'No urgent alerts',
+        icon: Icons.warning_amber_rounded,
         gradientColors: const [Color(0xFF6B2F39), Color(0xFF3B2730)],
+        actionLabel: 'Review schedule',
         onTap: () => unawaited(_scrollToSection(_planningSectionKey)),
       ),
-      _DashboardSummaryMetricData(
+      DashboardSummaryMetricData(
         label: 'Messages',
         value: communication.totalUnread > 0
             ? '${communication.totalUnread} unread'
@@ -681,6 +716,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
             : 'Staff channels ready',
         icon: Icons.forum_rounded,
         gradientColors: const [Color(0xFF365A9B), Color(0xFF25304E)],
+        actionLabel: 'Open inbox',
         onTap: () => unawaited(_scrollToSection(_livePanelSectionKey)),
       ),
     ];
@@ -730,6 +766,8 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
             secondaryAction,
           ),
         ],
+        suppressTimetableWarning:
+            _selectedTimetableId == null && !_classHasTimetableContext(classBrief),
       );
     }).toList();
   }
@@ -838,7 +876,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
       case ClassHealthActionType.openTimetable:
         return const ClassHealthAction(
           label: 'Open class',
-          detail: 'Review setup while timetable context is still missing.',
+          detail: 'Review setup while timetable details are still missing.',
           type: ClassHealthActionType.openClassWorkspace,
         );
       case ClassHealthActionType.reviewPlanning:
@@ -1000,33 +1038,33 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     }
   }
 
-  List<_DashboardQuickActionData> _dashboardQuickActions(
+  List<DashboardQuickActionData> _dashboardQuickActions(
     BuildContext context,
   ) {
     final selectedName = _selectedClassBrief()?.name ?? 'selected class';
     return [
-      _DashboardQuickActionData(
+      DashboardQuickActionData(
         label: 'Add Class',
         detail: 'Create or open a class space.',
         icon: Icons.add_box_outlined,
         accent: _DashboardPalette.accent,
         onTap: () => context.go(AppRoutes.classes),
       ),
-      _DashboardQuickActionData(
+      DashboardQuickActionData(
         label: 'Import Roster',
         detail: 'Bring in classes and rosters.',
         icon: Icons.upload_file_outlined,
         accent: _DashboardPalette.green,
         onTap: () => context.go(AppRoutes.classes),
       ),
-      _DashboardQuickActionData(
+      DashboardQuickActionData(
         label: 'Seating Plan',
         detail: 'Open seating for $selectedName.',
         icon: Icons.event_seat_outlined,
         accent: _DashboardPalette.cyan,
         onTap: () => _openSelectedClassRoute(context, 'seating'),
       ),
-      _DashboardQuickActionData(
+      DashboardQuickActionData(
         label: 'Whiteboard',
         detail: 'Open the teaching whiteboard.',
         icon: Icons.draw_rounded,
@@ -1036,7 +1074,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
           extra: _dashboardWhiteboardController,
         ),
       ),
-      _DashboardQuickActionData(
+      DashboardQuickActionData(
         label: 'Create Test',
         detail: 'Jump into exam setup.',
         icon: Icons.note_alt_outlined,
@@ -1105,65 +1143,108 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     ];
   }
 
-  List<String> _dashboardLiveSignals(DateTime now) {
-    final weather = _weatherSnapshot;
-    final currentClass = _currentTimetableClass(now);
-    final nextClass = _nextTimetableClass(now);
-    final nextReminder = _nextOpenReminder();
-
-    return [
-      '${_weekdayLabel(now)} • ${_formatTime(now)}',
-      if (currentClass != null)
-        'Now • ${_headlineSafe(currentClass.timetableClass.title, maxLength: 28)}',
-      if (currentClass == null && nextClass != null)
-        'Next • ${_headlineSafe(nextClass.timetableClass.title, maxLength: 28)}',
-      if (weather != null)
-        '${weather.temperatureC.round()}° • ${weather.locationName}',
-      if (weather == null && _weatherBusy) 'Weather sync',
-      if (nextReminder != null)
-        'Calendar • ${_shortMonthDay(nextReminder.timestamp)}',
-      if (nextReminder == null) 'Calendar clear',
-    ];
-  }
-
   DashboardSystemWidgetData _dashboardSystemWidgetData(DateTime now) {
     final currentClass = _currentTimetableClass(now);
     final nextClass = _nextTimetableClass(now);
     final nextReminder = _nextOpenReminder();
     final weather = _weatherSnapshot;
-    final focusName = _selectedClassBrief()?.name ?? 'Teacher focus';
+    final schoolName = GradeFlowProductConfig.resolvedSchoolName(
+      context.read<AuthService>().currentUser?.schoolName,
+    );
 
-    final statusLabel = currentClass != null
-        ? 'In class'
+    final nextLabel = currentClass != null
+        ? 'Now teaching'
         : nextClass != null
             ? 'Next class'
             : nextReminder != null
                 ? 'Next reminder'
                 : 'Clear';
-    final statusDetail = currentClass != null
+    final nextDetail = currentClass != null
         ? '${currentClass.timetableClass.title} until ${_formatHourMinute(currentClass.endAt)}'
         : nextClass != null
             ? '${_headlineSafe(nextClass.timetableClass.title, maxLength: 48)} ${_relativeTimetableTime(nextClass.startAt, now)}'
             : nextReminder != null
                 ? '${_headlineSafe(nextReminder.text, maxLength: 52)} • ${_shortMonthDay(nextReminder.timestamp)}'
-                : 'No urgent blockers';
+                : 'No urgent blockers in the queue.';
 
     return DashboardSystemWidgetData(
       timeLabel: _formatTime(now),
       weekdayLabel: _weekdayLabel(now),
       dateLabel: _shortMonthDay(now),
-      statusLabel: statusLabel,
-      statusDetail: statusDetail,
+      locationLabel: weather?.locationName ?? schoolName,
       weatherLabel: weather != null
-          ? '${weather.temperatureC.round()}° • ${_weatherCodeLabel(weather.weatherCode)}'
+          ? '${weather.temperatureC.round()}°'
+          : (_weatherBusy ? '--' : '--'),
+      weatherDetail: weather != null
+          ? _weatherCodeLabel(weather.weatherCode)
           : (_weatherBusy ? 'Syncing forecast' : 'Forecast pending'),
-      nextLabel: nextReminder != null
-          ? _shortMonthDay(nextReminder.timestamp)
-          : nextClass != null
-              ? _relativeTimetableTime(nextClass.startAt, now)
-              : 'No blocker',
-      focusLabel: _headlineSafe(focusName, maxLength: 18),
+      weatherIcon: _weatherCodeIcon(weather?.weatherCode ?? 1),
+      nextLabel: nextLabel,
+      nextDetail: nextDetail,
+      liveLabel: RepositoryFactory.sourceOfTruthLabel,
     );
+  }
+
+  DashboardAudioWidgetData _dashboardAudioWidgetData(DateTime now) {
+    final hour = now.hour;
+    if (hour < 11) {
+      return const DashboardAudioWidgetData(
+        stationName: 'Campus Radio',
+        programLabel: 'Morning desk mix',
+        detail:
+            'Low-noise instrumental audio for arrivals, setup, and first period.',
+      );
+    }
+    if (hour < 15) {
+      return const DashboardAudioWidgetData(
+        stationName: 'Campus Radio',
+        programLabel: 'Midday focus set',
+        detail:
+            'Clean background audio for planning gaps, marking, and quick resets.',
+      );
+    }
+    return const DashboardAudioWidgetData(
+      stationName: 'Campus Radio',
+      programLabel: 'After-school review',
+      detail: 'A calmer mix for wrap-up, exports, and tomorrow planning.',
+    );
+  }
+
+  List<DashboardSystemStatusItemData> _dashboardSystemStatusItems(
+      DateTime now) {
+    final nextReminder = _nextOpenReminder();
+    final attentionCount = _dashboardAttentionCount(now);
+
+    return [
+      DashboardSystemStatusItemData(
+        label: 'Alerts',
+        value: attentionCount > 0 ? '$attentionCount to review' : 'Clear',
+        icon: Icons.notifications_active_outlined,
+        accent: attentionCount > 0
+            ? _DashboardPalette.amber
+            : _DashboardPalette.green,
+      ),
+      DashboardSystemStatusItemData(
+        label: 'Sync',
+        value: RepositoryFactory.sourceOfTruthLabel,
+        icon: RepositoryFactory.isUsingFirestore
+            ? Icons.cloud_done_outlined
+            : Icons.offline_bolt_outlined,
+        accent: RepositoryFactory.isUsingFirestore
+            ? _DashboardPalette.accent
+            : _DashboardPalette.amber,
+      ),
+      DashboardSystemStatusItemData(
+        label: 'Calendar',
+        value: nextReminder != null
+            ? _shortMonthDay(nextReminder.timestamp)
+            : 'Up to date',
+        icon: Icons.event_note_outlined,
+        accent: nextReminder != null
+            ? _DashboardPalette.cyan
+            : _DashboardPalette.green,
+      ),
+    ];
   }
 
   DashboardCommunicationWidgetData _dashboardCommunicationWidgetData(
@@ -1230,11 +1311,11 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     if (message != null && message.isNotEmpty) {
       final author = channel.lastSenderName?.trim();
       if (author != null && author.isNotEmpty) {
-        return _headlineSafe('$author: $message', maxLength: 54);
+        return '$author: $message';
       }
-      return _headlineSafe(message, maxLength: 54);
+      return message;
     }
-    return _headlineSafe(channel.description, maxLength: 54);
+    return channel.description;
   }
 
   String _dashboardCommunicationMeta(
@@ -1289,50 +1370,6 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
       case CommunicationChannelKind.adminAlerts:
         return _DashboardPalette.coral;
     }
-  }
-
-  List<_DashboardLiveStoryData> _dashboardLiveStories(
-    BuildContext context,
-    DateTime now,
-  ) {
-    return [
-      for (final slide in _dashboardStorySlides(context))
-        _DashboardLiveStoryData(
-          label: slide.overline,
-          title: slide.title,
-          subtitle: slide.description,
-          icon: slide.icon,
-          accent: _dashboardLiveStoryAccent(slide.visual),
-          chips: slide.chips.take(3).toList(),
-          onTap: slide.onTap,
-        ),
-    ];
-  }
-
-  Color _dashboardLiveStoryAccent(DashboardStoryVisual visual) {
-    switch (visual) {
-      case DashboardStoryVisual.spotlight:
-        return _DashboardPalette.accent;
-      case DashboardStoryVisual.campus:
-        return _DashboardPalette.cyan;
-      case DashboardStoryVisual.studio:
-        return _DashboardPalette.green;
-    }
-  }
-
-  List<_DashboardAnnouncementData> _dashboardAnnouncements(DateTime now) {
-    final communication = _communicationWorkspaceSnapshot(now);
-    return communication.announcements.map((item) {
-      return _DashboardAnnouncementData(
-        title: _headlineSafe(item.title, maxLength: 42),
-        subtitle: _headlineSafe(item.subtitle, maxLength: 52),
-        icon: _communicationAnnouncementIcon(item.kind, item.severity),
-        accent: _communicationSeverityAccent(item.severity),
-        onTap: item.kind == CommunicationChannelKind.adminAlerts
-            ? () => context.go(AppRoutes.admin)
-            : () => context.go(AppRoutes.communication),
-      );
-    }).toList();
   }
 
   IconData _communicationAnnouncementIcon(

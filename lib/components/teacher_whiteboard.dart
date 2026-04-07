@@ -58,6 +58,7 @@ class TeacherWhiteboardController extends ChangeNotifier {
 class TeacherWhiteboardWorkspace extends StatefulWidget {
   final TeacherWhiteboardController? controller;
   final bool compact;
+  final bool showStatusChips;
   final VoidCallback? onOpenFullscreen;
   final VoidCallback? onClose;
   final String title;
@@ -66,6 +67,7 @@ class TeacherWhiteboardWorkspace extends StatefulWidget {
     super.key,
     this.controller,
     this.compact = false,
+    this.showStatusChips = true,
     this.onOpenFullscreen,
     this.onClose,
     this.title = 'Whiteboard',
@@ -196,32 +198,35 @@ class _TeacherWhiteboardWorkspaceState
                 ],
               ],
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _WhiteboardStatusChip(
-                  label: widget.compact
-                      ? 'Quick classroom tool'
-                      : 'Full teaching canvas',
-                  icon: Icons.flash_on_outlined,
-                ),
-                _WhiteboardStatusChip(
-                  label: '${_inkLabel(_ink)} ink',
-                  icon: Icons.edit_outlined,
-                ),
-                _WhiteboardStatusChip(
-                  label: _strokeWidth == 3.0
-                      ? 'Fine line'
-                      : _strokeWidth == 4.0
-                          ? 'Medium line'
-                          : 'Bold line',
-                  icon: Icons.line_weight_rounded,
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
+            if (widget.showStatusChips) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _WhiteboardStatusChip(
+                    label: widget.compact
+                        ? 'Quick classroom tool'
+                        : 'Full teaching canvas',
+                    icon: Icons.flash_on_outlined,
+                  ),
+                  _WhiteboardStatusChip(
+                    label: '${_inkLabel(_ink)} ink',
+                    icon: Icons.edit_outlined,
+                  ),
+                  _WhiteboardStatusChip(
+                    label: _strokeWidth == 3.0
+                        ? 'Fine line'
+                        : _strokeWidth == 4.0
+                            ? 'Medium line'
+                            : 'Bold line',
+                    icon: Icons.line_weight_rounded,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+            ] else
+              const SizedBox(height: 12),
             Wrap(
               spacing: 10,
               runSpacing: 10,

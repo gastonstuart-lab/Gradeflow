@@ -21,8 +21,14 @@ import 'package:gradeflow/screens/teacher_whiteboard_screen.dart';
 import 'package:gradeflow/components/teacher_whiteboard.dart';
 import 'package:gradeflow/components/global_system_shell.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:gradeflow/screens/deleted_students_screen.dart';
 import 'package:gradeflow/screens/deleted_classes_screen.dart';
+import 'package:gradeflow/os/gradeflow_os_shell.dart';
+import 'package:gradeflow/os/os_controller.dart';
+import 'package:gradeflow/os/surfaces/home_surface.dart';
+import 'package:gradeflow/os/surfaces/class_surface.dart';
+import 'package:gradeflow/os/surfaces/teach_surface.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -37,7 +43,7 @@ class AppRouter {
             'GoRouter.redirect from \'${state.matchedLocation}\' | isAuth=${auth.isAuthenticated} isInit=${auth.isInitialized} isLoading=${auth.isLoading}');
         if (!auth.isAuthenticated && !loggingIn && !previewing)
           return AppRoutes.home;
-        if (auth.isAuthenticated && loggingIn) return AppRoutes.dashboard;
+        if (auth.isAuthenticated && loggingIn) return AppRoutes.osHome;
       } catch (e) {
         debugPrint('GoRouter.redirect error: $e');
         return null; // fail open to avoid blank screen
@@ -56,6 +62,37 @@ class AppRouter {
         name: 'dashboard',
         pageBuilder: (context, state) =>
             _shellPage(state, const TeacherDashboardScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.osHome,
+        name: 'osHome',
+        pageBuilder: (context, state) => _osPage(
+          state,
+          surface: OSSurface.home,
+          child: const HomeSurface(),
+        ),
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId',
+        name: 'osClass',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: ClassSurface(classId: classId),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.osTeach,
+        name: 'osTeach',
+        pageBuilder: (context, state) => _osPage(
+          state,
+          surface: OSSurface.teach,
+          child: const TeachSurface(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.whiteboard,
@@ -212,6 +249,10 @@ class AppRoutes {
   static const String classes = '/classes';
   static const String classTrash = '/classes/trash';
   static const String classDetail = '/class';
+  // GradeFlow OS surfaces
+  static const String osHome = '/os/home';
+  static const String osClass = '/os/class';
+  static const String osTeach = '/os/teach';
 }
 
 CustomTransitionPage<void> _fadePage(Widget child) {
@@ -225,11 +266,17 @@ CustomTransitionPage<void> _fadePage(Widget child) {
         curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeInCubic,
       );
-      return FadeTransition(
-        opacity: curved,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 0.985, end: 1.0).animate(curved),
-          child: child,
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.02, 0),
+          end: Offset.zero,
+        ).animate(curved),
+        child: FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.988, end: 1.0).animate(curved),
+            child: child,
+          ),
         ),
       );
     },
@@ -246,4 +293,69 @@ NoTransitionPage<void> _shellPage(
       child: child,
     ),
   );
+}
+
+Page<void> _osPage(
+  GoRouterState state, {
+  required OSSurface surface,
+  required Widget child,
+  String? classId,
+}) {
+  return _fadePage(
+    _OSRouteFrame(
+      surface: surface,
+      classId: classId,
+      child: child,
+    ),
+  );
+}
+
+class _OSRouteFrame extends StatefulWidget {
+  const _OSRouteFrame({
+    required this.surface,
+    required this.child,
+    this.classId,
+  });
+
+  final OSSurface surface;
+  final String? classId;
+  final Widget child;
+
+  @override
+  State<_OSRouteFrame> createState() => _OSRouteFrameState();
+}
+
+class _OSRouteFrameState extends State<_OSRouteFrame> {
+  @override
+  void initState() {
+    super.initState();
+    _scheduleSync();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OSRouteFrame oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.surface != widget.surface ||
+        oldWidget.classId != widget.classId) {
+      _scheduleSync();
+    }
+  }
+
+  void _scheduleSync() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<GradeFlowOSController>().setSurface(
+            widget.surface,
+            classId: widget.classId,
+          );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GradeFlowOSShell(
+      teachMode: widget.surface == OSSurface.teach,
+      child: widget.child,
+    );
+  }
 }

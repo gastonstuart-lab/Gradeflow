@@ -15,7 +15,6 @@ import 'package:gradeflow/models/class_schedule_item.dart';
 import 'package:gradeflow/models/class_note_item.dart';
 import 'package:gradeflow/services/class_note_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
-import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:file_picker/file_picker.dart';
@@ -39,38 +38,62 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
   bool _driveSigningIn = false;
   final ClassNoteService _classNoteService = ClassNoteService();
 
-  void _showPersistentMessage(String message) {
+  void _showFeedback(
+    String message, {
+    WorkspaceFeedbackTone tone = WorkspaceFeedbackTone.info,
+    String? title,
+    String? actionLabel,
+    VoidCallback? onAction,
+    Duration duration = const Duration(seconds: 4),
+  }) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 12),
-        content: Text(message),
-        action: SnackBarAction(
-          label: 'Details',
-          onPressed: () {
-            showDialog<void>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('Google Sign-In'),
-                content: SelectableText(message),
-                actions: [
-                  TextButton(
-                    onPressed: () async {
-                      await Clipboard.setData(ClipboardData(text: message));
-                      if (ctx.mounted) Navigator.pop(ctx);
-                    },
-                    child: const Text('Copy'),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Close'),
-                  ),
-                ],
+    showWorkspaceSnackBar(
+      context,
+      message: message,
+      tone: tone,
+      title: title,
+      actionLabel: actionLabel,
+      onAction: onAction,
+      duration: duration,
+    );
+  }
+
+  void _showPersistentMessage(String message) {
+    _showFeedback(
+      message,
+      title: 'Google Sign-In',
+      actionLabel: 'Details',
+      duration: const Duration(seconds: 12),
+      onAction: () {
+        showDialog<void>(
+          context: context,
+          builder: (ctx) => WorkspaceDialogScaffold(
+            title: 'Google Sign-In',
+            subtitle: 'Details from the latest sign-in attempt.',
+            icon: Icons.login_outlined,
+            body: SelectableText(
+              message,
+              style: context.textStyles.bodySmall?.copyWith(height: 1.4),
+            ),
+            actions: [
+              TextButton.icon(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: message));
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                icon: const Icon(Icons.copy_outlined),
+                label: const Text('Copy'),
+                style: WorkspaceButtonStyles.text(ctx),
               ),
-            );
-          },
-        ),
-      ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: WorkspaceButtonStyles.filled(ctx),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -249,9 +272,12 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocalState) => AlertDialog(
-          title: const Text('Add note or reminder'),
-          content: SizedBox(
+        builder: (ctx, setLocalState) => WorkspaceDialogScaffold(
+          title: 'Add note or reminder',
+          subtitle:
+              'Keep a quick teaching note or date-based reminder with this class.',
+          icon: Icons.sticky_note_2_outlined,
+          body: SizedBox(
             width: 420,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -265,9 +291,11 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                     hintText: 'Add a teaching note, reminder, or follow-up',
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: 12),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
                   title: const Text('Set reminder date'),
                   value: includeReminderDate,
                   onChanged: (value) {
@@ -279,18 +307,19 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                     });
                   },
                 ),
-                if (includeReminderDate)
+                if (includeReminderDate) ...[
+                  const SizedBox(height: 4),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.event),
+                      icon: const Icon(Icons.event_outlined),
                       label: Text(
                         remindAt == null
                             ? 'Choose date'
                             : DateFormat('EEE, MMM d').format(remindAt!),
                       ),
                       onPressed: () async {
-                        final picked = await showDatePicker(
+                        final picked = await showWorkspaceDatePicker(
                           context: ctx,
                           initialDate: remindAt ?? DateTime.now(),
                           firstDate: DateTime(2020),
@@ -301,14 +330,17 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                           remindAt = _dateOnly(picked);
                         });
                       },
+                      style: WorkspaceButtonStyles.outlined(ctx, compact: true),
                     ),
                   ),
+                ],
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
+              style: WorkspaceButtonStyles.text(ctx),
               child: const Text('Cancel'),
             ),
             FilledButton(
@@ -316,6 +348,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                 if (controller.text.trim().isEmpty) return;
                 Navigator.pop(ctx, true);
               },
+              style: WorkspaceButtonStyles.filled(ctx),
               child: const Text('Save'),
             ),
           ],
@@ -373,36 +406,76 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     final classItem = classService.getClassById(widget.classId);
 
     if (classItem == null) {
-      return const Scaffold(
-        body: Center(child: Text('Class not found')),
+      return const WorkspaceScaffold(
+        eyebrow: 'Class workspace',
+        title: 'Class workspace unavailable',
+        subtitle: 'This class could not be opened in the shared workspace.',
+        child: WorkspaceEmptyState(
+          icon: Icons.class_outlined,
+          title: 'Class not found',
+          subtitle: 'Return to Classes and open another workspace to continue.',
+        ),
       );
     }
 
     final studentCount = studentService.students.length;
     final categoryCount = categoryService.categories.length;
+    final tools = [
+      ClassWorkspaceToolData(
+        icon: Icons.people_alt_outlined,
+        title: 'Roster',
+        subtitle: 'View, manage, and verify the students in this class.',
+        onTap: () => context.push('/class/${widget.classId}/students'),
+      ),
+      ClassWorkspaceToolData(
+        icon: Icons.event_seat_outlined,
+        title: 'Seating',
+        subtitle: 'Design room layouts and keep attendance flow fast.',
+        onTap: () => context.push('/class/${widget.classId}/seating'),
+      ),
+      ClassWorkspaceToolData(
+        icon: Icons.edit_note,
+        title: 'Gradebook',
+        subtitle: 'Enter marks and review the current assessment picture.',
+        onTap: () => context.push('/class/${widget.classId}/gradebook'),
+      ),
+      ClassWorkspaceToolData(
+        icon: Icons.category_outlined,
+        title: 'Categories',
+        subtitle: 'Adjust weights and keep grading structure aligned.',
+        onTap: () => context.push('/class/${widget.classId}/categories'),
+      ),
+      ClassWorkspaceToolData(
+        icon: Icons.description_outlined,
+        title: 'Exams',
+        subtitle: 'Capture final exam scores and keep the record complete.',
+        onTap: () => context.push('/class/${widget.classId}/exams'),
+      ),
+      ClassWorkspaceToolData(
+        icon: Icons.assessment_outlined,
+        title: 'Results',
+        subtitle: 'Review process, exam, and final outcomes together.',
+        onTap: () => context.push('/class/${widget.classId}/results'),
+      ),
+      ClassWorkspaceToolData(
+        icon: Icons.download_outlined,
+        title: 'Export',
+        subtitle: 'Download final results as a clean CSV for reporting.',
+        onTap: () => context.push('/class/${widget.classId}/export'),
+      ),
+    ];
 
     return WorkspaceScaffold(
       eyebrow: 'Class Workspace',
       title: classItem.className,
       subtitle:
-          '${classItem.subject} • ${classItem.schoolYear} • ${classItem.term}',
+          '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}',
       trailingActions: [
         OutlinedButton.icon(
           onPressed: () => _showScheduleDialog(context),
           icon: const Icon(Icons.calendar_month_outlined),
           label: const Text('Schedule'),
-        ),
-      ],
-      headerActions: [
-        FilledButton.icon(
-          onPressed: () => context.push('/class/${widget.classId}/gradebook'),
-          icon: const Icon(Icons.edit_note),
-          label: const Text('Open Gradebook'),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => context.push('/class/${widget.classId}/students'),
-          icon: const Icon(Icons.people_alt_outlined),
-          label: const Text('Roster'),
+          style: WorkspaceButtonStyles.outlined(context),
         ),
       ],
       metrics: [
@@ -429,199 +502,103 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
         ),
       ],
       child: studentService.isLoading || categoryService.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AnimatedGlowBorder(
-                    child: Card(
-                      child: Padding(
-                        padding: AppSpacing.paddingLg,
-                        child: Column(
+          ? const WorkspaceLoadingState(
+              title: 'Loading class workspace',
+              subtitle:
+                  'Pulling roster, categories, and planning data into this class.',
+            )
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth >= 1120;
+                final planningRail = SizedBox(
+                  width: wide ? 352 : null,
+                  child: _buildPlanningWorkspace(context),
+                );
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                  child: wide
+                      ? Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(classItem.subject,
-                                style:
-                                    context.textStyles.headlineSmall?.semiBold),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text('${classItem.schoolYear} • ${classItem.term}',
-                                style: context.textStyles.bodyMedium),
-                            const SizedBox(height: AppSpacing.lg),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _StatCard(
-                                    icon: Icons.people,
-                                    label: 'Students',
-                                    value: '$studentCount',
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: _StatCard(
-                                    icon: Icons.category,
-                                    label: 'Categories',
-                                    value: '$categoryCount',
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => _showScheduleDialog(context),
-                                    child: _StatCard(
-                                      icon: Icons.calendar_today,
-                                      label: 'Schedule',
-                                      value: _scheduleItems.isEmpty
-                                          ? '—'
-                                          : '${_scheduleItems.length}',
+                            Expanded(
+                              child: WorkspaceSurfaceCard(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const WorkspaceSectionHeader(
+                                      title: 'Class tools',
+                                      subtitle:
+                                          'Open the next teaching task directly from the class workspace.',
                                     ),
-                                  ),
+                                    const SizedBox(height: AppSpacing.md),
+                                    ClassWorkspaceToolGrid(tools: tools),
+                                  ],
                                 ),
-                              ],
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.lg),
+                            planningRail,
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            WorkspaceSurfaceCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const WorkspaceSectionHeader(
+                                    title: 'Class tools',
+                                    subtitle:
+                                        'Open the next teaching task directly from the class workspace.',
+                                  ),
+                                  const SizedBox(height: AppSpacing.md),
+                                  ClassWorkspaceToolGrid(tools: tools),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: AppSpacing.lg),
-                            _buildOverviewPanels(context),
+                            planningRail,
                           ],
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text('Quick Actions',
-                      style: context.textStyles.titleLarge?.semiBold),
-                  const SizedBox(height: AppSpacing.md),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.people,
-                      title: 'Student Roster',
-                      subtitle: 'View and manage students',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/students'),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.event_seat_outlined,
-                      title: 'Seating Plan',
-                      subtitle: 'Design layouts and print substitute handouts',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/seating'),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.edit_note,
-                      title: 'Gradebook',
-                      subtitle: 'Enter and view grades',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/gradebook'),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.category,
-                      title: 'Grading Categories',
-                      subtitle: 'Manage weights and categories',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/categories'),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.description,
-                      title: 'Final Exam Scores',
-                      subtitle: 'Enter exam scores (60% weight)',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/exams'),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.assessment,
-                      title: 'Final Results',
-                      subtitle: 'Process, Exam, Final scores per student',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/results'),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AnimatedGlowBorder(
-                    child: _ActionButton(
-                      icon: Icons.download,
-                      title: 'Export Results',
-                      subtitle: 'Download grades as CSV',
-                      onTap: () =>
-                          context.push('/class/${widget.classId}/export'),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
     );
   }
 
-  Widget _buildOverviewPanels(BuildContext context) {
+  Widget _buildPlanningWorkspace(BuildContext context) {
     final now = DateTime.now();
     final thisWeekStart = _startOfWeek(now);
     final nextWeekStart = thisWeekStart.add(const Duration(days: 7));
 
-    return Column(
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isWide = constraints.maxWidth >= 860;
-            final weekCards = [
-              Expanded(
-                child: _buildWeekSchedulePanel(
-                  context,
-                  title: 'This Week',
-                  weekStart: thisWeekStart,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm, height: AppSpacing.sm),
-              Expanded(
-                child: _buildWeekSchedulePanel(
-                  context,
-                  title: 'Next Week',
-                  weekStart: nextWeekStart,
-                ),
-              ),
-            ];
-
-            if (isWide) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: weekCards,
-              );
-            }
-
-            return Column(
-              children: [
-                _buildWeekSchedulePanel(
-                  context,
-                  title: 'This Week',
-                  weekStart: thisWeekStart,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _buildWeekSchedulePanel(
-                  context,
-                  title: 'Next Week',
-                  weekStart: nextWeekStart,
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: AppSpacing.md),
-        _buildClassNotesPanel(context),
-      ],
+    return WorkspaceSurfaceCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const WorkspaceSectionHeader(
+            title: 'Planning',
+            subtitle:
+                'Weekly schedule and reminders stay visible as supporting context.',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _buildWeekSchedulePanel(
+            context,
+            title: 'This Week',
+            weekStart: thisWeekStart,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _buildWeekSchedulePanel(
+            context,
+            title: 'Next Week',
+            weekStart: nextWeekStart,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _buildClassNotesPanel(context),
+        ],
+      ),
     );
   }
 
@@ -632,15 +609,17 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
   }) {
     final theme = Theme.of(context);
     final items = _scheduleItemsForWeek(weekStart);
-    final previewItems = items.take(4).toList();
+    final previewItems = items.take(3).toList();
 
     return Container(
       width: double.infinity,
-      padding: AppSpacing.paddingMd,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: theme.colorScheme.surface.withValues(alpha: 0.22),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.24),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -654,32 +633,32 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
               const Spacer(),
               Text(
                 _weekRangeLabel(weekStart),
-                style: context.textStyles.bodySmall?.withColor(
+                style: context.textStyles.labelSmall?.withColor(
                   theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           if (previewItems.isEmpty)
             Text(
               'No scheduled items yet.',
-              style: context.textStyles.bodySmall?.withColor(
+              style: context.textStyles.labelMedium?.withColor(
                 theme.colorScheme.onSurfaceVariant,
               ),
             )
           else
             ...previewItems.map(
               (item) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 54,
+                      width: 46,
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.xs,
-                        vertical: 6,
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.primaryContainer,
@@ -714,7 +693,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                           Text(
                             _schedulePreviewTitle(item),
                             style: context.textStyles.bodyMedium?.semiBold,
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (item.details.isNotEmpty)
@@ -722,8 +701,8 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                               item.details.entries
                                   .take(1)
                                   .map((entry) => entry.value)
-                                  .join(' • '),
-                              style: context.textStyles.bodySmall?.withColor(
+                                  .join(' - '),
+                              style: context.textStyles.labelMedium?.withColor(
                                 theme.colorScheme.onSurfaceVariant,
                               ),
                               maxLines: 1,
@@ -738,11 +717,12 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
             ),
           if (items.length > previewItems.length)
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              padding: const EdgeInsets.only(top: 2),
               child: Text(
                 '+${items.length - previewItems.length} more items',
-                style: context.textStyles.bodySmall?.withColor(
-                  theme.colorScheme.primary,
+                style: context.textStyles.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.primary,
                 ),
               ),
             ),
@@ -753,15 +733,17 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
   Widget _buildClassNotesPanel(BuildContext context) {
     final theme = Theme.of(context);
-    final previewItems = _classNotes.take(4).toList();
+    final previewItems = _classNotes.take(3).toList();
 
     return Container(
       width: double.infinity,
-      padding: AppSpacing.paddingMd,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: theme.colorScheme.surface.withValues(alpha: 0.22),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.24),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -781,21 +763,22 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add'),
                 onPressed: _showAddClassNoteDialog,
+                style: WorkspaceButtonStyles.text(context, compact: true),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           if (previewItems.isEmpty)
             Text(
               'Keep track of things to revisit with this class.',
-              style: context.textStyles.bodySmall?.withColor(
+              style: context.textStyles.labelMedium?.withColor(
                 theme.colorScheme.onSurfaceVariant,
               ),
             )
           else
             ...previewItems.map(
               (note) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -824,16 +807,18 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                                   ? theme.colorScheme.onSurfaceVariant
                                   : null,
                             ),
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
                             note.remindAt != null
                                 ? 'Reminder: ${DateFormat('EEE, MMM d').format(note.remindAt!)}'
                                 : 'Note added ${DateFormat('MMM d').format(note.createdAt)}',
-                            style: context.textStyles.bodySmall?.withColor(
+                            style: context.textStyles.labelMedium?.withColor(
                               theme.colorScheme.onSurfaceVariant,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -849,11 +834,13 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                             : theme.colorScheme.onSurfaceVariant,
                       ),
                       onPressed: () => _toggleClassNoteDone(note, !note.isDone),
+                      visualDensity: VisualDensity.compact,
                     ),
                     IconButton(
                       tooltip: 'Delete',
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () => _deleteClassNote(note),
+                      visualDensity: VisualDensity.compact,
                     ),
                   ],
                 ),
@@ -862,8 +849,9 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
           if (_classNotes.length > previewItems.length)
             Text(
               '+${_classNotes.length - previewItems.length} more notes',
-              style: context.textStyles.bodySmall?.withColor(
-                theme.colorScheme.primary,
+              style: context.textStyles.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.primary,
               ),
             ),
         ],
@@ -872,134 +860,78 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
   }
 
   void _showScheduleDialog(BuildContext context) {
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (dialogCtx) => Dialog(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
-          child: Column(
-            children: [
-              // Header
-              Container(
-                padding: AppSpacing.paddingMd,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(AppRadius.lg)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today,
-                        color:
-                            Theme.of(context).colorScheme.onPrimaryContainer),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      'Class Schedule',
-                      style: context.textStyles.titleLarge?.semiBold.withColor(
-                        Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(dialogCtx),
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                  ],
-                ),
-              ),
-              // Body
-              Expanded(
-                child: _scheduleItems.isEmpty
-                    ? _buildEmptySchedule(context)
-                    : _buildScheduleList(context),
-              ),
-              // Footer actions
-              Container(
-                padding: AppSpacing.paddingMd,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  border: Border(
-                    top: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      icon: _driveSigningIn
-                          ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            )
-                          : const Icon(Icons.login),
-                      label: Text(_driveAccessToken == null
-                          ? 'Connect Google Drive'
-                          : 'Drive connected'),
-                      onPressed: _driveSigningIn
-                          ? null
-                          : () => _ensureDriveAccessToken(),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    TextButton.icon(
-                      icon: const Icon(Icons.cloud_download),
-                      label: const Text('Import from link'),
-                      onPressed: () => _importScheduleFromUrl(dialogCtx),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    if (_scheduleItems.isNotEmpty)
-                      TextButton.icon(
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Clear Schedule'),
-                        onPressed: () => _clearSchedule(dialogCtx),
-                      ),
-                    if (_scheduleItems.isNotEmpty)
-                      const SizedBox(width: AppSpacing.sm),
-                    FilledButton.icon(
-                      icon: const Icon(Icons.upload_file),
-                      label: Text(_scheduleItems.isEmpty
-                          ? 'Upload Schedule'
-                          : 'Replace Schedule'),
-                      onPressed: () => _uploadSchedule(dialogCtx),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+      builder: (dialogCtx) => WorkspaceDialogScaffold(
+        title: 'Class schedule',
+        subtitle:
+            'Upload, replace, or clear the class schedule without leaving this workspace.',
+        icon: Icons.calendar_month_outlined,
+        maxWidth: 860,
+        maxHeight: 720,
+        bodyCanExpand: true,
+        headerAction: IconButton(
+          onPressed: () => Navigator.pop(dialogCtx),
+          icon: const Icon(Icons.close),
+          style: WorkspaceButtonStyles.icon(dialogCtx),
+          tooltip: 'Close',
         ),
+        body: _scheduleItems.isEmpty
+            ? _buildEmptySchedule(dialogCtx)
+            : _buildScheduleList(dialogCtx),
+        actions: [
+          TextButton.icon(
+            icon: _driveSigningIn
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.login_outlined),
+            label: Text(
+              _driveAccessToken == null
+                  ? 'Connect Google Drive'
+                  : 'Drive connected',
+            ),
+            onPressed: _driveSigningIn ? null : () => _ensureDriveAccessToken(),
+            style: WorkspaceButtonStyles.text(dialogCtx),
+          ),
+          TextButton.icon(
+            icon: const Icon(Icons.cloud_download_outlined),
+            label: const Text('Import from link'),
+            onPressed: () => _importScheduleFromUrl(dialogCtx),
+            style: WorkspaceButtonStyles.text(dialogCtx),
+          ),
+          if (_scheduleItems.isNotEmpty)
+            TextButton.icon(
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Clear schedule'),
+              onPressed: () => _clearSchedule(dialogCtx),
+              style: WorkspaceButtonStyles.text(dialogCtx),
+            ),
+          FilledButton.icon(
+            icon: const Icon(Icons.upload_file_outlined),
+            label: Text(
+              _scheduleItems.isEmpty ? 'Upload schedule' : 'Replace schedule',
+            ),
+            onPressed: () => _uploadSchedule(dialogCtx),
+            style: WorkspaceButtonStyles.filled(dialogCtx),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEmptySchedule(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.calendar_month_outlined,
-            size: 64,
-            color: Theme.of(context).colorScheme.outline,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'No schedule uploaded',
-            style: context.textStyles.titleMedium?.semiBold,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Upload an Excel, CSV, or Word file with your class schedule',
-            style: context.textStyles.bodySmall?.withColor(
-              Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340),
+        child: const WorkspaceInlineState(
+          icon: Icons.calendar_month_outlined,
+          title: 'No schedule uploaded',
+          subtitle:
+              'Upload an Excel, CSV, or Word file to make planning visible here.',
+        ),
       ),
     );
   }
@@ -1028,11 +960,10 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
       final file = result.files.first;
       if (file.bytes == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not read file')),
-          );
-        }
+        _showFeedback(
+          'Could not read the selected file.',
+          tone: WorkspaceFeedbackTone.warning,
+        );
         return;
       }
 
@@ -1040,16 +971,12 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       final items = scheduleService.parseFromBytes(file.bytes!);
 
       if (items.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No schedule items found in file')),
-          );
-        }
+        _showFeedback(
+          'No schedule items were detected in that file.',
+          tone: WorkspaceFeedbackTone.warning,
+        );
         return;
       }
-
-      final dialogNavigator = Navigator.of(dialogCtx);
-      final messenger = ScaffoldMessenger.of(context);
 
       await scheduleService.save(widget.classId, items);
       if (!mounted) return;
@@ -1058,33 +985,42 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
         _scheduleItems = items;
       });
 
-      dialogNavigator.pop();
-      messenger.showSnackBar(
-        SnackBar(content: Text('Uploaded ${items.length} schedule items')),
+      Navigator.of(dialogCtx).pop();
+      _showFeedback(
+        'Uploaded ${items.length} schedule items.',
+        tone: WorkspaceFeedbackTone.success,
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error uploading schedule: $e')),
-        );
-      }
+      _showFeedback(
+        'Schedule upload failed: $e',
+        tone: WorkspaceFeedbackTone.error,
+      );
     }
   }
 
   Future<void> _clearSchedule(BuildContext dialogCtx) async {
     final confirm = await showDialog<bool>(
       context: dialogCtx,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Clear Schedule'),
-        content:
-            const Text('Are you sure you want to remove all schedule items?'),
+      builder: (ctx) => WorkspaceDialogScaffold(
+        title: 'Clear schedule',
+        subtitle: 'Remove all imported schedule items from this class.',
+        icon: Icons.delete_outline,
+        body: Text(
+          'This removes the current schedule list for this class. You can upload a replacement at any time.',
+          style: ctx.textStyles.bodySmall?.copyWith(
+            color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+            height: 1.4,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
+            style: WorkspaceButtonStyles.text(ctx),
             child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
+            style: WorkspaceButtonStyles.filled(ctx),
             child: const Text('Clear'),
           ),
         ],
@@ -1094,9 +1030,6 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     if (confirm != true) return;
 
     final scheduleService = ClassScheduleService();
-    final dialogNavigator = Navigator.of(dialogCtx);
-    final messenger = ScaffoldMessenger.of(context);
-
     await scheduleService.save(widget.classId, []);
     if (!mounted) return;
 
@@ -1104,9 +1037,10 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       _scheduleItems = [];
     });
 
-    dialogNavigator.pop();
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Schedule cleared')),
+    Navigator.of(dialogCtx).pop();
+    _showFeedback(
+      'Schedule cleared.',
+      tone: WorkspaceFeedbackTone.success,
     );
   }
 
@@ -1137,35 +1071,46 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: dialogCtx,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: const Text('Import from link'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  labelText: 'Link (Google Drive or direct URL)',
-                  hintText: 'Paste a CSV/XLSX/DOCX link',
+        builder: (ctx, setState) => WorkspaceDialogScaffold(
+          title: 'Import from link',
+          subtitle:
+              'Paste a Google Drive or direct file URL to import schedule data.',
+          icon: Icons.cloud_download_outlined,
+          body: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    labelText: 'Link',
+                    hintText: 'Paste a CSV, XLSX, or DOCX link',
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Use Google Sign-In for private Drive links'),
-                value: useDriveAuth,
-                onChanged: (v) => setState(() => useDriveAuth = v ?? true),
-              ),
-            ],
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  title:
+                      const Text('Use Google Sign-In for private Drive links'),
+                  value: useDriveAuth,
+                  onChanged: (v) => setState(() => useDriveAuth = v ?? true),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
+              style: WorkspaceButtonStyles.text(ctx),
               child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
+              style: WorkspaceButtonStyles.filled(ctx),
               child: const Text('Import'),
             ),
           ],
@@ -1177,22 +1122,20 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
     final rawUrl = controller.text.trim();
     if (rawUrl.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please paste a link')),
-        );
-      }
+      _showFeedback(
+        'Paste a link before importing.',
+        tone: WorkspaceFeedbackTone.warning,
+      );
       return;
     }
 
     final directUrl = _driveDirectDownloadUrl(rawUrl) ?? rawUrl;
     final uri = Uri.tryParse(directUrl);
     if (uri == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid URL')),
-        );
-      }
+      _showFeedback(
+        'That link is not a valid URL.',
+        tone: WorkspaceFeedbackTone.warning,
+      );
       return;
     }
 
@@ -1206,11 +1149,10 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
       final resp = await http.get(uri, headers: headers);
       if (resp.statusCode >= 400) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Download failed (${resp.statusCode})')),
-          );
-        }
+        _showFeedback(
+          'Download failed (${resp.statusCode}).',
+          tone: WorkspaceFeedbackTone.error,
+        );
         return;
       }
 
@@ -1218,12 +1160,10 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       final items = scheduleService.parseFromBytes(resp.bodyBytes);
 
       if (items.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('No schedule items found in the file')),
-          );
-        }
+        _showFeedback(
+          'No schedule items were found in that file.',
+          tone: WorkspaceFeedbackTone.warning,
+        );
         return;
       }
 
@@ -1234,16 +1174,16 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
       if (mounted) {
         Navigator.pop(dialogCtx);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Imported ${items.length} schedule items')),
+        _showFeedback(
+          'Imported ${items.length} schedule items.',
+          tone: WorkspaceFeedbackTone.success,
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error importing: $e')),
-        );
-      }
+      _showFeedback(
+        'Schedule import failed: $e',
+        tone: WorkspaceFeedbackTone.error,
+      );
     }
   }
 
@@ -1264,81 +1204,119 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _StatCard(
-      {required this.icon, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return WorkspaceSurfaceCard(
-      radius: AppRadius.lg,
-      padding: AppSpacing.paddingMd,
-      child: Column(
-        children: [
-          Icon(icon, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: AppSpacing.xs),
-          Text(value, style: context.textStyles.headlineMedium?.bold),
-          Text(label, style: context.textStyles.bodySmall),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
+class ClassWorkspaceToolData {
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
-  const _ActionButton({
+  const ClassWorkspaceToolData({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
+}
+
+class ClassWorkspaceToolGrid extends StatelessWidget {
+  final List<ClassWorkspaceToolData> tools;
+
+  const ClassWorkspaceToolGrid({
+    super.key,
+    required this.tools,
+  });
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 12.0;
+        final columnCount = constraints.maxWidth >= 980
+            ? 3
+            : constraints.maxWidth >= 620
+                ? 2
+                : 1;
+        final tileWidth = columnCount == 1
+            ? constraints.maxWidth
+            : (constraints.maxWidth - (spacing * (columnCount - 1))) /
+                columnCount;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final tool in tools)
+              SizedBox(
+                width: tileWidth,
+                child: _ClassWorkspaceToolCard(tool: tool),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ClassWorkspaceToolCard extends StatelessWidget {
+  final ClassWorkspaceToolData tool;
+
+  const _ClassWorkspaceToolCard({
+    required this.tool,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return WorkspaceSurfaceCard(
-      onTap: onTap,
+      onTap: tool.onTap,
       radius: 20,
-      padding: AppSpacing.paddingMd,
-      child: Row(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(
-              icon,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: context.textStyles.titleMedium?.semiBold),
-                Text(
-                  subtitle,
-                  style: context.textStyles.bodySmall?.withColor(
-                    Theme.of(context).colorScheme.onSurfaceVariant,
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.18),
                   ),
                 ),
-              ],
+                child: Icon(
+                  tool.icon,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.arrow_outward_rounded,
+                size: 18,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            tool.title,
+            style: context.textStyles.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
-          Icon(
-            Icons.chevron_right,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          const SizedBox(height: 6),
+          Text(
+            tool.subtitle,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: context.textStyles.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.45,
+            ),
           ),
         ],
       ),

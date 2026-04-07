@@ -9,8 +9,10 @@ extension TeacherDashboardImportActions on _TeacherDashboardScreenState {
         .ensureAccessTokenDetailed(interactive: true);
     if (!mounted) return result.ok;
     if (!result.ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.userMessage())),
+      _showDashboardFeedback(
+        result.userMessage(),
+        tone: WorkspaceFeedbackTone.warning,
+        title: 'Drive sign-in',
       );
       return false;
     }
@@ -57,8 +59,10 @@ extension TeacherDashboardImportActions on _TeacherDashboardScreenState {
     } catch (e) {
       debugPrint('Import class schedule failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to import class schedule')));
+        _showDashboardFeedback(
+          'Failed to import the class schedule.',
+          tone: WorkspaceFeedbackTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _scheduleBusy = false);
@@ -90,8 +94,9 @@ extension TeacherDashboardImportActions on _TeacherDashboardScreenState {
       await _importClassScheduleFromBytes(bytes, picked.name);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Drive schedule import failed: $e')),
+        _showDashboardFeedback(
+          'Drive schedule import failed: $e',
+          tone: WorkspaceFeedbackTone.error,
         );
       }
     } finally {
@@ -233,8 +238,10 @@ extension TeacherDashboardImportActions on _TeacherDashboardScreenState {
     if (confirm == true && mounted) {
       await _saveClassSchedule(_selectedClassId!, items);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved schedule (${items.length} items)')),
+        _showDashboardFeedback(
+          'Saved schedule (${items.length} items).',
+          tone: WorkspaceFeedbackTone.success,
+          title: 'Schedule ready',
         );
       }
     }

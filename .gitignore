@@ -85,6 +85,8 @@ local.properties
 
 # Test artifacts
 test_driver/
+tmp/*.png
+tmp/**/*.png
 
 # Large or generated assets
 assets/fonts/*.ttf

@@ -20,6 +20,7 @@ import 'package:gradeflow/components/drive_file_picker_dialog.dart';
 import 'package:gradeflow/components/pilot_feedback_card.dart';
 import 'package:gradeflow/components/pilot_feedback_dialog.dart';
 import 'package:gradeflow/components/teacher_whiteboard.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -187,6 +188,40 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   String? _dashboardHeroImageBase64;
   bool _updatingHeroBackground = false;
 
+  void _showDashboardFeedback(
+    String message, {
+    WorkspaceFeedbackTone tone = WorkspaceFeedbackTone.info,
+    String? title,
+    String? actionLabel,
+    VoidCallback? onAction,
+    Duration duration = const Duration(seconds: 4),
+  }) {
+    if (!mounted) return;
+    showWorkspaceSnackBar(
+      context,
+      message: message,
+      tone: tone,
+      title: title,
+      actionLabel: actionLabel,
+      onAction: onAction,
+      duration: duration,
+    );
+  }
+
+  Future<void> _showDashboardProgressDialog({
+    required String title,
+    String? subtitle,
+  }) {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => WorkspaceProgressDialog(
+        title: title,
+        subtitle: subtitle,
+      ),
+    );
+  }
+
   Future<void> _showImportDiagnosticsDialog({
     required String title,
     required String filename,
@@ -239,9 +274,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   final events = result['events'];
                   if (events is! List) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text(
-                              'AI did not return valid events. Please try a different file format.')));
+                      _showDashboardFeedback(
+                        'AI did not return valid events. Please try a different file format.',
+                        tone: WorkspaceFeedbackTone.warning,
+                        title: 'Import needs review',
+                      );
                     }
                     return;
                   }
@@ -262,9 +299,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
                   if (remindersToAdd.isEmpty) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text(
-                              'No valid events found. Try a file with Date and Title columns.')));
+                      _showDashboardFeedback(
+                        'No valid events found. Try a file with Date and Title columns.',
+                        tone: WorkspaceFeedbackTone.warning,
+                        title: 'Nothing imported',
+                      );
                     }
                     return;
                   }
@@ -275,17 +314,18 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   await _saveReminders();
                   if (!context.mounted) return;
                   Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(
-                          'Imported ${remindersToAdd.length} events from AI')));
+                  _showDashboardFeedback(
+                    'Imported ${remindersToAdd.length} events from AI.',
+                    tone: WorkspaceFeedbackTone.success,
+                    title: 'Calendar updated',
+                  );
                 } catch (e) {
                   // AI failed - show helpful error message
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(
-                          'AI analysis failed: ${e.toString().contains('quota') ? 'API quota exceeded' : 'Connection error'}'),
-                      duration: const Duration(seconds: 4),
-                    ));
+                    _showDashboardFeedback(
+                      'AI analysis failed: ${e.toString().contains('quota') ? 'API quota exceeded' : 'Connection error'}',
+                      tone: WorkspaceFeedbackTone.error,
+                    );
                   }
                 }
               },
@@ -294,12 +334,14 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           TextButton(
             onPressed: () async {
               final nav = Navigator.of(ctx);
-              final messenger = ScaffoldMessenger.of(context);
               await Clipboard.setData(ClipboardData(text: diagnostics));
               if (!context.mounted) return;
               nav.pop();
-              messenger.showSnackBar(
-                  const SnackBar(content: Text('Diagnostics copied')));
+              _showDashboardFeedback(
+                'Diagnostics copied.',
+                tone: WorkspaceFeedbackTone.success,
+                title: 'Copied',
+              );
             },
             child: const Text('Copy diagnostics'),
           ),
@@ -377,8 +419,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               : () async {
                   await Clipboard.setData(ClipboardData(text: text));
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Text copied')));
+                    _showDashboardFeedback(
+                      'Text copied.',
+                      tone: WorkspaceFeedbackTone.success,
+                      title: 'Copied',
+                    );
                   }
                 },
           icon: const Icon(Icons.copy_all_outlined),
@@ -447,8 +492,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     onPressed: () async {
                       await Clipboard.setData(ClipboardData(text: text));
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Text copied')));
+                        _showDashboardFeedback(
+                          'Text copied.',
+                          tone: WorkspaceFeedbackTone.success,
+                          title: 'Copied',
+                        );
                       }
                     }),
                 if (_isLikelyUrl(text))
@@ -1206,11 +1254,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       debugPrint('Error launching attendance URL: $e');
       // In Dreamflow Preview, opening external tabs can be sandboxed. Offer a friendly fallback.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text(
-              'Cannot open external link in Preview. URL copied to clipboard.'),
-          duration: const Duration(seconds: 3),
-        ));
+        _showDashboardFeedback(
+          'Cannot open the link in Preview. The URL was copied instead.',
+          title: 'Preview fallback',
+        );
         await Clipboard.setData(ClipboardData(text: normalized));
       }
     }
@@ -1225,8 +1272,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     } catch (e) {
       debugPrint('Error launching external URL: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Cannot open link in Preview; URL copied.')));
+        _showDashboardFeedback(
+          'Cannot open the link in Preview. The URL was copied instead.',
+          title: 'Preview fallback',
+        );
         await Clipboard.setData(ClipboardData(text: normalized));
       }
     }
@@ -1292,8 +1341,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     } catch (e) {
       debugPrint('Import schedule failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to import schedule')));
+        _showDashboardFeedback(
+          'Failed to import the calendar file.',
+          tone: WorkspaceFeedbackTone.error,
+        );
       }
     }
   }
@@ -1319,8 +1370,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     } catch (e) {
       debugPrint('Import schedule from Drive failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Drive import failed: $e')));
+        _showDashboardFeedback(
+          'Drive import failed: $e',
+          tone: WorkspaceFeedbackTone.error,
+        );
       }
     }
   }
@@ -1336,26 +1389,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       return;
     }
 
-    // **Show loading dialog immediately**
     if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Processing Calendar...'),
-        content: SizedBox(
-          width: 400,
-          height: 100,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Analyzing your file...'),
-            ],
-          ),
-        ),
-      ),
+    _showDashboardProgressDialog(
+      title: 'Processing calendar',
+      subtitle: 'Analyzing your file and preparing reminders.',
     );
 
     try {
@@ -1518,9 +1555,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             }
             await _saveReminders();
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(
-                      'Imported $imported calendar event${imported == 1 ? '' : 's'}')));
+              _showDashboardFeedback(
+                'Imported $imported calendar event${imported == 1 ? '' : 's'}.',
+                tone: WorkspaceFeedbackTone.success,
+                title: 'Calendar updated',
+              );
             }
             return;
           }
@@ -1576,17 +1615,20 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       await _saveReminders();
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Imported $imported reminders')));
+        _showDashboardFeedback(
+          'Imported $imported reminders.',
+          tone: WorkspaceFeedbackTone.success,
+          title: 'Calendar updated',
+        );
       }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text('Calendar import error: ${e.toString().substring(0, 80)}'),
+        _showDashboardFeedback(
+          'Calendar import error: ${e.toString().substring(0, 80)}',
+          tone: WorkspaceFeedbackTone.error,
           duration: const Duration(seconds: 5),
-        ));
+        );
       }
       debugPrint('[CALENDAR] Import error: $e');
     }
@@ -2044,14 +2086,18 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           u.copyWith(photoBase64: base64, updatedAt: DateTime.now());
       await auth.updateCurrentUser(updated);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Profile photo updated')));
+      _showDashboardFeedback(
+        'Profile photo updated.',
+        tone: WorkspaceFeedbackTone.success,
+        title: 'Saved',
+      );
     } catch (e) {
       debugPrint('Failed to set teacher photo: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text('Could not set photo'),
-            backgroundColor: Theme.of(context).colorScheme.error));
+        _showDashboardFeedback(
+          'Could not update the profile photo.',
+          tone: WorkspaceFeedbackTone.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _updatingTeacherPhoto = false);
@@ -2115,8 +2161,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         _countdownSeconds -= 1;
         if (_countdownSeconds <= 0) {
           t.cancel();
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text("Time's up!")));
+          _showDashboardFeedback(
+            "Time's up!",
+            tone: WorkspaceFeedbackTone.info,
+            title: 'Timer complete',
+          );
         }
       });
     });

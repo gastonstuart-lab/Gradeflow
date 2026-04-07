@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/components/tool_first_app_surface.dart';
 import 'package:gradeflow/models/communication_models.dart';
 import 'package:gradeflow/nav.dart';
-import 'package:gradeflow/providers/app_providers.dart';
-import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
-import 'package:gradeflow/services/google_auth_service.dart';
-import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
 import 'package:gradeflow/theme.dart';
 
 class CommunicationHubScreen extends StatefulWidget {
@@ -20,12 +16,8 @@ class CommunicationHubScreen extends StatefulWidget {
 }
 
 class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
-  final TeacherWorkspaceSnapshotService _snapshotService =
-      const TeacherWorkspaceSnapshotService();
-
   bool _loading = true;
   String? _error;
-  TeacherWorkspaceSnapshot? _workspaceSnapshot;
 
   @override
   void initState() {
@@ -55,15 +47,13 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
     }
 
     try {
-      final workspace = await _snapshotService.loadForUser(user);
+      if (!mounted) return;
+      await context.read<CommunicationService>().load();
       if (!mounted) return;
       setState(() {
         _loading = false;
         _error = null;
-        _workspaceSnapshot = workspace;
       });
-      if (!mounted) return;
-      await context.read<CommunicationService>().load();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -71,13 +61,6 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
         _error = error.toString();
       });
     }
-  }
-
-  Future<void> _logout() async {
-    await context.read<GoogleAuthService>().signOut();
-    await context.read<AuthService>().logout();
-    if (!mounted) return;
-    context.go(AppRoutes.home);
   }
 
   Future<void> _showCreateGroupDialog(BuildContext context) async {
@@ -104,22 +87,20 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
                       textCapitalization: TextCapitalization.words,
                       decoration: const InputDecoration(
                         labelText: 'Group name',
-                        hintText:
-                            'English team, Grade 8 support, Shared resources',
+                        hintText: 'English team, Grade 8 support',
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: descriptionController,
                       minLines: 2,
                       maxLines: 4,
                       decoration: const InputDecoration(
                         labelText: 'Purpose',
-                        hintText:
-                            'Explain what this group is for so teachers know when to use it.',
+                        hintText: 'Explain what this group is for',
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<CommunicationChannelKind>(
                       initialValue: kind,
                       decoration:
@@ -174,14 +155,11 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
                           if (dialogContext.mounted) {
                             Navigator.pop(dialogContext);
                           }
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                created
-                                    ? 'Staff group created'
-                                    : 'Could not create that group yet',
-                              ),
-                            ),
+                          _showMessage(
+                            created
+                                ? 'Staff group created.'
+                                : 'Could not create that group yet.',
+                            isError: !created,
                           );
                         },
                   icon: submitting
@@ -204,305 +182,359 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
     descriptionController.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final workspace = _workspaceSnapshot;
-    final communicationService = context.watch<CommunicationService>();
-    final themeMode = context.watch<ThemeModeNotifier>().themeMode;
-
-    return WorkspaceScaffold(
-      eyebrow: 'Communication edition',
-      title: 'Communication hub',
-      subtitle:
-          'Staff coordination, admin alerts, and shared-school updates stay together in one calm workspace.',
-      trailingActions: [
-        IconButton(
-          tooltip: 'Switch app theme',
-          onPressed: () => context.read<ThemeModeNotifier>().toggleTheme(),
-          icon: Icon(
-            themeMode == ThemeMode.dark ? Icons.light_mode : Icons.dark_mode,
-          ),
-        ),
-        IconButton(
-          tooltip: 'Log out',
-          onPressed: _logout,
-          icon: const Icon(Icons.logout),
-        ),
-      ],
-      metrics: workspace == null
-          ? const []
-          : [
-              WorkspaceMetricData(
-                label: 'Unread',
-                value: communicationService.totalUnreadCount.toString(),
-                detail: 'Channels waiting for your attention right now',
-                icon: Icons.mark_chat_unread_outlined,
-                accent: Theme.of(context).colorScheme.primary,
-              ),
-              WorkspaceMetricData(
-                label: 'Staff lanes',
-                value: communicationService.channelCount.toString(),
-                detail: 'Admin, staff, team, and shared-resource channels',
-                icon: Icons.groups_rounded,
-              ),
-              WorkspaceMetricData(
-                label: 'Active classes',
-                value: workspace.activeClasses.length.toString(),
-                detail:
-                    '${workspace.totalStudents} students across live classes',
-                icon: Icons.class_outlined,
-              ),
-              WorkspaceMetricData(
-                label: 'Sync mode',
-                value: RepositoryFactory.sourceOfTruthLabel,
-                detail: RepositoryFactory.sourceOfTruthDescription,
-                icon: RepositoryFactory.isUsingFirestore
-                    ? Icons.cloud_done_outlined
-                    : Icons.offline_bolt_outlined,
-              ),
-            ],
-      headerActions: [
-        OutlinedButton.icon(
-          onPressed: () => _showCreateGroupDialog(context),
-          icon: const Icon(Icons.add_circle_outline_rounded),
-          label: const Text('New group'),
-        ),
-        FilledButton.icon(
-          onPressed: _load,
-          icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Refresh'),
-        ),
-      ],
-      child: _buildBody(context, communicationService),
+  void _showMessage(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError
+            ? Theme.of(context).colorScheme.error
+            : Theme.of(context).colorScheme.primary,
+      ),
     );
   }
 
-  Widget _buildBody(
+  @override
+  Widget build(BuildContext context) {
+    final communicationService = context.watch<CommunicationService>();
+
+    return ToolFirstAppSurface(
+      title: 'Messages',
+      subtitle: 'Staff coordination and school updates',
+      leading: IconButton(
+        onPressed: () => context.go(AppRoutes.dashboard),
+        icon: const Icon(Icons.arrow_back_rounded),
+        tooltip: 'Back to dashboard',
+      ),
+      trailing: [
+        IconButton(
+          tooltip: 'Compose new group',
+          icon: const Icon(Icons.add_circle_outline_rounded),
+          onPressed: () => _showCreateGroupDialog(context),
+        ),
+        IconButton(
+          tooltip: 'Refresh messages',
+          icon: const Icon(Icons.refresh_rounded),
+          onPressed: _load,
+        ),
+      ],
+      contextStrip: _CompactMessagesContextStrip(
+        unreadCount: communicationService.totalUnreadCount,
+        channelCount: communicationService.channelCount,
+        filterMode: 'All',
+      ),
+      toolbar: _CompactMessagesToolbar(
+        onCompose: () => _showCreateGroupDialog(context),
+        onRefresh: _load,
+      ),
+      workspace: _buildSplitViewWorkspace(context, communicationService),
+    );
+  }
+
+  Widget _buildSplitViewWorkspace(
     BuildContext context,
     CommunicationService communicationService,
   ) {
-    if (_loading ||
-        (communicationService.isLoading && _workspaceSnapshot == null)) {
-      return const Center(child: CircularProgressIndicator());
+    if (_loading || communicationService.isLoading) {
+      return const Center(
+        child: SizedBox(
+          width: 200,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading messages…'),
+            ],
+          ),
+        ),
+      );
     }
 
     final activeError = _error ?? communicationService.error;
     if (activeError != null) {
-      return WorkspaceEmptyState(
-        icon: Icons.forum_outlined,
-        title: 'Communication is not ready yet',
-        subtitle: activeError,
-        actions: [
-          FilledButton.icon(
-            onPressed: _load,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Try again'),
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.forum_outlined,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+              const SizedBox(height: 16),
+              Text('Messages not ready',
+                  style: context.textStyles.titleLarge),
+              const SizedBox(height: 8),
+              Text(activeError, style: context.textStyles.bodyMedium),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Try again'),
+              ),
+            ],
           ),
-          OutlinedButton.icon(
-            onPressed: () => context.go(AppRoutes.dashboard),
-            icon: const Icon(Icons.dashboard_outlined),
-            label: const Text('Back to dashboard'),
-          ),
-        ],
+        ),
       );
     }
 
-    final workspace = _workspaceSnapshot!;
-    final adminAlerts = communicationService.adminAlertMessages.reversed
-        .take(4)
-        .toList(growable: false);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hasSplitView = constraints.maxWidth >= 900;
 
+        final threadList = _buildThreadList(context, communicationService);
+        final threadPanel =
+            _buildThreadPanel(context, communicationService);
+
+        if (!hasSplitView) {
+          // Mobile/narrow: show list OR detail, not both
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: communicationService.selectedChannel == null
+                ? threadList
+                : threadPanel,
+          );
+        }
+
+        // Desktop/wide: split view
+        return Row(
+          children: [
+            // Left panel: thread list (narrow)
+            SizedBox(
+              width: 300,
+              child: threadList,
+            ),
+            const SizedBox(width: 12),
+            // Right panel: thread detail (expanding)
+            Expanded(
+              child: threadPanel,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildThreadList(
+    BuildContext context,
+    CommunicationService communicationService,
+  ) {
+    if (communicationService.channels.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.forum_outlined,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+              const SizedBox(height: 12),
+              Text('No channels yet',
+                  style: context.textStyles.bodyMedium),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () => _showCreateGroupDialog(context),
+                icon: const Icon(Icons.add),
+                label: const Text('Create group'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Theme.of(context)
+              .colorScheme
+              .outline
+              .withValues(alpha: 0.24),
+        ),
+        color: Theme.of(context)
+            .colorScheme
+            .surface
+            .withValues(alpha: 0.3),
+      ),
+      child: ListView.separated(
+        padding: const EdgeInsets.all(8),
+        itemCount: communicationService.channels.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 4),
+        itemBuilder: (context, index) {
+          final channel = communicationService.channels[index];
+          return _CommunicationChannelCard(
+            channel: channel,
+            unreadCount: communicationService.unreadCountForChannel(
+              channel.channelId,
+            ),
+            selected: communicationService.selectedChannel?.channelId ==
+                channel.channelId,
+            onTap: () =>
+                communicationService.selectChannel(channel.channelId),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildThreadPanel(
+    BuildContext context,
+    CommunicationService communicationService,
+  ) {
+    final channel = communicationService.selectedChannel;
+    if (channel == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.chat_bubble_outline_rounded,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+              const SizedBox(height: 12),
+              Text('Select a channel',
+                  style: context.textStyles.bodyMedium),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return _CommunicationThreadPanel(
+      currentUserId: context.read<AuthService>().currentUser?.userId ?? '',
+      channel: channel,
+      messages: communicationService.selectedMessages,
+      sending: communicationService.isSending,
+      onSend: communicationService.sendMessage,
+    );
+  }
+}
+
+class _CompactMessagesContextStrip extends StatelessWidget {
+  final int unreadCount;
+  final int channelCount;
+  final String filterMode;
+
+  const _CompactMessagesContextStrip({
+    required this.unreadCount,
+    required this.channelCount,
+    required this.filterMode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      scrollDirection: Axis.horizontal,
+      child: Row(
         children: [
-          WorkspaceSurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const WorkspaceSectionHeader(
-                  title: 'Admin Alerts',
-                  subtitle:
-                      'School-wide notices, deadlines, and urgent operational changes stay visible here first.',
-                ),
-                const SizedBox(height: 16),
-                if (adminAlerts.isEmpty)
-                  _CommunicationInfoBanner(
-                    icon: Icons.campaign_outlined,
-                    title: RepositoryFactory.isUsingFirestore
-                        ? 'No active school-wide alerts'
-                        : 'Turn on cloud sync for shared staff alerts',
-                    subtitle: RepositoryFactory.isUsingFirestore
-                        ? 'Announcements will appear here as soon as they are posted from the admin workspace.'
-                        : 'This workspace is ready locally now. Shared alerts become real school communication once cloud sync is enabled.',
-                  )
-                else
-                  Column(
-                    children: [
-                      for (final alert in adminAlerts)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _CommunicationListTile(
-                            icon: _severityIcon(alert.severity),
-                            accent: _severityColor(context, alert.severity),
-                            title: alert.text,
-                            subtitle:
-                                '${alert.authorName} - ${_messageTimeLabel(alert.createdAt)}',
-                          ),
-                        ),
-                    ],
-                  ),
-              ],
-            ),
+          _ContextChip(
+            icon: Icons.mark_chat_unread_outlined,
+            label: 'Unread',
+            value: unreadCount.toString(),
           ),
-          const SizedBox(height: 16),
-          WorkspaceSurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const WorkspaceSectionHeader(
-                  title: 'Teacher Channels',
-                  subtitle:
-                      'All-staff, teaching-team, and custom staff groups now work as real destinations with messages behind them.',
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    for (final channel in communicationService.channels)
-                      SizedBox(
-                        width: 290,
-                        child: _CommunicationChannelCard(
-                          channel: channel,
-                          cloudReady: RepositoryFactory.isUsingFirestore,
-                          unreadCount:
-                              communicationService.unreadCountForChannel(
-                            channel.channelId,
-                          ),
-                          selected:
-                              communicationService.selectedChannel?.channelId ==
-                                  channel.channelId,
-                          onTap: () => communicationService
-                              .selectChannel(channel.channelId),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                _CommunicationThreadPanel(
-                  currentUserId: workspace.user.userId,
-                  channel: communicationService.selectedChannel,
-                  messages: communicationService.selectedMessages,
-                  sending: communicationService.isSending,
-                  onSend: communicationService.sendMessage,
-                ),
-              ],
-            ),
+          const SizedBox(width: 8),
+          _ContextChip(
+            icon: Icons.forum_outlined,
+            label: 'Channels',
+            value: channelCount.toString(),
           ),
-          const SizedBox(height: 16),
-          WorkspaceSurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const WorkspaceSectionHeader(
-                  title: 'Connected Workflow',
-                  subtitle:
-                      'Communication now shares the same teacher context as the rest of the app instead of sitting beside it as a disconnected panel.',
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    SizedBox(
-                      width: 320,
-                      child: _CommunicationListTile(
-                        icon: Icons.folder_shared_outlined,
-                        accent: Theme.of(context).colorScheme.primary,
-                        title: 'Shared files and pinned resources',
-                        subtitle:
-                            'Channel structure is now ready for attachment and file-sharing support in the next communication pass.',
-                      ),
-                    ),
-                    SizedBox(
-                      width: 320,
-                      child: _CommunicationListTile(
-                        icon: Icons.schedule_send_outlined,
-                        accent: Theme.of(context).colorScheme.tertiary,
-                        title:
-                            '${workspace.pendingReminders.length} planning items',
-                        subtitle:
-                            'Personal planning already feeds the daily coordination picture for the teacher workspace.',
-                      ),
-                    ),
-                    SizedBox(
-                      width: 320,
-                      child: _CommunicationListTile(
-                        icon: Icons.school_outlined,
-                        accent: Theme.of(context).colorScheme.secondary,
-                        title:
-                            '${workspace.activeClasses.length} teaching spaces linked',
-                        subtitle:
-                            'Teaching workflow and school coordination now reference the same workspace state.',
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          const SizedBox(width: 8),
+          _ContextChip(
+            icon: Icons.filter_list,
+            label: 'View',
+            value: filterMode,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContextChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _ContextChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: 0.32),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Text(
+            '$label: $value',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  String _messageTimeLabel(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-    if (difference.inMinutes < 1) return 'Just now';
-    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
-    if (difference.inHours < 24) return '${difference.inHours}h ago';
-    return '${timestamp.month}/${timestamp.day}';
-  }
+class _CompactMessagesToolbar extends StatelessWidget {
+  final VoidCallback onCompose;
+  final VoidCallback onRefresh;
 
-  IconData _severityIcon(CommunicationAlertSeverity severity) {
-    switch (severity) {
-      case CommunicationAlertSeverity.urgent:
-        return Icons.priority_high_rounded;
-      case CommunicationAlertSeverity.attention:
-        return Icons.notification_important_outlined;
-      case CommunicationAlertSeverity.info:
-        return Icons.campaign_outlined;
-    }
-  }
+  const _CompactMessagesToolbar({
+    required this.onCompose,
+    required this.onRefresh,
+  });
 
-  Color _severityColor(
-    BuildContext context,
-    CommunicationAlertSeverity severity,
-  ) {
-    switch (severity) {
-      case CommunicationAlertSeverity.urgent:
-        return Theme.of(context).colorScheme.error;
-      case CommunicationAlertSeverity.attention:
-        return const Color(0xFFE3A23B);
-      case CommunicationAlertSeverity.info:
-        return Theme.of(context).colorScheme.primary;
-    }
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          Tooltip(
+            message: 'Create new group',
+            child: IconButton(
+              icon: const Icon(Icons.add_circle_outline_rounded),
+              onPressed: onCompose,
+            ),
+          ),
+          Tooltip(
+            message: 'Refresh messages',
+            child: IconButton(
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: onRefresh,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
 class _CommunicationChannelCard extends StatelessWidget {
   final CommunicationChannelRecord channel;
-  final bool cloudReady;
   final int unreadCount;
   final bool selected;
   final VoidCallback onTap;
 
   const _CommunicationChannelCard({
     required this.channel,
-    required this.cloudReady,
     required this.unreadCount,
     required this.selected,
     required this.onTap,
@@ -510,100 +542,87 @@ class _CommunicationChannelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final accent = _accentForKind(context, channel.kind);
-    return WorkspaceSurfaceCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(16),
-      radius: 20,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: selected
+                ? accent.withValues(alpha: 0.14)
+                : theme.colorScheme.surface.withValues(alpha: 0.22),
+            border: Border.all(
+              color: selected
+                  ? accent.withValues(alpha: 0.34)
+                  : theme.colorScheme.outline.withValues(alpha: 0.18),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: accent.withValues(alpha: 0.16),
-                ),
-                child: Icon(_iconForKind(channel.kind), color: accent),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  channel.name,
-                  style: context.textStyles.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: accent.withValues(alpha: 0.16),
+                    ),
+                    child: Icon(_iconForKind(channel.kind),
+                        color: accent, size: 16),
                   ),
-                ),
-              ),
-              if (unreadCount > 0)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: accent.withValues(alpha: 0.18),
-                  ),
-                  child: Text(
-                    '$unreadCount new',
-                    style: context.textStyles.labelSmall?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          channel.name,
+                          style: context.textStyles.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (unreadCount > 0)
+                          Text(
+                            '$unreadCount unread',
+                            style:
+                                context.textStyles.labelSmall?.copyWith(
+                              color: accent,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )
+                        else if (selected)
+                          Icon(Icons.check_circle_rounded,
+                              size: 14, color: accent),
+                      ],
                     ),
                   ),
-                )
-              else if (selected)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: accent.withValues(alpha: 0.18),
-                  ),
+                ],
+              ),
+              if (channel.lastMessagePreview?.isNotEmpty ?? false)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    'Selected',
-                    style: context.textStyles.labelSmall?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w700,
+                    channel.lastMessagePreview ?? '',
+                    style: context.textStyles.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(
-            '${channel.memberCount} participants',
-            style: context.textStyles.labelLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            channel.lastMessagePreview?.trim().isNotEmpty ?? false
-                ? '${channel.lastSenderName ?? channel.name}: ${channel.lastMessagePreview}'
-                : channel.description,
-            style: context.textStyles.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              height: 1.45,
-            ),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            channel.readOnly
-                ? 'Posted from Admin workspace'
-                : cloudReady
-                    ? 'Live for shared staff messaging'
-                    : 'Works locally now and can expand to live school sync',
-            style: context.textStyles.labelMedium?.copyWith(
-              color: accent,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -640,127 +659,6 @@ class _CommunicationChannelCard extends StatelessWidget {
       case CommunicationChannelKind.sharedFiles:
         return const Color(0xFFE08F3E);
     }
-  }
-}
-
-class _CommunicationInfoBanner extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _CommunicationInfoBanner({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return WorkspaceSurfaceCard(
-      padding: const EdgeInsets.all(16),
-      radius: 20,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.14),
-            ),
-            child: Icon(icon, color: Theme.of(context).colorScheme.primary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: context.textStyles.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  style: context.textStyles.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CommunicationListTile extends StatelessWidget {
-  final IconData icon;
-  final Color accent;
-  final String title;
-  final String subtitle;
-
-  const _CommunicationListTile({
-    required this.icon,
-    required this.accent,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
-        ),
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.34),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: accent.withValues(alpha: 0.16),
-            ),
-            child: Icon(icon, color: accent, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: context.textStyles.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: context.textStyles.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -806,55 +704,106 @@ class _CommunicationThreadPanelState extends State<_CommunicationThreadPanel> {
   Widget build(BuildContext context) {
     final channel = widget.channel;
     if (channel == null) {
-      return const _CommunicationInfoBanner(
-        icon: Icons.chat_bubble_outline_rounded,
-        title: 'Choose a channel',
-        subtitle:
-            'Select a staff lane above to review messages and start the conversation.',
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.chat_bubble_outline_rounded,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+              const SizedBox(height: 12),
+              Text('Choose a channel',
+                  style: context.textStyles.bodyMedium),
+            ],
+          ),
+        ),
       );
     }
 
-    return WorkspaceSurfaceCard(
-      padding: const EdgeInsets.all(18),
-      radius: 22,
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Theme.of(context)
+              .colorScheme
+              .outline
+              .withValues(alpha: 0.24),
+        ),
+        color: Theme.of(context)
+            .colorScheme
+            .surface
+            .withValues(alpha: 0.3),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          WorkspaceSectionHeader(
-            title: channel.name,
-            subtitle: channel.description,
-          ),
-          const SizedBox(height: 16),
+          // Thread header (channel name + info)
           Container(
-            height: 320,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Theme.of(context)
-                    .colorScheme
-                    .outline
-                    .withValues(alpha: 0.28),
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outline
+                      .withValues(alpha: 0.12),
+                ),
               ),
-              color:
-                  Theme.of(context).colorScheme.surface.withValues(alpha: 0.22),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  channel.name,
+                  style: context.textStyles.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (channel.description.trim().isNotEmpty)
+                  Text(
+                    channel.description,
+                    style: context.textStyles.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                else
+                  Text(
+                    '${channel.memberCount} participants',
+                    style: context.textStyles.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Messages list (expanding)
+          Expanded(
             child: widget.messages.isEmpty
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(
                         channel.readOnly
-                            ? 'Admin alerts posted from the Admin workspace will appear here.'
-                            : 'No messages yet. Start the first conversation for this channel.',
+                            ? 'Admin alerts will appear here.'
+                            : 'No messages yet. Start the conversation!',
                         style: context.textStyles.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
                       ),
                     ),
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(14),
+                    itemCount: widget.messages.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final message = widget.messages[index];
                       final ownMessage =
@@ -864,10 +813,10 @@ class _CommunicationThreadPanelState extends State<_CommunicationThreadPanel> {
                             ? Alignment.centerRight
                             : Alignment.centerLeft,
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 560),
+                          constraints: const BoxConstraints(maxWidth: 500),
                           child: DecoratedBox(
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
+                              borderRadius: BorderRadius.circular(12),
                               color: ownMessage
                                   ? Theme.of(context)
                                       .colorScheme
@@ -890,9 +839,10 @@ class _CommunicationThreadPanelState extends State<_CommunicationThreadPanel> {
                               ),
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.all(14),
+                              padding: const EdgeInsets.all(10),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -900,17 +850,18 @@ class _CommunicationThreadPanelState extends State<_CommunicationThreadPanel> {
                                       Flexible(
                                         child: Text(
                                           message.authorName,
-                                          style: context.textStyles.labelLarge
+                                          style: context
+                                              .textStyles.labelSmall
                                               ?.copyWith(
                                             fontWeight: FontWeight.w800,
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 6),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
+                                          horizontal: 6,
+                                          vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
                                           borderRadius:
@@ -922,34 +873,37 @@ class _CommunicationThreadPanelState extends State<_CommunicationThreadPanel> {
                                         ),
                                         child: Text(
                                           _roleLabel(message.authorRole),
-                                          style: context.textStyles.labelSmall
+                                          style: context
+                                              .textStyles.labelSmall
                                               ?.copyWith(
                                             color: _roleAccent(
                                               context,
                                               message.authorRole,
                                             ),
-                                            fontWeight: FontWeight.w700,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 10,
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 4),
                                   Text(
                                     message.text,
-                                    style:
-                                        context.textStyles.bodyMedium?.copyWith(
-                                      height: 1.45,
+                                    style: context.textStyles.bodySmall
+                                        ?.copyWith(
+                                      height: 1.4,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    _threadTimeLabel(message.createdAt),
-                                    style:
-                                        context.textStyles.labelSmall?.copyWith(
+                                    _messageTimeLabel(message.createdAt),
+                                    style: context.textStyles.labelSmall
+                                        ?.copyWith(
                                       color: Theme.of(context)
                                           .colorScheme
                                           .onSurfaceVariant,
+                                      fontSize: 10,
                                     ),
                                   ),
                                 ],
@@ -959,70 +913,76 @@ class _CommunicationThreadPanelState extends State<_CommunicationThreadPanel> {
                         ),
                       );
                     },
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemCount: widget.messages.length,
                   ),
-          ),
-          const SizedBox(height: 14),
-          if (channel.readOnly)
-            const _CommunicationInfoBanner(
-              icon: Icons.campaign_outlined,
-              title: 'Admin alerts are posted from the Admin workspace',
-              subtitle:
-                  'Use the Admin area to publish school-wide notices, deadlines, and urgent updates into this channel.',
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _handleSend(),
-                    decoration: const InputDecoration(
-                      hintText: 'Write a message to this channel',
+            ),
+
+          // Send input (fixed at bottom)
+          if (!channel.readOnly)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outline
+                        .withValues(alpha: 0.12),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      decoration: InputDecoration(
+                        hintText: 'Send a message…',
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                      enabled: !widget.sending,
+                      minLines: 1,
+                      maxLines: 3,
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                FilledButton.icon(
-                  onPressed: widget.sending ? null : _handleSend,
-                  icon: widget.sending
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send_rounded),
-                  label: const Text('Send'),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: widget.sending
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation(
+                                Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded),
+                    onPressed: widget.sending ? null : _handleSend,
+                    tooltip: 'Send message',
+                  ),
+                ],
+              ),
             ),
         ],
       ),
     );
   }
 
-  String _threadTimeLabel(DateTime createdAt) {
-    final hour = createdAt.hour == 0
-        ? 12
-        : (createdAt.hour > 12 ? createdAt.hour - 12 : createdAt.hour);
-    final minute = createdAt.minute.toString().padLeft(2, '0');
-    final period = createdAt.hour >= 12 ? 'PM' : 'AM';
-    return '${createdAt.month}/${createdAt.day} - $hour:$minute $period';
-  }
-
-  String _roleLabel(CommunicationRole role) {
-    switch (role) {
-      case CommunicationRole.admin:
-        return 'Admin';
-      case CommunicationRole.departmentLead:
-        return 'Lead';
-      case CommunicationRole.teacher:
-        return 'Teacher';
-    }
+  String _messageTimeLabel(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+    if (difference.inMinutes < 1) return 'just now';
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+    if (difference.inHours < 24) return '${difference.inHours}h ago';
+    return '${timestamp.month}/${timestamp.day}';
   }
 
   Color _roleAccent(BuildContext context, CommunicationRole role) {
@@ -1030,9 +990,20 @@ class _CommunicationThreadPanelState extends State<_CommunicationThreadPanel> {
       case CommunicationRole.admin:
         return Theme.of(context).colorScheme.error;
       case CommunicationRole.departmentLead:
-        return Theme.of(context).colorScheme.tertiary;
-      case CommunicationRole.teacher:
         return Theme.of(context).colorScheme.primary;
+      case CommunicationRole.teacher:
+        return Theme.of(context).colorScheme.tertiary;
+    }
+  }
+
+  String _roleLabel(CommunicationRole role) {
+    switch (role) {
+      case CommunicationRole.admin:
+        return 'Admin';
+      case CommunicationRole.departmentLead:
+        return 'Department Lead';
+      case CommunicationRole.teacher:
+        return 'Teacher';
     }
   }
 }

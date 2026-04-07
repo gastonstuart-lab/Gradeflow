@@ -8,12 +8,13 @@ import 'package:gradeflow/services/grade_item_service.dart';
 import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/models/student_score.dart';
-import 'package:gradeflow/components/animated_page_background.dart';
+import 'package:gradeflow/models/grading_category.dart';
+import 'package:gradeflow/components/tool_first_app_surface.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:uuid/uuid.dart';
 import 'package:gradeflow/models/grade_item.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
-import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:go_router/go_router.dart';
 
 class GradebookScreen extends StatefulWidget {
   final String classId;
@@ -148,6 +149,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
     }
   }
 
+  // ignore: unused_element
   Future<void> _createNextItemForSelectedCategory() async {
     if (selectedCategoryId == null) return;
     final category = context
@@ -178,6 +180,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
     if (mounted) setState(() => selectedGradeItemId = newItem.gradeItemId);
   }
 
+  // ignore: unused_element
   Future<void> _showEditGradeItemDialog(GradeItem item) async {
     final nameController = TextEditingController(text: item.name);
     final maxScoreController =
@@ -273,7 +276,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
     if (!mounted) return;
 
     final gradeItemIds =
-      gradeItemService.gradeItems.map((g) => g.gradeItemId).toList();
+        gradeItemService.gradeItems.map((g) => g.gradeItemId).toList();
     await scoreService.loadScores(widget.classId, gradeItemIds);
     if (!mounted) return;
 
@@ -557,6 +560,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
     final gradeItemService = context.watch<GradeItemService>();
     final scoreService = context.watch<StudentScoreService>();
     final classItem = classService.getClassById(widget.classId);
+    final availableClasses = classService.classes;
 
     final categoryItems = selectedCategoryId != null
         ? (gradeItemService.gradeItems
@@ -582,65 +586,116 @@ class _GradebookScreenState extends State<GradebookScreen> {
         final ok = await _confirmLeaveIfSaving();
         if (ok && mounted) Navigator.of(context).pop(result);
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            classItem == null ? 'Gradebook' : 'Gradebook • ${classItem.className}',
-          ),
-          actions: [
-            if (selectedCategoryId != null)
-              IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: _showAddGradeItemDialog,
-                tooltip: 'Add Grade Item',
+      child: ToolFirstAppSurface(
+        title: classItem?.className ?? 'Gradebook',
+        subtitle: classItem != null
+            ? '${classItem.subject} • ${classItem.schoolYear} • ${classItem.term}'
+            : 'Enter scores for students',
+        leading: IconButton(
+          onPressed: () => context.go('/classes'),
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: 'Back to classes',
+        ),
+        trailing: [
+          SizedBox(
+            width: 200,
+            child: DropdownButtonFormField<String>(
+              initialValue: widget.classId,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Class',
+                isDense: true,
+                border: OutlineInputBorder(),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               ),
-            IconButton(
-              icon: const Icon(Icons.undo),
-              tooltip: 'Undo last score change',
-              onPressed: () async {
-                try {
-                  final authService = context.read<AuthService>();
-                  final userId = authService.currentUser?.userId;
-                  if (userId == null) {
-                    _showError('Please log in to undo changes.');
-                    return;
-                  }
-
-                  final scores = context.read<StudentScoreService>();
-                  if (scores.hasPendingWrites) {
-                    try {
-                      await scores
-                          .flushPendingWrites()
-                          .timeout(const Duration(milliseconds: 1200));
-                    } catch (_) {
-                      // Best-effort: still allow undo (it will enqueue behind pending writes).
-                    }
-                  }
-
-                  final ok =
-                      await scores.undoLastChange(userId, widget.classId);
-                  if (!mounted) return;
-                  if (ok) {
-                    _showSuccess('Undid last score change');
-                  } else {
-                    _showError('Nothing to undo');
-                  }
-                } catch (e) {
-                  debugPrint('Undo failed: $e');
-                  if (mounted) _showError('Undo failed');
+              items: [
+                for (final item in availableClasses)
+                  DropdownMenuItem(
+                    value: item.classId,
+                    child: Text(item.className,
+                        overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value != null && value != widget.classId) {
+                  context.go('/class/$value/gradebook');
                 }
               },
             ),
-            if (selectedGradeItemId != null)
-              IconButton(
-                icon: const Icon(Icons.done_all),
-                tooltip: 'Apply score to all',
-                onPressed: () async {
+          ),
+        ],
+        contextStrip: _CompactGradebookContextStrip(
+          studentCount: studentService.students.length,
+          categoryCount: categoryService.categories.length,
+          syncStatus: scoreService.hasPendingWrites
+              ? 'Saving…'
+              : 'Synced',
+          selectedCategory: selectedCategoryId != null
+              ? categoryService.categories
+                  .firstWhere(
+                    (c) => c.categoryId == selectedCategoryId,
+                    orElse: () => categoryService.categories.first,
+                  )
+                  .name
+              : null,
+        ),
+        toolbar: _CompactGradebookToolbar(
+          categories: categoryService.categories,
+          categoryItems: categoryItems,
+          selectedCategoryId: selectedCategoryId,
+          selectedGradeItemId: selectedGradeItemId,
+          onCategoryChanged: (catId) {
+            setState(() {
+              selectedCategoryId = catId;
+              selectedGradeItemId = null;
+            });
+            _ensureFirstItemForCategory(catId);
+          },
+          onGradeItemChanged: (itemId) {
+            setState(() => selectedGradeItemId = itemId);
+          },
+          onAddGradeItem: _showAddGradeItemDialog,
+          onUndoLastChange: () async {
+            try {
+              final authService = context.read<AuthService>();
+              final userId = authService.currentUser?.userId;
+              if (userId == null) {
+                _showError('Please log in to undo changes.');
+                return;
+              }
+
+              final scores = context.read<StudentScoreService>();
+              if (scores.hasPendingWrites) {
+                try {
+                  await scores
+                      .flushPendingWrites()
+                      .timeout(const Duration(milliseconds: 1200));
+                } catch (_) {}
+              }
+
+              final ok =
+                  await scores.undoLastChange(userId, widget.classId);
+              if (!mounted) return;
+              if (ok) {
+                _showSuccess('Undid last score change');
+              } else {
+                _showError('Nothing to undo');
+              }
+            } catch (e) {
+              debugPrint('Undo failed: $e');
+              if (mounted) _showError('Undo failed');
+            }
+          },
+          onApplyToAll: selectedGradeItemId == null
+              ? null
+              : () async {
                   final item = context
                       .read<GradeItemService>()
                       .gradeItems
                       .firstWhere((g) => g.gradeItemId == selectedGradeItemId);
-                  double temp = item.maxScore <= 1 ? 100.0 : item.maxScore;
+                  double temp =
+                      item.maxScore <= 1 ? 100.0 : item.maxScore;
                   await showModalBottomSheet(
                     context: context,
                     showDragHandle: true,
@@ -649,18 +704,24 @@ class _GradebookScreenState extends State<GradebookScreen> {
                         padding: AppSpacing.paddingMd,
                         child: StatefulBuilder(
                           builder: (ctx, setSheetState) {
-                            final max =
-                                item.maxScore <= 1 ? 100.0 : item.maxScore;
+                            final max = item.maxScore <= 1
+                                ? 100.0
+                                : item.maxScore;
                             const min = 0.0;
-                            final divisions =
-                              max > min ? (max - min).round() : null;
+                            final divisions = max > min
+                                ? (max - min).round()
+                                : null;
                             return Column(
                               mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                               children: [
-                                Text('Set score for entire class',
-                                    style: context.textStyles.titleLarge),
-                                const SizedBox(height: AppSpacing.sm),
+                                Text(
+                                    'Set score for entire class',
+                                    style:
+                                        context.textStyles.titleLarge),
+                                const SizedBox(
+                                    height: AppSpacing.sm),
                                 Row(children: [
                                   Expanded(
                                     child: Slider(
@@ -668,46 +729,64 @@ class _GradebookScreenState extends State<GradebookScreen> {
                                       min: min,
                                       max: max,
                                       divisions: divisions,
-                                      label: temp.toStringAsFixed(0),
+                                      label: temp
+                                          .toStringAsFixed(0),
                                       onChanged: (v) =>
-                                          setSheetState(() => temp = v),
+                                          setSheetState(
+                                              () => temp = v),
                                     ),
                                   ),
                                   SizedBox(
                                       width: 56,
-                                      child: Text(temp.toStringAsFixed(0),
-                                          textAlign: TextAlign.end,
-                                          style:
-                                              context.textStyles.titleMedium)),
+                                      child: Text(
+                                          temp.toStringAsFixed(
+                                              0),
+                                          textAlign:
+                                              TextAlign.end,
+                                          style: context
+                                              .textStyles
+                                              .titleMedium)),
                                 ]),
-                                const SizedBox(height: AppSpacing.sm),
+                                const SizedBox(
+                                    height: AppSpacing.sm),
                                 Row(
                                   children: [
                                     TextButton.icon(
-                                        onPressed: () => Navigator.pop(ctx),
-                                        icon: const Icon(Icons.close),
-                                        label: const Text('Cancel')),
+                                        onPressed: () =>
+                                            Navigator.pop(ctx),
+                                        icon: const Icon(
+                                            Icons.close),
+                                        label: const Text(
+                                            'Cancel')),
                                     const Spacer(),
                                     FilledButton.icon(
-                                      icon: const Icon(Icons.done_all),
-                                      label: const Text('Apply to all'),
+                                      icon: const Icon(
+                                          Icons.done_all),
+                                      label: const Text(
+                                          'Apply to all'),
                                       onPressed: () async {
                                         try {
                                           final authService =
-                                              context.read<AuthService>();
+                                              context.read<
+                                                  AuthService>();
                                           final students = context
-                                              .read<StudentService>()
+                                              .read<
+                                                  StudentService>()
                                               .students
-                                              .map((s) => s.studentId)
+                                              .map((s) =>
+                                                  s.studentId)
                                               .toList();
                                           await context
-                                              .read<StudentScoreService>()
+                                              .read<
+                                                  StudentScoreService>()
                                               .setAllScoresForGradeItem(
                                                 widget.classId,
                                                 item.gradeItemId,
                                                 students,
                                                 temp,
-                                                authService.currentUser!.userId,
+                                                authService
+                                                    .currentUser!
+                                                    .userId,
                                               );
                                           if (!mounted) return;
                                           setState(
@@ -734,12 +813,9 @@ class _GradebookScreenState extends State<GradebookScreen> {
                     },
                   );
                 },
-              ),
-            if (selectedGradeItemId != null)
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                tooltip: 'Delete selected item',
-                onPressed: () async {
+          onDeleteGradeItem: selectedGradeItemId == null
+              ? null
+              : () async {
                   final item = context
                       .read<GradeItemService>()
                       .gradeItems
@@ -767,457 +843,254 @@ class _GradebookScreenState extends State<GradebookScreen> {
                     setState(() => selectedGradeItemId = null);
                   }
                 },
-              ),
-          ],
         ),
-        body: AnimatedPageBackground(
-          child: Column(
-          children: [
-            Padding(
-              padding: AppSpacing.paddingMd,
-              child: WorkspaceSurfaceCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    WorkspaceSectionHeader(
-                      title: classItem == null
-                          ? 'Gradebook workspace'
-                          : '${classItem.className} gradebook',
-                      subtitle: selectedGradeItemId == null
-                          ? 'Choose a category and grade item to start entering scores without losing sight of the class context.'
-                          : 'Scores, item selection, and quick grading stay in one focused workspace for this class.',
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: [
-                        _GradebookMetricChip(
-                          icon: Icons.people_alt_outlined,
-                          label: '${studentService.students.length} students',
-                        ),
-                        _GradebookMetricChip(
-                          icon: Icons.category_outlined,
-                          label: '${categoryService.categories.length} categories',
-                        ),
-                        _GradebookMetricChip(
-                          icon: scoreService.hasPendingWrites
-                              ? Icons.sync
-                              : Icons.cloud_done_outlined,
-                          label: scoreService.hasPendingWrites
-                              ? 'Pending saves'
-                              : 'Synced',
-                        ),
-                        if (selectedCategoryId != null)
-                          _GradebookMetricChip(
-                            icon: Icons.bookmark_outline,
-                            label: categoryService.categories
-                                .firstWhere(
-                                  (c) => c.categoryId == selectedCategoryId,
-                                  orElse: () => categoryService.categories.first,
-                                )
-                                .name,
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (categoryService.categories.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: WorkspaceSurfaceCard(
-                  padding: AppSpacing.paddingMd,
+        workspace: selectedGradeItemId == null
+            ? Center(
+                child: Padding(
+                  padding: AppSpacing.paddingLg,
                   child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text('Category', style: context.textStyles.labelLarge),
-                    const SizedBox(height: AppSpacing.sm),
-                    LayoutBuilder(
-                      builder: (ctx, constraints) {
-                        final isCompact = constraints.maxWidth < 520;
-                        if (isCompact &&
-                            categoryService.categories.length > 3) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('☞ Swipe to see all categories',
-                                  style: context.textStyles.bodySmall?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant)),
-                              const SizedBox(height: 4),
-                              SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                physics: const BouncingScrollPhysics(),
-                                child: Row(
-                                  children: categoryService.categories
-                                      .map((category) {
-                                    final isSelected = category.categoryId ==
-                                        selectedCategoryId;
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                          right: AppSpacing.sm),
-                                      child: ChoiceChip(
-                                        label: Text(category.name,
-                                            overflow: TextOverflow.ellipsis),
-                                        selected: isSelected,
-                                        onSelected: (selected) async {
-                                          setState(() {
-                                            selectedCategoryId =
-                                                category.categoryId;
-                                            selectedGradeItemId = null;
-                                          });
-                                          await _ensureFirstItemForCategory(
-                                              category.categoryId);
-                                        },
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-                        if (isCompact) {
-                          return Wrap(
-                            spacing: AppSpacing.sm,
-                            runSpacing: AppSpacing.sm,
-                            children:
-                                categoryService.categories.map((category) {
-                              final isSelected =
-                                  category.categoryId == selectedCategoryId;
-                              return ChoiceChip(
-                                label: Text(category.name,
-                                    overflow: TextOverflow.ellipsis),
-                                selected: isSelected,
-                                onSelected: (selected) async {
-                                  setState(() {
-                                    selectedCategoryId = category.categoryId;
-                                    selectedGradeItemId = null;
-                                  });
-                                  await _ensureFirstItemForCategory(
-                                      category.categoryId);
-                                },
-                              );
-                            }).toList(),
-                          );
-                        }
-                        return SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          child: Row(
-                            children:
-                                categoryService.categories.map((category) {
-                              final isSelected =
-                                  category.categoryId == selectedCategoryId;
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.only(right: AppSpacing.sm),
-                                child: ChoiceChip(
-                                  label: Text(category.name,
-                                      overflow: TextOverflow.ellipsis),
-                                  selected: isSelected,
-                                  onSelected: (selected) async {
-                                    setState(() {
-                                      selectedCategoryId = category.categoryId;
-                                      selectedGradeItemId = null;
-                                    });
-                                    await _ensureFirstItemForCategory(
-                                        category.categoryId);
-                                  },
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        );
-                      },
-                    ),
-                    if (categoryItems.isNotEmpty) ...[
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit_note,
+                          size: 64,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant),
                       const SizedBox(height: AppSpacing.md),
-                      Row(
-                        children: [
-                          Text('Grade Item',
-                              style: context.textStyles.labelLarge),
-                          const Spacer(),
-                          if (selectedCategoryId != null)
-                            IconButton(
-                              tooltip: 'Add next item',
-                              icon: const Icon(Icons.add_circle_outline),
-                              onPressed: _createNextItemForSelectedCategory,
-                            ),
-                          if (selectedGradeItemId != null)
-                            IconButton(
-                              tooltip: 'Edit selected item',
-                              icon: const Icon(Icons.edit_outlined),
-                              onPressed: () {
-                                final item = categoryItems.firstWhere((e) =>
-                                    e.gradeItemId == selectedGradeItemId);
-                                _showEditGradeItemDialog(item);
-                              },
-                            ),
-                          if (selectedGradeItemId != null)
-                            IconButton(
-                              tooltip: 'Delete selected item',
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () async {
-                                final item = categoryItems.firstWhere((e) =>
-                                    e.gradeItemId == selectedGradeItemId);
-                                await context
-                                    .read<GradeItemService>()
-                                    .deleteGradeItem(item.gradeItemId);
-                                if (mounted) {
-                                  setState(() => selectedGradeItemId = null);
-                                }
-                              },
-                            ),
-                        ],
-                      ),
+                      Text('Select a grade item',
+                          style: context.textStyles.titleLarge),
                       const SizedBox(height: AppSpacing.sm),
-                      LayoutBuilder(
-                        builder: (ctx, constraints) {
-                          final isCompact = constraints.maxWidth < 520;
-                          final chips = categoryItems.map((item) {
-                            final isSelected =
-                                item.gradeItemId == selectedGradeItemId;
-                            final chip = GestureDetector(
-                              onLongPress: () => _showEditGradeItemDialog(item),
-                              child: InputChip(
-                                label: Text(item.name,
-                                    overflow: TextOverflow.ellipsis),
-                                selected: isSelected,
-                                onSelected: (selected) => setState(() =>
-                                    selectedGradeItemId = item.gradeItemId),
-                                onDeleted: () async {
-                                  await context
-                                      .read<GradeItemService>()
-                                      .deleteGradeItem(item.gradeItemId);
-                                  if (mounted &&
-                                      selectedGradeItemId == item.gradeItemId) {
-                                    setState(() => selectedGradeItemId = null);
-                                  }
-                                },
-                              ),
-                            );
-                            return isCompact
-                                ? chip
-                                : Padding(
-                                    padding: const EdgeInsets.only(
-                                        right: AppSpacing.sm),
-                                    child: chip,
-                                  );
-                          }).toList();
-
-                          // Add inline "Add next" chip
-                          final category = categoryService.categories
-                              .firstWhere(
-                                  (c) => c.categoryId == selectedCategoryId);
-                          final nextName = _suggestNameForCategory(
-                              category.name,
-                              _nextIndexForCategory(
-                                  selectedCategoryId!, category.name));
-                          final addChip = ActionChip(
-                            avatar: const Icon(Icons.add, size: 18),
-                            label: Text('Add $nextName',
-                                overflow: TextOverflow.ellipsis),
-                            onPressed: _createNextItemForSelectedCategory,
-                          );
-                          if (isCompact) {
-                            chips.add(addChip);
-                          } else {
-                            chips.add(Padding(
-                                padding:
-                                    const EdgeInsets.only(right: AppSpacing.sm),
-                                child: addChip));
-                          }
-                          if (isCompact) {
-                            return Wrap(
-                                spacing: AppSpacing.sm,
-                                runSpacing: AppSpacing.sm,
-                                children: chips);
-                          }
-                          return SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(),
-                            child: Row(children: chips),
-                          );
-                        },
-                      ),
+                      Text('Choose a category and item to start grading',
+                          style: context.textStyles.bodyMedium),
                     ],
-                  ],
+                  ),
                 ),
+              )
+            : ListView.builder(
+                padding: AppSpacing.paddingMd,
+                itemCount: studentService.students.length,
+                itemBuilder: (context, index) {
+                  final student = studentService.students[index];
+                  final item = gradeItemService.gradeItems.firstWhere(
+                      (g) => g.gradeItemId == selectedGradeItemId);
+                  final current = scoreService.getScore(
+                      student.studentId, selectedGradeItemId!);
+                  return _ScoreSliderRow(
+                    key: ValueKey(
+                        '${student.studentId}_${item.gradeItemId}'),
+                    studentName:
+                        '${student.chineseName} • ${student.englishFullName}',
+                    studentId: student.studentId,
+                    seatNo: student.seatNo,
+                    photoBase64: student.photoBase64,
+                    gradeItemId: item.gradeItemId,
+                    maxScore: item.maxScore,
+                    initialScore: current?.score,
+                    onChanged: (val) => _updateScore(
+                        student.studentId, item.gradeItemId, val),
+                    onClear: () => _updateScore(
+                        student.studentId, item.gradeItemId, null),
+                    onOpen: () => _openQuickGradeSheet(index),
+                  );
+                },
               ),
-            ),
-            Expanded(
-              child: selectedGradeItemId == null
-                  ? (selectedCategoryId != null && categoryItems.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: AppSpacing.paddingLg,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.playlist_add,
-                                    size: 64,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant),
-                                const SizedBox(height: AppSpacing.md),
-                                Text('Start grading this category',
-                                    style: context.textStyles.titleLarge,
-                                    textAlign: TextAlign.center),
-                                const SizedBox(height: AppSpacing.sm),
-                                Text(
-                                    'Create the first item (e.g., Homework 1, Quiz 1, Week 1).',
-                                    style: context.textStyles.bodyMedium,
-                                    textAlign: TextAlign.center),
-                                const SizedBox(height: AppSpacing.md),
-                                FilledButton.icon(
-                                  icon: const Icon(Icons.add_chart),
-                                  label: const Text('Add First Item (100)'),
-                                  onPressed: () async {
-                                    final now = DateTime.now();
-                                    final category = context
-                                        .read<GradingCategoryService>()
-                                        .categories
-                                        .firstWhere((c) =>
-                                            c.categoryId == selectedCategoryId);
-                                    final itemsInCategory = context
-                                        .read<GradeItemService>()
-                                        .getItemsByCategory(selectedCategoryId!)
-                                        .where((g) => !_isHiddenItem(g))
-                                        .toList();
-                                    final nextIndex =
-                                        itemsInCategory.length + 1;
-                                    final suggestName = _suggestNameForCategory(
-                                        category.name, nextIndex);
-                                    final item = GradeItem(
-                                      gradeItemId: const Uuid().v4(),
-                                      classId: widget.classId,
-                                      categoryId: selectedCategoryId!,
-                                      name: suggestName,
-                                      maxScore: 100.0,
-                                      isActive: true,
-                                      createdAt: now,
-                                      updatedAt: now,
-                                    );
-                                    await context
-                                        .read<GradeItemService>()
-                                        .addGradeItem(item);
-
-                                    final students = context
-                                        .read<StudentService>()
-                                        .students
-                                        .map((s) => s.studentId)
-                                        .toList();
-                                    await context
-                                        .read<StudentScoreService>()
-                                        .ensureDefaultScoresForGradeItem(
-                                          widget.classId,
-                                          item.gradeItemId,
-                                          students,
-                                          item.maxScore,
-                                        );
-                                    if (mounted) {
-                                      setState(() => selectedGradeItemId =
-                                          item.gradeItemId);
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.edit_note,
-                                  size: 64,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant),
-                              const SizedBox(height: AppSpacing.md),
-                              Text('No grade items yet',
-                                  style: context.textStyles.titleLarge),
-                              Text('Add a grade item to start entering scores',
-                                  style: context.textStyles.bodyMedium),
-                            ],
-                          ),
-                        ))
-                  : ListView.builder(
-                      padding: AppSpacing.paddingMd,
-                      itemCount: studentService.students.length,
-                      itemBuilder: (context, index) {
-                        final student = studentService.students[index];
-                        final item = gradeItemService.gradeItems.firstWhere(
-                            (g) => g.gradeItemId == selectedGradeItemId);
-                        final current = scoreService.getScore(
-                            student.studentId, selectedGradeItemId!);
-                        return _ScoreSliderRow(
-                          key: ValueKey(
-                              '${student.studentId}_${item.gradeItemId}'),
-                          studentName:
-                              '${student.chineseName} • ${student.englishFullName}',
-                          studentId: student.studentId,
-                          seatNo: student.seatNo,
-                          photoBase64: student.photoBase64,
-                          gradeItemId: item.gradeItemId,
-                          maxScore: item.maxScore,
-                          initialScore: current?.score,
-                          onChanged: (val) => _updateScore(
-                              student.studentId, item.gradeItemId, val),
-                          onClear: () => _updateScore(
-                              student.studentId, item.gradeItemId, null),
-                          onOpen: () => _openQuickGradeSheet(index),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
       ),
     );
   }
 }
 
-class _GradebookMetricChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _GradebookMetricChip({
-    required this.icon,
-    required this.label,
+class _CompactGradebookContextStrip extends StatelessWidget {
+  const _CompactGradebookContextStrip({
+    required this.studentCount,
+    required this.categoryCount,
+    required this.syncStatus,
+    this.selectedCategory,
   });
+
+  final int studentCount;
+  final int categoryCount;
+  final String syncStatus;
+  final String? selectedCategory;
 
   @override
   Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _ContextChip(icon: Icons.people_alt_outlined, label: 'Students', value: '$studentCount'),
+          const SizedBox(width: 8),
+          _ContextChip(icon: Icons.category_outlined, label: 'Categories', value: '$categoryCount'),
+          const SizedBox(width: 8),
+          _ContextChip(
+            icon: syncStatus == 'Synced' ? Icons.cloud_done_outlined : Icons.sync,
+            label: 'Status',
+            value: syncStatus,
+          ),
+          if (selectedCategory != null) ...[
+            const SizedBox(width: 8),
+            _ContextChip(icon: Icons.bookmark_outline, label: 'Category', value: selectedCategory!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ContextChip extends StatelessWidget {
+  const _ContextChip({required this.icon, required this.label, required this.value});
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: 0.32),
         borderRadius: BorderRadius.circular(999),
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.26),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.34),
-        ),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.24)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(width: 8),
+          Icon(icon, size: 15, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 6),
           Text(
-            label,
-            style: context.textStyles.labelLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            '$label: $value',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactGradebookToolbar extends StatelessWidget {
+  final List<GradingCategory> categories;
+  final List<GradeItem> categoryItems;
+  final String? selectedCategoryId;
+  final String? selectedGradeItemId;
+  final Function(String) onCategoryChanged;
+  final Function(String) onGradeItemChanged;
+  final VoidCallback onAddGradeItem;
+  final VoidCallback onUndoLastChange;
+  final VoidCallback? onApplyToAll;
+  final VoidCallback? onDeleteGradeItem;
+
+  const _CompactGradebookToolbar({
+    required this.categories,
+    required this.categoryItems,
+    required this.selectedCategoryId,
+    required this.selectedGradeItemId,
+    required this.onCategoryChanged,
+    required this.onGradeItemChanged,
+    required this.onAddGradeItem,
+    required this.onUndoLastChange,
+    required this.onApplyToAll,
+    required this.onDeleteGradeItem,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          // Category selector dropdown
+          if (categories.isNotEmpty)
+            SizedBox(
+              width: 160,
+              child: DropdownButtonFormField<String>(
+                initialValue: selectedCategoryId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  hintText: 'Category',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                ),
+                items: [
+                  for (final cat in categories)
+                    DropdownMenuItem(
+                      value: cat.categoryId,
+                      child: Text(cat.name, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    onCategoryChanged(value);
+                  }
+                },
+              ),
+            ),
+          const SizedBox(width: 8),
+
+          // Grade item selector dropdown
+          if (selectedCategoryId != null && categoryItems.isNotEmpty)
+            SizedBox(
+              width: 160,
+              child: DropdownButtonFormField<String>(
+                initialValue: selectedGradeItemId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  hintText: 'Grade Item',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                ),
+                items: [
+                  for (final item in categoryItems)
+                    DropdownMenuItem(
+                      value: item.gradeItemId,
+                      child: Text(item.name, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    onGradeItemChanged(value);
+                  }
+                },
+              ),
+            ),
+          const SizedBox(width: 8),
+
+          // Add button
+          if (selectedCategoryId != null)
+            IconButton(
+              tooltip: 'Add grade item',
+              icon: const Icon(Icons.add),
+              onPressed: onAddGradeItem,
+            ),
+
+          // Undo button
+          IconButton(
+            tooltip: 'Undo last change',
+            icon: const Icon(Icons.undo),
+            onPressed: onUndoLastChange,
+          ),
+
+          // Apply to all button
+          if (onApplyToAll != null)
+            IconButton(
+              tooltip: 'Apply to all students',
+              icon: const Icon(Icons.done_all),
+              onPressed: onApplyToAll,
+            ),
+
+          // Delete button
+          if (onDeleteGradeItem != null)
+            IconButton(
+              tooltip: 'Delete grade item',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: onDeleteGradeItem,
+            ),
         ],
       ),
     );

@@ -39,6 +39,7 @@ class _StudentListPanelState extends State<StudentListPanel> {
         .toList();
     final sortedUnassigned = _sortStudents(unassigned);
     final assignedCount = widget.students.length - unassigned.length;
+    final listBody = _buildStudentList(sortedUnassigned);
 
     return Container(
       width: widget.compact ? double.infinity : 280,
@@ -48,129 +49,160 @@ class _StudentListPanelState extends State<StudentListPanel> {
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Students',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-              PopupMenuButton<StudentListSortMode>(
-                onSelected: (value) => setState(() => _sortMode = value),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: StudentListSortMode.studentIdAsc,
-                    child: Text('Student ID (Ascending)'),
-                  ),
-                  const PopupMenuItem(
-                    value: StudentListSortMode.nameAsc,
-                    child: Text('Name (A-Z)'),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cramped = constraints.maxHeight.isFinite &&
+              constraints.maxHeight < 180;
+
+          if (cramped) {
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, unassigned.length, assignedCount),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 180,
+                    child: listBody,
                   ),
                 ],
-                child: Tooltip(
-                  message: 'Sort students',
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 4,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.sort,
-                          size: 18,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _sortMode == StudentListSortMode.studentIdAsc
-                              ? 'ID asc'
-                              : 'Name',
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                      ],
-                    ),
+              ),
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context, unassigned.length, assignedCount),
+              const SizedBox(height: 12),
+              Expanded(child: listBody),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, int unassignedCount, int assignedCount) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Students',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            PopupMenuButton<StudentListSortMode>(
+              onSelected: (value) => setState(() => _sortMode = value),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: StudentListSortMode.studentIdAsc,
+                  child: Text('Student ID (Ascending)'),
+                ),
+                const PopupMenuItem(
+                  value: StudentListSortMode.nameAsc,
+                  child: Text('Name (A-Z)'),
+                ),
+              ],
+              child: Tooltip(
+                message: 'Sort students',
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.sort,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _sortMode == StudentListSortMode.studentIdAsc
+                            ? 'ID asc'
+                            : 'Name',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${unassigned.length} unassigned | $assignedCount placed',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-              ),
-              Text(
-                _sortMode == StudentListSortMode.studentIdAsc
-                    ? 'Sorted by ID'
-                    : 'Sorted by name',
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '$unassignedCount unassigned | $assignedCount placed',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: sortedUnassigned.isEmpty
-                ? const _StudentPanelEmptyState()
-                : ListView.separated(
-                    itemCount: sortedUnassigned.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final student = sortedUnassigned[index];
-                      final chip = _StudentChip(
-                        key: ValueKey('student-chip-${student.studentId}'),
-                        title:
-                            '${student.chineseName} (${student.englishFullName})',
-                        subtitle: 'ID: ${student.studentId}',
-                      );
-                      final feedback = Material(
-                        color: Colors.transparent,
-                        child: _StudentChip(
-                          title:
-                              '${student.chineseName} (${student.englishFullName})',
-                          subtitle: 'ID: ${student.studentId}',
-                          expand: false,
-                        ),
-                      );
-
-                      if (_usesImmediateMouseDrag) {
-                        return Draggable<StudentDragData>(
-                          data: StudentDragData(studentId: student.studentId),
-                          feedback: feedback,
-                          childWhenDragging:
-                              Opacity(opacity: 0.35, child: chip),
-                          child: chip,
-                        );
-                      }
-
-                      return LongPressDraggable<StudentDragData>(
-                        data: StudentDragData(studentId: student.studentId),
-                        feedback: feedback,
-                        childWhenDragging: Opacity(opacity: 0.35, child: chip),
-                        child: chip,
-                      );
-                    },
+            ),
+            Text(
+              _sortMode == StudentListSortMode.studentIdAsc
+                  ? 'Sorted by ID'
+                  : 'Sorted by name',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStudentList(List<Student> sortedUnassigned) {
+    if (sortedUnassigned.isEmpty) {
+      return const _StudentPanelEmptyState();
+    }
+
+    return ListView.separated(
+      itemCount: sortedUnassigned.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final student = sortedUnassigned[index];
+        final chip = _StudentChip(
+          title: '${student.chineseName} (${student.englishFullName})',
+          subtitle: 'ID: ${student.studentId}',
+        );
+        final feedback = Material(
+          color: Colors.transparent,
+          child: _StudentChip(
+            title: '${student.chineseName} (${student.englishFullName})',
+            subtitle: 'ID: ${student.studentId}',
+            expand: false,
           ),
-        ],
-      ),
+        );
+
+        if (_usesImmediateMouseDrag) {
+          return Draggable<StudentDragData>(
+            data: StudentDragData(studentId: student.studentId),
+            feedback: feedback,
+            childWhenDragging: Opacity(opacity: 0.35, child: chip),
+            child: chip,
+          );
+        }
+
+        return LongPressDraggable<StudentDragData>(
+          data: StudentDragData(studentId: student.studentId),
+          feedback: feedback,
+          childWhenDragging: Opacity(opacity: 0.35, child: chip),
+          child: chip,
+        );
+      },
     );
   }
 
@@ -299,7 +331,6 @@ class _StudentChip extends StatelessWidget {
   final bool expand;
 
   const _StudentChip({
-    super.key,
     required this.title,
     required this.subtitle,
     this.expand = true,

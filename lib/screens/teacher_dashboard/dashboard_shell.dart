@@ -53,14 +53,39 @@ Color _dashboardInteractiveOverlay({
   return _DashboardPalette.accent.withValues(alpha: baseAlpha * emphasis);
 }
 
-class _DashboardNavItemData {
+const Duration _shellMotionFast = Duration(milliseconds: 170);
+const Duration _shellMotionNormal = Duration(milliseconds: 220);
+const Curve _shellEase = Curves.easeOutCubic;
+
+bool _isTouchLikeViewport(BuildContext context) {
+  final shortest = MediaQuery.sizeOf(context).shortestSide;
+  return shortest < 700;
+}
+
+Matrix4 _shellMotionTransform(
+  BuildContext context, {
+  required double lift,
+  required double scale,
+}) {
+  final width = MediaQuery.sizeOf(context).width;
+  final touchLike = _isTouchLikeViewport(context);
+  final tunedLift = touchLike ? 0.0 : (width < 1180 ? lift * 0.72 : lift);
+  final tunedScale = touchLike
+      ? 1.0
+      : (width < 1180 ? 1 + ((scale - 1) * 0.72) : scale);
+  final matrix = Matrix4.diagonal3Values(tunedScale, tunedScale, 1.0);
+  matrix.setTranslationRaw(0.0, tunedLift, 0.0);
+  return matrix;
+}
+
+class DashboardNavItemData {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
   final bool isActive;
   final String? badge;
 
-  const _DashboardNavItemData({
+  const DashboardNavItemData({
     required this.label,
     required this.icon,
     required this.onTap,
@@ -69,7 +94,7 @@ class _DashboardNavItemData {
   });
 }
 
-class _DashboardSummaryMetricData {
+class DashboardSummaryMetricData {
   final String label;
   final String value;
   final String detail;
@@ -78,7 +103,7 @@ class _DashboardSummaryMetricData {
   final String actionLabel;
   final VoidCallback? onTap;
 
-  const _DashboardSummaryMetricData({
+  const DashboardSummaryMetricData({
     required this.label,
     required this.value,
     required this.detail,
@@ -134,6 +159,7 @@ class DashboardClassStatusData {
   final List<DashboardClassMetricData> metrics;
   final VoidCallback onTap;
   final List<DashboardInlineActionData> actions;
+  final bool suppressTimetableWarning;
 
   const DashboardClassStatusData({
     required this.id,
@@ -152,6 +178,7 @@ class DashboardClassStatusData {
     required this.metrics,
     required this.onTap,
     required this.actions,
+    this.suppressTimetableWarning = false,
   });
 }
 
@@ -165,14 +192,14 @@ class DashboardClassMetricData {
   });
 }
 
-class _DashboardQuickActionData {
+class DashboardQuickActionData {
   final String label;
   final String detail;
   final IconData icon;
   final Color accent;
   final VoidCallback onTap;
 
-  const _DashboardQuickActionData({
+  const DashboardQuickActionData({
     required this.label,
     required this.detail,
     required this.icon,
@@ -684,6 +711,7 @@ class MobileBottomNavigation extends StatelessWidget {
             NavigationDestination(
               icon: Icon(destination.icon),
               label: destination.label,
+              tooltip: destination.label,
             ),
         ],
       ),
@@ -693,8 +721,8 @@ class MobileBottomNavigation extends StatelessWidget {
 
 class SidebarNavigation extends StatelessWidget {
   final bool compact;
-  final List<_DashboardNavItemData> primaryItems;
-  final List<_DashboardNavItemData> secondaryItems;
+  final List<DashboardNavItemData> primaryItems;
+  final List<DashboardNavItemData> secondaryItems;
 
   const SidebarNavigation({
     super.key,
@@ -837,6 +865,8 @@ class SidebarNavigation extends StatelessWidget {
                 children: [
                   Text(
                     'Connected editions',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
@@ -844,6 +874,8 @@ class SidebarNavigation extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     'Admin and Communication stay nearby without crowding the daily dashboard.',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -860,7 +892,7 @@ class DashboardTopSummary extends StatelessWidget {
   final String subtitle;
   final String todayLine;
   final List<Widget> actions;
-  final List<_DashboardSummaryMetricData> metrics;
+  final List<DashboardSummaryMetricData> metrics;
   final DashboardHeroPresentation presentation;
   final ImageProvider<Object>? backgroundImage;
   final bool compact;
@@ -882,7 +914,7 @@ class DashboardTopSummary extends StatelessWidget {
     final primaryMetric = metrics.isNotEmpty ? metrics.first : null;
     final secondaryMetrics = metrics.length > 1
         ? metrics.sublist(1)
-        : const <_DashboardSummaryMetricData>[];
+      : const <DashboardSummaryMetricData>[];
     final summaryPills = todayLine
         .split('•')
         .map((segment) => segment.trim())
@@ -897,9 +929,10 @@ class DashboardTopSummary extends StatelessWidget {
       builder: (context, constraints) {
         final baseTheme = Theme.of(context);
         final wide = !compact && constraints.maxWidth > 1060;
+        final medium = !compact && constraints.maxWidth > 820;
 
         return DashboardPanelCard(
-          padding: EdgeInsets.all(compact ? 18 : 22),
+          padding: EdgeInsets.all(compact ? 16 : 20),
           radius: 24,
           gradientColors: [
             _DashboardPalette.sidebarAlt,
@@ -931,7 +964,7 @@ class DashboardTopSummary extends StatelessWidget {
                             _CommandDeckLiveBadge(accent: deckAccent),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         Text(
                           title,
                           style: (compact
@@ -942,9 +975,11 @@ class DashboardTopSummary extends StatelessWidget {
                             letterSpacing: -0.5,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Text(
                           subtitle,
+                          maxLines: compact ? 2 : 1,
+                          overflow: TextOverflow.ellipsis,
                           style: baseTheme.textTheme.bodyMedium?.copyWith(
                             color: _DashboardPalette.textSecondary,
                             fontWeight: FontWeight.w500,
@@ -957,7 +992,7 @@ class DashboardTopSummary extends StatelessWidget {
                     const SizedBox(width: 16),
                     ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxWidth: wide ? 232 : 180,
+                        maxWidth: wide ? 236 : (medium ? 206 : 180),
                       ),
                       child: Wrap(
                         spacing: 8,
@@ -970,28 +1005,39 @@ class DashboardTopSummary extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final pill in summaryPills)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final pill in summaryPills) ...[
+                      _CommandDeckSummaryPill(
+                        label: pill,
+                        accent: deckAccent,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     _CommandDeckSummaryPill(
-                      label: pill,
+                      label: backgroundImage != null
+                          ? 'Personalized deck'
+                          : presentation.label,
+                      icon: backgroundImage != null
+                          ? Icons.image_outlined
+                          : Icons.palette_outlined,
                       accent: deckAccent,
                     ),
-                  _CommandDeckSummaryPill(
-                    label: backgroundImage != null
-                        ? 'Personalized deck'
-                        : presentation.label,
-                    icon: backgroundImage != null
-                        ? Icons.image_outlined
-                        : Icons.palette_outlined,
-                    accent: deckAccent,
-                  ),
-                ],
+                  ],
+                ),
               ),
               if (primaryMetric != null) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
+                Text(
+                  'Instruments',
+                  style: baseTheme.textTheme.labelLarge?.copyWith(
+                    color: _DashboardPalette.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 if (wide)
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1179,7 +1225,7 @@ class _CommandDeckSummaryPill extends StatelessWidget {
 }
 
 class _CommandDeckPrimaryPanel extends StatefulWidget {
-  final _DashboardSummaryMetricData metric;
+  final DashboardSummaryMetricData metric;
   final Color accent;
 
   const _CommandDeckPrimaryPanel({
@@ -1194,6 +1240,8 @@ class _CommandDeckPrimaryPanel extends StatefulWidget {
 
 class _CommandDeckPrimaryPanelState extends State<_CommandDeckPrimaryPanel>
     with SingleTickerProviderStateMixin {
+  bool _hovered = false;
+
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 6400),
@@ -1211,22 +1259,42 @@ class _CommandDeckPrimaryPanelState extends State<_CommandDeckPrimaryPanel>
     final panelAccent =
         Color.lerp(metric.gradientColors.first, widget.accent, 0.6)!;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: metric.onTap,
-        borderRadius: BorderRadius.circular(22),
-        hoverColor: _dashboardInteractiveOverlay(),
-        focusColor: _dashboardInteractiveOverlay(),
-        highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
-        splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
-        child: Container(
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: _shellMotionNormal,
+        curve: _shellEase,
+        transform: _shellMotionTransform(
+          context,
+          lift: _hovered ? -1.5 : 0.0,
+          scale: _hovered ? 1.006 : 1.0,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: metric.onTap,
+            borderRadius: BorderRadius.circular(22),
+            hoverColor: _dashboardInteractiveOverlay(),
+            focusColor: _dashboardInteractiveOverlay(),
+            highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
+            splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
+            child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             color: Colors.white.withValues(alpha: 0.04),
             border: Border.all(
-              color: panelAccent.withValues(alpha: 0.22),
+              color: panelAccent.withValues(alpha: _hovered ? 0.3 : 0.22),
             ),
+            boxShadow: _hovered
+                ? [
+                    BoxShadow(
+                      color: panelAccent.withValues(alpha: 0.16),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
@@ -1379,14 +1447,16 @@ class _CommandDeckPrimaryPanelState extends State<_CommandDeckPrimaryPanel>
               ],
             ),
           ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _CommandDeckSecondaryPanel extends StatelessWidget {
-  final _DashboardSummaryMetricData metric;
+class _CommandDeckSecondaryPanel extends StatefulWidget {
+  final DashboardSummaryMetricData metric;
   final Color accent;
 
   const _CommandDeckSecondaryPanel({
@@ -1395,25 +1465,46 @@ class _CommandDeckSecondaryPanel extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final panelAccent = Color.lerp(metric.gradientColors.first, accent, 0.55)!;
+  State<_CommandDeckSecondaryPanel> createState() =>
+      _CommandDeckSecondaryPanelState();
+}
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: metric.onTap,
-        borderRadius: BorderRadius.circular(20),
-        hoverColor: _dashboardInteractiveOverlay(),
-        focusColor: _dashboardInteractiveOverlay(),
-        highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
-        splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
-        child: Container(
+class _CommandDeckSecondaryPanelState extends State<_CommandDeckSecondaryPanel> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final metric = widget.metric;
+    final panelAccent =
+        Color.lerp(metric.gradientColors.first, widget.accent, 0.55)!;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: _shellMotionFast,
+        curve: _shellEase,
+        transform: _shellMotionTransform(
+          context,
+          lift: _hovered ? -1.0 : 0.0,
+          scale: 1.0,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: metric.onTap,
+            borderRadius: BorderRadius.circular(20),
+            hoverColor: _dashboardInteractiveOverlay(),
+            focusColor: _dashboardInteractiveOverlay(),
+            highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
+            splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
+            child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             color: Colors.white.withValues(alpha: 0.035),
             border: Border.all(
-              color: panelAccent.withValues(alpha: 0.18),
+              color: panelAccent.withValues(alpha: _hovered ? 0.28 : 0.18),
             ),
           ),
           child: Column(
@@ -1481,6 +1572,8 @@ class _CommandDeckSecondaryPanel extends StatelessWidget {
               ),
             ],
           ),
+            ),
+          ),
         ),
       ),
     );
@@ -1541,12 +1634,14 @@ class ClassStatusSection extends StatelessWidget {
   final List<DashboardClassStatusData> classes;
   final VoidCallback onOpenClasses;
   final bool compact;
+  final Widget? warning;
 
   const ClassStatusSection({
     super.key,
     required this.classes,
     required this.onOpenClasses,
     this.compact = false,
+    this.warning,
   });
 
   @override
@@ -1576,6 +1671,11 @@ class ClassStatusSection extends StatelessWidget {
             spacing: gap,
             runSpacing: gap,
             children: [
+              if (warning != null)
+                SizedBox(
+                  width: width,
+                  child: warning!,
+                ),
               for (final classData in classes)
                 SizedBox(
                   width: cardWidth,
@@ -1590,7 +1690,7 @@ class ClassStatusSection extends StatelessWidget {
 }
 
 class QuickActionsSection extends StatelessWidget {
-  final List<_DashboardQuickActionData> actions;
+  final List<DashboardQuickActionData> actions;
   final bool compact;
 
   const QuickActionsSection({
@@ -1657,10 +1757,38 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
     }
   }
 
+  List<_WorkspaceStripItemData> _items() => const [
+        _WorkspaceStripItemData(
+          section: DashboardWorkspaceSection.today,
+          label: 'Today',
+          icon: Icons.insights_outlined,
+        ),
+        _WorkspaceStripItemData(
+          section: DashboardWorkspaceSection.classroom,
+          label: 'Classroom',
+          icon: Icons.draw_outlined,
+        ),
+        _WorkspaceStripItemData(
+          section: DashboardWorkspaceSection.planning,
+          label: 'Schedule',
+          icon: Icons.event_note_outlined,
+        ),
+        _WorkspaceStripItemData(
+          section: DashboardWorkspaceSection.workspace,
+          label: 'Workspace',
+          icon: Icons.workspaces_outline,
+        ),
+      ];
+
   @override
   Widget build(BuildContext context) {
+    final touchLike = _isTouchLikeViewport(context);
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final compactStripLabels = touchLike || viewportWidth < 1020;
+    final items = _items();
+
     return DashboardPanelCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       radius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1694,7 +1822,11 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Primary surfaces stay pinned while one secondary surface takes focus.',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                          ),
                     ),
                   ],
                 ),
@@ -1710,47 +1842,34 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              color: Colors.white.withValues(alpha: 0.03),
+              color: Colors.white.withValues(alpha: 0.025),
               border: Border.all(
                 color: _DashboardPalette.border.withValues(alpha: 0.85),
               ),
             ),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: SegmentedButton<DashboardWorkspaceSection>(
-                segments: const [
-                  ButtonSegment(
-                    value: DashboardWorkspaceSection.today,
-                    icon: Icon(Icons.insights_outlined),
-                    label: Text('Today'),
-                  ),
-                  ButtonSegment(
-                    value: DashboardWorkspaceSection.classroom,
-                    icon: Icon(Icons.draw_outlined),
-                    label: Text('Classroom'),
-                  ),
-                  ButtonSegment(
-                    value: DashboardWorkspaceSection.planning,
-                    icon: Icon(Icons.event_note_outlined),
-                    label: Text('Schedule'),
-                  ),
-                  ButtonSegment(
-                    value: DashboardWorkspaceSection.workspace,
-                    icon: Icon(Icons.workspaces_outline),
-                    label: Text('Workspace'),
-                  ),
+              child: Row(
+                children: [
+                  for (int index = 0; index < items.length; index++) ...[
+                    _WorkspaceStripButton(
+                      item: items[index],
+                      selected: selectedSection == items[index].section,
+                      compactLabel: compactStripLabels,
+                      onTap: () => onSelected(items[index].section),
+                    ),
+                    if (index != items.length - 1) const SizedBox(width: 6),
+                  ],
                 ],
-                selected: {selectedSection},
-                onSelectionChanged: (selection) => onSelected(selection.first),
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -1771,6 +1890,125 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WorkspaceStripItemData {
+  final DashboardWorkspaceSection section;
+  final String label;
+  final IconData icon;
+
+  const _WorkspaceStripItemData({
+    required this.section,
+    required this.label,
+    required this.icon,
+  });
+}
+
+class _WorkspaceStripButton extends StatefulWidget {
+  final _WorkspaceStripItemData item;
+  final bool selected;
+  final bool compactLabel;
+  final VoidCallback onTap;
+
+  const _WorkspaceStripButton({
+    required this.item,
+    required this.selected,
+    required this.compactLabel,
+    required this.onTap,
+  });
+
+  @override
+  State<_WorkspaceStripButton> createState() => _WorkspaceStripButtonState();
+}
+
+class _WorkspaceStripButtonState extends State<_WorkspaceStripButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = widget.selected;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: _shellMotionNormal,
+        curve: _shellEase,
+        transform: _shellMotionTransform(
+          context,
+          lift: !active && _hovered ? -1.0 : 0.0,
+          scale: !active && _hovered ? 1.006 : 1.0,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: active
+              ? _DashboardPalette.accent.withValues(alpha: 0.16)
+              : Colors.white.withValues(alpha: _hovered ? 0.06 : 0.02),
+          border: Border.all(
+            color: active
+                ? _DashboardPalette.accent.withValues(alpha: 0.3)
+                : _DashboardPalette.border.withValues(alpha: 0.72),
+          ),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: _DashboardPalette.accent.withValues(alpha: 0.18),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : null,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(14),
+            hoverColor: _dashboardInteractiveOverlay(),
+            focusColor: _dashboardInteractiveOverlay(),
+            highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
+            splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
+            child: AnimatedContainer(
+              duration: _shellMotionFast,
+              curve: _shellEase,
+              constraints: BoxConstraints(
+                minHeight: widget.compactLabel ? 44 : 42,
+              ),
+              padding: EdgeInsets.symmetric(
+                horizontal: widget.compactLabel ? 11 : 12,
+                vertical: 9,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    widget.item.icon,
+                    size: 17,
+                    color: active
+                        ? _DashboardPalette.accentSoft
+                        : _DashboardPalette.textSecondary,
+                  ),
+                  if (!widget.compactLabel) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      widget.item.label,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: active
+                                ? _DashboardPalette.textPrimary
+                                : _DashboardPalette.textSecondary,
+                            fontWeight: active
+                                ? FontWeight.w800
+                                : FontWeight.w700,
+                          ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -2382,7 +2620,7 @@ class _DashboardSystemStatusRow extends StatelessWidget {
   }
 }
 
-class _DashboardCommunicationWidgetCard extends StatelessWidget {
+class _DashboardCommunicationWidgetCard extends StatefulWidget {
   final DashboardCommunicationWidgetData data;
   final bool compact;
 
@@ -2392,132 +2630,183 @@ class _DashboardCommunicationWidgetCard extends StatelessWidget {
   });
 
   @override
+  State<_DashboardCommunicationWidgetCard> createState() =>
+      _DashboardCommunicationWidgetCardState();
+}
+
+class _DashboardCommunicationWidgetCardState
+    extends State<_DashboardCommunicationWidgetCard> {
+  bool _isHovered = false;
+  bool _isExpanded = false;
+
+  bool _touchLike({required BuildContext context}) {
+    final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+    return shortestSide < 700;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final previewThreads = data.threads.take(compact ? 2 : 3).toList();
+    final compactCard = widget.compact;
+    final touchLike = _touchLike(context: context);
+    final reveal = _isExpanded || (_isHovered && !touchLike);
+    final previewThreads = widget.data.threads
+        .take(reveal ? (compactCard ? 2 : 3) : 1)
+        .toList();
     final accent = previewThreads.isNotEmpty
         ? previewThreads.first.accent
         : _DashboardPalette.accent;
 
-    return DashboardPanelCard(
-      onTap: data.onTap,
-      padding: const EdgeInsets.all(16),
-      radius: 22,
-      gradientColors: [
-        _DashboardPalette.panel,
-        _DashboardPalette.panelAlt,
-      ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+    return MouseRegion(
+      onEnter: (_) {
+        if (!touchLike) {
+          setState(() => _isHovered = true);
+        }
+      },
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onLongPress: () {
+          if (touchLike) {
+            setState(() => _isExpanded = !_isExpanded);
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          transform: _shellMotionTransform(
+            context,
+            lift: reveal ? -1.5 : 0.0,
+            scale: reveal ? 1.006 : 1.0,
+          ),
+          child: DashboardPanelCard(
+            onTap: widget.data.onTap,
+            padding: const EdgeInsets.all(16),
+            radius: 22,
+            minHeight: reveal ? (compactCard ? 196 : 210) : (compactCard ? 148 : 160),
+            gradientColors: [
+              _DashboardPalette.panel,
+              _DashboardPalette.panelAlt.withValues(alpha: reveal ? 1.0 : 0.9),
+            ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Messages',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: _DashboardPalette.textSecondary,
-                            fontWeight: FontWeight.w700,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Messages',
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  color: _DashboardPalette.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                ),
                           ),
+                          const SizedBox(height: 7),
+                          Text(
+                            widget.data.headline,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.data.detail,
+                            maxLines: reveal ? 2 : 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: _DashboardPalette.textSecondary,
+                                  height: 1.4,
+                                ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      data.headline,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      data.detail,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: _DashboardPalette.textSecondary,
-                            height: 1.45,
-                          ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        color: accent.withValues(alpha: 0.12),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.20),
+                        ),
+                      ),
+                      child: Text(
+                        widget.data.unreadCount > 0 ? '${widget.data.unreadCount}' : 'Open',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: accent,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  color: accent.withValues(alpha: 0.12),
-                  border: Border.all(
-                    color: accent.withValues(alpha: 0.20),
-                  ),
-                ),
-                child: Text(
-                  data.unreadCount > 0 ? '${data.unreadCount}' : 'Open',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: accent,
-                        fontWeight: FontWeight.w800,
+                const SizedBox(height: 12),
+                if (previewThreads.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.white.withValues(alpha: 0.03),
+                      border: Border.all(
+                        color: _DashboardPalette.border.withValues(alpha: 0.78),
                       ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (previewThreads.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                color: Colors.white.withValues(alpha: 0.03),
-                border: Border.all(
-                  color: _DashboardPalette.border.withValues(alpha: 0.78),
-                ),
-              ),
-              child: Text(
-                'Inbox clear.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: _DashboardPalette.textSecondary,
                     ),
-              ),
-            ),
-          for (int index = 0; index < previewThreads.length; index++) ...[
-            _CommunicationPreviewRow(thread: previewThreads[index]),
-            if (index != previewThreads.length - 1) const SizedBox(height: 10),
-          ],
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: accent.withValues(alpha: 0.08),
-              border: Border.all(
-                color: accent.withValues(alpha: 0.16),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Open inbox',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                    child: Text(
+                      'Inbox clear.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                          ),
+                    ),
                   ),
-                ),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  color: accent,
-                  size: 18,
+                for (int index = 0; index < previewThreads.length; index++) ...[
+                  _CommunicationPreviewRow(
+                    thread: previewThreads[index],
+                    previewLines: reveal ? 2 : 1,
+                    showMeta: reveal,
+                  ),
+                  if (index != previewThreads.length - 1) const SizedBox(height: 9),
+                ],
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: accent.withValues(alpha: 0.08),
+                    border: Border.all(
+                      color: accent.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Open inbox',
+                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        color: accent,
+                        size: 18,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2525,15 +2814,51 @@ class _DashboardCommunicationWidgetCard extends StatelessWidget {
 
 class _CommunicationPreviewRow extends StatelessWidget {
   final DashboardCommunicationThreadData thread;
+  final int previewLines;
+  final bool showMeta;
 
   const _CommunicationPreviewRow({
     required this.thread,
+    this.previewLines = 1,
+    this.showMeta = false,
   });
+
+  String _wordBoundaryPreview(String input, {int maxChars = 180}) {
+    final normalized = input.trim();
+    if (normalized.length <= maxChars) {
+      return normalized;
+    }
+    final cut = normalized.substring(0, maxChars);
+    final boundary = cut.lastIndexOf(RegExp(r'\s'));
+    final safe = boundary > 40 ? cut.substring(0, boundary) : cut;
+    return safe.trimRight();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final previewText = _wordBoundaryPreview(thread.preview);
+
+    Future<void> openFullPreview() async {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(thread.title),
+          content: Text(
+            thread.preview,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
         color: Colors.white.withValues(alpha: 0.04),
@@ -2574,14 +2899,24 @@ class _CommunicationPreviewRow extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  thread.preview,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: _DashboardPalette.textSecondary,
-                        height: 1.4,
+                Tooltip(
+                  message: thread.preview,
+                  child: InkWell(
+                    onTap: openFullPreview,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        previewText,
+                        maxLines: previewLines,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: _DashboardPalette.textSecondary,
+                              height: 1.45,
+                            ),
                       ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -2609,14 +2944,15 @@ class _CommunicationPreviewRow extends StatelessWidget {
                         ),
                   ),
                 ),
-              if (thread.unreadCount > 0) const SizedBox(height: 6),
-              Text(
-                thread.meta,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: _DashboardPalette.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
+              if (showMeta && thread.unreadCount > 0) const SizedBox(height: 6),
+              if (showMeta)
+                Text(
+                  thread.meta,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: _DashboardPalette.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
             ],
           ),
         ],
@@ -2835,10 +3171,10 @@ class DashboardPanelCard extends StatelessWidget {
   }
 }
 
-class _SidebarNavButton extends StatelessWidget {
+class _SidebarNavButton extends StatefulWidget {
   final bool compact;
   final bool secondary;
-  final _DashboardNavItemData item;
+  final DashboardNavItemData item;
 
   const _SidebarNavButton({
     required this.compact,
@@ -2847,27 +3183,49 @@ class _SidebarNavButton extends StatelessWidget {
   });
 
   @override
+  State<_SidebarNavButton> createState() => _SidebarNavButtonState();
+}
+
+class _SidebarNavButtonState extends State<_SidebarNavButton> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
+    final item = widget.item;
     final active = item.isActive;
+    final touchLike = _isTouchLikeViewport(context);
     final child = AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
+      duration: _shellMotionNormal,
+      curve: _shellEase,
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 10 : 12,
-        vertical: compact ? 11 : 11,
+        horizontal: widget.compact ? 10 : 12,
+        vertical: widget.compact ? 11 : 11,
       ),
+      constraints: BoxConstraints(minHeight: widget.compact ? 44 : 46),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         color: active
             ? _DashboardPalette.accent.withValues(alpha: 0.12)
-            : Colors.white.withValues(alpha: secondary ? 0.02 : 0.0),
+            : Colors.white.withValues(
+                alpha: _hovered ? 0.05 : (widget.secondary ? 0.02 : 0.0),
+              ),
         border: Border.all(
           color: active
               ? _DashboardPalette.accent.withValues(alpha: 0.22)
               : _DashboardPalette.border
-                  .withValues(alpha: secondary ? 0.64 : 0),
+                  .withValues(alpha: widget.secondary || _hovered ? 0.64 : 0),
         ),
+        boxShadow: active
+            ? [
+                BoxShadow(
+                  color: _DashboardPalette.accent.withValues(alpha: 0.16),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
-      child: compact
+      child: widget.compact
           ? Icon(
               item.icon,
               color: active
@@ -2876,6 +3234,19 @@ class _SidebarNavButton extends StatelessWidget {
             )
           : Row(
               children: [
+                AnimatedContainer(
+                  duration: _shellMotionFast,
+                  curve: _shellEase,
+                  width: 3,
+                  height: 20,
+                  margin: const EdgeInsets.only(right: 9),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    color: active
+                        ? _DashboardPalette.accent
+                        : Colors.transparent,
+                  ),
+                ),
                 Icon(
                   item.icon,
                   size: 19,
@@ -2887,6 +3258,8 @@ class _SidebarNavButton extends StatelessWidget {
                 Expanded(
                   child: Text(
                     item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: active
                               ? Colors.white
@@ -2900,16 +3273,21 @@ class _SidebarNavButton extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
-                      vertical: 4,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
-                      color: Colors.white.withValues(alpha: 0.04),
+                      color: active
+                          ? _DashboardPalette.accent.withValues(alpha: 0.2)
+                          : Colors.white.withValues(alpha: 0.04),
                     ),
                     child: Text(
                       item.badge!,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: _DashboardPalette.textSecondary,
+                            color: active
+                                ? _DashboardPalette.textPrimary
+                                : _DashboardPalette.textSecondary,
+                            fontWeight: FontWeight.w700,
                           ),
                     ),
                   ),
@@ -2917,24 +3295,26 @@ class _SidebarNavButton extends StatelessWidget {
             ),
     );
 
-    final tappable = InkWell(
-      onTap: item.onTap,
-      borderRadius: BorderRadius.circular(16),
-      hoverColor: _dashboardInteractiveOverlay(),
-      focusColor: _dashboardInteractiveOverlay(),
-      highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
-      splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
-      child: child,
-    );
-
-    if (!compact || kIsWeb) {
-      return tappable;
-    }
-
     return Tooltip(
       message:
           item.badge == null ? item.label : '${item.label} (${item.badge})',
-      child: tappable,
+      child: MouseRegion(
+        onEnter: (_) {
+          if (!touchLike) {
+            setState(() => _hovered = true);
+          }
+        },
+        onExit: (_) => setState(() => _hovered = false),
+        child: InkWell(
+          onTap: item.onTap,
+          borderRadius: BorderRadius.circular(16),
+          hoverColor: _dashboardInteractiveOverlay(),
+          focusColor: _dashboardInteractiveOverlay(),
+          highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
+          splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
+          child: child,
+        ),
+      ),
     );
   }
 }
@@ -2998,7 +3378,7 @@ class _DashboardSectionFrame extends StatelessWidget {
   }
 }
 
-class DashboardClassCard extends StatelessWidget {
+class DashboardClassCard extends StatefulWidget {
   final DashboardClassStatusData data;
 
   const DashboardClassCard({
@@ -3006,8 +3386,30 @@ class DashboardClassCard extends StatelessWidget {
     required this.data,
   });
 
+  @override
+  State<DashboardClassCard> createState() => _DashboardClassCardState();
+}
+
+class _DashboardClassCardState extends State<DashboardClassCard> {
+  bool _isHovered = false;
+  bool _isExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didUpdateWidget(covariant DashboardClassCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.data.isSelected && !widget.data.isSelected) {
+      _isExpanded = false;
+      _isHovered = false;
+    }
+  }
+
   Color _statusAccent() {
-    switch (data.level) {
+    switch (widget.data.level) {
       case ClassHealthLevel.ready:
         return _DashboardPalette.green;
       case ClassHealthLevel.attention:
@@ -3017,111 +3419,545 @@ class DashboardClassCard extends StatelessWidget {
     }
   }
 
+  void _toggleExpanded() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+    });
+  }
+
+  bool _isTouchLike({
+    required bool compactWidth,
+    required BuildContext context,
+  }) {
+    final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+    return compactWidth || shortestSide < 700;
+  }
+
+  void _handleCardTap({required bool touchLike}) {
+    if (touchLike) {
+      if (!widget.data.isSelected) {
+        widget.data.onTap();
+        return;
+      }
+      _toggleExpanded();
+      return;
+    }
+
+    if (!widget.data.isSelected) {
+      widget.data.onTap();
+      if (_isExpanded) {
+        setState(() => _isExpanded = false);
+      }
+      return;
+    }
+
+    _toggleExpanded();
+  }
+
+  void _handleLongPress({required bool touchLike}) {
+    if (!touchLike) {
+      return;
+    }
+    if (!widget.data.isSelected) {
+      widget.data.onTap();
+    }
+    if (!_isExpanded) {
+      setState(() => _isExpanded = true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusAccent = _statusAccent();
+    final suppressStatusChip = widget.data.suppressTimetableWarning &&
+        widget.data.statusLabel.toLowerCase().contains('timetable');
+    final primaryAction = widget.data.actions.isNotEmpty
+        ? widget.data.actions.first
+        : null;
+    final secondaryActions =
+        widget.data.actions.length > 1
+            ? widget.data.actions.sublist(1)
+            : <DashboardInlineActionData>[];
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compactCard = constraints.maxWidth < 390;
-        final primaryAction = data.actions.isNotEmpty ? data.actions.first : null;
+        final compactCard = constraints.maxWidth < 392;
+        final touchLike = _isTouchLike(
+          compactWidth: compactCard,
+          context: context,
+        );
+        final hoveredPreview = _isHovered && !touchLike && !_isExpanded;
+        final selected = widget.data.isSelected;
+        final showFocusPreview = (selected || hoveredPreview) && !_isExpanded;
+        final previewMetric = widget.data.metrics.isNotEmpty
+            ? widget.data.metrics.first
+            : null;
+        final compactActionHeight = touchLike ? 44.0 : 40.0;
 
-        return DashboardPanelCard(
-          onTap: data.onTap,
-          minHeight: compactCard ? 140 : 148,
-          radius: 20,
-          padding: EdgeInsets.all(compactCard ? 12 : 14),
-          gradientColors: [
-            _DashboardPalette.panel,
-            _DashboardPalette.panelAlt,
-          ],
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                data.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.15,
-                    ),
+        return MouseRegion(
+          onEnter: (_) {
+            if (!touchLike && !_isExpanded) {
+              setState(() => _isHovered = true);
+            }
+          },
+          onExit: (_) {
+            setState(() => _isHovered = false);
+          },
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onLongPress: () => _handleLongPress(touchLike: touchLike),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              transform: _shellMotionTransform(
+                context,
+                lift: hoveredPreview ? -2.0 : 0.0,
+                scale: hoveredPreview ? 1.01 : 1.0,
               ),
-              const SizedBox(height: 2),
-              Text(
-                data.subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: _DashboardPalette.textSecondary,
-                      height: 1.25,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: selected
+                      ? statusAccent.withValues(alpha: 0.44)
+                      : _DashboardPalette.border.withValues(alpha: 0.22),
+                  width: selected ? 1.4 : 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(
+                      alpha: hoveredPreview || _isExpanded ? 0.13 : 0.08,
                     ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    Icons.people_alt_outlined,
-                    size: 15,
-                    color: _DashboardPalette.textSecondary,
+                    blurRadius: hoveredPreview || _isExpanded ? 12 : 5,
+                    offset: hoveredPreview || _isExpanded
+                        ? const Offset(0, 4)
+                        : const Offset(0, 2),
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      data.studentCount == 0
-                          ? 'Roster empty'
-                          : '${data.studentCount} students',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: _DashboardPalette.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                  if (hoveredPreview || selected)
+                    BoxShadow(
+                      color: statusAccent.withValues(alpha: 0.13),
+                      blurRadius: 20,
+                      spreadRadius: 0.2,
+                      offset: const Offset(0, 6),
                     ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: statusAccent.withValues(alpha: 0.08),
-                  border: Border.all(
-                    color: statusAccent.withValues(alpha: 0.14),
+              child: DashboardPanelCard(
+                onTap: () => _handleCardTap(touchLike: touchLike),
+                minHeight: _isExpanded ? 292 : (compactCard ? 130 : 138),
+                radius: 20,
+                padding: EdgeInsets.all(compactCard ? 12 : 14),
+                gradientColors: [
+                  _DashboardPalette.panel,
+                  _DashboardPalette.panelAlt.withValues(
+                    alpha: hoveredPreview || selected ? 1.0 : 0.84,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      data.statusIcon,
-                      size: 16,
-                      color: statusAccent,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        data.statusLabel,
+                ],
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOutCubic,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header: Always visible
+                      Text(
+                        widget.data.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
+                              letterSpacing: -0.15,
                             ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.data.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: _DashboardPalette.textSecondary,
+                                  height: 1.25,
+                                ),
+                      ),
+                        const SizedBox(height: 7),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.people_alt_outlined,
+                              size: 14,
+                            color: _DashboardPalette.textSecondary,
+                          ),
+                            const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              widget.data.studentCount == 0
+                                  ? 'Roster empty'
+                                  : '${widget.data.studentCount} students',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                    color:
+                                        _DashboardPalette.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                          ),
+                          if (previewMetric != null)
+                            const SizedBox(width: 8),
+                          if (previewMetric != null)
+                            Flexible(
+                              child: Text(
+                                previewMetric.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.end,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: _DashboardPalette.textSecondary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (!suppressStatusChip) ...[
+                        const SizedBox(height: 7),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: statusAccent.withValues(alpha: 0.08),
+                            border: Border.all(
+                              color: statusAccent.withValues(alpha: 0.14),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                widget.data.statusIcon,
+                                size: 16,
+                                color: statusAccent,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  widget.data.statusLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: !showFocusPreview
+                            ? const SizedBox(
+                                key: ValueKey('card-preview-empty'),
+                              )
+                            : Container(
+                                key: const ValueKey('card-preview-layer'),
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 7,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  color: _DashboardPalette.textSecondary
+                                      .withValues(alpha: 0.08),
+                                  border: Border.all(
+                                    color: _DashboardPalette.border
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.north_east_rounded,
+                                      size: 14,
+                                      color: _DashboardPalette.textSecondary,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        widget.data.recommendedLabel.isNotEmpty
+                                            ? widget.data.recommendedLabel
+                                            : widget.data.statusDetail,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color: _DashboardPalette
+                                                  .textSecondary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                      ),
+
+                      // Actions: Only show primary in collapsed, hide when expanded
+                      if (!_isExpanded && primaryAction != null)
+                        _ClassActionButton(
+                          action: primaryAction,
+                          accent: statusAccent,
+                          primary: true,
+                          compact: true,
+                          minHeight: compactActionHeight,
+                        ),
+
+                      // Secondary actions: Visible on hover only (not when expanded)
+                      if ((hoveredPreview && !_isExpanded) &&
+                          secondaryActions.isNotEmpty) ...[
+                        AnimatedOpacity(
+                          opacity: hoveredPreview && !_isExpanded ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(height: 6),
+                              ...secondaryActions.map(
+                                (action) => Padding(
+                                  padding:
+                                      const EdgeInsets.only(top: 6),
+                                  child: _ClassActionButton(
+                                    action: action,
+                                    accent: statusAccent,
+                                    primary: false,
+                                    compact: true,
+                                    minHeight: compactActionHeight,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // Expanded content: Detail section
+                      if (_isExpanded) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: _DashboardPalette.textSecondary
+                                .withValues(alpha: 0.08),
+                            border: Border.all(
+                              color: _DashboardPalette.border
+                                  .withValues(alpha: 0.7),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'State',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: _DashboardPalette.textSecondary,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                widget.data.statusDetail.isNotEmpty
+                                    ? widget.data.statusDetail
+                                    : widget.data.statusLabel,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: _DashboardPalette.textSecondary,
+                                      height: 1.4,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Metrics
+                        if (widget.data.metrics.isNotEmpty) ...[
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: widget.data.metrics
+                                .take(3)
+                                .map(
+                                  (metric) => Container(
+                                    padding:
+                                        const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius:
+                                          BorderRadius.circular(8),
+                                      color: _DashboardPalette
+                                          .textSecondary
+                                          .withValues(alpha: 0.08),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          metric.icon,
+                                          size: 14,
+                                          color: _DashboardPalette
+                                              .textSecondary,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          metric.label,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall
+                                              ?.copyWith(
+                                                color: _DashboardPalette
+                                                    .textSecondary,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // Next block
+                        if (widget.data.recommendedLabel.isNotEmpty) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: statusAccent.withValues(alpha: 0.06),
+                            ),
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Next',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: _DashboardPalette.textSecondary,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.data.recommendedLabel,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: statusAccent,
+                                      ),
+                                ),
+                                if (widget
+                                    .data.recommendedDetail.isNotEmpty)
+                                  const SizedBox(height: 4),
+                                if (widget
+                                    .data.recommendedDetail.isNotEmpty)
+                                  Text(
+                                    widget.data.recommendedDetail,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: _DashboardPalette
+                                              .textSecondary,
+                                        ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // All actions visible when expanded
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (primaryAction != null)
+                              _ClassActionButton(
+                                action: primaryAction,
+                                accent: statusAccent,
+                                primary: true,
+                                compact: false,
+                                minHeight: touchLike ? 46 : 44,
+                              ),
+                            ...secondaryActions.map(
+                              (action) => Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: _ClassActionButton(
+                                  action: action,
+                                  accent: statusAccent,
+                                  primary: false,
+                                  compact: false,
+                                  minHeight: touchLike ? 46 : 44,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Close button when expanded
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: _toggleExpanded,
+                            child: const Text('Collapse details'),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 10),
-              if (primaryAction != null)
-                _ClassActionButton(
-                  action: primaryAction,
-                  accent: statusAccent,
-                  primary: true,
-                  compact: true,
-                ),
-            ],
+            ),
           ),
         );
       },
@@ -3129,53 +3965,132 @@ class DashboardClassCard extends StatelessWidget {
   }
 }
 
-class _DashboardActionCard extends StatelessWidget {
-  final _DashboardQuickActionData data;
+class _DashboardActionCard extends StatefulWidget {
+  final DashboardQuickActionData data;
 
   const _DashboardActionCard({required this.data});
 
   @override
+  State<_DashboardActionCard> createState() => _DashboardActionCardState();
+}
+
+class _DashboardActionCardState extends State<_DashboardActionCard> {
+  bool _isHovered = false;
+  bool _isExpanded = false;
+
+  String _compactHint(String input, {int maxChars = 34}) {
+    final normalized = input.trim();
+    if (normalized.length <= maxChars) {
+      return normalized;
+    }
+    return '${normalized.substring(0, maxChars - 1).trimRight()}...';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return DashboardPanelCard(
-      onTap: data.onTap,
-      minHeight: 108,
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: data.accent.withValues(alpha: 0.18),
-              border: Border.all(color: data.accent.withValues(alpha: 0.34)),
-            ),
-            child: Icon(data.icon, color: Colors.white),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data.label,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final touchLike =
+            constraints.maxWidth < 300 || MediaQuery.sizeOf(context).shortestSide < 700;
+        final reveal = _isExpanded || (_isHovered && !touchLike);
+
+        return MouseRegion(
+          onEnter: (_) {
+            if (!touchLike) {
+              setState(() => _isHovered = true);
+            }
+          },
+          onExit: (_) => setState(() => _isHovered = false),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onLongPress: () {
+              if (touchLike) {
+                setState(() => _isExpanded = !_isExpanded);
+              }
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              transform: _shellMotionTransform(
+                context,
+                lift: reveal ? -1.5 : 0.0,
+                scale: reveal ? 1.008 : 1.0,
+              ),
+              child: DashboardPanelCard(
+                onTap: widget.data.onTap,
+                minHeight: reveal ? 118 : 96,
+                padding: const EdgeInsets.all(14),
+                radius: 20,
+                gradientColors: [
+                  _DashboardPalette.panel,
+                  _DashboardPalette.panelAlt.withValues(alpha: reveal ? 1.0 : 0.9),
+                ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            color: widget.data.accent.withValues(alpha: 0.18),
+                            border: Border.all(
+                              color: widget.data.accent.withValues(alpha: 0.30),
+                            ),
+                          ),
+                          child: Icon(widget.data.icon, color: Colors.white),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            widget.data.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 170),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      child: reveal
+                          ? Text(
+                              widget.data.detail,
+                              key: ValueKey('${widget.data.label}-detail'),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: _DashboardPalette.textSecondary,
+                                    height: 1.4,
+                                  ),
+                            )
+                          : Text(
+                              _compactHint(widget.data.detail),
+                              key: ValueKey('${widget.data.label}-hint'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: _DashboardPalette.textSecondary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  data.detail,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+              ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -3253,86 +4168,19 @@ class _DashboardInsightCard extends StatelessWidget {
   }
 }
 
-class _ClassBadge extends StatelessWidget {
-  final String label;
-  final Color color;
-
-  const _ClassBadge({
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: color.withValues(alpha: 0.12),
-        border: Border.all(
-          color: color.withValues(alpha: 0.18),
-        ),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: _DashboardPalette.isLight ? color : color,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-    );
-  }
-}
-
-class _ClassMetaChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _ClassMetaChip({
-    required this.icon,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: Colors.white.withValues(alpha: 0.04),
-        border: Border.all(
-          color: _DashboardPalette.border.withValues(alpha: 0.75),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: _DashboardPalette.textSecondary),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: _DashboardPalette.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ClassActionButton extends StatelessWidget {
   final DashboardInlineActionData action;
   final Color accent;
   final bool primary;
   final bool compact;
+  final double minHeight;
 
   const _ClassActionButton({
     required this.action,
     required this.accent,
     required this.primary,
     this.compact = false,
+    this.minHeight = 44,
   });
 
   @override
@@ -3354,7 +4202,7 @@ class _ClassActionButton extends StatelessWidget {
         highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
         splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
         child: Container(
-          height: compact ? 40 : 44,
+          constraints: BoxConstraints(minHeight: minHeight),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             color: backgroundColor,

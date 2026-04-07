@@ -39,9 +39,9 @@ extension TeacherDashboardTimetableActions on _TeacherDashboardScreenState {
                 grid = FileImportService().cleanTimetableGrid(rawGrid);
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('Could not parse DOCX timetable: $e')),
+                  _showDashboardFeedback(
+                    'Could not parse the DOCX timetable: $e',
+                    tone: WorkspaceFeedbackTone.error,
                   );
                 }
               }
@@ -53,9 +53,9 @@ extension TeacherDashboardTimetableActions on _TeacherDashboardScreenState {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('Could not parse timetable table: $e')),
+                  _showDashboardFeedback(
+                    'Could not parse the timetable table: $e',
+                    tone: WorkspaceFeedbackTone.error,
                   );
                 }
               }
@@ -79,8 +79,10 @@ extension TeacherDashboardTimetableActions on _TeacherDashboardScreenState {
             if (!mounted) return;
             setLocalState(() {});
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Timetable "$name" uploaded.')),
+              _showDashboardFeedback(
+                'Timetable "$name" uploaded.',
+                tone: WorkspaceFeedbackTone.success,
+                title: 'Timetable ready',
               );
             }
           }
@@ -198,11 +200,9 @@ extension TeacherDashboardTimetableActions on _TeacherDashboardScreenState {
                                       bytes, picked.name, ext);
                                 } catch (e) {
                                   if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'Drive timetable import failed: $e'),
-                                    ),
+                                  _showDashboardFeedback(
+                                    'Drive timetable import failed: $e',
+                                    tone: WorkspaceFeedbackTone.error,
                                   );
                                 }
                               },
@@ -505,8 +505,10 @@ extension TeacherDashboardTimetableActions on _TeacherDashboardScreenState {
     final initialGrid = timetable.grid;
     if (initialGrid == null || initialGrid.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('This timetable has no readable table grid yet.')));
+      _showDashboardFeedback(
+        'This timetable has no readable table grid yet.',
+        tone: WorkspaceFeedbackTone.warning,
+      );
       return;
     }
 
@@ -870,10 +872,10 @@ extension TeacherDashboardTimetableActions on _TeacherDashboardScreenState {
                                 await _saveTimetables();
                                 if (ctx.mounted) Navigator.pop(ctx);
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Timetable saved successfully')),
+                                  _showDashboardFeedback(
+                                    'Timetable saved successfully.',
+                                    tone: WorkspaceFeedbackTone.success,
+                                    title: 'Saved',
                                   );
                                 }
                               },

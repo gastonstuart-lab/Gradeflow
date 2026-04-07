@@ -59,20 +59,23 @@ class GoogleAuthResult {
 }
 
 class GoogleAuthService {
-  GoogleAuthService({GoogleSignIn? client})
-      : _googleSignIn = client ??
-            GoogleSignIn(
-              clientId: GoogleConfig.webClientId.isEmpty
-                  ? null
-                  : GoogleConfig.webClientId,
-              scopes: const [
-                'email',
-                'profile',
-                'https://www.googleapis.com/auth/drive.readonly',
-              ],
-            );
+  GoogleAuthService({GoogleSignIn? client}) : _injectedClient = client;
 
-  final GoogleSignIn _googleSignIn;
+  final GoogleSignIn? _injectedClient;
+  GoogleSignIn? _googleSignIn;
+
+  GoogleSignIn get _client {
+    return _googleSignIn ??= _injectedClient ??
+        GoogleSignIn(
+          clientId:
+              GoogleConfig.webClientId.isEmpty ? null : GoogleConfig.webClientId,
+          scopes: const [
+            'email',
+            'profile',
+            'https://www.googleapis.com/auth/drive.readonly',
+          ],
+        );
+  }
   String? _cachedWebAccessToken;
   String? _cachedWebIdToken;
   DateTime? _cachedWebTokenAt;
@@ -103,12 +106,12 @@ class GoogleAuthService {
       {required bool interactive}) async {
     GoogleSignInAccount? user;
     try {
-      user = await _googleSignIn.signInSilently();
+      user = await _client.signInSilently();
       if (user == null) {
         if (!interactive) {
           return GoogleAuthResult._(error: 'not_signed_in');
         }
-        user = await _googleSignIn.signIn();
+        user = await _client.signIn();
       }
     } catch (e, st) {
       return GoogleAuthResult._(error: e, stackTrace: st);
@@ -202,7 +205,9 @@ class GoogleAuthService {
 
   Future<void> signOut() async {
     try {
-      await _googleSignIn.signOut();
+      if (_googleSignIn != null) {
+        await _googleSignIn!.signOut();
+      }
     } catch (_) {
       // Ignore
     }

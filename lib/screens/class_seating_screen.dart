@@ -1,16 +1,15 @@
-import 'dart:math' as math;
 import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:gradeflow/components/pdf_web_viewer.dart';
 import 'package:gradeflow/components/pilot_feedback_dialog.dart';
 import 'package:gradeflow/components/seating/seating_designer_view.dart';
+import 'package:gradeflow/components/tool_first_app_surface.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/models/room_setup.dart';
-import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/platform/browser_file_actions.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
@@ -89,28 +88,28 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     final availableClasses = classService.classes;
 
     if (_isBootstrapping) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return const WorkspaceScaffold(
+        eyebrow: 'Class seating',
+        title: 'Seating planner',
+        subtitle: 'Loading the room layout, roster, and active seating plan.',
+        child: WorkspaceLoadingState(
+          title: 'Loading seating workspace',
+          subtitle:
+              'Preparing the roster, room layouts, and current seating plan.',
+        ),
       );
     }
 
     if (classItem == null) {
-      return Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_outlined),
-            tooltip: 'Back to class',
-            onPressed: _goBackToClassDetail,
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.home_outlined),
-              tooltip: 'Home',
-              onPressed: _goHome,
-            ),
-          ],
+      return const WorkspaceScaffold(
+        eyebrow: 'Class seating',
+        title: 'Seating planner',
+        subtitle: 'This class could not be loaded into the seating workspace.',
+        child: WorkspaceEmptyState(
+          icon: Icons.event_seat_outlined,
+          title: 'Class not found',
+          subtitle: 'Open another class workspace to continue seating work.',
         ),
-        body: const Center(child: Text('Class not found')),
       );
     }
 
@@ -123,183 +122,74 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                 (seat) => seat.studentId != null && seat.studentId!.isNotEmpty)
             .length ??
         0;
-    final seatCount = activeLayout?.seats.length ?? 0;
-
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_outlined),
-          tooltip: 'Back to class',
-          onPressed: _goBackToClassDetail,
-        ),
-        title: Text(
-          '${classItem.className} Seating',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.home_outlined),
-            tooltip: 'Home',
-            onPressed: _goHome,
-          ),
-          PilotFeedbackIconButton(
-            initialArea: 'Seating',
-            initialRoute: '/class/${widget.classId}/seating',
-          ),
-        ],
+    return ToolFirstAppSurface(
+      title: classItem.className,
+      subtitle: '${classItem.subject} · ${classItem.schoolYear} · ${classItem.term}',
+      leading: IconButton(
+        onPressed: () => context.go('/classes'),
+        icon: const Icon(Icons.arrow_back_rounded),
+        tooltip: 'Back to classes',
       ),
-      body: LayoutBuilder(
+      trailing: [
+        SizedBox(
+          width: 220,
+          child: DropdownButtonFormField<String>(
+            initialValue: widget.classId,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Class',
+              isDense: true,
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            ),
+            items: [
+              for (final item in availableClasses)
+                DropdownMenuItem(
+                  value: item.classId,
+                  child: Text(item.className, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) _switchClass(value);
+            },
+          ),
+        ),
+        PilotFeedbackIconButton(
+          initialArea: 'Seating',
+          initialRoute: '/class/${widget.classId}/seating',
+        ),
+      ],
+      contextStrip: _CompactSeatingContextStrip(
+        studentCount: students.length,
+        layoutCount: layouts.length,
+        placedCount: assignedCount,
+        roomName: assignedRoomSetup?.name,
+      ),
+      workspace: LayoutBuilder(
         builder: (context, constraints) {
-          final isCompact = constraints.maxWidth < 980;
-          final verticalPadding = isCompact ? 24.0 : 32.0;
-          final estimatedHeaderHeight = isCompact ? 420.0 : 330.0;
-          final designerHeight = math.max(
-            isCompact ? 880.0 : 740.0,
-            constraints.maxHeight - estimatedHeaderHeight,
+          final crampedHeight = constraints.maxHeight < 540;
+          final designer = SeatingDesignerView(
+            classId: widget.classId,
+            students: students,
+            autoLoad: false,
+            showStudentPanel: !crampedHeight,
+            onOpenRoomSetups: activeLayout == null ? null : _showRoomSetupsDialog,
+            onPreviewPdf:
+                _isBuildingHandout ? null : () => _withHandoutPdf(_previewPdf),
+            onPrint:
+                _isBuildingHandout ? null : () => _withHandoutPdf(_printPdf),
+            onDownload: _isBuildingHandout
+                ? null
+                : () => _withHandoutPdf(_downloadOrSharePdf),
+            webMode: kIsWeb,
           );
 
+          if (!crampedHeight) return SizedBox.expand(child: designer);
+
           return SingleChildScrollView(
-            padding:
-                isCompact ? const EdgeInsets.all(12) : AppSpacing.paddingLg,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - verticalPadding,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AnimatedGlowBorder(
-                    child: Card(
-                      child: Padding(
-                        padding: isCompact
-                            ? const EdgeInsets.all(16)
-                            : AppSpacing.paddingLg,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (isCompact) ...[
-                              _SeatingHeaderIntro(classItem: classItem),
-                              const SizedBox(height: AppSpacing.md),
-                              _SeatingHeaderActions(
-                                classes: availableClasses,
-                                currentClassId: widget.classId,
-                                onSwitchClass: _switchClass,
-                                assignedRoomName: assignedRoomSetup?.name,
-                                onOpenRoomSetups: activeLayout == null
-                                    ? null
-                                    : _showRoomSetupsDialog,
-                              ),
-                            ] else
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: _SeatingHeaderIntro(
-                                      classItem: classItem,
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.lg),
-                                  SizedBox(
-                                    width: 320,
-                                    child: _SeatingHeaderActions(
-                                      classes: availableClasses,
-                                      currentClassId: widget.classId,
-                                      onSwitchClass: _switchClass,
-                                      assignedRoomName: assignedRoomSetup?.name,
-                                      onOpenRoomSetups: activeLayout == null
-                                          ? null
-                                          : _showRoomSetupsDialog,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            const SizedBox(height: AppSpacing.lg),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: [
-                                _InfoCard(
-                                    label: 'Students',
-                                    value: '${students.length}'),
-                                _InfoCard(
-                                    label: 'Layouts',
-                                    value: '${layouts.length}'),
-                                _InfoCard(label: 'Seats', value: '$seatCount'),
-                                _InfoCard(
-                                    label: 'Placed', value: '$assignedCount'),
-                                _InfoCard(
-                                  label: 'Active Layout',
-                                  value: activeLayout?.name ?? 'None',
-                                  wide: true,
-                                ),
-                                _InfoCard(
-                                  label: 'Room',
-                                  value:
-                                      assignedRoomSetup?.name ?? 'Not linked',
-                                  wide: true,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            Text(
-                              'Print the active seating plan together with the current roster for substitute teachers.',
-                              style: context.textStyles.bodyMedium?.withColor(
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                FilledButton.icon(
-                                  onPressed: _isBuildingHandout
-                                      ? null
-                                      : () => _withHandoutPdf(_previewPdf),
-                                  icon:
-                                      const Icon(Icons.picture_as_pdf_outlined),
-                                  label: Text(
-                                      kIsWeb ? 'Preview Handout' : 'Build PDF'),
-                                ),
-                                OutlinedButton.icon(
-                                  onPressed: _isBuildingHandout
-                                      ? null
-                                      : () => _withHandoutPdf(_printPdf),
-                                  icon: const Icon(Icons.print_outlined),
-                                  label: const Text('Print'),
-                                ),
-                                OutlinedButton.icon(
-                                  onPressed: _isBuildingHandout
-                                      ? null
-                                      : () =>
-                                          _withHandoutPdf(_downloadOrSharePdf),
-                                  icon: Icon(
-                                    kIsWeb
-                                        ? Icons.download_outlined
-                                        : Icons.share_outlined,
-                                  ),
-                                  label: Text(
-                                      kIsWeb ? 'Download PDF' : 'Share PDF'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  SizedBox(
-                    height: designerHeight,
-                    child: SeatingDesignerView(
-                      classId: widget.classId,
-                      students: students,
-                      autoLoad: false,
-                    ),
-                  ),
-                ],
-              ),
+            child: SizedBox(
+              height: 560,
+              child: designer,
             ),
           );
         },
@@ -310,14 +200,6 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
   void _switchClass(String classId) {
     if (classId == widget.classId) return;
     context.go('/class/$classId/seating');
-  }
-
-  void _goBackToClassDetail() {
-    context.go('${AppRoutes.classDetail}/${widget.classId}');
-  }
-
-  void _goHome() {
-    context.go(AppRoutes.dashboard);
   }
 
   Future<void> _showRoomSetupsDialog() async {
@@ -331,121 +213,111 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      showDragHandle: false,
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) {
-        return SafeArea(
-          child: FractionallySizedBox(
-            heightFactor: 0.86,
-            child: Consumer<SeatingService>(
-              builder: (context, seatingService, _) {
-                final roomSetups =
-                    List<RoomSetup>.from(seatingService.roomSetups)
-                      ..sort((a, b) => a.name.toLowerCase().compareTo(
-                            b.name.toLowerCase(),
-                          ));
-                final linkedRoom = seatingService.assignedRoomSetup(
-                  widget.classId,
-                );
+        return FractionallySizedBox(
+          heightFactor: 0.86,
+          child: Consumer<SeatingService>(
+            builder: (context, seatingService, _) {
+              final roomSetups = List<RoomSetup>.from(seatingService.roomSetups)
+                ..sort((a, b) =>
+                    a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+              final linkedRoom =
+                  seatingService.assignedRoomSetup(widget.classId);
 
-                return Padding(
-                  padding: AppSpacing.paddingLg,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Semantics(
-                              header: true,
-                              child: Text(
-                                'Room setups',
-                                style:
-                                    context.textStyles.headlineSmall?.semiBold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          OutlinedButton.icon(
-                            onPressed: () => Navigator.of(sheetContext).pop(),
-                            icon: const Icon(Icons.close),
-                            label: const Text('Close'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'Save this room once, then reuse it across classes. Applying a room setup keeps the physical furniture consistent and gives the class a fresh arrangement to work from.',
-                        style: context.textStyles.bodyMedium?.withColor(
-                          Theme.of(context).colorScheme.onSurfaceVariant,
+              return WorkspaceSheetScaffold(
+                title: 'Room setups',
+                subtitle:
+                    'Save this room once, then reuse it across classes to keep furniture layouts aligned.',
+                icon: Icons.meeting_room_outlined,
+                bodyCanExpand: true,
+                headerAction: IconButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Close',
+                  style: WorkspaceButtonStyles.icon(context),
+                ),
+                body: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () => _showSaveRoomSetupDialog(),
+                          icon: const Icon(Icons.add_home_work_outlined),
+                          label: const Text('Save current room'),
+                          style: WorkspaceButtonStyles.filled(context),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          FilledButton.icon(
-                            onPressed: () => _showSaveRoomSetupDialog(),
-                            icon: const Icon(Icons.add_home_work_outlined),
-                            label: const Text('Save current room'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: linkedRoom == null
-                                ? null
-                                : () => _showSaveRoomSetupDialog(
-                                      existingRoomSetup: linkedRoom,
-                                    ),
-                            icon: const Icon(Icons.sync_outlined),
-                            label: const Text('Update linked room'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: linkedRoom == null
-                                ? null
-                                : () => _refreshLinkedRoomForClass(linkedRoom),
-                            icon: const Icon(Icons.refresh_outlined),
-                            label: const Text('Refresh this class'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: linkedRoom == null
-                                ? null
-                                : _detachLinkedRoomFromClass,
-                            icon: const Icon(Icons.link_off_outlined),
-                            label: const Text('Detach this class'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      if (roomSetups.isEmpty)
-                        Expanded(
-                          child: Center(
-                            child: Text(
-                              'No room setups yet. Save the current room and it will be ready for your other classes.',
-                              textAlign: TextAlign.center,
-                              style: context.textStyles.bodyMedium?.withColor(
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                        OutlinedButton.icon(
+                          onPressed: linkedRoom == null
+                              ? null
+                              : () => _showSaveRoomSetupDialog(
+                                    existingRoomSetup: linkedRoom,
+                                  ),
+                          icon: const Icon(Icons.sync_outlined),
+                          label: const Text('Update linked room'),
+                          style: WorkspaceButtonStyles.outlined(context),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: linkedRoom == null
+                              ? null
+                              : () => _refreshLinkedRoomForClass(linkedRoom),
+                          icon: const Icon(Icons.refresh_outlined),
+                          label: const Text('Refresh this class'),
+                          style: WorkspaceButtonStyles.outlined(context),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: linkedRoom == null
+                              ? null
+                              : _detachLinkedRoomFromClass,
+                          icon: const Icon(Icons.link_off_outlined),
+                          label: const Text('Detach this class'),
+                          style: WorkspaceButtonStyles.outlined(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: roomSetups.isEmpty
+                          ? Center(
+                              child: ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(maxWidth: 340),
+                                child: WorkspaceInlineState(
+                                  icon: Icons.meeting_room_outlined,
+                                  title: 'No room setups yet',
+                                  subtitle:
+                                      'Save the current room once and it will be ready for your other classes.',
+                                  action: FilledButton.icon(
+                                    onPressed: () => _showSaveRoomSetupDialog(),
+                                    icon: const Icon(
+                                        Icons.add_home_work_outlined),
+                                    label: const Text('Save room'),
+                                    style:
+                                        WorkspaceButtonStyles.filled(context),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        )
-                      else
-                        Expanded(
-                          child: ListView.separated(
-                            itemCount: roomSetups.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: AppSpacing.sm),
-                            itemBuilder: (context, index) {
-                              final roomSetup = roomSetups[index];
-                              final isLinked = linkedRoom?.roomSetupId ==
-                                  roomSetup.roomSetupId;
-                              return Semantics(
-                                container: true,
-                                label: isLinked
-                                    ? '${roomSetup.name}, Linked here'
-                                    : roomSetup.name,
-                                child: Card(
-                                  child: Padding(
-                                    padding: AppSpacing.paddingMd,
+                            )
+                          : ListView.separated(
+                              itemCount: roomSetups.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: AppSpacing.sm),
+                              itemBuilder: (context, index) {
+                                final roomSetup = roomSetups[index];
+                                final isLinked = linkedRoom?.roomSetupId ==
+                                    roomSetup.roomSetupId;
+                                return Semantics(
+                                  container: true,
+                                  label: isLinked
+                                      ? '${roomSetup.name}, Linked here'
+                                      : roomSetup.name,
+                                  child: WorkspaceSurfaceCard(
+                                    padding: const EdgeInsets.all(14),
+                                    radius: 18,
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -457,8 +329,11 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                                                 roomSetup.name,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: context.textStyles
-                                                    .titleMedium?.semiBold,
+                                                style: context
+                                                    .textStyles.titleSmall
+                                                    ?.copyWith(
+                                                  fontWeight: FontWeight.w800,
+                                                ),
                                               ),
                                             ),
                                             if (isLinked)
@@ -466,7 +341,7 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                                                 padding:
                                                     const EdgeInsets.symmetric(
                                                   horizontal: 10,
-                                                  vertical: 6,
+                                                  vertical: 5,
                                                 ),
                                                 decoration: BoxDecoration(
                                                   color: Theme.of(context)
@@ -489,17 +364,17 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                                               ),
                                           ],
                                         ),
-                                        const SizedBox(height: AppSpacing.sm),
+                                        const SizedBox(height: 6),
                                         Text(
-                                          '${roomSetup.tables.length} tables • ${roomSetup.seats.length} seats',
-                                          style: context.textStyles.bodyMedium
+                                          '${roomSetup.tables.length} tables - ${roomSetup.seats.length} seats',
+                                          style: context.textStyles.bodySmall
                                               ?.withColor(
                                             Theme.of(context)
                                                 .colorScheme
                                                 .onSurfaceVariant,
                                           ),
                                         ),
-                                        const SizedBox(height: AppSpacing.md),
+                                        const SizedBox(height: 12),
                                         Wrap(
                                           spacing: 8,
                                           runSpacing: 8,
@@ -531,6 +406,11 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                                               label: const Text(
                                                 'Use for this class',
                                               ),
+                                              style:
+                                                  WorkspaceButtonStyles.tonal(
+                                                context,
+                                                compact: true,
+                                              ),
                                             ),
                                             OutlinedButton.icon(
                                               onPressed: () =>
@@ -538,33 +418,41 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                                                 existingRoomSetup: roomSetup,
                                               ),
                                               icon: const Icon(
-                                                  Icons.edit_outlined),
+                                                Icons.edit_outlined,
+                                              ),
                                               label:
                                                   const Text('Rename / update'),
+                                              style: WorkspaceButtonStyles
+                                                  .outlined(
+                                                context,
+                                                compact: true,
+                                              ),
                                             ),
                                             OutlinedButton.icon(
-                                              onPressed: () => _deleteRoomSetup(
-                                                roomSetup,
-                                              ),
+                                              onPressed: () =>
+                                                  _deleteRoomSetup(roomSetup),
                                               icon: const Icon(
                                                   Icons.delete_outline),
                                               label: const Text('Delete'),
+                                              style: WorkspaceButtonStyles
+                                                  .outlined(
+                                                context,
+                                                compact: true,
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ],
                                     ),
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         );
       },
@@ -588,14 +476,18 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            existingRoomSetup == null ? 'Save room setup' : 'Update room setup',
-          ),
-          content: SizedBox(
+        return WorkspaceDialogScaffold(
+          title: existingRoomSetup == null
+              ? 'Save room setup'
+              : 'Update room setup',
+          subtitle:
+              'This saves the physical room only. Student placements remain class-specific.',
+          icon: Icons.meeting_room_outlined,
+          body: SizedBox(
             width: 420,
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
                   controller: nameController,
@@ -605,10 +497,13 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Text(
-                  'This saves the physical room only: tables, chairs, and canvas size. Student placements, notes, reminders, and locks stay class-specific.',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  'Tables, chairs, and canvas size are saved here. Student placements, notes, reminders, and locks stay with the class.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.35,
+                      ),
                 ),
               ],
             ),
@@ -616,10 +511,12 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
+              style: WorkspaceButtonStyles.text(dialogContext),
               child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: WorkspaceButtonStyles.filled(dialogContext),
               child: Text(
                 existingRoomSetup == null ? 'Save room' : 'Update room',
               ),
@@ -664,18 +561,26 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Delete room setup?'),
-          content: Text(
+        return WorkspaceDialogScaffold(
+          title: 'Delete room setup?',
+          subtitle: 'Remove this reusable room from the shared setup list.',
+          icon: Icons.delete_outline,
+          body: Text(
             'Delete "${roomSetup.name}" from your reusable room setups? Existing class layouts will stay as they are.',
+            style: Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
+              style: WorkspaceButtonStyles.text(dialogContext),
               child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: WorkspaceButtonStyles.filled(dialogContext),
               child: const Text('Delete'),
             ),
           ],
@@ -705,18 +610,27 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Detach this class from the room?'),
-          content: Text(
+        return WorkspaceDialogScaffold(
+          title: 'Detach this class from the room?',
+          subtitle:
+              'Keep the current layouts, but stop future room-sync updates.',
+          icon: Icons.link_off_outlined,
+          body: Text(
             'This class will keep its current layouts, but future room updates from "${linkedRoom.name}" will no longer apply here.',
+            style: Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
+              style: WorkspaceButtonStyles.text(dialogContext),
               child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: WorkspaceButtonStyles.filled(dialogContext),
               child: const Text('Detach'),
             ),
           ],
@@ -758,20 +672,9 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Building substitute handout...'),
-              ],
-            ),
-          ),
-        ),
+      builder: (ctx) => const WorkspaceProgressDialog(
+        title: 'Building substitute handout',
+        subtitle: 'Preparing the PDF for preview, print, or download.',
       ),
     );
 
@@ -803,45 +706,37 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.of(ctx).size.height * 0.9,
-            child: Padding(
-              padding: AppSpacing.paddingLg,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Substitute Handout Preview',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: ctx.textStyles.titleLarge?.semiBold,
-                        ),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => _downloadOrSharePdf(bytes, filename),
-                        icon: const Icon(Icons.download_outlined),
-                        label: const Text('Download PDF'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      child: PdfWebViewer(bytes: bytes),
-                    ),
-                  ),
-                ],
-              ),
+        return SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.9,
+          child: WorkspaceSheetScaffold(
+            title: 'Substitute handout preview',
+            subtitle:
+                'Review the PDF before printing, downloading, or sharing it.',
+            icon: Icons.picture_as_pdf_outlined,
+            bodyCanExpand: true,
+            maxWidth: 1180,
+            headerAction: OverflowBar(
+              spacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _downloadOrSharePdf(bytes, filename),
+                  icon: const Icon(Icons.download_outlined),
+                  label: const Text('Download PDF'),
+                  style: WorkspaceButtonStyles.outlined(ctx),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Close',
+                  style: WorkspaceButtonStyles.icon(ctx),
+                ),
+              ],
+            ),
+            body: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: PdfWebViewer(bytes: bytes),
             ),
           ),
         );
@@ -885,142 +780,81 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    showWorkspaceSnackBar(
+      context,
+      message: message,
+      tone: WorkspaceFeedbackTone.info,
     );
   }
 }
 
-class _InfoCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool wide;
-
-  const _InfoCard({
-    required this.label,
-    required this.value,
-    this.wide = false,
+class _CompactSeatingContextStrip extends StatelessWidget {
+  const _CompactSeatingContextStrip({
+    required this.studentCount,
+    required this.layoutCount,
+    required this.placedCount,
+    this.roomName,
   });
+
+  final int studentCount;
+  final int layoutCount;
+  final int placedCount;
+  final String? roomName;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: wide ? 220 : 140,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: context.textStyles.labelMedium?.withColor(
-                Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: context.textStyles.titleMedium?.semiBold,
-            ),
-          ],
-        ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _ContextChip(icon: Icons.people_alt_outlined, label: 'Students', value: '$studentCount'),
+          const SizedBox(width: 8),
+          _ContextChip(icon: Icons.dashboard_customize_outlined, label: 'Layouts', value: '$layoutCount'),
+          const SizedBox(width: 8),
+          _ContextChip(icon: Icons.event_seat_outlined, label: 'Placed', value: '$placedCount'),
+          const SizedBox(width: 8),
+          _ContextChip(
+            icon: roomName == null ? Icons.link_off_outlined : Icons.meeting_room_outlined,
+            label: 'Room',
+            value: roomName ?? 'Unlinked',
+          ),
+        ],
       ),
     );
   }
 }
 
-class _SeatingHeaderIntro extends StatelessWidget {
-  final Class classItem;
+class _ContextChip extends StatelessWidget {
+  const _ContextChip({required this.icon, required this.label, required this.value});
 
-  const _SeatingHeaderIntro({
-    required this.classItem,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          classItem.subject,
-          style: context.textStyles.headlineSmall?.semiBold,
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          '${classItem.schoolYear} | ${classItem.term}',
-          style: context.textStyles.bodyMedium,
-        ),
-      ],
-    );
-  }
-}
-
-class _SeatingHeaderActions extends StatelessWidget {
-  final List<Class> classes;
-  final String currentClassId;
-  final String? assignedRoomName;
-  final ValueChanged<String> onSwitchClass;
-  final VoidCallback? onOpenRoomSetups;
-
-  const _SeatingHeaderActions({
-    required this.classes,
-    required this.currentClassId,
-    required this.assignedRoomName,
-    required this.onSwitchClass,
-    required this.onOpenRoomSetups,
-  });
+  final IconData icon;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DropdownButtonFormField<String>(
-          initialValue: currentClassId,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Class',
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-          items: [
-            for (final classItem in classes)
-              DropdownMenuItem(
-                value: classItem.classId,
-                child: Text(
-                  classItem.className,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-          ],
-          onChanged: (value) {
-            if (value != null) onSwitchClass(value);
-          },
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        if (assignedRoomName != null) ...[
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: 0.32),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 6),
           Text(
-            'Using room: $assignedRoomName',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: context.textStyles.bodySmall?.withColor(
-              Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            '$label: $value',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant,
+                ),
           ),
-          const SizedBox(height: AppSpacing.sm),
         ],
-        OutlinedButton.icon(
-          onPressed: onOpenRoomSetups,
-          icon: const Icon(Icons.meeting_room_outlined),
-          label: const Text('Room setups'),
-        ),
-      ],
+      ),
     );
   }
 }

@@ -649,7 +649,8 @@ class _DashboardCountBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolvedForeground = foregroundColor ?? Colors.white;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
         color: accent,
@@ -666,6 +667,7 @@ class _DashboardCountBadge extends StatelessWidget {
       ),
       child: Text(
         label,
+        textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: resolvedForeground,
               fontWeight: FontWeight.w800,
@@ -1100,78 +1102,86 @@ class _DashboardDockButton extends StatelessWidget {
         item.isActive ? Colors.white : _DashboardPalette.textSecondary;
     final iconColor = item.isActive ? Colors.white : item.accent;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: item.onTap,
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 12 : 14,
-            vertical: 10,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: item.isActive
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      item.accent.withValues(alpha: 0.95),
-                      item.accent.withValues(alpha: 0.72),
-                    ],
-                  )
-                : LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.05),
-                      Colors.white.withValues(alpha: 0.02),
-                    ],
-                  ),
-            border: Border.all(
-              color: item.isActive
-                  ? item.accent.withValues(alpha: 0.28)
-                  : _DashboardPalette.border.withValues(alpha: 0.82),
+    return Tooltip(
+      message: item.badge == null ? item.label : '${item.label} (${item.badge})',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: item.onTap,
+          child: Container(
+            constraints: BoxConstraints(minWidth: compact ? 88 : 98),
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 12 : 14,
+              vertical: 10,
             ),
-            boxShadow: item.isActive
-                ? [
-                    BoxShadow(
-                      color: item.accent.withValues(alpha: 0.22),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: item.isActive
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        item.accent.withValues(alpha: 0.95),
+                        item.accent.withValues(alpha: 0.72),
+                      ],
+                    )
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.05),
+                        Colors.white.withValues(alpha: 0.02),
+                      ],
                     ),
-                  ]
-                : null,
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(item.icon, size: 18, color: iconColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    item.label,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: foreground,
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                ],
+              border: Border.all(
+                color: item.isActive
+                    ? item.accent.withValues(alpha: 0.28)
+                    : _DashboardPalette.border.withValues(alpha: 0.82),
               ),
-              if (item.badge != null && item.badge!.isNotEmpty)
-                Positioned(
-                  top: -8,
-                  right: -10,
-                  child: _DashboardCountBadge(
-                    label: item.badge!,
-                    accent: item.isActive ? Colors.white : item.accent,
-                    foregroundColor: item.isActive ? item.accent : null,
-                  ),
+              boxShadow: item.isActive
+                  ? [
+                      BoxShadow(
+                        color: item.accent.withValues(alpha: 0.22),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(item.icon, size: 18, color: iconColor),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        item.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: foreground,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                  ],
                 ),
-            ],
+                if (item.badge != null && item.badge!.isNotEmpty)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: _DashboardCountBadge(
+                      label: item.badge!,
+                      accent: item.isActive ? Colors.white : item.accent,
+                      foregroundColor: item.isActive ? item.accent : null,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

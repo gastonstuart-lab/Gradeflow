@@ -85,4 +85,23 @@ void main() {
 
     expect(openCount, 1);
   });
+
+  testWidgets('whiteboard workspace can hide status chips for focus mode',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: TeacherWhiteboardWorkspace(
+            showStatusChips: false,
+            compact: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Full teaching canvas'), findsNothing);
+    expect(find.text('Teacher whiteboard'), findsNothing);
+    expect(find.text('Whiteboard'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Undo'), findsOneWidget);
+  });
 }

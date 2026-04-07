@@ -145,9 +145,10 @@ extension TeacherDashboardPersonalization on _TeacherDashboardScreenState {
                 children: [
                   Text(
                     'Hero personalization',
-                    style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                    style:
+                        Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -203,7 +204,8 @@ extension TeacherDashboardPersonalization on _TeacherDashboardScreenState {
                                 _dashboardHeroImageBytes == null
                                     ? 'Built-in premium gradients stay active by default.'
                                     : 'Your uploaded image is layered behind the selected hero style.',
-                                style: Theme.of(sheetContext).textTheme.bodySmall,
+                                style:
+                                    Theme.of(sheetContext).textTheme.bodySmall,
                               ),
                             ],
                           ),
@@ -257,12 +259,10 @@ extension TeacherDashboardPersonalization on _TeacherDashboardScreenState {
       }
       if (bytes.lengthInBytes > 1400000) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Please choose an image under about 1.4 MB for fast local loading.',
-              ),
-            ),
+          _showDashboardFeedback(
+            'Choose an image under about 1.4 MB for fast local loading.',
+            tone: WorkspaceFeedbackTone.warning,
+            title: 'Image too large',
           );
         }
         return;
@@ -274,18 +274,18 @@ extension TeacherDashboardPersonalization on _TeacherDashboardScreenState {
       });
       await _saveHeroPersonalization();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Hero background updated')),
+        _showDashboardFeedback(
+          'Hero background updated.',
+          tone: WorkspaceFeedbackTone.success,
+          title: 'Saved',
         );
       }
     } catch (e) {
       debugPrint('Failed to set dashboard hero image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Could not update hero background'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        _showDashboardFeedback(
+          'Could not update the hero background.',
+          tone: WorkspaceFeedbackTone.error,
         );
       }
     } finally {

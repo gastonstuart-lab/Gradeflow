@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
-import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
@@ -28,6 +27,20 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
   bool _loading = true;
   String? _error;
   TeacherWorkspaceSnapshot? _workspaceSnapshot;
+
+  void _showFeedback(
+    String message, {
+    WorkspaceFeedbackTone tone = WorkspaceFeedbackTone.info,
+    String? title,
+  }) {
+    if (!mounted) return;
+    showWorkspaceSnackBar(
+      context,
+      message: message,
+      tone: tone,
+      title: title,
+    );
+  }
 
   @override
   void initState() {
@@ -84,9 +97,12 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Post admin alert'),
-              content: SizedBox(
+            return WorkspaceDialogScaffold(
+              title: 'Post admin alert',
+              subtitle:
+                  'Publish a school-wide notice into the shared staff communication rail.',
+              icon: Icons.campaign_outlined,
+              body: SizedBox(
                 width: 420,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -102,7 +118,7 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
                             'Share a school-wide notice or operational update',
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<CommunicationAlertSeverity>(
                       initialValue: severity,
                       decoration: const InputDecoration(
@@ -138,6 +154,7 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
                 TextButton(
                   onPressed:
                       submitting ? null : () => Navigator.pop(dialogContext),
+                  style: WorkspaceButtonStyles.text(dialogContext),
                   child: const Text('Cancel'),
                 ),
                 FilledButton.icon(
@@ -160,10 +177,10 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
                           if (dialogContext.mounted) {
                             Navigator.pop(dialogContext);
                           }
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Admin alert posted'),
-                            ),
+                          _showFeedback(
+                            'Admin alert posted.',
+                            tone: WorkspaceFeedbackTone.success,
+                            title: 'Alert sent',
                           );
                         },
                   icon: submitting
@@ -174,6 +191,7 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
                         )
                       : const Icon(Icons.campaign_outlined),
                   label: const Text('Post alert'),
+                  style: WorkspaceButtonStyles.filled(dialogContext),
                 ),
               ],
             );
@@ -195,7 +213,7 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
       eyebrow: 'Admin edition',
       title: 'School operations workspace',
       subtitle:
-          'Shared-school oversight, lifecycle management, and communication readiness now live in one operational workspace.',
+          'Shared-school oversight, lifecycle management, and communication readiness in one operational workspace.',
       trailingActions: [
         IconButton(
           tooltip: themeMode == ThemeMode.dark
@@ -248,21 +266,23 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
           onPressed: () => _showAdminAlertComposer(context),
           icon: const Icon(Icons.campaign_outlined),
           label: const Text('Post alert'),
+          style: WorkspaceButtonStyles.outlined(context),
         ),
         FilledButton.icon(
           onPressed: () => context.go(AppRoutes.classTrash),
           icon: const Icon(Icons.delete_outline_rounded),
           label: const Text('Open recycle bin'),
+          style: WorkspaceButtonStyles.filled(context),
         ),
         OutlinedButton.icon(
           onPressed: _load,
           icon: const Icon(Icons.refresh_rounded),
           label: const Text('Refresh'),
+          style: WorkspaceButtonStyles.outlined(context),
         ),
       ],
       child: _buildBody(
         context,
-        deletedClassCount: classTrash.trash.length,
         communicationService: communicationService,
       ),
     );
@@ -270,11 +290,13 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
 
   Widget _buildBody(
     BuildContext context, {
-    required int deletedClassCount,
     required CommunicationService communicationService,
   }) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const WorkspaceLoadingState(
+        title: 'Loading admin workspace',
+        subtitle: 'Syncing school operations, alerts, and lifecycle controls.',
+      );
     }
 
     if (_error != null) {
@@ -287,15 +309,11 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('Try again'),
+            style: WorkspaceButtonStyles.filled(context),
           ),
         ],
       );
     }
-
-    final workspace = _workspaceSnapshot!;
-    final user = workspace.user;
-    final schoolName =
-        GradeFlowProductConfig.resolvedSchoolName(user.schoolName);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 16),
@@ -303,58 +321,22 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           WorkspaceSurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const WorkspaceSectionHeader(
-                  title: 'Operational Readiness',
-                  subtitle:
-                      'The core academic workflow, deleted-item lifecycle, and communication rollout are now visible in one place.',
-                ),
-                const SizedBox(height: 16),
-                _AdminStatusRow(
-                  icon: Icons.school_outlined,
-                  title: schoolName,
-                  subtitle:
-                      '${workspace.activeClasses.length} active classes, ${workspace.archivedClasses.length} archived, and ${workspace.pendingReminders.length} pending reminders in the teacher workspace.',
-                ),
-                const SizedBox(height: 12),
-                _AdminStatusRow(
-                  icon: RepositoryFactory.isUsingFirestore
-                      ? Icons.cloud_done_outlined
-                      : Icons.cloud_off_outlined,
-                  title: RepositoryFactory.sourceOfTruthLabel,
-                  subtitle: RepositoryFactory.sourceOfTruthDescription,
-                ),
-                const SizedBox(height: 12),
-                _AdminStatusRow(
-                  icon: Icons.delete_sweep_outlined,
-                  title: deletedClassCount == 0
-                      ? 'Recycle bin is clear'
-                      : '$deletedClassCount class${deletedClassCount == 1 ? '' : 'es'} in recycle bin',
-                  subtitle:
-                      'Deleted classes stay recoverable through a clear admin workflow.',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          WorkspaceSurfaceCard(
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const WorkspaceSectionHeader(
                   title: 'Recent Admin Alerts',
                   subtitle:
-                      'School-wide notices posted here now feed the shared communication workspace.',
+                      'School-wide notices posted here feed the shared communication workspace.',
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 if (communicationService.adminAlertMessages.isEmpty)
                   _AdminStatusRow(
                     icon: Icons.campaign_outlined,
                     title: 'No live admin alerts yet',
                     subtitle:
-                        'Use “Post alert” to publish a real notice into the shared staff communication rail.',
+                        'Use "Post alert" to publish a school notice into the shared staff rail.',
                   )
                 else
                   Column(
@@ -368,7 +350,7 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
                             icon: _alertIcon(alert.severity),
                             title: alert.text,
                             subtitle:
-                                '${alert.authorName} • ${_alertTimeLabel(alert.createdAt)}',
+                                '${alert.authorName} - ${_alertTimeLabel(alert.createdAt)}',
                           ),
                         ),
                     ],
@@ -378,53 +360,74 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
           ),
           const SizedBox(height: 16),
           WorkspaceSurfaceCard(
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const WorkspaceSectionHeader(
-                  title: 'What Works Today',
+                  title: 'Connected Operations',
                   subtitle:
-                      'These are the connected school operations already available in the current app.',
+                      'These school operations are already connected inside the current workspace.',
                 ),
-                const SizedBox(height: 16),
-                const Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    _AdminCapabilityCard(
-                      title: 'Class lifecycle',
-                      subtitle:
-                          'Create, archive, restore, and delete classes with a visible recovery path.',
-                      icon: Icons.inventory_2_outlined,
-                    ),
-                    _AdminCapabilityCard(
-                      title: 'Teacher workspace health',
-                      subtitle:
-                          'Dashboard, planning, classes, seating, grading, and export flows now connect coherently.',
-                      icon: Icons.dashboard_customize_outlined,
-                    ),
-                    _AdminCapabilityCard(
-                      title: 'Communication foundation',
-                      subtitle:
-                          'Admin notices, shared staff channels, and custom school groups now have a real home to grow from.',
-                      icon: Icons.forum_outlined,
-                    ),
-                  ],
+                const SizedBox(height: 14),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final tileWidth = constraints.maxWidth >= 1180
+                        ? (constraints.maxWidth - 24) / 3
+                        : constraints.maxWidth >= 760
+                            ? (constraints.maxWidth - 12) / 2
+                            : constraints.maxWidth;
+
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        SizedBox(
+                          width: tileWidth,
+                          child: const _AdminCapabilityCard(
+                            title: 'Class lifecycle',
+                            subtitle:
+                                'Create, archive, restore, and delete classes with a visible recovery path.',
+                            icon: Icons.inventory_2_outlined,
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: const _AdminCapabilityCard(
+                            title: 'Teacher workspace health',
+                            subtitle:
+                                'Dashboard, planning, classes, seating, grading, and export flows stay connected.',
+                            icon: Icons.dashboard_customize_outlined,
+                          ),
+                        ),
+                        SizedBox(
+                          width: tileWidth,
+                          child: const _AdminCapabilityCard(
+                            title: 'Communication foundation',
+                            subtitle:
+                                'Admin notices, shared staff channels, and school groups now have a real home.',
+                            icon: Icons.forum_outlined,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
           WorkspaceSurfaceCard(
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
                 WorkspaceSectionHeader(
                   title: 'Best Next Ops Move',
                   subtitle:
-                      'The biggest remaining jump is turning the connected communication surfaces into true shared school workflows.',
+                      'The next quality jump is turning connected communication surfaces into shared school workflows.',
                 ),
-                SizedBox(height: 16),
+                SizedBox(height: 14),
                 _AdminStatusRow(
                   icon: Icons.hub_outlined,
                   title: 'Finish the shared communication layer',
@@ -436,7 +439,7 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
                   icon: Icons.verified_user_outlined,
                   title: 'Add role-aware access',
                   subtitle:
-                      'Admin, department lead, and teacher roles should shape visibility once live communication is turned on.',
+                      'Admin, department lead, and teacher roles should shape visibility once live communication is enabled.',
                 ),
               ],
             ),
@@ -463,7 +466,7 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
         : (createdAt.hour > 12 ? createdAt.hour - 12 : createdAt.hour);
     final minute = createdAt.minute.toString().padLeft(2, '0');
     final period = createdAt.hour >= 12 ? 'PM' : 'AM';
-    return '${createdAt.month}/${createdAt.day} • $hour:$minute $period';
+    return '${createdAt.month}/${createdAt.day} - $hour:$minute $period';
   }
 }
 
@@ -484,32 +487,41 @@ class _AdminStatusRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             color:
                 Theme.of(context).colorScheme.primary.withValues(alpha: 0.14),
           ),
-          child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+          child: Icon(
+            icon,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: context.textStyles.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w700,
+                  height: 1.3,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: context.textStyles.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  height: 1.45,
+                  height: 1.35,
                 ),
               ),
             ],
@@ -533,43 +545,49 @@ class _AdminCapabilityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 300,
-      child: WorkspaceSurfaceCard(
-        padding: const EdgeInsets.all(16),
-        radius: 20,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                color: Theme.of(context)
-                    .colorScheme
-                    .secondary
-                    .withValues(alpha: 0.14),
-              ),
-              child: Icon(icon, color: Theme.of(context).colorScheme.secondary),
+    return WorkspaceSurfaceCard(
+      padding: const EdgeInsets.all(14),
+      radius: 20,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Theme.of(context)
+                  .colorScheme
+                  .secondary
+                  .withValues(alpha: 0.14),
             ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: context.textStyles.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: Theme.of(context).colorScheme.secondary,
             ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: context.textStyles.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                height: 1.45,
-              ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: context.textStyles.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              height: 1.25,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: context.textStyles.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              height: 1.35,
+            ),
+          ),
+        ],
       ),
     );
   }
