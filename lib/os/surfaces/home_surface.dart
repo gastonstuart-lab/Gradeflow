@@ -756,7 +756,7 @@ class _LaunchPanel extends StatelessWidget {
             ),
           ),
         ),
-        _DashboardNavCard(
+        _SecondaryUtilityTile(
           icon: Icons.class_rounded,
           title: 'Class list',
           subtitle: 'Browse every class and open a workspace',
@@ -826,6 +826,7 @@ class _LaunchAppTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
+                    app.description ?? '',
                     style: TextStyle(
                       fontSize: 11,
                       color: OSColors.textSecondary(dark),
