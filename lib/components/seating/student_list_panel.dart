@@ -51,8 +51,8 @@ class _StudentListPanelState extends State<StudentListPanel> {
       padding: const EdgeInsets.all(12),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final cramped = constraints.maxHeight.isFinite &&
-              constraints.maxHeight < 180;
+          final cramped =
+              constraints.maxHeight.isFinite && constraints.maxHeight < 180;
 
           if (cramped) {
             return SingleChildScrollView(
@@ -83,7 +83,8 @@ class _StudentListPanelState extends State<StudentListPanel> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, int unassignedCount, int assignedCount) {
+  Widget _buildHeader(
+      BuildContext context, int unassignedCount, int assignedCount) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -175,6 +176,7 @@ class _StudentListPanelState extends State<StudentListPanel> {
       itemBuilder: (context, index) {
         final student = sortedUnassigned[index];
         final chip = _StudentChip(
+          key: ValueKey('student-chip-${student.studentId}'),
           title: '${student.chineseName} (${student.englishFullName})',
           subtitle: 'ID: ${student.studentId}',
         );
@@ -229,8 +231,9 @@ class _StudentListPanelState extends State<StudentListPanel> {
   }
 
   int _compareStudentsByName(Student left, Student right) {
-    final chineseCompare =
-        left.chineseName.toLowerCase().compareTo(right.chineseName.toLowerCase());
+    final chineseCompare = left.chineseName
+        .toLowerCase()
+        .compareTo(right.chineseName.toLowerCase());
     if (chineseCompare != 0) return chineseCompare;
 
     final englishCompare = left.englishFullName
@@ -253,8 +256,9 @@ class _StudentListPanelState extends State<StudentListPanel> {
         .allMatches(right)
         .map((match) => match.group(0)!)
         .toList();
-    final limit =
-        leftParts.length < rightParts.length ? leftParts.length : rightParts.length;
+    final limit = leftParts.length < rightParts.length
+        ? leftParts.length
+        : rightParts.length;
 
     for (int i = 0; i < limit; i++) {
       final leftPart = leftParts[i];
@@ -331,6 +335,7 @@ class _StudentChip extends StatelessWidget {
   final bool expand;
 
   const _StudentChip({
+    super.key,
     required this.title,
     required this.subtitle,
     this.expand = true,
@@ -395,10 +400,8 @@ class _StudentChipText extends StatelessWidget {
           title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context)
-              .textTheme
-              .labelMedium
-              ?.copyWith(color: color),
+          style:
+              Theme.of(context).textTheme.labelMedium?.copyWith(color: color),
         ),
         const SizedBox(height: 2),
         Text(

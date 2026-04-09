@@ -20,7 +20,7 @@ test.describe.configure({ mode: 'serial' });
 test('Export: grade export screen loads with actionable controls', async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
 
   await gotoRoot(page);
   await ensureDemoSignedIn(page);

@@ -8,7 +8,6 @@
 /// The teacher taps anywhere to dismiss and return to the active surface.
 /// This makes the OS safe to leave projected on a screen without exposing
 /// personal data.
-library os_idle_screen;
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -155,11 +154,27 @@ class _IdleDate extends StatelessWidget {
   final DateTime now;
 
   static const _weekdays = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
   ];
   static const _months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
   ];
 
   @override

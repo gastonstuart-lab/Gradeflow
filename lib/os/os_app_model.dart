@@ -5,7 +5,6 @@
 /// Gradebook, Seating, Whiteboard, Export, Messages, etc. — is registered
 /// here as a first-class OS app.  The launcher, dock, and home surface all
 /// read from this registry.
-library os_app_model;
 
 import 'package:flutter/material.dart';
 

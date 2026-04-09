@@ -105,14 +105,12 @@ class ClassCard extends StatelessWidget {
                               const SizedBox(height: 4),
                               Text(
                                 e.dateEvents!,
-                                style: Theme.of(ctx)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(ctx)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
+                                style:
+                                    Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                          color: Theme.of(ctx)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
                               ),
                             ],
                           ],
@@ -243,18 +241,19 @@ class ClassCard extends StatelessWidget {
           ],
           Row(
             children: [
-              Text(
-                'Open class workspace',
-                style: context.textStyles.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  'Open class workspace',
+                  style: context.textStyles.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              const Spacer(),
-              Icon(
-                Icons.arrow_forward_rounded,
-                size: 20,
-                color: theme.colorScheme.primary,
+              TextButton.icon(
+                onPressed: onTap,
+                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                label: const Text('Open class'),
               ),
             ],
           ),

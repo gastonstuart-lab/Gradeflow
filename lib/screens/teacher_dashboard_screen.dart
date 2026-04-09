@@ -42,6 +42,7 @@ import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 import 'package:gradeflow/components/time_slot_timetable.dart';
+import 'package:gradeflow/platform/dashboard_audio_player.dart';
 
 part 'teacher_dashboard/dashboard_class_tools.dart';
 part 'teacher_dashboard/dashboard_imports.dart';
@@ -96,6 +97,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   final GlobalKey _livePanelSectionKey = GlobalKey();
 
   String? _selectedClassId;
+  String? _dashboardRailSelectedClassId;
   List<_ClassBrief> _classes = [];
   int _totalStudents = 0;
 
@@ -111,6 +113,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   // Quick Links (default + user-added)
   final List<_QuickLink> _customLinks = [];
+  final List<_StoredDashboardAudioStation> _customAudioStations = [];
+  String? _selectedAudioStationId;
 
   // Timetable uploads (per user; stored locally)
   final List<_Timetable> _timetables = [];
@@ -379,6 +383,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     unawaited(_loadData());
     unawaited(_loadReminders());
     unawaited(_loadQuickLinks());
+    unawaited(_loadAudioStations());
     unawaited(_loadTimetables());
     unawaited(_loadHeroPersonalization());
   }
@@ -566,11 +571,21 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final resolvedSelectedClassId = _selectedClassId != null &&
+              classes.any((c) => c.id == _selectedClassId)
+          ? _selectedClassId
+          : (classes.isNotEmpty ? classes.first.id : null);
+      final resolvedRailSelectedClassId =
+          _dashboardRailSelectedClassId != null &&
+                  classes.any((c) => c.id == _dashboardRailSelectedClassId)
+              ? _dashboardRailSelectedClassId
+              : null;
       setState(() {
         _classes = classes;
         _totalStudents = totalStudents;
         _classHealthSignalsByClassId = healthSignals;
-        _selectedClassId = classes.isNotEmpty ? classes.first.id : null;
+        _selectedClassId = resolvedSelectedClassId;
+        _dashboardRailSelectedClassId = resolvedRailSelectedClassId;
       });
       _refreshNames();
     });
@@ -2273,6 +2288,54 @@ class _QuickLink {
   final String label;
   final String url;
   _QuickLink({required this.label, required this.url});
+}
+
+class _StoredDashboardAudioStation {
+  final String id;
+  final String stationName;
+  final String programLabel;
+  final String detail;
+  final String? streamUrl;
+  final String stationUrl;
+  final String countryLabel;
+  final String categoryLabel;
+
+  const _StoredDashboardAudioStation({
+    required this.id,
+    required this.stationName,
+    required this.programLabel,
+    required this.detail,
+    required this.streamUrl,
+    required this.stationUrl,
+    required this.countryLabel,
+    required this.categoryLabel,
+  });
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'stationName': stationName,
+        'programLabel': programLabel,
+        'detail': detail,
+        'streamUrl': streamUrl,
+        'stationUrl': stationUrl,
+        'countryLabel': countryLabel,
+        'categoryLabel': categoryLabel,
+      };
+
+  factory _StoredDashboardAudioStation.fromJson(Map<String, dynamic> json) {
+    return _StoredDashboardAudioStation(
+      id: (json['id'] ?? '').toString(),
+      stationName: (json['stationName'] ?? '').toString(),
+      programLabel: (json['programLabel'] ?? '').toString(),
+      detail: (json['detail'] ?? '').toString(),
+      streamUrl: (json['streamUrl'] ?? '').toString().trim().isEmpty
+          ? null
+          : (json['streamUrl'] ?? '').toString().trim(),
+      stationUrl: (json['stationUrl'] ?? '').toString(),
+      countryLabel: (json['countryLabel'] ?? '').toString(),
+      categoryLabel: (json['categoryLabel'] ?? '').toString(),
+    );
+  }
 }
 
 class _LinkPill extends StatelessWidget {

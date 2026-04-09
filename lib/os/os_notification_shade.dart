@@ -6,7 +6,6 @@
 /// It delegates notification data to the existing
 /// [GlobalSystemShellController] so messages, admin alerts, and reminders
 /// already handled by that controller continue to surface here.
-library os_notification_shade;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -254,13 +253,12 @@ class _ShadeNotificationList extends StatelessWidget {
     // Reminders from workspace snapshot
     if (snapshot != null) {
       final today = DateTime.now();
-      final upcoming = snapshot.pendingReminders
-          .where((r) {
-            final d = DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day);
-            final t = DateTime(today.year, today.month, today.day);
-            return d.difference(t).inDays <= 3;
-          })
-          .take(2);
+      final upcoming = snapshot.pendingReminders.where((r) {
+        final d =
+            DateTime(r.timestamp.year, r.timestamp.month, r.timestamp.day);
+        final t = DateTime(today.year, today.month, today.day);
+        return d.difference(t).inDays <= 3;
+      }).take(2);
       for (final r in upcoming) {
         items.add(
           _ShadeNotificationTile(

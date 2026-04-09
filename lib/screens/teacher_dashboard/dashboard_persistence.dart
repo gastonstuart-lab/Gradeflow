@@ -85,6 +85,17 @@ extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
         userId: _dashboardStorageUserId(),
       );
 
+  String _audioStationsPrefsKey() => _dashboardPreferencesService.scopedKey(
+        baseKey: 'dashboard_audio_stations_v1',
+        userId: _dashboardStorageUserId(),
+      );
+
+  String _selectedAudioStationPrefsKey() =>
+      _dashboardPreferencesService.scopedKey(
+        baseKey: 'dashboard_selected_audio_station_v1',
+        userId: _dashboardStorageUserId(),
+      );
+
   String _heroStylePrefsKey() => _dashboardPreferencesService.scopedKey(
         baseKey: 'dashboard_hero_style_v1',
         userId: _dashboardStorageUserId(),
@@ -150,8 +161,7 @@ extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
     try {
       final attendanceUrl = await _dashboardPreferencesService.readScopedString(
         scopedKey: _attendanceUrlPrefsKey(),
-        legacyKey:
-            _TeacherDashboardScreenState._legacyAttendanceUrlPrefsKey,
+        legacyKey: _TeacherDashboardScreenState._legacyAttendanceUrlPrefsKey,
         migrationFlagKey:
             _TeacherDashboardScreenState._attendanceUrlMigrationFlagKey,
       );
@@ -204,6 +214,54 @@ extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
       );
     } catch (e) {
       debugPrint('Failed to save quick links: $e');
+    }
+  }
+
+  Future<void> _loadAudioStations() async {
+    try {
+      final selectedId = await _dashboardPreferencesService.readScopedString(
+        scopedKey: _selectedAudioStationPrefsKey(),
+      );
+      final parsedJson = await _dashboardPreferencesService.readScopedJsonList(
+        scopedKey: _audioStationsPrefsKey(),
+      );
+      final parsed = parsedJson
+          .map((entry) => _StoredDashboardAudioStation.fromJson(
+              Map<String, dynamic>.from(entry as Map)))
+          .where((station) =>
+              station.id.trim().isNotEmpty &&
+              station.stationName.trim().isNotEmpty &&
+              station.stationUrl.trim().isNotEmpty)
+          .toList(growable: false);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _selectedAudioStationId =
+            selectedId == null || selectedId.trim().isEmpty
+                ? null
+                : selectedId.trim();
+        _customAudioStations
+          ..clear()
+          ..addAll(parsed);
+      });
+    } catch (e) {
+      debugPrint('Failed to load dashboard audio stations: $e');
+    }
+  }
+
+  Future<void> _saveAudioStations() async {
+    try {
+      await _dashboardPreferencesService.writeJsonList(
+        key: _audioStationsPrefsKey(),
+        items: _customAudioStations.map((station) => station.toJson()).toList(),
+      );
+      await _dashboardPreferencesService.writeString(
+        key: _selectedAudioStationPrefsKey(),
+        value: _selectedAudioStationId,
+      );
+    } catch (e) {
+      debugPrint('Failed to save dashboard audio stations: $e');
     }
   }
 

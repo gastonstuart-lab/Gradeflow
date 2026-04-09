@@ -16,7 +16,6 @@
 ///   - Quick file access (display-only)
 ///   - Poll/quiz placeholder
 ///   - Teaching mode toolbar
-library teach_surface;
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -73,7 +72,8 @@ class _TeachSurfaceState extends State<TeachSurface> {
                 activeTool: _activeTool,
                 onToolSelected: (t) => setState(() => _activeTool = t),
                 onExit: () {
-                  context.read<GradeFlowOSController>()
+                  context
+                      .read<GradeFlowOSController>()
                       .setSurface(OSSurface.home);
                   context.go(AppRoutes.osHome);
                 },
@@ -381,9 +381,8 @@ class _TimerToolState extends State<_TimerTool> {
     final minutes = (_running || _remainingSeconds > 0
         ? _remainingSeconds ~/ 60
         : _selectedMinutes);
-    final seconds = _running || _remainingSeconds > 0
-        ? _remainingSeconds % 60
-        : 0;
+    final seconds =
+        _running || _remainingSeconds > 0 ? _remainingSeconds % 60 : 0;
     final progress = (_running || _remainingSeconds > 0)
         ? _remainingSeconds / (_selectedMinutes * 60)
         : 1.0;
@@ -441,9 +440,8 @@ class _TimerToolState extends State<_TimerTool> {
                 ),
                 const SizedBox(width: 12),
                 _TimerButton(
-                  icon: _running
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
+                  icon:
+                      _running ? Icons.pause_rounded : Icons.play_arrow_rounded,
                   onTap: _running ? _pause : _start,
                   filled: true,
                 ),
@@ -532,9 +530,8 @@ class _TimerButton extends StatelessWidget {
         child: Icon(
           icon,
           size: filled ? 30 : 22,
-          color: filled
-              ? OSColors.teachBg
-              : Colors.white.withValues(alpha: 0.7),
+          color:
+              filled ? OSColors.teachBg : Colors.white.withValues(alpha: 0.7),
         ),
       ),
     );
@@ -557,8 +554,18 @@ class _GroupPickerToolState extends State<_GroupPickerTool> {
   List<List<String>> _groups = [];
 
   static const _sampleNames = [
-    'Alex', 'Jordan', 'Sam', 'Taylor', 'Morgan', 'Casey',
-    'Riley', 'Avery', 'Quinn', 'Blake', 'Hayden', 'Jamie',
+    'Alex',
+    'Jordan',
+    'Sam',
+    'Taylor',
+    'Morgan',
+    'Casey',
+    'Riley',
+    'Avery',
+    'Quinn',
+    'Blake',
+    'Hayden',
+    'Jamie',
   ];
 
   void _generateGroups() {
@@ -606,9 +613,8 @@ class _GroupPickerToolState extends State<_GroupPickerTool> {
                             : Colors.white.withValues(alpha: 0.06),
                         borderRadius: OSRadius.mdBr,
                         border: Border.all(
-                          color: sel
-                              ? OSColors.teachAccent
-                              : Colors.transparent,
+                          color:
+                              sel ? OSColors.teachAccent : Colors.transparent,
                         ),
                       ),
                       child: Center(

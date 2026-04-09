@@ -153,6 +153,7 @@ class WorkspaceScaffold extends StatelessWidget {
   final Widget? floatingActionButton;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
   final double maxContentWidth;
+  final bool compactHeader;
 
   const WorkspaceScaffold({
     super.key,
@@ -168,6 +169,7 @@ class WorkspaceScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.floatingActionButtonLocation,
     this.maxContentWidth = 1440,
+    this.compactHeader = false,
   });
 
   @override
@@ -199,9 +201,12 @@ class WorkspaceScaffold extends StatelessWidget {
                         trailingActions: trailingActions,
                       ),
                     if (leadingActions.isNotEmpty || trailingActions.isNotEmpty)
-                      const SizedBox(height: 12),
+                      SizedBox(height: compactHeader ? 8 : 12),
                     WorkspaceSurfaceCard(
-                      padding: const EdgeInsets.all(18),
+                      padding: compactHeader
+                          ? const EdgeInsets.fromLTRB(16, 14, 16, 14)
+                          : const EdgeInsets.all(18),
+                      radius: compactHeader ? 20 : 22,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -220,17 +225,18 @@ class WorkspaceScaffold extends StatelessWidget {
                           _WorkspaceHeaderCopy(
                             title: title,
                             subtitle: subtitle,
+                            compact: compactHeader,
                           ),
                         ],
                       ),
                     ),
                     if (defaultContextBar != null || contextBar != null)
-                      const SizedBox(height: 10),
+                      SizedBox(height: compactHeader ? 8 : 10),
                     if (defaultContextBar != null) defaultContextBar,
                     if (defaultContextBar != null && contextBar != null)
                       const SizedBox(height: 10),
                     if (contextBar != null) contextBar!,
-                    const SizedBox(height: 14),
+                    SizedBox(height: compactHeader ? 12 : 14),
                     Expanded(child: child),
                   ],
                 ),
@@ -1164,10 +1170,12 @@ class _WorkspaceTopBar extends StatelessWidget {
 class _WorkspaceHeaderCopy extends StatelessWidget {
   final String title;
   final String subtitle;
+  final bool compact;
 
   const _WorkspaceHeaderCopy({
     required this.title,
     required this.subtitle,
+    this.compact = false,
   });
 
   @override
@@ -1179,16 +1187,22 @@ class _WorkspaceHeaderCopy extends StatelessWidget {
           header: true,
           child: Text(
             title,
-            style: context.textStyles.headlineSmall?.copyWith(
+            style: (compact
+                    ? context.textStyles.titleLarge
+                    : context.textStyles.headlineSmall)
+                ?.copyWith(
               fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
+              letterSpacing: compact ? -0.2 : -0.4,
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: compact ? 4 : 6),
         Text(
           subtitle,
-          style: context.textStyles.bodyMedium?.copyWith(
+          style: (compact
+                  ? context.textStyles.bodySmall
+                  : context.textStyles.bodyMedium)
+              ?.copyWith(
             color: _workspaceMuted(context),
             height: 1.4,
           ),

@@ -70,9 +70,8 @@ Matrix4 _shellMotionTransform(
   final width = MediaQuery.sizeOf(context).width;
   final touchLike = _isTouchLikeViewport(context);
   final tunedLift = touchLike ? 0.0 : (width < 1180 ? lift * 0.72 : lift);
-  final tunedScale = touchLike
-      ? 1.0
-      : (width < 1180 ? 1 + ((scale - 1) * 0.72) : scale);
+  final tunedScale =
+      touchLike ? 1.0 : (width < 1180 ? 1 + ((scale - 1) * 0.72) : scale);
   final matrix = Matrix4.diagonal3Values(tunedScale, tunedScale, 1.0);
   matrix.setTranslationRaw(0.0, tunedLift, 0.0);
   return matrix;
@@ -265,15 +264,56 @@ class DashboardSystemStatusItemData {
 }
 
 class DashboardAudioWidgetData {
+  final DashboardAudioStationData activeStation;
+  final List<DashboardAudioStationData> stations;
+  final String recommendedLabel;
+  final bool isFollowingRecommended;
+  final ValueChanged<String>? onSelectStation;
+  final VoidCallback? onUseRecommended;
+  final VoidCallback? onAddStation;
+  final ValueChanged<String>? onRemoveStation;
+
+  const DashboardAudioWidgetData({
+    required this.activeStation,
+    this.stations = const <DashboardAudioStationData>[],
+    this.recommendedLabel = 'Recommended now',
+    this.isFollowingRecommended = true,
+    this.onSelectStation,
+    this.onUseRecommended,
+    this.onAddStation,
+    this.onRemoveStation,
+  });
+}
+
+class DashboardAudioStationData {
+  final String id;
   final String stationName;
   final String programLabel;
   final String detail;
+  final String? streamUrl;
+  final String stationUrl;
+  final String countryLabel;
+  final String categoryLabel;
+  final IconData icon;
+  final List<Color> gradientColors;
+  final bool isCustom;
 
-  const DashboardAudioWidgetData({
+  const DashboardAudioStationData({
+    required this.id,
     required this.stationName,
     required this.programLabel,
     required this.detail,
+    required this.streamUrl,
+    required this.stationUrl,
+    required this.countryLabel,
+    required this.categoryLabel,
+    required this.icon,
+    required this.gradientColors,
+    this.isCustom = false,
   });
+
+  bool get supportsInlinePlayback =>
+      streamUrl != null && streamUrl!.trim().isNotEmpty;
 }
 
 class DashboardCommunicationWidgetData {
@@ -887,7 +927,7 @@ class SidebarNavigation extends StatelessWidget {
   }
 }
 
-class DashboardTopSummary extends StatelessWidget {
+class DashboardTopSummary extends StatefulWidget {
   final String title;
   final String subtitle;
   final String todayLine;
@@ -910,29 +950,34 @@ class DashboardTopSummary extends StatelessWidget {
   });
 
   @override
+  State<DashboardTopSummary> createState() => _DashboardTopSummaryState();
+}
+
+class _DashboardTopSummaryState extends State<DashboardTopSummary> {
+  bool _detailsExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    final primaryMetric = metrics.isNotEmpty ? metrics.first : null;
-    final secondaryMetrics = metrics.length > 1
-        ? metrics.sublist(1)
-      : const <DashboardSummaryMetricData>[];
-    final summaryPills = todayLine
+    final primaryMetric =
+        widget.metrics.isNotEmpty ? widget.metrics.first : null;
+    final summaryPills = widget.todayLine
         .split('•')
         .map((segment) => segment.trim())
         .where((segment) => segment.isNotEmpty)
         .toList(growable: false);
     final deckAccent = _commandDeckAccent(
-      presentation: presentation,
-      backgroundImage: backgroundImage,
+      presentation: widget.presentation,
+      backgroundImage: widget.backgroundImage,
     );
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final baseTheme = Theme.of(context);
-        final wide = !compact && constraints.maxWidth > 1060;
-        final medium = !compact && constraints.maxWidth > 820;
+        final wide = !widget.compact && constraints.maxWidth > 1060;
+        final medium = !widget.compact && constraints.maxWidth > 820;
 
         return DashboardPanelCard(
-          padding: EdgeInsets.all(compact ? 16 : 20),
+          padding: EdgeInsets.all(widget.compact ? 14 : 18),
           radius: 24,
           gradientColors: [
             _DashboardPalette.sidebarAlt,
@@ -964,21 +1009,21 @@ class DashboardTopSummary extends StatelessWidget {
                             _CommandDeckLiveBadge(accent: deckAccent),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         Text(
-                          title,
-                          style: (compact
-                                  ? baseTheme.textTheme.headlineSmall
-                                  : baseTheme.textTheme.headlineMedium)
+                          widget.title,
+                          style: (widget.compact
+                                  ? baseTheme.textTheme.titleLarge
+                                  : baseTheme.textTheme.headlineSmall)
                               ?.copyWith(
                             fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
+                            letterSpacing: -0.45,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          subtitle,
-                          maxLines: compact ? 2 : 1,
+                          widget.subtitle,
+                          maxLines: widget.compact ? 2 : 1,
                           overflow: TextOverflow.ellipsis,
                           style: baseTheme.textTheme.bodyMedium?.copyWith(
                             color: _DashboardPalette.textSecondary,
@@ -988,7 +1033,7 @@ class DashboardTopSummary extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (actions.isNotEmpty) ...[
+                  if (widget.actions.isNotEmpty) ...[
                     const SizedBox(width: 16),
                     ConstrainedBox(
                       constraints: BoxConstraints(
@@ -998,13 +1043,13 @@ class DashboardTopSummary extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         alignment: WrapAlignment.end,
-                        children: actions,
+                        children: widget.actions,
                       ),
                     ),
                   ],
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -1017,10 +1062,10 @@ class DashboardTopSummary extends StatelessWidget {
                       const SizedBox(width: 8),
                     ],
                     _CommandDeckSummaryPill(
-                      label: backgroundImage != null
+                      label: widget.backgroundImage != null
                           ? 'Personalized deck'
-                          : presentation.label,
-                      icon: backgroundImage != null
+                          : widget.presentation.label,
+                      icon: widget.backgroundImage != null
                           ? Icons.image_outlined
                           : Icons.palette_outlined,
                       accent: deckAccent,
@@ -1029,67 +1074,168 @@ class DashboardTopSummary extends StatelessWidget {
                 ),
               ),
               if (primaryMetric != null) ...[
-                const SizedBox(height: 14),
-                Text(
-                  'Instruments',
-                  style: baseTheme.textTheme.labelLarge?.copyWith(
-                    color: _DashboardPalette.textSecondary,
-                    fontWeight: FontWeight.w700,
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    color: Colors.white.withValues(alpha: 0.035),
+                    border: Border.all(
+                      color: deckAccent.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, box) {
+                      final narrow = box.maxWidth < 520;
+                      final toggleButton = TextButton.icon(
+                        onPressed: () {
+                          setState(() => _detailsExpanded = !_detailsExpanded);
+                        },
+                        icon: Icon(
+                          _detailsExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          color: deckAccent,
+                        ),
+                        label: Text(
+                          _detailsExpanded ? 'Hide details' : 'Show details',
+                          style: TextStyle(
+                            color: deckAccent,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      );
+                      final primaryActionButton = TextButton.icon(
+                        onPressed: primaryMetric.onTap,
+                        icon: Icon(
+                          primaryMetric.icon,
+                          color: deckAccent,
+                          size: 18,
+                        ),
+                        label: Text(
+                          primaryMetric.actionLabel,
+                          style: TextStyle(
+                            color: deckAccent,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      );
+
+                      final summaryCopy = Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _detailsExpanded
+                                  ? 'Dashboard details open'
+                                  : '${primaryMetric.label} is ready',
+                              style: baseTheme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${primaryMetric.value} • ${primaryMetric.detail}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: baseTheme.textTheme.bodySmall?.copyWith(
+                                color: _DashboardPalette.textSecondary,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      final badge = Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: deckAccent.withValues(alpha: 0.12),
+                          border: Border.all(
+                            color: deckAccent.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        child: Icon(
+                          _detailsExpanded
+                              ? Icons.unfold_less_rounded
+                              : Icons.unfold_more_rounded,
+                          color: deckAccent,
+                          size: 18,
+                        ),
+                      );
+
+                      if (narrow) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                badge,
+                                const SizedBox(width: 10),
+                                summaryCopy,
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                primaryActionButton,
+                                toggleButton,
+                              ],
+                            ),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          badge,
+                          const SizedBox(width: 10),
+                          summaryCopy,
+                          const SizedBox(width: 8),
+                          primaryActionButton,
+                          const SizedBox(width: 12),
+                          toggleButton,
+                        ],
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: 10),
-                if (wide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 8,
-                        child: _CommandDeckPrimaryPanel(
-                          metric: primaryMetric,
-                          accent: deckAccent,
-                        ),
-                      ),
-                      if (secondaryMetrics.isNotEmpty) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 5,
-                          child: Column(
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 240),
+                  curve: Curves.easeOutCubic,
+                  child: !_detailsExpanded
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
                             children: [
-                              for (int index = 0;
-                                  index < secondaryMetrics.length;
-                                  index++) ...[
-                                _CommandDeckSecondaryPanel(
-                                  metric: secondaryMetrics[index],
-                                  accent: deckAccent,
+                              for (final metric in widget.metrics)
+                                SizedBox(
+                                  width: widget.compact
+                                      ? constraints.maxWidth
+                                      : constraints.maxWidth > 1180
+                                          ? (constraints.maxWidth - 20) / 3
+                                          : constraints.maxWidth > 740
+                                              ? (constraints.maxWidth - 10) / 2
+                                              : constraints.maxWidth,
+                                  child: _CommandDeckCompactMetricCard(
+                                    metric: metric,
+                                    accent: deckAccent,
+                                  ),
                                 ),
-                                if (index != secondaryMetrics.length - 1)
-                                  const SizedBox(height: 12),
-                              ],
                             ],
                           ),
                         ),
-                      ],
-                    ],
-                  )
-                else ...[
-                  _CommandDeckPrimaryPanel(
-                    metric: primaryMetric,
-                    accent: deckAccent,
-                  ),
-                  if (secondaryMetrics.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    for (int index = 0;
-                        index < secondaryMetrics.length;
-                        index++) ...[
-                      _CommandDeckSecondaryPanel(
-                        metric: secondaryMetrics[index],
-                        accent: deckAccent,
-                      ),
-                      if (index != secondaryMetrics.length - 1)
-                        const SizedBox(height: 12),
-                    ],
-                  ],
-                ],
+                ),
               ],
             ],
           ),
@@ -1224,6 +1370,103 @@ class _CommandDeckSummaryPill extends StatelessWidget {
   }
 }
 
+class _CommandDeckCompactMetricCard extends StatelessWidget {
+  final DashboardSummaryMetricData metric;
+  final Color accent;
+
+  const _CommandDeckCompactMetricCard({
+    required this.metric,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final panelAccent =
+        Color.lerp(metric.gradientColors.first, accent, 0.58) ?? accent;
+
+    return DashboardPanelCard(
+      onTap: metric.onTap,
+      radius: 20,
+      padding: const EdgeInsets.all(14),
+      gradientColors: [
+        _DashboardPalette.panel,
+        _DashboardPalette.panelAlt,
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: panelAccent.withValues(alpha: 0.12),
+                  border: Border.all(
+                    color: panelAccent.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Icon(metric.icon, size: 18, color: panelAccent),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  metric.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: _DashboardPalette.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            metric.value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            metric.detail,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: _DashboardPalette.textSecondary,
+                  height: 1.35,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(
+                metric.actionLabel,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: panelAccent,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const Spacer(),
+              Icon(
+                Icons.arrow_downward_rounded,
+                size: 18,
+                color: panelAccent,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CommandDeckPrimaryPanel extends StatefulWidget {
   final DashboardSummaryMetricData metric;
   final Color accent;
@@ -1280,173 +1523,179 @@ class _CommandDeckPrimaryPanelState extends State<_CommandDeckPrimaryPanel>
             highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
             splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
             child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            color: Colors.white.withValues(alpha: 0.04),
-            border: Border.all(
-              color: panelAccent.withValues(alpha: _hovered ? 0.3 : 0.22),
-            ),
-            boxShadow: _hovered
-                ? [
-                    BoxShadow(
-                      color: panelAccent.withValues(alpha: 0.16),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                color: Colors.white.withValues(alpha: 0.04),
+                border: Border.all(
+                  color: panelAccent.withValues(alpha: _hovered ? 0.3 : 0.22),
+                ),
+                boxShadow: _hovered
+                    ? [
+                        BoxShadow(
+                          color: panelAccent.withValues(alpha: 0.16),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedBuilder(
+                          animation: _controller,
+                          builder: (context, child) {
+                            return Align(
+                              alignment: Alignment(
+                                  -1.15 + (_controller.value * 2.3), 0),
+                              child: FractionallySizedBox(
+                                widthFactor: 0.4,
+                                heightFactor: 1.25,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: [
+                                        Colors.transparent,
+                                        panelAccent.withValues(alpha: 0.08),
+                                        Colors.transparent,
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ),
-                  ]
-                : null,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: AnimatedBuilder(
-                      animation: _controller,
-                      builder: (context, child) {
-                        return Align(
-                          alignment:
-                              Alignment(-1.15 + (_controller.value * 2.3), 0),
-                          child: FractionallySizedBox(
-                            widthFactor: 0.4,
-                            heightFactor: 1.25,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                  colors: [
-                                    Colors.transparent,
-                                    panelAccent.withValues(alpha: 0.08),
-                                    Colors.transparent,
+                    Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      metric.label,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(
+                                            color:
+                                                _DashboardPalette.textSecondary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      metric.value,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -0.45,
+                                          ),
+                                    ),
                                   ],
                                 ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  metric.label,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelLarge
-                                      ?.copyWith(
-                                        color: _DashboardPalette.textSecondary,
-                                        fontWeight: FontWeight.w700,
-                                      ),
+                              const SizedBox(width: 12),
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  color: panelAccent.withValues(alpha: 0.14),
+                                  border: Border.all(
+                                    color: panelAccent.withValues(alpha: 0.22),
+                                  ),
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  metric.value,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: -0.45,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              color: panelAccent.withValues(alpha: 0.14),
-                              border: Border.all(
-                                color: panelAccent.withValues(alpha: 0.22),
-                              ),
-                            ),
-                            child: Icon(
-                              metric.icon,
-                              size: 20,
-                              color: panelAccent,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        metric.detail,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: _DashboardPalette.textSecondary,
-                              height: 1.4,
-                            ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          FilledButton.icon(
-                            onPressed: metric.onTap,
-                            style: FilledButton.styleFrom(
-                              backgroundColor:
-                                  panelAccent.withValues(alpha: 0.16),
-                              foregroundColor: _DashboardPalette.textPrimary,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                side: BorderSide(
-                                  color: panelAccent.withValues(alpha: 0.22),
+                                child: Icon(
+                                  metric.icon,
+                                  size: 20,
+                                  color: panelAccent,
                                 ),
                               ),
-                            ),
-                            icon:
-                                Icon(metric.icon, size: 18, color: panelAccent),
-                            label: Text(
-                              metric.actionLabel,
-                              style: TextStyle(
-                                color: _DashboardPalette.textPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                            ],
                           ),
-                          const Spacer(),
+                          const SizedBox(height: 10),
                           Text(
-                            'Primary focus',
+                            metric.detail,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: Theme.of(context)
                                 .textTheme
-                                .labelMedium
+                                .bodyMedium
                                 ?.copyWith(
                                   color: _DashboardPalette.textSecondary,
-                                  fontWeight: FontWeight.w700,
+                                  height: 1.4,
                                 ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              FilledButton.icon(
+                                onPressed: metric.onTap,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor:
+                                      panelAccent.withValues(alpha: 0.16),
+                                  foregroundColor:
+                                      _DashboardPalette.textPrimary,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    side: BorderSide(
+                                      color:
+                                          panelAccent.withValues(alpha: 0.22),
+                                    ),
+                                  ),
+                                ),
+                                icon: Icon(metric.icon,
+                                    size: 18, color: panelAccent),
+                                label: Text(
+                                  metric.actionLabel,
+                                  style: TextStyle(
+                                    color: _DashboardPalette.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                'Primary focus',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(
+                                      color: _DashboardPalette.textSecondary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
             ),
           ),
         ),
@@ -1469,7 +1718,8 @@ class _CommandDeckSecondaryPanel extends StatefulWidget {
       _CommandDeckSecondaryPanelState();
 }
 
-class _CommandDeckSecondaryPanelState extends State<_CommandDeckSecondaryPanel> {
+class _CommandDeckSecondaryPanelState
+    extends State<_CommandDeckSecondaryPanel> {
   bool _hovered = false;
 
   @override
@@ -1499,79 +1749,81 @@ class _CommandDeckSecondaryPanelState extends State<_CommandDeckSecondaryPanel> 
             highlightColor: _dashboardInteractiveOverlay(emphasis: 1.25),
             splashColor: _dashboardInteractiveOverlay(emphasis: 1.35),
             child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: Colors.white.withValues(alpha: 0.035),
-            border: Border.all(
-              color: panelAccent.withValues(alpha: _hovered ? 0.28 : 0.18),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: Colors.white.withValues(alpha: 0.035),
+                border: Border.all(
+                  color: panelAccent.withValues(alpha: _hovered ? 0.28 : 0.18),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      metric.label,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: _DashboardPalette.textSecondary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          metric.label,
+                          style:
+                              Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    color: _DashboardPalette.textSecondary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: panelAccent.withValues(alpha: 0.12),
+                        ),
+                        child: Icon(metric.icon, size: 18, color: panelAccent),
+                      ),
+                    ],
                   ),
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: panelAccent.withValues(alpha: 0.12),
-                    ),
-                    child: Icon(metric.icon, size: 18, color: panelAccent),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                metric.value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.25,
-                    ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                metric.detail,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: _DashboardPalette.textSecondary,
-                      height: 1.4,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
+                  const SizedBox(height: 10),
                   Text(
-                    metric.actionLabel,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: panelAccent,
-                          fontWeight: FontWeight.w700,
+                    metric.value,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.25,
                         ),
                   ),
-                  const Spacer(),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 18,
-                    color: panelAccent,
+                  const SizedBox(height: 6),
+                  Text(
+                    metric.detail,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: _DashboardPalette.textSecondary,
+                          height: 1.4,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Text(
+                        metric.actionLabel,
+                        style:
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: panelAccent,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 18,
+                        color: panelAccent,
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
             ),
           ),
         ),
@@ -1646,41 +1898,496 @@ class ClassStatusSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    DashboardClassStatusData? selectedClass;
+    for (final classData in classes) {
+      if (classData.isSelected) {
+        selectedClass = classData;
+        break;
+      }
+    }
+
     return _DashboardSectionFrame(
       title: 'Your Classes',
-      subtitle: 'Compact class summaries and direct actions.',
+      subtitle:
+          'Scroll across the class rail, then open the selected workspace below.',
       action: TextButton.icon(
         onPressed: onOpenClasses,
         icon: const Icon(Icons.arrow_forward_rounded, size: 18),
         label: const Text('Open classes'),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (warning != null) ...[
+            warning!,
+            const SizedBox(height: 12),
+          ],
+          if (classes.isEmpty)
+            DashboardPanelCard(
+              padding: const EdgeInsets.all(18),
+              radius: 22,
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: _DashboardPalette.accent.withValues(alpha: 0.12),
+                    ),
+                    child: Icon(
+                      Icons.class_outlined,
+                      color: _DashboardPalette.accent,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Create your first class to populate the dashboard rail.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                            height: 1.4,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            _DashboardClassRail(
+              classes: classes,
+              compact: compact,
+            ),
+            if (selectedClass != null) ...[
+              const SizedBox(height: 12),
+              _SelectedDashboardClassPanel(
+                data: selectedClass,
+                compact: compact,
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+Color _dashboardClassAccentForLevel(ClassHealthLevel level) {
+  switch (level) {
+    case ClassHealthLevel.ready:
+      return _DashboardPalette.green;
+    case ClassHealthLevel.attention:
+      return _DashboardPalette.amber;
+    case ClassHealthLevel.urgent:
+      return _DashboardPalette.coral;
+  }
+}
+
+class _DashboardClassRail extends StatelessWidget {
+  final List<DashboardClassStatusData> classes;
+  final bool compact;
+
+  const _DashboardClassRail({
+    required this.classes,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (int index = 0; index < classes.length; index++) ...[
+            _DashboardClassRailTile(
+              data: classes[index],
+              compact: compact,
+            ),
+            if (index != classes.length - 1) const SizedBox(width: 10),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardClassRailTile extends StatelessWidget {
+  final DashboardClassStatusData data;
+  final bool compact;
+
+  const _DashboardClassRailTile({
+    required this.data,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final statusAccent = _dashboardClassAccentForLevel(data.level);
+    final selected = data.isSelected;
+
+    return SizedBox(
+      width: compact ? 214 : 236,
+      child: DashboardPanelCard(
+        onTap: data.onTap,
+        radius: 20,
+        padding: EdgeInsets.all(compact ? 12 : 14),
+        gradientColors: selected
+            ? [
+                Color.lerp(_DashboardPalette.panel, statusAccent, 0.12) ??
+                    _DashboardPalette.panel,
+                Color.lerp(_DashboardPalette.panelAlt, statusAccent, 0.08) ??
+                    _DashboardPalette.panelAlt,
+              ]
+            : [
+                _DashboardPalette.panel,
+                _DashboardPalette.panelAlt,
+              ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: statusAccent,
+                    boxShadow: [
+                      BoxShadow(
+                        color: statusAccent.withValues(alpha: 0.28),
+                        blurRadius: 10,
+                        spreadRadius: 0.4,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    data.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: statusAccent.withValues(
+                      alpha: selected ? 0.16 : 0.08,
+                    ),
+                    border: Border.all(
+                      color: statusAccent.withValues(
+                        alpha: selected ? 0.26 : 0.14,
+                      ),
+                    ),
+                  ),
+                  child: Icon(
+                    selected
+                        ? Icons.check_rounded
+                        : Icons.arrow_outward_rounded,
+                    size: 16,
+                    color: statusAccent,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              data.subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _DashboardPalette.textSecondary,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  data.statusIcon,
+                  size: 16,
+                  color: statusAccent,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    data.statusLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.people_alt_outlined,
+                  size: 14,
+                  color: _DashboardPalette.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    data.studentCount == 1
+                        ? '1 student'
+                        : '${data.studentCount} students',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: _DashboardPalette.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+                Text(
+                  data.levelLabel,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: statusAccent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectedDashboardClassPanel extends StatelessWidget {
+  final DashboardClassStatusData data;
+  final bool compact;
+
+  const _SelectedDashboardClassPanel({
+    required this.data,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final statusAccent = _dashboardClassAccentForLevel(data.level);
+    final actions = data.actions.take(2).toList(growable: false);
+
+    return DashboardPanelCard(
+      radius: 22,
+      padding: EdgeInsets.all(compact ? 14 : 16),
+      gradientColors: [
+        Color.lerp(_DashboardPalette.panel, statusAccent, 0.08) ??
+            _DashboardPalette.panel,
+        Color.lerp(_DashboardPalette.panelAlt, statusAccent, 0.04) ??
+            _DashboardPalette.panelAlt,
+      ],
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final columns = compact
-              ? 1
-              : width > 1320
-                  ? 4
-                  : width > 980
-                      ? 3
-                      : 2;
-          final gap = 14.0;
-          final cardWidth =
-              columns == 1 ? width : (width - (gap * (columns - 1))) / columns;
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
+          final wide = !compact && constraints.maxWidth > 860;
+          final summary = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (warning != null)
-                SizedBox(
-                  width: width,
-                  child: warning!,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      color: statusAccent.withValues(alpha: 0.12),
+                      border: Border.all(
+                        color: statusAccent.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: Icon(
+                      data.statusIcon,
+                      color: statusAccent,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          data.title,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.3,
+                                  ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          data.subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: _DashboardPalette.textSecondary,
+                                    height: 1.35,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  _DashboardSectionTag(
+                    label: data.levelLabel,
+                    foregroundColor: statusAccent,
+                    backgroundColor: statusAccent.withValues(alpha: 0.08),
+                    borderColor: statusAccent.withValues(alpha: 0.18),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _DashboardSectionTag(
+                    label: data.statusLabel,
+                    icon: data.statusIcon,
+                    foregroundColor: statusAccent,
+                    backgroundColor: statusAccent.withValues(alpha: 0.10),
+                    borderColor: statusAccent.withValues(alpha: 0.18),
+                  ),
+                  _DashboardSectionTag(
+                    label: data.studentCount == 1
+                        ? '1 student'
+                        : '${data.studentCount} students',
+                    icon: Icons.people_alt_outlined,
+                  ),
+                  for (final metric in data.metrics.take(4))
+                    _DashboardSectionTag(
+                      label: metric.label,
+                      icon: metric.icon,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                data.statusDetail.isNotEmpty
+                    ? data.statusDetail
+                    : data.statusLabel,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: _DashboardPalette.textSecondary,
+                      height: 1.45,
+                    ),
+              ),
+              if (data.recommendedLabel.isNotEmpty ||
+                  data.recommendedDetail.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: statusAccent.withValues(alpha: 0.08),
+                    border: Border.all(
+                      color: statusAccent.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Next move',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: statusAccent,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        data.recommendedLabel.isNotEmpty
+                            ? data.recommendedLabel
+                            : data.statusLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      if (data.recommendedDetail.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          data.recommendedDetail,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: _DashboardPalette.textSecondary,
+                                    height: 1.35,
+                                  ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              for (final classData in classes)
-                SizedBox(
-                  width: cardWidth,
-                  child: DashboardClassCard(data: classData),
-                ),
+              ],
+            ],
+          );
+
+          final actionColumn = actions.isEmpty
+              ? const SizedBox.shrink()
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Open',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    for (int index = 0; index < actions.length; index++) ...[
+                      _ClassActionButton(
+                        action: actions[index],
+                        accent: statusAccent,
+                        primary: index == 0,
+                        compact: false,
+                        minHeight: 46,
+                      ),
+                      if (index != actions.length - 1)
+                        const SizedBox(height: 8),
+                    ],
+                  ],
+                );
+
+          if (!wide || actions.isEmpty) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                summary,
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  actionColumn,
+                ],
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 5, child: summary),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: actionColumn,
+              ),
             ],
           );
         },
@@ -1998,9 +2705,8 @@ class _WorkspaceStripButtonState extends State<_WorkspaceStripButton> {
                             color: active
                                 ? _DashboardPalette.textPrimary
                                 : _DashboardPalette.textSecondary,
-                            fontWeight: active
-                                ? FontWeight.w800
-                                : FontWeight.w700,
+                            fontWeight:
+                                active ? FontWeight.w800 : FontWeight.w700,
                           ),
                     ),
                   ],
@@ -2428,42 +3134,512 @@ class _DashboardAudioWidgetCard extends StatefulWidget {
 }
 
 class _DashboardAudioWidgetCardState extends State<_DashboardAudioWidgetCard> {
-  bool _playing = true;
+  late final DashboardAudioPlayer _audioPlayer = DashboardAudioPlayer();
+  bool _playing = false;
+  bool _busy = false;
+  String? _errorText;
+
+  DashboardAudioStationData get _activeStation => widget.data.activeStation;
+
+  @override
+  void didUpdateWidget(covariant _DashboardAudioWidgetCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final stationChanged = oldWidget.data.activeStation.id != _activeStation.id;
+    if (_playing && stationChanged) {
+      if (_activeStation.supportsInlinePlayback) {
+        unawaited(_startPlayback());
+      } else {
+        unawaited(_stopForStationChange());
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openStationPage() async {
+    await launchUrl(
+      Uri.parse(_activeStation.stationUrl),
+      webOnlyWindowName: '_blank',
+    );
+  }
+
+  Future<void> _stopForStationChange() async {
+    try {
+      await _audioPlayer.pause();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _playing = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _startPlayback() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _errorText = null;
+    });
+
+    try {
+      if (!_audioPlayer.isSupported || !_activeStation.supportsInlinePlayback) {
+        if (_playing) {
+          await _audioPlayer.pause();
+        }
+        if (mounted) {
+          setState(() {
+            _playing = false;
+          });
+        }
+        await _openStationPage();
+        return;
+      }
+
+      await _audioPlayer.play(_activeStation.streamUrl!);
+      if (!mounted) return;
+      setState(() {
+        _playing = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _playing = false;
+        _errorText = 'Stream did not start. Try again or open the station.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pausePlayback() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _errorText = null;
+    });
+
+    try {
+      await _audioPlayer.pause();
+      if (!mounted) return;
+      setState(() {
+        _playing = false;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openStationLibrary() async {
+    final stations = widget.data.stations;
+    if (stations.isEmpty &&
+        widget.data.onAddStation == null &&
+        widget.data.onUseRecommended == null) {
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Station library',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Pick a station for the live card or add your own stream. External-only stations open in the browser.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                if (widget.data.onUseRecommended != null)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        color: _DashboardPalette.accent.withValues(alpha: 0.12),
+                        border: Border.all(
+                          color:
+                              _DashboardPalette.accent.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        color: _DashboardPalette.accentSoft,
+                      ),
+                    ),
+                    title: const Text('Follow recommended mix'),
+                    subtitle: Text(widget.data.recommendedLabel),
+                    trailing: widget.data.isFollowingRecommended
+                        ? Icon(
+                            Icons.check_circle_rounded,
+                            color: _DashboardPalette.green,
+                          )
+                        : null,
+                    onTap: () {
+                      widget.data.onUseRecommended?.call();
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                if (widget.data.onUseRecommended != null)
+                  const Divider(height: 20),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: stations.length,
+                    separatorBuilder: (_, __) => const Divider(height: 12),
+                    itemBuilder: (context, index) {
+                      final station = stations[index];
+                      final selected = station.id == _activeStation.id;
+                      final accent = station.gradientColors.first;
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: station.gradientColors,
+                            ),
+                          ),
+                          child: Icon(station.icon, color: Colors.white),
+                        ),
+                        title: Text(
+                          station.stationName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${station.programLabel} • ${station.countryLabel} • ${station.categoryLabel}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            height: 1.35,
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(999),
+                                color: accent.withValues(alpha: 0.10),
+                              ),
+                              child: Text(
+                                station.supportsInlinePlayback
+                                    ? 'Direct'
+                                    : 'External',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: accent,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (selected) ...[
+                              const SizedBox(width: 10),
+                              Icon(
+                                Icons.check_circle_rounded,
+                                color: _DashboardPalette.green,
+                              ),
+                            ],
+                            if (station.isCustom &&
+                                widget.data.onRemoveStation != null) ...[
+                              const SizedBox(width: 4),
+                              IconButton(
+                                tooltip: 'Remove custom station',
+                                onPressed: () {
+                                  widget.data.onRemoveStation?.call(station.id);
+                                  Navigator.of(context).pop();
+                                },
+                                icon: const Icon(Icons.delete_outline_rounded),
+                              ),
+                            ],
+                          ],
+                        ),
+                        onTap: () {
+                          widget.data.onSelectStation?.call(station.id);
+                          Navigator.of(context).pop();
+                        },
+                      );
+                    },
+                  ),
+                ),
+                if (widget.data.onAddStation != null) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        widget.data.onAddStation?.call();
+                      },
+                      icon: const Icon(Icons.add_link_rounded),
+                      label: const Text('Add custom station'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final station = _activeStation;
+    final accent = Color.lerp(
+          station.gradientColors.first,
+          _DashboardPalette.accent,
+          0.24,
+        ) ??
+        _DashboardPalette.accent;
+    final inlineReady =
+        station.supportsInlinePlayback && _audioPlayer.isSupported;
+    final stations = widget.data.stations.isEmpty
+        ? <DashboardAudioStationData>[station]
+        : widget.data.stations;
+
     return DashboardPanelCard(
       padding: const EdgeInsets.all(16),
       radius: 22,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Audio',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: _DashboardPalette.textSecondary,
-                  fontWeight: FontWeight.w700,
+          Row(
+            children: [
+              Text(
+                'Audio',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: _DashboardPalette.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const Spacer(),
+              if (widget.data.recommendedLabel.trim().isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    color: accent.withValues(alpha: 0.10),
+                    border: Border.all(
+                      color: accent.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: Text(
+                    widget.data.isFollowingRecommended
+                        ? widget.data.recommendedLabel
+                        : 'Pinned station',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: accent,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
                 ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            widget.data.stationName,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
+              if (stations.length > 1 ||
+                  widget.data.onAddStation != null ||
+                  widget.data.onUseRecommended != null) ...[
+                const SizedBox(width: 6),
+                IconButton(
+                  tooltip: 'Open station library',
+                  onPressed: _openStationLibrary,
+                  icon: const Icon(Icons.library_music_rounded),
                 ),
+              ],
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            widget.data.programLabel,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: _DashboardPalette.textSecondary,
-                  fontWeight: FontWeight.w600,
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  station.gradientColors.first.withValues(alpha: 0.28),
+                  station.gradientColors.last.withValues(alpha: 0.12),
+                ],
+              ),
+              border: Border.all(
+                color: accent.withValues(alpha: 0.22),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: station.gradientColors,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withValues(alpha: 0.18),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        station.icon,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            station.stationName,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            station.programLabel,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: _DashboardPalette.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        color: Colors.white.withValues(alpha: 0.10),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
+                      child: Text(
+                        inlineReady ? 'Direct web' : 'Browser handoff',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: _DashboardPalette.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _DashboardAudioTag(
+                      label: station.countryLabel,
+                      accent: accent,
+                    ),
+                    _DashboardAudioTag(
+                      label: station.categoryLabel,
+                      accent: accent,
+                    ),
+                    if (station.isCustom)
+                      _DashboardAudioTag(
+                        label: 'Custom',
+                        accent: _DashboardPalette.amber,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: List<Widget>.generate(12, (index) {
+                    final height = _playing
+                        ? 10.0 + (((index * 7) % 6) * 5.0)
+                        : 10.0 + ((index % 3) * 2.0);
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(right: index == 11 ? 0 : 4),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          height: height,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            color: Colors.white.withValues(
+                              alpha: _playing ? 0.86 : 0.28,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
-            widget.data.detail,
-            maxLines: 2,
+            station.detail,
+            maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: _DashboardPalette.textSecondary,
@@ -2471,56 +3647,186 @@ class _DashboardAudioWidgetCardState extends State<_DashboardAudioWidgetCard> {
                 ),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              InkWell(
-                onTap: () => setState(() => _playing = !_playing),
-                borderRadius: BorderRadius.circular(14),
-                child: Ink(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final playButton = FilledButton.icon(
+                onPressed:
+                    _busy ? null : (_playing ? _pausePlayback : _startPlayback),
+                style: FilledButton.styleFrom(
+                  backgroundColor: accent.withValues(alpha: 0.18),
+                  foregroundColor: _DashboardPalette.textPrimary,
+                  elevation: 0,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
+                    horizontal: 14,
+                    vertical: 12,
                   ),
-                  decoration: BoxDecoration(
+                  shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
-                    color: _DashboardPalette.accent.withValues(alpha: 0.14),
-                    border: Border.all(
-                      color: _DashboardPalette.accent.withValues(alpha: 0.22),
+                    side: BorderSide(
+                      color: accent.withValues(alpha: 0.24),
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
+                ),
+                icon: _busy
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: accent,
+                        ),
+                      )
+                    : Icon(
                         _playing
                             ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        size: 18,
-                        color: _DashboardPalette.accentSoft,
+                            : (inlineReady
+                                ? Icons.play_arrow_rounded
+                                : Icons.open_in_new_rounded),
+                        color: accent,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _playing ? 'Pause' : 'Play',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: _DashboardPalette.textPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
-                    ],
-                  ),
+                label: Text(
+                  _busy
+                      ? (_playing ? 'Pausing' : 'Connecting')
+                      : _playing
+                          ? 'Pause'
+                          : (inlineReady ? 'Play live' : 'Open live'),
                 ),
-              ),
-              const Spacer(),
-              Text(
-                _playing ? 'Live' : 'Paused',
+              );
+              final stationPageButton = OutlinedButton.icon(
+                onPressed: _openStationPage,
+                icon: const Icon(Icons.radio_rounded),
+                label: const Text('Station page'),
+              );
+              final statusLabel = Text(
+                _busy
+                    ? 'Starting'
+                    : _playing
+                        ? 'Live'
+                        : (inlineReady ? 'Ready' : 'External'),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: _DashboardPalette.textSecondary,
                       fontWeight: FontWeight.w700,
                     ),
-              ),
-            ],
+              );
+
+              if (constraints.maxWidth < 520) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        playButton,
+                        stationPageButton,
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    statusLabel,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  playButton,
+                  const SizedBox(width: 8),
+                  stationPageButton,
+                  const Spacer(),
+                  statusLabel,
+                ],
+              );
+            },
           ),
+          if (stations.length > 1) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: stations.length > 6 ? 6 : stations.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final quickStation = stations[index];
+                  final selected = quickStation.id == station.id;
+                  final quickAccent = quickStation.gradientColors.first;
+                  return FilterChip(
+                    selected: selected,
+                    onSelected: (_) =>
+                        widget.data.onSelectStation?.call(quickStation.id),
+                    label: Text(quickStation.stationName),
+                    avatar: Icon(
+                      quickStation.icon,
+                      size: 16,
+                      color: selected
+                          ? _DashboardPalette.textPrimary
+                          : quickAccent,
+                    ),
+                    selectedColor: quickAccent.withValues(alpha: 0.18),
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surface.withValues(
+                              alpha: 0.42,
+                            ),
+                    side: BorderSide(
+                      color: selected
+                          ? quickAccent.withValues(alpha: 0.28)
+                          : _DashboardPalette.border.withValues(alpha: 0.8),
+                    ),
+                    labelStyle:
+                        Theme.of(context).textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: selected
+                                  ? _DashboardPalette.textPrimary
+                                  : Theme.of(context).colorScheme.onSurface,
+                            ),
+                  );
+                },
+              ),
+            ),
+          ],
+          if (_errorText != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _errorText!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _DashboardPalette.coral,
+                    height: 1.35,
+                  ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _DashboardAudioTag extends StatelessWidget {
+  final String label;
+  final Color accent;
+
+  const _DashboardAudioTag({
+    required this.label,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: accent.withValues(alpha: 0.10),
+        border: Border.all(
+          color: accent.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: accent,
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }
@@ -2649,9 +3955,8 @@ class _DashboardCommunicationWidgetCardState
     final compactCard = widget.compact;
     final touchLike = _touchLike(context: context);
     final reveal = _isExpanded || (_isHovered && !touchLike);
-    final previewThreads = widget.data.threads
-        .take(reveal ? (compactCard ? 2 : 3) : 1)
-        .toList();
+    final previewThreads =
+        widget.data.threads.take(reveal ? (compactCard ? 2 : 3) : 1).toList();
     final accent = previewThreads.isNotEmpty
         ? previewThreads.first.accent
         : _DashboardPalette.accent;
@@ -2681,7 +3986,8 @@ class _DashboardCommunicationWidgetCardState
             onTap: widget.data.onTap,
             padding: const EdgeInsets.all(16),
             radius: 22,
-            minHeight: reveal ? (compactCard ? 196 : 210) : (compactCard ? 148 : 160),
+            minHeight:
+                reveal ? (compactCard ? 196 : 210) : (compactCard ? 148 : 160),
             gradientColors: [
               _DashboardPalette.panel,
               _DashboardPalette.panelAlt.withValues(alpha: reveal ? 1.0 : 0.9),
@@ -2698,7 +4004,10 @@ class _DashboardCommunicationWidgetCardState
                         children: [
                           Text(
                             'Messages',
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
                                   color: _DashboardPalette.textSecondary,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -2708,7 +4017,10 @@ class _DashboardCommunicationWidgetCardState
                             widget.data.headline,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: -0.2,
                                 ),
@@ -2718,10 +4030,11 @@ class _DashboardCommunicationWidgetCardState
                             widget.data.detail,
                             maxLines: reveal ? 2 : 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: _DashboardPalette.textSecondary,
-                                  height: 1.4,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: _DashboardPalette.textSecondary,
+                                      height: 1.4,
+                                    ),
                           ),
                         ],
                       ),
@@ -2740,7 +4053,9 @@ class _DashboardCommunicationWidgetCardState
                         ),
                       ),
                       child: Text(
-                        widget.data.unreadCount > 0 ? '${widget.data.unreadCount}' : 'Open',
+                        widget.data.unreadCount > 0
+                            ? '${widget.data.unreadCount}'
+                            : 'Open',
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
                               color: accent,
                               fontWeight: FontWeight.w800,
@@ -2773,11 +4088,13 @@ class _DashboardCommunicationWidgetCardState
                     previewLines: reveal ? 2 : 1,
                     showMeta: reveal,
                   ),
-                  if (index != previewThreads.length - 1) const SizedBox(height: 9),
+                  if (index != previewThreads.length - 1)
+                    const SizedBox(height: 9),
                 ],
                 const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
                     color: accent.withValues(alpha: 0.08),
@@ -2790,9 +4107,10 @@ class _DashboardCommunicationWidgetCardState
                       Expanded(
                         child: Text(
                           'Open inbox',
-                          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
                         ),
                       ),
                       Icon(
@@ -3242,9 +4560,8 @@ class _SidebarNavButtonState extends State<_SidebarNavButton> {
                   margin: const EdgeInsets.only(right: 9),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(999),
-                    color: active
-                        ? _DashboardPalette.accent
-                        : Colors.transparent,
+                    color:
+                        active ? _DashboardPalette.accent : Colors.transparent,
                   ),
                 ),
                 Icon(
@@ -3409,14 +4726,7 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
   }
 
   Color _statusAccent() {
-    switch (widget.data.level) {
-      case ClassHealthLevel.ready:
-        return _DashboardPalette.green;
-      case ClassHealthLevel.attention:
-        return _DashboardPalette.amber;
-      case ClassHealthLevel.urgent:
-        return _DashboardPalette.coral;
-    }
+    return _dashboardClassAccentForLevel(widget.data.level);
   }
 
   void _toggleExpanded() {
@@ -3471,13 +4781,11 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
     final statusAccent = _statusAccent();
     final suppressStatusChip = widget.data.suppressTimetableWarning &&
         widget.data.statusLabel.toLowerCase().contains('timetable');
-    final primaryAction = widget.data.actions.isNotEmpty
-        ? widget.data.actions.first
-        : null;
-    final secondaryActions =
-        widget.data.actions.length > 1
-            ? widget.data.actions.sublist(1)
-            : <DashboardInlineActionData>[];
+    final primaryAction =
+        widget.data.actions.isNotEmpty ? widget.data.actions.first : null;
+    final secondaryActions = widget.data.actions.length > 1
+        ? widget.data.actions.sublist(1)
+        : <DashboardInlineActionData>[];
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -3489,9 +4797,8 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
         final hoveredPreview = _isHovered && !touchLike && !_isExpanded;
         final selected = widget.data.isSelected;
         final showFocusPreview = (selected || hoveredPreview) && !_isExpanded;
-        final previewMetric = widget.data.metrics.isNotEmpty
-            ? widget.data.metrics.first
-            : null;
+        final previewMetric =
+            widget.data.metrics.isNotEmpty ? widget.data.metrics.first : null;
         final compactActionHeight = touchLike ? 44.0 : 40.0;
 
         return MouseRegion(
@@ -3574,21 +4881,20 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
                         widget.data.subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style:
-                            Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: _DashboardPalette.textSecondary,
-                                  height: 1.25,
-                                ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: _DashboardPalette.textSecondary,
+                              height: 1.25,
+                            ),
                       ),
-                        const SizedBox(height: 7),
+                      const SizedBox(height: 7),
                       Row(
                         children: [
                           Icon(
                             Icons.people_alt_outlined,
-                              size: 14,
+                            size: 14,
                             color: _DashboardPalette.textSecondary,
                           ),
-                            const SizedBox(width: 5),
+                          const SizedBox(width: 5),
                           Expanded(
                             child: Text(
                               widget.data.studentCount == 0
@@ -3600,14 +4906,12 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
                                   .textTheme
                                   .labelSmall
                                   ?.copyWith(
-                                    color:
-                                        _DashboardPalette.textSecondary,
+                                    color: _DashboardPalette.textSecondary,
                                     fontWeight: FontWeight.w600,
                                   ),
                             ),
                           ),
-                          if (previewMetric != null)
-                            const SizedBox(width: 8),
+                          if (previewMetric != null) const SizedBox(width: 8),
                           if (previewMetric != null)
                             Flexible(
                               child: Text(
@@ -3745,8 +5049,7 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
                               const SizedBox(height: 6),
                               ...secondaryActions.map(
                                 (action) => Padding(
-                                  padding:
-                                      const EdgeInsets.only(top: 6),
+                                  padding: const EdgeInsets.only(top: 6),
                                   child: _ClassActionButton(
                                     action: action,
                                     accent: statusAccent,
@@ -3818,16 +5121,13 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
                                 .take(3)
                                 .map(
                                   (metric) => Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(
+                                    padding: const EdgeInsets.symmetric(
                                       horizontal: 8,
                                       vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
-                                      borderRadius:
-                                          BorderRadius.circular(8),
-                                      color: _DashboardPalette
-                                          .textSecondary
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: _DashboardPalette.textSecondary
                                           .withValues(alpha: 0.08),
                                     ),
                                     child: Row(
@@ -3836,8 +5136,8 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
                                         Icon(
                                           metric.icon,
                                           size: 14,
-                                          color: _DashboardPalette
-                                              .textSecondary,
+                                          color:
+                                              _DashboardPalette.textSecondary,
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
@@ -3869,8 +5169,7 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
                               color: statusAccent.withValues(alpha: 0.06),
                             ),
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'Next',
@@ -3893,11 +5192,9 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
                                         color: statusAccent,
                                       ),
                                 ),
-                                if (widget
-                                    .data.recommendedDetail.isNotEmpty)
+                                if (widget.data.recommendedDetail.isNotEmpty)
                                   const SizedBox(height: 4),
-                                if (widget
-                                    .data.recommendedDetail.isNotEmpty)
+                                if (widget.data.recommendedDetail.isNotEmpty)
                                   Text(
                                     widget.data.recommendedDetail,
                                     maxLines: 2,
@@ -3906,8 +5203,8 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
                                         .textTheme
                                         .bodySmall
                                         ?.copyWith(
-                                          color: _DashboardPalette
-                                              .textSecondary,
+                                          color:
+                                              _DashboardPalette.textSecondary,
                                         ),
                                   ),
                               ],
@@ -3990,8 +5287,8 @@ class _DashboardActionCardState extends State<_DashboardActionCard> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final touchLike =
-            constraints.maxWidth < 300 || MediaQuery.sizeOf(context).shortestSide < 700;
+        final touchLike = constraints.maxWidth < 300 ||
+            MediaQuery.sizeOf(context).shortestSide < 700;
         final reveal = _isExpanded || (_isHovered && !touchLike);
 
         return MouseRegion(
@@ -4023,7 +5320,8 @@ class _DashboardActionCardState extends State<_DashboardActionCard> {
                 radius: 20,
                 gradientColors: [
                   _DashboardPalette.panel,
-                  _DashboardPalette.panelAlt.withValues(alpha: reveal ? 1.0 : 0.9),
+                  _DashboardPalette.panelAlt
+                      .withValues(alpha: reveal ? 1.0 : 0.9),
                 ],
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -4050,7 +5348,10 @@ class _DashboardActionCardState extends State<_DashboardActionCard> {
                             widget.data.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
                           ),
@@ -4068,7 +5369,10 @@ class _DashboardActionCardState extends State<_DashboardActionCard> {
                               key: ValueKey('${widget.data.label}-detail'),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
                                     color: _DashboardPalette.textSecondary,
                                     height: 1.4,
                                   ),
@@ -4078,7 +5382,10 @@ class _DashboardActionCardState extends State<_DashboardActionCard> {
                               key: ValueKey('${widget.data.label}-hint'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
                                     color: _DashboardPalette.textSecondary,
                                     fontWeight: FontWeight.w700,
                                   ),

@@ -4,7 +4,6 @@
 ///
 /// This version keeps the API small but makes the Home surface more native by
 /// supporting richer widget types, responsive spans, and a simple registry.
-library os_widget_host;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';

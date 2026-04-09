@@ -470,37 +470,12 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       title: classItem.className,
       subtitle:
           '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}',
-      trailingActions: [
-        OutlinedButton.icon(
-          onPressed: () => _showScheduleDialog(context),
-          icon: const Icon(Icons.calendar_month_outlined),
-          label: const Text('Schedule'),
-          style: WorkspaceButtonStyles.outlined(context),
-        ),
-      ],
-      metrics: [
-        WorkspaceMetricData(
-          label: 'Students',
-          value: '$studentCount',
-          detail: 'Roster currently loaded for this class',
-          icon: Icons.people_alt_outlined,
-        ),
-        WorkspaceMetricData(
-          label: 'Categories',
-          value: '$categoryCount',
-          detail: 'Assessment categories currently configured',
-          icon: Icons.category_outlined,
-        ),
-        WorkspaceMetricData(
-          label: 'Schedule',
-          value: _scheduleItems.isEmpty ? 'None' : '${_scheduleItems.length}',
-          detail: _scheduleItems.isEmpty
-              ? 'No class schedule imported yet'
-              : 'Imported sessions and planning points are available',
-          icon: Icons.calendar_month_outlined,
-          accent: Theme.of(context).colorScheme.tertiary,
-        ),
-      ],
+      compactHeader: true,
+      contextBar: _buildCompactOverviewBar(
+        context,
+        studentCount: studentCount,
+        categoryCount: categoryCount,
+      ),
       child: studentService.isLoading || categoryService.isLoading
           ? const WorkspaceLoadingState(
               title: 'Loading class workspace',
@@ -509,20 +484,19 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
             )
           : LayoutBuilder(
               builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 1120;
-                final planningRail = SizedBox(
-                  width: wide ? 352 : null,
-                  child: _buildPlanningWorkspace(context),
-                );
+                final wide = constraints.maxWidth >= 1180;
+                final planningRail = _buildPlanningWorkspace(context);
 
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
                   child: wide
                       ? Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
+                              flex: 5,
                               child: WorkspaceSurfaceCard(
+                                padding: const EdgeInsets.all(16),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -538,13 +512,17 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                               ),
                             ),
                             const SizedBox(width: AppSpacing.lg),
-                            planningRail,
+                            Expanded(
+                              flex: 2,
+                              child: planningRail,
+                            ),
                           ],
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             WorkspaceSurfaceCard(
+                              padding: const EdgeInsets.all(16),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -568,13 +546,54 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     );
   }
 
+  Widget _buildCompactOverviewBar(
+    BuildContext context, {
+    required int studentCount,
+    required int categoryCount,
+  }) {
+    return WorkspaceContextBar(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      radius: 16,
+      leading: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _CompactWorkspaceMetricChip(
+            label: 'Students',
+            value: '$studentCount',
+            icon: Icons.people_alt_outlined,
+            accent: Theme.of(context).colorScheme.primary,
+          ),
+          _CompactWorkspaceMetricChip(
+            label: 'Categories',
+            value: '$categoryCount',
+            icon: Icons.category_outlined,
+            accent: Theme.of(context).colorScheme.secondary,
+          ),
+          _CompactWorkspaceMetricChip(
+            label: 'Schedule',
+            value: _scheduleItems.isEmpty ? 'None' : '${_scheduleItems.length}',
+            icon: Icons.calendar_month_outlined,
+            accent: Theme.of(context).colorScheme.tertiary,
+          ),
+        ],
+      ),
+      trailing: OutlinedButton.icon(
+        onPressed: () => _showScheduleDialog(context),
+        icon: const Icon(Icons.calendar_month_outlined),
+        label: Text(_scheduleItems.isEmpty ? 'Add schedule' : 'Open schedule'),
+        style: WorkspaceButtonStyles.outlined(context, compact: true),
+      ),
+    );
+  }
+
   Widget _buildPlanningWorkspace(BuildContext context) {
     final now = DateTime.now();
     final thisWeekStart = _startOfWeek(now);
     final nextWeekStart = thisWeekStart.add(const Duration(days: 7));
 
     return WorkspaceSurfaceCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -613,7 +632,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface.withValues(alpha: 0.22),
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -737,7 +756,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface.withValues(alpha: 0.22),
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -1218,6 +1237,72 @@ class ClassWorkspaceToolData {
   });
 }
 
+class _CompactWorkspaceMetricChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color accent;
+
+  const _CompactWorkspaceMetricChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.18),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: accent.withValues(alpha: 0.14),
+              border: Border.all(
+                color: accent.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Icon(icon, size: 15, color: accent),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: context.textStyles.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                value,
+                style: context.textStyles.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ClassWorkspaceToolGrid extends StatelessWidget {
   final List<ClassWorkspaceToolData> tools;
 
@@ -1231,11 +1316,13 @@ class ClassWorkspaceToolGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 12.0;
-        final columnCount = constraints.maxWidth >= 980
-            ? 3
-            : constraints.maxWidth >= 620
-                ? 2
-                : 1;
+        final columnCount = constraints.maxWidth >= 1280
+            ? 4
+            : constraints.maxWidth >= 980
+                ? 3
+                : constraints.maxWidth >= 620
+                    ? 2
+                    : 1;
         final tileWidth = columnCount == 1
             ? constraints.maxWidth
             : (constraints.maxWidth - (spacing * (columnCount - 1))) /
@@ -1271,7 +1358,7 @@ class _ClassWorkspaceToolCard extends StatelessWidget {
     return WorkspaceSurfaceCard(
       onTap: tool.onTap,
       radius: 20,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1301,17 +1388,17 @@ class _ClassWorkspaceToolCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
             tool.title,
             style: context.textStyles.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             tool.subtitle,
-            maxLines: 3,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: context.textStyles.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,

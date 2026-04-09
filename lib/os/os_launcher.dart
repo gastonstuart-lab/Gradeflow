@@ -5,7 +5,6 @@
 ///
 /// It shows all registered [OSApp] items in a grid grouped by category.
 /// Tapping an app navigates to it (or prompts for class context if needed).
-library os_launcher;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -48,8 +47,7 @@ class OSLauncher extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 640),
             decoration: BoxDecoration(
               color: OSColors.surface(dark),
-              borderRadius:
-                  isPhone ? BorderRadius.zero : OSRadius.xlBr,
+              borderRadius: isPhone ? BorderRadius.zero : OSRadius.xlBr,
               border: Border.all(
                 color: OSColors.border(dark),
                 width: 1,
@@ -215,7 +213,8 @@ class _AppGrid extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: apps.map((a) => _AppTile(app: a, onTap: () => onTap(a))).toList(),
+      children:
+          apps.map((a) => _AppTile(app: a, onTap: () => onTap(a))).toList(),
     );
   }
 }

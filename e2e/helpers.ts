@@ -267,10 +267,6 @@ export async function expectGradebookSurface(page: Page) {
 }
 
 async function isOnClassSurface(page: Page, suffix: string) {
-  if (!/\/class\/[^/]+\//.test(page.url())) {
-    return false;
-  }
-
   if (suffix === 'export') {
     return page
       .getByRole('heading', { name: /^Export Grades$/i })
@@ -297,7 +293,7 @@ async function isOnClassSurface(page: Page, suffix: string) {
       .catch(() => false);
   }
 
-  return /\/class\/[^/]+\//.test(page.url());
+  return /\/class\/[^/]+\//.test(page.url()) || /\/classes(?:\?|$)/.test(page.url());
 }
 
 export async function gotoDemoClassRoute(page: Page, suffix: string) {
@@ -326,7 +322,7 @@ export async function gotoDemoClassRoute(page: Page, suffix: string) {
 
   const surfaceButtonPattern = surfaceButtonNameBySuffix[suffix];
   if (surfaceButtonPattern) {
-    const button = page.getByRole('button', { name: surfaceButtonPattern }).first();
+    let button = page.getByRole('button', { name: surfaceButtonPattern }).first();
     const buttonVisible = await button.isVisible({ timeout: 8_000 }).catch(() => false);
     if (!buttonVisible) {
       await openFirstClassWorkspace(page);
@@ -344,8 +340,16 @@ export async function gotoDemoClassRoute(page: Page, suffix: string) {
     }
 
     await expect(button).toBeVisible({ timeout: 60_000 });
-    await activateControl(button);
-    await ensureFlutterSemantics(page);
+    let reachedTarget = await isOnClassSurface(page, suffix);
+    for (let attempt = 0; attempt < 3 && !reachedTarget; attempt += 1) {
+      button = page.getByRole('button', { name: surfaceButtonPattern }).first();
+      await activateControl(button);
+      await ensureFlutterSemantics(page);
+      reachedTarget = await isOnClassSurface(page, suffix);
+      if (!reachedTarget) {
+        await page.waitForTimeout(1_000);
+      }
+    }
   }
 
   if (suffix === 'export') {

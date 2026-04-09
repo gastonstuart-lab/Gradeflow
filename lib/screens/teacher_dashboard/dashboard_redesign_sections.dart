@@ -438,8 +438,8 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     );
   }
 
-    List<DashboardNavItemData> _dashboardNavItems(BuildContext context) => [
-      DashboardNavItemData(
+  List<DashboardNavItemData> _dashboardNavItems(BuildContext context) => [
+        DashboardNavItemData(
           label: 'Dashboard',
           icon: Icons.dashboard_rounded,
           onTap: () => unawaited(_scrollToSection(_summarySectionKey)),
@@ -482,8 +482,8 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
         ),
       ];
 
-    List<DashboardNavItemData> _editionNavItems(BuildContext context) => [
-      DashboardNavItemData(
+  List<DashboardNavItemData> _editionNavItems(BuildContext context) => [
+        DashboardNavItemData(
           label: 'Admin',
           icon: Icons.admin_panel_settings_outlined,
           badge: 'Live',
@@ -744,7 +744,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
         recommendedDetail: health.recommendedDetail,
         statusIcon: _healthStatusIcon(health),
         accent: _DashboardPalette.accent,
-        isSelected: classId == _selectedClassId,
+        isSelected: classId == _dashboardRailSelectedClassId,
         studentCount: classBrief.studentCount,
         metrics: [
           for (final metric in health.metrics)
@@ -753,7 +753,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
               label: '${metric.label}: ${metric.value}',
             ),
         ],
-        onTap: () => _focusClass(classId),
+        onTap: () => _selectDashboardClassFromRail(classId),
         actions: [
           _dashboardActionForHealth(
             context,
@@ -766,8 +766,8 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
             secondaryAction,
           ),
         ],
-        suppressTimetableWarning:
-            _selectedTimetableId == null && !_classHasTimetableContext(classBrief),
+        suppressTimetableWarning: _selectedTimetableId == null &&
+            !_classHasTimetableContext(classBrief),
       );
     }).toList();
   }
@@ -896,6 +896,14 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
 
   void _focusClass(String classId) {
     setState(() => _selectedClassId = classId);
+    _refreshNames();
+  }
+
+  void _selectDashboardClassFromRail(String classId) {
+    setState(() {
+      _selectedClassId = classId;
+      _dashboardRailSelectedClassId = classId;
+    });
     _refreshNames();
   }
 
@@ -1186,27 +1194,446 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
   }
 
   DashboardAudioWidgetData _dashboardAudioWidgetData(DateTime now) {
+    final stations = _dashboardAudioStations();
+    final recommendedStationId = _recommendedDashboardAudioStationId(now);
+    final recommendedStation = stations.firstWhere(
+      (station) => station.id == recommendedStationId,
+      orElse: () => stations.first,
+    );
+    final selectedStation = _selectedAudioStationId == null
+        ? null
+        : stations
+            .where((station) => station.id == _selectedAudioStationId)
+            .firstOrNull;
+
+    return DashboardAudioWidgetData(
+      activeStation: selectedStation ?? recommendedStation,
+      stations: stations,
+      recommendedLabel: _recommendedDashboardAudioLabel(recommendedStation),
+      isFollowingRecommended: selectedStation == null ||
+          selectedStation.id == recommendedStation.id,
+      onSelectStation: _selectDashboardAudioStation,
+      onUseRecommended: _useRecommendedDashboardAudioStation,
+      onAddStation: _promptAddCustomAudioStation,
+      onRemoveStation: _removeCustomAudioStation,
+    );
+  }
+
+  List<DashboardAudioStationData> _dashboardAudioStations() {
+    return <DashboardAudioStationData>[
+      const DashboardAudioStationData(
+        id: 'groove-salad',
+        stationName: 'Groove Salad',
+        programLabel: 'SomaFM / USA',
+        detail:
+            'Low-noise ambient and downtempo for arrivals, setup, and first period focus.',
+        streamUrl: 'https://ice5.somafm.com/groovesalad-128-mp3',
+        stationUrl: 'https://somafm.com/groovesalad/',
+        countryLabel: 'USA',
+        categoryLabel: 'Ambient',
+        icon: Icons.spa_outlined,
+        gradientColors: [Color(0xFF2C5B82), Color(0xFF68B7C8)],
+      ),
+      const DashboardAudioStationData(
+        id: 'sonic-universe',
+        stationName: 'Sonic Universe',
+        programLabel: 'SomaFM / USA',
+        detail:
+            'Smooth jazz and cosmic groove for planning gaps, marking, and quieter admin blocks.',
+        streamUrl: 'https://ice5.somafm.com/sonicuniverse-128-mp3',
+        stationUrl: 'https://somafm.com/sonicuniverse/',
+        countryLabel: 'USA',
+        categoryLabel: 'Jazz',
+        icon: Icons.graphic_eq_rounded,
+        gradientColors: [Color(0xFF4B347A), Color(0xFFB067C8)],
+      ),
+      const DashboardAudioStationData(
+        id: 'drone-zone',
+        stationName: 'Drone Zone',
+        programLabel: 'SomaFM / USA',
+        detail:
+            'A calmer atmospheric stream for wrap-up, exports, and tomorrow planning.',
+        streamUrl: 'https://ice5.somafm.com/dronezone-128-mp3',
+        stationUrl: 'https://somafm.com/dronezone/',
+        countryLabel: 'USA',
+        categoryLabel: 'Calm',
+        icon: Icons.nightlight_round,
+        gradientColors: [Color(0xFF243A73), Color(0xFF4E6FB8)],
+      ),
+      const DashboardAudioStationData(
+        id: 'talksport',
+        stationName: 'talkSPORT',
+        programLabel: 'Sports radio / United Kingdom',
+        detail:
+            'Fast-moving football and live sports talk when the room wants energy instead of music.',
+        streamUrl: null,
+        stationUrl: 'https://talksport.com/live/',
+        countryLabel: 'UK',
+        categoryLabel: 'Sports Talk',
+        icon: Icons.sports_football_rounded,
+        gradientColors: [Color(0xFF6C3A1C), Color(0xFFE07B39)],
+      ),
+      const DashboardAudioStationData(
+        id: 'abc-radio-national',
+        stationName: 'ABC Radio National',
+        programLabel: 'ABC Listen / Australia',
+        detail:
+            'Documentary, current affairs, and long-form talk for deep work or quieter planning blocks.',
+        streamUrl: null,
+        stationUrl: 'https://www.abc.net.au/listen/live/radionational',
+        countryLabel: 'Australia',
+        categoryLabel: 'Talk',
+        icon: Icons.mic_external_on_rounded,
+        gradientColors: [Color(0xFF194F52), Color(0xFF39A0A4)],
+      ),
+      const DashboardAudioStationData(
+        id: 'france-inter',
+        stationName: 'France Inter',
+        programLabel: 'Radio France / France',
+        detail:
+            'A strong international news and conversation option for teachers who prefer global coverage.',
+        streamUrl: null,
+        stationUrl: 'https://www.radiofrance.fr/franceinter/direct',
+        countryLabel: 'France',
+        categoryLabel: 'News',
+        icon: Icons.public_rounded,
+        gradientColors: [Color(0xFF24498E), Color(0xFF5B8CFF)],
+      ),
+      ..._customAudioStations.map(_dashboardAudioStationFromStored),
+    ];
+  }
+
+  DashboardAudioStationData _dashboardAudioStationFromStored(
+    _StoredDashboardAudioStation station,
+  ) {
+    final category = station.categoryLabel.trim().toLowerCase();
+    final icon = switch (category) {
+      'talk' || 'sports talk' || 'sport' => Icons.mic_external_on_rounded,
+      'news' => Icons.public_rounded,
+      'ambient' || 'calm' || 'focus' => Icons.spa_outlined,
+      'jazz' || 'groove' => Icons.graphic_eq_rounded,
+      _ => Icons.radio_rounded,
+    };
+
+    final gradientColors = switch (category) {
+      'talk' || 'sports talk' || 'sport' => const [
+          Color(0xFF7A4B22),
+          Color(0xFFE38A45)
+        ],
+      'news' => const [Color(0xFF275086), Color(0xFF6BA4FF)],
+      'ambient' || 'calm' || 'focus' => const [
+          Color(0xFF2F5A64),
+          Color(0xFF6DB8B6)
+        ],
+      'jazz' || 'groove' => const [Color(0xFF5A3275), Color(0xFFB56FD1)],
+      _ => const [Color(0xFF3D465D), Color(0xFF6C7EA8)],
+    };
+
+    return DashboardAudioStationData(
+      id: station.id,
+      stationName: station.stationName,
+      programLabel: station.programLabel.trim().isEmpty
+          ? 'Custom station'
+          : station.programLabel,
+      detail: station.detail.trim().isEmpty
+          ? 'Teacher-added station for the live dashboard widget.'
+          : station.detail,
+      streamUrl: station.streamUrl,
+      stationUrl: station.stationUrl,
+      countryLabel:
+          station.countryLabel.trim().isEmpty ? 'Global' : station.countryLabel,
+      categoryLabel: station.categoryLabel.trim().isEmpty
+          ? 'Radio'
+          : station.categoryLabel,
+      icon: icon,
+      gradientColors: gradientColors,
+      isCustom: true,
+    );
+  }
+
+  String _recommendedDashboardAudioStationId(DateTime now) {
     final hour = now.hour;
     if (hour < 11) {
-      return const DashboardAudioWidgetData(
-        stationName: 'Campus Radio',
-        programLabel: 'Morning desk mix',
-        detail:
-            'Low-noise instrumental audio for arrivals, setup, and first period.',
-      );
+      return 'groove-salad';
     }
     if (hour < 15) {
-      return const DashboardAudioWidgetData(
-        stationName: 'Campus Radio',
-        programLabel: 'Midday focus set',
-        detail:
-            'Clean background audio for planning gaps, marking, and quick resets.',
-      );
+      return 'sonic-universe';
     }
-    return const DashboardAudioWidgetData(
-      stationName: 'Campus Radio',
-      programLabel: 'After-school review',
-      detail: 'A calmer mix for wrap-up, exports, and tomorrow planning.',
+    return 'drone-zone';
+  }
+
+  String _recommendedDashboardAudioLabel(DashboardAudioStationData station) {
+    return 'Recommended now: ${station.stationName}';
+  }
+
+  void _selectDashboardAudioStation(String stationId) {
+    final normalized = stationId.trim();
+    if (normalized.isEmpty || normalized == _selectedAudioStationId) {
+      return;
+    }
+
+    setState(() {
+      _selectedAudioStationId = normalized;
+    });
+    unawaited(_saveAudioStations());
+  }
+
+  void _useRecommendedDashboardAudioStation() {
+    if (_selectedAudioStationId == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedAudioStationId = null;
+    });
+    unawaited(_saveAudioStations());
+    _showDashboardFeedback(
+      'Audio now follows the recommended station for the time of day.',
+      title: 'Dashboard audio',
+    );
+  }
+
+  Future<void> _promptAddCustomAudioStation() async {
+    final formKey = GlobalKey<FormState>();
+    final stationCtrl = TextEditingController();
+    final sourceCtrl = TextEditingController();
+    final detailCtrl = TextEditingController();
+    final countryCtrl = TextEditingController();
+    final categoryCtrl = TextEditingController();
+    final stationUrlCtrl = TextEditingController(text: 'https://');
+    final streamUrlCtrl = TextEditingController();
+
+    final added = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add custom station'),
+        content: SizedBox(
+          width: 520,
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: stationCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Station name',
+                      hintText: 'e.g. talkSPORT',
+                    ),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Enter a station name.'
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: sourceCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Source / program',
+                      hintText: 'e.g. Sports radio / United Kingdom',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: detailCtrl,
+                    minLines: 2,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      hintText:
+                          'What kind of listening does this station work for?',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: countryCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Country',
+                            hintText: 'e.g. UK',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextFormField(
+                          controller: categoryCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Category',
+                            hintText: 'e.g. Talk',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: stationUrlCtrl,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      labelText: 'Station page URL',
+                      hintText: 'https://station.example/live',
+                    ),
+                    validator: (value) {
+                      final hasStation =
+                          value != null && value.trim().isNotEmpty;
+                      final hasStream = streamUrlCtrl.text.trim().isNotEmpty;
+                      if (!hasStation && !hasStream) {
+                        return 'Add a station page or direct stream URL.';
+                      }
+                      if (hasStation &&
+                          _validatedDashboardAudioUrl(value) == null) {
+                        return 'Enter a valid URL.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: streamUrlCtrl,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      labelText: 'Direct stream URL (optional)',
+                      hintText: 'https://stream.example/live.mp3',
+                    ),
+                    validator: (value) {
+                      final hasStream =
+                          value != null && value.trim().isNotEmpty;
+                      final hasStation = stationUrlCtrl.text.trim().isNotEmpty;
+                      if (!hasStream && !hasStation) {
+                        return 'Add a station page or direct stream URL.';
+                      }
+                      if (hasStream &&
+                          _validatedDashboardAudioUrl(value) == null) {
+                        return 'Enter a valid stream URL.';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!(formKey.currentState?.validate() ?? false)) {
+                return;
+              }
+              Navigator.of(dialogContext).pop(true);
+            },
+            child: const Text('Add station'),
+          ),
+        ],
+      ),
+    );
+
+    if (added != true || !mounted) {
+      return;
+    }
+
+    final streamUrl = streamUrlCtrl.text.trim().isEmpty
+        ? null
+        : _validatedDashboardAudioUrl(streamUrlCtrl.text.trim());
+    final stationUrl = stationUrlCtrl.text.trim().isEmpty
+        ? streamUrl
+        : _validatedDashboardAudioUrl(stationUrlCtrl.text.trim());
+    if (stationUrl == null) {
+      return;
+    }
+
+    final created = _StoredDashboardAudioStation(
+      id: 'custom-audio-${DateTime.now().microsecondsSinceEpoch}',
+      stationName: stationCtrl.text.trim(),
+      programLabel: sourceCtrl.text.trim(),
+      detail: detailCtrl.text.trim(),
+      streamUrl: streamUrl,
+      stationUrl: stationUrl,
+      countryLabel: countryCtrl.text.trim(),
+      categoryLabel: categoryCtrl.text.trim(),
+    );
+
+    setState(() {
+      _customAudioStations.add(created);
+      _selectedAudioStationId = created.id;
+    });
+    await _saveAudioStations();
+    if (!mounted) {
+      return;
+    }
+    _showDashboardFeedback(
+      '${created.stationName} is ready in your station library.',
+      title: 'Dashboard audio',
+    );
+  }
+
+  String? _validatedDashboardAudioUrl(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final normalized = trimmed.contains('://') ? trimmed : 'https://$trimmed';
+    final uri = Uri.tryParse(normalized);
+    if (uri == null || uri.host.isEmpty) {
+      return null;
+    }
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      return null;
+    }
+    return uri.toString();
+  }
+
+  Future<void> _removeCustomAudioStation(String stationId) async {
+    final station =
+        _customAudioStations.where((item) => item.id == stationId).firstOrNull;
+    if (station == null) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove custom station?'),
+        content: Text(
+          'Remove "${station.stationName}" from your dashboard station library?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _customAudioStations.removeWhere((item) => item.id == stationId);
+      if (_selectedAudioStationId == stationId) {
+        _selectedAudioStationId = null;
+      }
+    });
+    await _saveAudioStations();
+    if (!mounted) {
+      return;
+    }
+    _showDashboardFeedback(
+      '${station.stationName} was removed from your station library.',
+      title: 'Dashboard audio',
     );
   }
 

@@ -4,7 +4,6 @@
 /// layer.  Surface-level screens (HomeSurface, ClassSurface, TeachSurface)
 /// and every OS chrome component (dock, launcher, shade, assistant, idle)
 /// must use these tokens so the OS has one coherent visual identity.
-library os_palette;
 
 import 'package:flutter/material.dart';
 

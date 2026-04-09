@@ -7,7 +7,6 @@
 ///   - widget-led workspace grid
 ///   - quick app launch and class focus areas
 ///   - legacy dashboard access as a secondary utility, not a second page
-library home_surface;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';

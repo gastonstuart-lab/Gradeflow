@@ -6,7 +6,6 @@
 ///
 /// Navigation between surfaces still happens through go_router; this
 /// controller manages purely the OS chrome on top of routed content.
-library os_controller;
 
 import 'dart:async';
 import 'package:flutter/widgets.dart';

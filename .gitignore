@@ -85,6 +85,9 @@ local.properties
 
 # Test artifacts
 test_driver/
+tmp/
+tmp_logs/
+*.bak
 tmp/*.png
 tmp/**/*.png
 

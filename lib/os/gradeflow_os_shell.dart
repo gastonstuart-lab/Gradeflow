@@ -15,7 +15,6 @@
 ///   /os/home   → HomeSurface
 ///   /os/class/:classId → ClassSurface
 ///   /os/teach  → TeachSurface
-library gradeflow_os_shell;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -86,8 +85,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
   ) {
     if (!_dragging) return;
     final velocity = details.primaryVelocity ?? 0;
-    final shouldCommit =
-        _dragDx.abs() >= _swipeCommitDistance || velocity.abs() >= _swipeCommitVelocity;
+    final shouldCommit = _dragDx.abs() >= _swipeCommitDistance ||
+        velocity.abs() >= _swipeCommitVelocity;
     final step = _dragDx < 0 ? 1 : -1;
     final target = shouldCommit ? controller.adjacentSurface(step) : null;
 
@@ -103,7 +102,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     }
   }
 
-  String? _routeForSurface(GradeFlowOSController controller, OSSurface surface) {
+  String? _routeForSurface(
+      GradeFlowOSController controller, OSSurface surface) {
     switch (surface) {
       case OSSurface.home:
         return AppRoutes.osHome;
@@ -126,15 +126,16 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
 
     // Reserve space for dock so content is not obscured.
     final dockReserve = widget.teachMode
-      ? 0.0
-      : OSSpacing.dockHeight + OSSpacing.dockBottomMargin + 8;
+        ? 0.0
+        : OSSpacing.dockHeight + OSSpacing.dockBottomMargin + 8;
 
     final adjustedMQ = mq.copyWith(
       padding: mq.padding.copyWith(
         bottom: mq.padding.bottom + dockReserve,
       ),
     );
-    final dragProgress = (_dragDx.abs() / (mq.size.width * 0.8)).clamp(0.0, 1.0);
+    final dragProgress =
+        (_dragDx.abs() / (mq.size.width * 0.8)).clamp(0.0, 1.0);
     final surfaceOpacity = 1.0 - (dragProgress * 0.18);
 
     return Listener(
@@ -150,167 +151,167 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
               _onHorizontalDragEnd(context, details, controller),
           child: Stack(
             children: [
-            // ── 1. Surface content ─────────────────────────────────────────
-            Positioned.fill(
-              child: Transform.translate(
-                offset: Offset(_dragDx, 0),
-                child: AnimatedOpacity(
-                  duration: _dragging ? Duration.zero : OSMotion.fast,
-                  opacity: surfaceOpacity,
-                  child: PageStorage(
-                    bucket: controller.pageStorageBucket,
-                    child: widget.child,
-                  ),
-                ),
-              ),
-            ),
-
-            // ── 2. Dock ────────────────────────────────────────────────────
-            if (!widget.teachMode)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      bottom: OSSpacing.dockBottomMargin,
-                      left: isPhone ? 12 : 24,
-                      right: isPhone ? 12 : 24,
-                    ),
-                    child: Center(
-                      child: OSDock(teachMode: widget.teachMode),
-                    ),
-                  ),
-                ),
-              ),
-
-            // ── 3. Notification shade backdrop ─────────────────────────────
-            if (controller.shadeOpen)
+              // ── 1. Surface content ─────────────────────────────────────────
               Positioned.fill(
-                child: GestureDetector(
-                  onTap: controller.closeShade,
-                  onVerticalDragEnd: (details) {
-                    final velocity = details.primaryVelocity ?? 0;
-                    if (velocity < -320) controller.closeShade();
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedContainer(
-                    duration: OSMotion.fast,
-                    color: Colors.black.withValues(alpha: 0.32),
+                child: Transform.translate(
+                  offset: Offset(_dragDx, 0),
+                  child: AnimatedOpacity(
+                    duration: _dragging ? Duration.zero : OSMotion.fast,
+                    opacity: surfaceOpacity,
+                    child: PageStorage(
+                      bucket: controller.pageStorageBucket,
+                      child: widget.child,
+                    ),
                   ),
                 ),
               ),
 
-            // ── 4. Notification shade ──────────────────────────────────────
-            AnimatedSlide(
-              duration: OSMotion.overlayIn,
-              curve: OSMotion.ease,
-              offset: controller.shadeOpen
-                  ? Offset.zero
-                  : const Offset(0.0, -1.0),
-              child: AnimatedOpacity(
-                duration: OSMotion.fast,
-                opacity: controller.shadeOpen ? 1.0 : 0.0,
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isPhone ? double.infinity : 480,
-                    ),
-                    child: SafeArea(
-                      bottom: false,
-                      child: OSNotificationShade(
-                        onDismiss: controller.closeShade,
+              // ── 2. Dock ────────────────────────────────────────────────────
+              if (!widget.teachMode)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: OSSpacing.dockBottomMargin,
+                        left: isPhone ? 12 : 24,
+                        right: isPhone ? 12 : 24,
+                      ),
+                      child: Center(
+                        child: OSDock(teachMode: widget.teachMode),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
 
-            // ── 5. Launcher backdrop ───────────────────────────────────────
-            if (controller.launcherOpen)
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: controller.closeLauncher,
-                  onVerticalDragEnd: (details) {
-                    final velocity = details.primaryVelocity ?? 0;
-                    if (velocity > 340) controller.closeLauncher();
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedContainer(
-                    duration: OSMotion.fast,
-                    color: Colors.black.withValues(alpha: 0.50),
-                  ),
-                ),
-              ),
-
-            // ── 6. Launcher ────────────────────────────────────────────────
-            if (controller.launcherOpen)
-              Positioned.fill(
-                child: OSLauncher(onClose: controller.closeLauncher),
-              ),
-
-            // ── 7. Assistant backdrop ──────────────────────────────────────
-            if (controller.assistantOpen)
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: controller.closeAssistant,
-                  onVerticalDragEnd: (details) {
-                    final velocity = details.primaryVelocity ?? 0;
-                    if (velocity > 320) controller.closeAssistant();
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedContainer(
-                    duration: OSMotion.fast,
-                    color: Colors.black.withValues(alpha: 0.32),
-                  ),
-                ),
-              ),
-
-            // ── 8. Assistant panel ─────────────────────────────────────────
-            AnimatedSlide(
-              duration: OSMotion.overlayIn,
-              curve: OSMotion.ease,
-              offset: controller.assistantOpen
-                  ? Offset.zero
-                  : const Offset(0.0, 1.0),
-              child: AnimatedOpacity(
-                duration: OSMotion.fast,
-                opacity: controller.assistantOpen ? 1.0 : 0.0,
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isPhone ? double.infinity : 560,
+              // ── 3. Notification shade backdrop ─────────────────────────────
+              if (controller.shadeOpen)
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: controller.closeShade,
+                    onVerticalDragEnd: (details) {
+                      final velocity = details.primaryVelocity ?? 0;
+                      if (velocity < -320) controller.closeShade();
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: AnimatedContainer(
+                      duration: OSMotion.fast,
+                      color: Colors.black.withValues(alpha: 0.32),
                     ),
-                    child: SafeArea(
-                      top: false,
-                      child: Material(
-                        type: MaterialType.transparency,
-                        child: OSAssistantPanel(
-                          onClose: controller.closeAssistant,
+                  ),
+                ),
+
+              // ── 4. Notification shade ──────────────────────────────────────
+              AnimatedSlide(
+                duration: OSMotion.overlayIn,
+                curve: OSMotion.ease,
+                offset: controller.shadeOpen
+                    ? Offset.zero
+                    : const Offset(0.0, -1.0),
+                child: AnimatedOpacity(
+                  duration: OSMotion.fast,
+                  opacity: controller.shadeOpen ? 1.0 : 0.0,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: isPhone ? double.infinity : 480,
+                      ),
+                      child: SafeArea(
+                        bottom: false,
+                        child: OSNotificationShade(
+                          onDismiss: controller.closeShade,
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // ── 9. Idle / Lock screen ──────────────────────────────────────
-            AnimatedOpacity(
-              duration: OSMotion.slow,
-              opacity: controller.idleActive ? 1.0 : 0.0,
-              child: IgnorePointer(
-                ignoring: !controller.idleActive,
-                child: OSIdleScreen(
-                  onDismiss: controller.dismissIdle,
+              // ── 5. Launcher backdrop ───────────────────────────────────────
+              if (controller.launcherOpen)
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: controller.closeLauncher,
+                    onVerticalDragEnd: (details) {
+                      final velocity = details.primaryVelocity ?? 0;
+                      if (velocity > 340) controller.closeLauncher();
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: AnimatedContainer(
+                      duration: OSMotion.fast,
+                      color: Colors.black.withValues(alpha: 0.50),
+                    ),
+                  ),
+                ),
+
+              // ── 6. Launcher ────────────────────────────────────────────────
+              if (controller.launcherOpen)
+                Positioned.fill(
+                  child: OSLauncher(onClose: controller.closeLauncher),
+                ),
+
+              // ── 7. Assistant backdrop ──────────────────────────────────────
+              if (controller.assistantOpen)
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: controller.closeAssistant,
+                    onVerticalDragEnd: (details) {
+                      final velocity = details.primaryVelocity ?? 0;
+                      if (velocity > 320) controller.closeAssistant();
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: AnimatedContainer(
+                      duration: OSMotion.fast,
+                      color: Colors.black.withValues(alpha: 0.32),
+                    ),
+                  ),
+                ),
+
+              // ── 8. Assistant panel ─────────────────────────────────────────
+              AnimatedSlide(
+                duration: OSMotion.overlayIn,
+                curve: OSMotion.ease,
+                offset: controller.assistantOpen
+                    ? Offset.zero
+                    : const Offset(0.0, 1.0),
+                child: AnimatedOpacity(
+                  duration: OSMotion.fast,
+                  opacity: controller.assistantOpen ? 1.0 : 0.0,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: isPhone ? double.infinity : 560,
+                      ),
+                      child: SafeArea(
+                        top: false,
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: OSAssistantPanel(
+                            onClose: controller.closeAssistant,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+
+              // ── 9. Idle / Lock screen ──────────────────────────────────────
+              AnimatedOpacity(
+                duration: OSMotion.slow,
+                opacity: controller.idleActive ? 1.0 : 0.0,
+                child: IgnorePointer(
+                  ignoring: !controller.idleActive,
+                  child: OSIdleScreen(
+                    onDismiss: controller.dismissIdle,
+                  ),
+                ),
+              ),
             ],
           ),
         ),

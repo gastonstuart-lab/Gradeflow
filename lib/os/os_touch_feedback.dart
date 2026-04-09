@@ -1,5 +1,3 @@
-library os_touch_feedback;
-
 import 'package:flutter/material.dart';
 import 'package:gradeflow/os/os_palette.dart';
 

@@ -5,7 +5,6 @@
 /// trigger.
 ///
 /// Adapts between phone (compact, fewer items) and tablet/desktop (full) layouts.
-library os_dock;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -192,8 +191,8 @@ class _DockDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Only show vertical divider before "All Apps"
-    final isBeforeLast = index == items.length - 1 &&
-        items.last.label == 'All Apps';
+    final isBeforeLast =
+        index == items.length - 1 && items.last.label == 'All Apps';
     if (!isBeforeLast) return const SizedBox.shrink();
 
     return Container(

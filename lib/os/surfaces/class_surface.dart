@@ -8,7 +8,6 @@
 ///   - Class header (name, subject, student count, quick stats)
 ///   - Tab bar: Overview | Gradebook | Seating | Students | Export
 ///   - Each tab routes to the existing screen embedded in this surface
-library class_surface;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -84,7 +83,8 @@ class _ClassSurfaceState extends State<ClassSurface>
               className: className,
               subject: subject,
               onBack: () {
-                context.read<GradeFlowOSController>()
+                context
+                    .read<GradeFlowOSController>()
                     .setSurface(OSSurface.home);
                 if (context.canPop()) {
                   context.pop();
@@ -179,9 +179,8 @@ class _ClassHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final studentService = context.watch<StudentService>();
-    final studentCount = studentService.students
-        .where((s) => s.classId == classId)
-        .length;
+    final studentCount =
+        studentService.students.where((s) => s.classId == classId).length;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
@@ -344,9 +343,8 @@ class _ClassOverviewTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final studentService = context.watch<StudentService>();
-    final studentCount = studentService.students
-        .where((s) => s.classId == classId)
-        .length;
+    final studentCount =
+        studentService.students.where((s) => s.classId == classId).length;
 
     final tools = [
       _ClassToolLink(

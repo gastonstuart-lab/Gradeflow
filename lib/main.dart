@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/gradeflow_launch_experience.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
@@ -17,6 +18,7 @@ void main() async {
   if (kIsWeb) {
     // Makes the web app accessible (and allows Playwright to use role/text selectors).
     RendererBinding.instance.ensureSemantics();
+    usePathUrlStrategy();
   }
 
   // Initialize Firebase if configured (safe even if firebase_options.dart missing)

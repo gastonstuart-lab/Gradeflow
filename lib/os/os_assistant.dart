@@ -6,7 +6,6 @@
 ///
 /// This is Phase 1 scaffolding: the UI is complete but action routing is
 /// placeholder — wire into OpenAI / action router in Phase 6.
-library os_assistant;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

@@ -24,12 +24,13 @@ void main() {
       );
 
       expect(find.text('Import Roster'), findsOneWidget);
-        expect(find.byKey(const ValueKey('Import Roster-detail')), findsNothing);
+      expect(find.byKey(const ValueKey('Import Roster-detail')), findsNothing);
 
       await tester.longPress(find.text('Import Roster'));
       await tester.pumpAndSettle();
 
-        expect(find.byKey(const ValueKey('Import Roster-detail')), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('Import Roster-detail')), findsOneWidget);
     });
 
     testWidgets('tap forwards callback', (tester) async {
@@ -57,7 +58,8 @@ void main() {
   });
 
   group('Live/message cards', () {
-    testWidgets('message card stays concise at rest and reveals more on long press',
+    testWidgets(
+        'message card stays concise at rest and reveals more on long press',
         (tester) async {
       await tester.pumpWidget(_buildHarness(_demoLivePanel()));
 
@@ -125,9 +127,18 @@ Widget _demoLivePanel({VoidCallback? onOpenMessages}) {
       liveLabel: 'Cloud sync',
     ),
     audioWidget: const DashboardAudioWidgetData(
-      stationName: 'Focus Radio',
-      programLabel: 'Morning Mix',
-      detail: 'Calm tracks for setup before class.',
+      activeStation: DashboardAudioStationData(
+        id: 'groove-salad',
+        stationName: 'Groove Salad',
+        programLabel: 'Morning Mix',
+        detail: 'Calm tracks for setup before class.',
+        streamUrl: 'https://ice5.somafm.com/groovesalad-128-mp3',
+        stationUrl: 'https://somafm.com/groovesalad/',
+        countryLabel: 'USA',
+        categoryLabel: 'Ambient',
+        icon: Icons.spa_outlined,
+        gradientColors: [Color(0xFF2C5B82), Color(0xFF68B7C8)],
+      ),
     ),
     statusItems: const [
       DashboardSystemStatusItemData(
