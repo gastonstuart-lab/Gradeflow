@@ -134,7 +134,7 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
         SizedBox(
           width: 220,
           child: DropdownButtonFormField<String>(
-            initialValue: widget.classId,
+            value: widget.classId,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Class',

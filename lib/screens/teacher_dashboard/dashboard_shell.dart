@@ -2443,12 +2443,14 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
   final DashboardWorkspaceSection selectedSection;
   final ValueChanged<DashboardWorkspaceSection> onSelected;
   final String description;
+  final VoidCallback? onCustomizeLayout;
 
   const DashboardWorkspaceModeStrip({
     super.key,
     required this.selectedSection,
     required this.onSelected,
     required this.description,
+    this.onCustomizeLayout,
   });
 
   String _selectionLabel() {
@@ -2539,6 +2541,13 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
+              if (onCustomizeLayout != null)
+                IconButton(
+                  tooltip: 'Customize dashboard',
+                  onPressed: onCustomizeLayout,
+                  icon: const Icon(Icons.tune),
+                ),
+              if (onCustomizeLayout != null) const SizedBox(width: 8),
               _DashboardSectionTag(
                 label: _selectionLabel(),
                 icon: Icons.tune_rounded,

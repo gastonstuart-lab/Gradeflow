@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 
 class ToolFirstAppSurface extends StatelessWidget {
   const ToolFirstAppSurface({
@@ -24,37 +26,50 @@ class ToolFirstAppSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-          child: Column(
-            children: [
-              _CompactAppBar(
-                title: title,
-                subtitle: subtitle,
-                leading: leading,
-                trailing: trailing,
-              ),
-              if (contextStrip != null) ...[
-                const SizedBox(height: 8),
-                _SurfaceBand(child: contextStrip!),
-              ],
-              if (toolbar != null) ...[
-                const SizedBox(height: 8),
-                _SurfaceBand(child: toolbar!),
-              ],
-              const SizedBox(height: 10),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: bottomWorkspacePadding),
-                  child: workspace,
+      backgroundColor: Colors.transparent,
+      body: AnimatedPageBackground(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1440),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(
+                  children: [
+                    WorkspaceSurfaceCard(
+                      radius: 20,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      child: _CompactAppBar(
+                        title: title,
+                        subtitle: subtitle,
+                        leading: leading,
+                        trailing: trailing,
+                      ),
+                    ),
+                    if (contextStrip != null) ...[
+                      const SizedBox(height: 8),
+                      _SurfaceBand(child: contextStrip!),
+                    ],
+                    if (toolbar != null) ...[
+                      const SizedBox(height: 8),
+                      _SurfaceBand(child: toolbar!),
+                    ],
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: Padding(
+                        padding:
+                            EdgeInsets.only(bottom: bottomWorkspacePadding),
+                        child: workspace,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -138,15 +153,9 @@ class _SurfaceBand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
+    return WorkspaceSurfaceCard(
+      radius: 18,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.7)),
-      ),
       child: child,
     );
   }

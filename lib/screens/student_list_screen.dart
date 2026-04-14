@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/grade_item_service.dart';
@@ -58,18 +59,20 @@ class _StudentListScreenState extends State<StudentListScreen> {
     if (result != null && result.files.single.bytes != null && mounted) {
       final fileName = result.files.single.name;
       final bytes = result.files.single.bytes!;
-      
+
       // First, detect what type of file this is
-      final detection = _importService.detectFileType(bytes, filename: fileName);
-      
+      final detection =
+          _importService.detectFileType(bytes, filename: fileName);
+
       // If it's not a roster, show helpful message
-      if (detection.type != ImportFileType.roster && detection.type != ImportFileType.unknown) {
+      if (detection.type != ImportFileType.roster &&
+          detection.type != ImportFileType.unknown) {
         await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
             title: Row(children: [
-              Icon(Icons.info_outline, 
-                color: Theme.of(context).colorScheme.primary),
+              Icon(Icons.info_outline,
+                  color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               const Text('Wrong import location'),
             ]),
@@ -77,8 +80,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(detection.message, 
-                  style: Theme.of(context).textTheme.bodyLarge),
+                Text(detection.message,
+                    style: Theme.of(context).textTheme.bodyLarge),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -89,13 +92,19 @@ class _StudentListScreenState extends State<StudentListScreen> {
                   child: Row(
                     children: [
                       Icon(Icons.lightbulb_outline,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer),
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(detection.suggestion,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                          )),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer,
+                                )),
                       ),
                     ],
                   ),
@@ -112,7 +121,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
         );
         return;
       }
-      
+
       final fileNameLower = fileName.toLowerCase();
       final imported = fileNameLower.endsWith('.xlsx')
           ? _importService.parseXlsxRoster(bytes)
@@ -181,19 +190,20 @@ class _StudentListScreenState extends State<StudentListScreen> {
             ],
           ),
         );
-        
+
         if (!mounted || action != 'ai') return;
 
         // Use AI to parse the roster
         final rows = _importService.rowsFromAnyBytes(bytes);
-        
+
         // Show AI analysis dialog with AiAnalyzeImportDialog pattern
         final aiOutput = await showDialog<AiImportOutput>(
           context: context,
           builder: (ctx) {
             // Wrap inferFromRows to return proper format
             return FutureBuilder<AiImportOutput?>(
-              future: AiImportService().inferFromRows(rows, filename: result.files.single.name),
+              future: AiImportService()
+                  .inferFromRows(rows, filename: result.files.single.name),
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done) {
                   return const AlertDialog(
@@ -260,7 +270,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
                                 size: 20),
                             const SizedBox(width: 8),
                             Text('Valid students: ${valid.length}',
-                                style: const TextStyle(fontWeight: FontWeight.w600)),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
                           ],
                         ),
                         if (invalid.isNotEmpty) ...[
@@ -273,7 +284,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
                               const SizedBox(width: 8),
                               Text('Issues: ${invalid.length}',
                                   style: TextStyle(
-                                      color: Theme.of(context).colorScheme.error,
+                                      color:
+                                          Theme.of(context).colorScheme.error,
                                       fontWeight: FontWeight.w600)),
                             ],
                           ),
@@ -322,20 +334,20 @@ class _StudentListScreenState extends State<StudentListScreen> {
             );
           },
         );
-        
+
         if (!mounted || aiOutput == null) return;
-        
+
         // Convert AI output to ImportedStudent list
         final aiStudents = <ImportedStudent>[];
         for (final entry in aiOutput.byClass.entries) {
           aiStudents.addAll(entry.value);
         }
-        
+
         if (aiStudents.isEmpty) {
           _showError('AI did not return any students.');
           return;
         }
-        
+
         // Replace parsed with AI result and continue with normal flow
         parsed = aiStudents;
       }
@@ -971,8 +983,9 @@ class _StudentListScreenState extends State<StudentListScreen> {
         .allMatches(right)
         .map((match) => match.group(0)!)
         .toList();
-    final limit =
-        leftParts.length < rightParts.length ? leftParts.length : rightParts.length;
+    final limit = leftParts.length < rightParts.length
+        ? leftParts.length
+        : rightParts.length;
 
     for (int i = 0; i < limit; i++) {
       final leftPart = leftParts[i];
@@ -1009,67 +1022,93 @@ class _StudentListScreenState extends State<StudentListScreen> {
     }
     list.sort(_compareStudents);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: _selectionMode
-            ? Text('${_selectedStudentIds.length} selected')
-            : Text('Students - ${classItem?.className ?? ""}'),
-        leading: _selectionMode
-            ? IconButton(
-                icon: const Icon(Icons.close),
+    return WorkspaceScaffold(
+      title: _selectionMode
+          ? '${_selectedStudentIds.length} selected'
+          : 'Students',
+      subtitle: _selectionMode
+          ? 'Bulk actions for the current roster selection'
+          : 'Roster for ${classItem?.className ?? 'this class'}',
+      eyebrow: 'Class Roster',
+      leadingActions: [
+        IconButton(
+          icon: Icon(_selectionMode ? Icons.close : Icons.arrow_back_rounded),
+          tooltip: _selectionMode ? 'Exit selection mode' : 'Back',
+          style: WorkspaceButtonStyles.icon(context),
+          onPressed: () {
+            if (_selectionMode) {
+              setState(() {
+                _selectionMode = false;
+                _selectedStudentIds.clear();
+              });
+              return;
+            }
+            context.pop();
+          },
+        ),
+      ],
+      trailingActions: _selectionMode
+          ? [
+              IconButton(
+                icon: const Icon(Icons.select_all),
+                tooltip: _selectedStudentIds.length == list.length
+                    ? 'Deselect all'
+                    : 'Select all',
+                style: WorkspaceButtonStyles.icon(context),
                 onPressed: () => setState(() {
-                  _selectionMode = false;
-                  _selectedStudentIds.clear();
+                  if (_selectedStudentIds.length == list.length) {
+                    _selectedStudentIds.clear();
+                  } else {
+                    _selectedStudentIds.addAll(list.map((s) => s.studentId));
+                  }
                 }),
-              )
-            : null,
-        actions: _selectionMode
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.select_all),
-                  onPressed: () => setState(() {
-                    if (_selectedStudentIds.length == list.length) {
-                      _selectedStudentIds.clear();
-                    } else {
-                      _selectedStudentIds.addAll(list.map((s) => s.studentId));
-                    }
-                  }),
-                  tooltip: _selectedStudentIds.length == list.length
-                      ? 'Deselect all'
-                      : 'Select all',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed:
-                      _selectedStudentIds.isEmpty ? null : _confirmBatchDelete,
-                  tooltip: 'Delete selected',
-                ),
-              ]
-            : [
-                IconButton(
-                  icon: const Icon(Icons.checklist),
-                  onPressed: () => setState(() => _selectionMode = true),
-                  tooltip: 'Select multiple',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.upload_file),
-                  onPressed: _showImportDialog,
-                  tooltip: 'Import from CSV or Excel',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.paste),
-                  onPressed: _showPasteImportDialog,
-                  tooltip: 'Paste from spreadsheet',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.restore_from_trash),
-                  onPressed: () =>
-                      context.push('/class/${widget.classId}/students/trash'),
-                  tooltip: 'Restore Bin',
-                ),
-              ],
-      ),
-      body: studentService.isLoading
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: 'Delete selected',
+                style: WorkspaceButtonStyles.icon(context),
+                onPressed:
+                    _selectedStudentIds.isEmpty ? null : _confirmBatchDelete,
+              ),
+            ]
+          : [
+              IconButton(
+                icon: const Icon(Icons.checklist),
+                tooltip: 'Select multiple',
+                style: WorkspaceButtonStyles.icon(context),
+                onPressed: () => setState(() => _selectionMode = true),
+              ),
+              IconButton(
+                icon: const Icon(Icons.upload_file),
+                tooltip: 'Import from CSV or Excel',
+                style: WorkspaceButtonStyles.icon(context),
+                onPressed: _showImportDialog,
+              ),
+              IconButton(
+                icon: const Icon(Icons.paste),
+                tooltip: 'Paste from spreadsheet',
+                style: WorkspaceButtonStyles.icon(context),
+                onPressed: _showPasteImportDialog,
+              ),
+              IconButton(
+                icon: const Icon(Icons.restore_from_trash),
+                tooltip: 'Restore Bin',
+                style: WorkspaceButtonStyles.icon(context),
+                onPressed: () =>
+                    context.push('/class/${widget.classId}/students/trash'),
+              ),
+            ],
+      floatingActionButton:
+          studentService.students.isNotEmpty && !_selectionMode
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: FloatingActionButton(
+                    onPressed: _showAddStudentDialog,
+                    child: const Icon(Icons.add),
+                  ),
+                )
+              : null,
+      child: studentService.isLoading
           ? const Center(child: CircularProgressIndicator())
           : studentService.students.isEmpty
               ? Center(
@@ -1253,16 +1292,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
                     );
                   },
                 ),
-      floatingActionButton:
-          studentService.students.isNotEmpty && !_selectionMode
-              ? Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: FloatingActionButton(
-                    onPressed: _showAddStudentDialog,
-                    child: const Icon(Icons.add),
-                  ),
-                )
-              : null,
     );
   }
 }

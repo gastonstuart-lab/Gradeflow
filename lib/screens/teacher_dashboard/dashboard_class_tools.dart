@@ -4,9 +4,7 @@ part of '../teacher_dashboard_screen.dart';
 
 extension TeacherDashboardClassTools on _TeacherDashboardScreenState {
   void _openSeatingPlan() {
-    final classId = _selectedClassId;
-    if (classId == null) return;
-    context.push('/class/$classId/seating');
+    _openSelectedClassRouteSafely(context, 'seating');
   }
 
   // ===== Class Tools UI builder =====

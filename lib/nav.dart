@@ -31,6 +31,17 @@ import 'package:gradeflow/os/surfaces/class_surface.dart';
 import 'package:gradeflow/os/surfaces/teach_surface.dart';
 
 class AppRouter {
+  static String loginRedirectLocationFor(GoRouterState state) {
+    return Uri(
+      path: AppRoutes.home,
+      queryParameters: {'from': state.uri.toString()},
+    ).toString();
+  }
+
+  static String postAuthDestination(String? rawLocation) {
+    return _validatedInternalAppLocation(rawLocation) ?? AppRoutes.osHome;
+  }
+
   static final GoRouter router = GoRouter(
     initialLocation: AppRoutes.home,
     redirect: (context, state) {
@@ -42,8 +53,12 @@ class AppRouter {
         debugPrint(
             'GoRouter.redirect from \'${state.matchedLocation}\' | isAuth=${auth.isAuthenticated} isInit=${auth.isInitialized} isLoading=${auth.isLoading}');
         if (!auth.isAuthenticated && !loggingIn && !previewing)
-          return AppRoutes.home;
-        if (auth.isAuthenticated && loggingIn) return AppRoutes.osHome;
+          return AppRouter.loginRedirectLocationFor(state);
+        if (auth.isAuthenticated && loggingIn) {
+          return AppRouter.postAuthDestination(
+            state.uri.queryParameters['from'],
+          );
+        }
       } catch (e) {
         debugPrint('GoRouter.redirect error: $e');
         return null; // fail open to avoid blank screen
@@ -253,6 +268,26 @@ class AppRoutes {
   static const String osHome = '/os/home';
   static const String osClass = '/os/class';
   static const String osTeach = '/os/teach';
+}
+
+String? _validatedInternalAppLocation(String? rawLocation) {
+  if (rawLocation == null) return null;
+  final trimmed = rawLocation.trim();
+  if (trimmed.isEmpty || !trimmed.startsWith('/')) {
+    return null;
+  }
+
+  final parsed = Uri.tryParse(trimmed);
+  // Only allow app-internal relative locations, never absolute URLs.
+  if (parsed == null || parsed.hasScheme || parsed.hasAuthority) {
+    return null;
+  }
+
+  final normalized = parsed.toString();
+  if (!normalized.startsWith('/') || normalized.startsWith('//')) {
+    return null;
+  }
+  return normalized;
 }
 
 CustomTransitionPage<void> _fadePage(Widget child) {

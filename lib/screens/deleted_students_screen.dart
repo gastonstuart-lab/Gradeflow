@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/services/student_trash_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/student_score_service.dart';
@@ -87,17 +88,27 @@ class _DeletedStudentsScreenState extends State<DeletedStudentsScreen> {
   @override
   Widget build(BuildContext context) {
     final trashSvc = context.watch<StudentTrashService>();
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Restore Bin'),
-        actions: [
-          IconButton(
-              onPressed: _emptyBin,
-              icon: const Icon(Icons.delete_forever),
-              tooltip: 'Empty Bin'),
-        ],
-      ),
-      body: trashSvc.isLoading
+    return WorkspaceScaffold(
+      title: 'Restore Bin',
+      subtitle: 'Recover students removed from this class',
+      eyebrow: 'Student Trash',
+      leadingActions: [
+        IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          tooltip: 'Back',
+          style: WorkspaceButtonStyles.icon(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+      ],
+      trailingActions: [
+        IconButton(
+          onPressed: _emptyBin,
+          tooltip: 'Empty Bin',
+          style: WorkspaceButtonStyles.icon(context),
+          icon: const Icon(Icons.delete_forever),
+        ),
+      ],
+      child: trashSvc.isLoading
           ? const Center(child: CircularProgressIndicator())
           : trashSvc.trash.isEmpty
               ? Center(

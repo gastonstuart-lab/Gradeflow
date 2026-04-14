@@ -334,54 +334,57 @@ class _ShadeNotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                borderRadius: OSRadius.mdBr,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: OSRadius.mdBr,
+                ),
+                child: Icon(icon, size: 18, color: iconColor),
               ),
-              child: Icon(icon, size: 18, color: iconColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: OSColors.text(dark),
-                      height: 1.3,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: OSColors.text(dark),
+                        height: 1.3,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: OSColors.textSecondary(dark),
+                    const SizedBox(height: 1),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: OSColors.textSecondary(dark),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 16,
-              color: OSColors.textMuted(dark),
-            ),
-          ],
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: OSColors.textMuted(dark),
+              ),
+            ],
+          ),
         ),
       ),
     );

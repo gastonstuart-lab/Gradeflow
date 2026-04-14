@@ -9,6 +9,7 @@ import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/models/final_exam.dart';
 import 'package:gradeflow/theme.dart';
+import 'package:gradeflow/services/class_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:gradeflow/components/drive_file_picker_dialog.dart';
@@ -498,6 +499,13 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
   Widget build(BuildContext context) {
     final studentService = context.watch<StudentService>();
     final examService = context.watch<FinalExamService>();
+    final classItem = context.watch<ClassService>().getClassById(widget.classId);
+    final className = classItem?.className ?? 'Class';
+    final classContextLine = [
+      if (classItem?.subject.trim().isNotEmpty ?? false) classItem!.subject,
+      '${studentService.students.length} '
+          'student${studentService.students.length == 1 ? '' : 's'}',
+    ].join(' • ');
 
     return PopScope(
       canPop: false,
@@ -563,9 +571,47 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
                       color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
-                    child: Text(
+              child: Text(
                       'Final Exam = 60% of total grade\nOther categories = 40% of total grade',
                       style: context.textStyles.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: double.infinity,
+              padding: AppSpacing.paddingLg,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.class_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          className,
+                          style: context.textStyles.titleMedium?.semiBold,
+                        ),
+                        Text(
+                          classContextLine,
+                          style: context.textStyles.bodySmall?.withColor(
+                            Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

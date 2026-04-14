@@ -62,14 +62,14 @@ export async function activateControl(target: Locator) {
 export async function ensureDemoSignedIn(page: Page) {
   await ensureFlutterSemantics(page);
 
-  if (/\/dashboard(?:\b|\/|\?|#|$)/.test(page.url())) {
+  if (/(?:#\/(?:dashboard|os\/home)|\/(?:dashboard|os\/home)(?:\b|\/|\?|$))/i.test(page.url())) {
     return;
   }
 
   const demo = page.getByRole('button', { name: 'Try Demo Account' });
   await demo.first().waitFor({ timeout: 60_000 });
-  await demo.first().click();
-  await expect(page).toHaveURL(/\/dashboard(?:\?|$)/);
+  await activateControl(demo.first());
+  await expect(page).toHaveURL(/(?:#\/(?:dashboard|os\/home)|\/(?:dashboard|os\/home)(?:\?|$))/i);
 }
 
 export async function expectDashboardShell(page: Page) {

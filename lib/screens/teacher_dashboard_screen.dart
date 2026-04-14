@@ -98,6 +98,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   String? _selectedClassId;
   String? _dashboardRailSelectedClassId;
+  bool _dashboardClassSelectionReady = false;
+  bool _dashboardClassSelectionConfirmed = false;
   List<_ClassBrief> _classes = [];
   int _totalStudents = 0;
 
@@ -143,6 +145,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   // Summary range for reminders panel (Week or Month)
   _SummaryRange _summaryRange = _SummaryRange.week;
   DashboardWorkspaceSection _workspaceSection = DashboardWorkspaceSection.today;
+  _DashboardLayoutConfig _dashboardLayoutConfig =
+      _DashboardLayoutConfig.defaults();
+  bool _dashboardLayoutReady = false;
   int _mobileDashboardIndex = 0;
   bool _notificationCenterOpen = false;
 
@@ -380,12 +385,99 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     final userId = _dashboardStorageUserId();
     if (_dashboardPrefsUserId == userId) return;
     _dashboardPrefsUserId = userId;
+    _dashboardLayoutReady = false;
+    _selectedClassId = null;
+    _dashboardRailSelectedClassId = null;
+    _dashboardClassSelectionReady = false;
+    _dashboardClassSelectionConfirmed = false;
+    unawaited(_loadDashboardLayout());
     unawaited(_loadData());
     unawaited(_loadReminders());
     unawaited(_loadQuickLinks());
     unawaited(_loadAudioStations());
     unawaited(_loadTimetables());
     unawaited(_loadHeroPersonalization());
+  }
+
+  void _setWorkspaceSection(
+    DashboardWorkspaceSection section, {
+    bool persist = true,
+  }) {
+    if (_workspaceSection == section) {
+      return;
+    }
+
+    setState(() => _workspaceSection = section);
+
+    if (!persist || !_dashboardLayoutReady) {
+      return;
+    }
+
+    _dashboardLayoutConfig = _dashboardLayoutConfig.withWorkspaceMode(section);
+    unawaited(_saveDashboardLayout());
+  }
+
+  List<String> _orderedWidgetIdsForSurface(
+    DashboardWorkspaceSection surface,
+    List<String> allowedIds,
+  ) {
+    return _dashboardLayoutConfig.orderedWidgetIdsForSurface(
+      surface,
+      allowedIds,
+    );
+  }
+
+  bool _isDashboardWidgetVisible(
+    DashboardWorkspaceSection surface,
+    String widgetId,
+  ) {
+    return _dashboardLayoutConfig.isWidgetVisible(
+      surface: surface,
+      widgetId: widgetId,
+    );
+  }
+
+  void _setDashboardWidgetVisibility({
+    required DashboardWorkspaceSection surface,
+    required String widgetId,
+    required bool isVisible,
+  }) {
+    final currentlyVisible = _dashboardLayoutConfig.isWidgetVisible(
+      surface: surface,
+      widgetId: widgetId,
+    );
+    if (currentlyVisible == isVisible) {
+      return;
+    }
+
+    _dashboardLayoutConfig = _dashboardLayoutConfig.withWidgetVisibility(
+      surface: surface,
+      widgetId: widgetId,
+      isVisible: isVisible,
+    );
+    setState(() {});
+    if (_dashboardLayoutReady) {
+      unawaited(_saveDashboardLayout(markCustomized: true));
+    }
+  }
+
+  void _resetDashboardSurfaceLayout(DashboardWorkspaceSection surface) {
+    _dashboardLayoutConfig = _dashboardLayoutConfig.resetSurface(surface);
+    setState(() {});
+    if (_dashboardLayoutReady) {
+      unawaited(_saveDashboardLayout(markCustomized: true));
+    }
+  }
+
+  void _resetDashboardLayoutToDefaults() {
+    final defaults = _DashboardLayoutConfig.defaults();
+    setState(() {
+      _dashboardLayoutConfig = defaults;
+      _workspaceSection = defaults.workspaceMode;
+    });
+    if (_dashboardLayoutReady) {
+      unawaited(_saveDashboardLayout());
+    }
   }
 
   Widget _buildQrTool(BuildContext context) {
@@ -536,6 +628,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Future<void> _loadData() async {
     final auth = context.read<AuthService>();
     final classService = context.read<ClassService>();
+    final storedSelectedClassId = await _loadStoredSelectedDashboardClassId();
+
+    if (mounted && _dashboardClassSelectionReady) {
+      setState(() => _dashboardClassSelectionReady = false);
+    }
 
     final user = auth.currentUser;
     if (user == null) return;
@@ -568,6 +665,22 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       );
     }
 
+    final validStoredSelectedClassId = _dashboardClassIdIfAvailable(
+      storedSelectedClassId,
+      classes: classes,
+    );
+    final validCurrentSelectedClassId = _dashboardClassIdIfAvailable(
+      _selectedClassId,
+      classes: classes,
+    );
+    final selectionConfirmed = (_dashboardClassSelectionConfirmed &&
+            validCurrentSelectedClassId != null) ||
+        validStoredSelectedClassId != null;
+    final resolvedSelectedClassId = _resolvedDashboardSelectedClassId(
+      preferredId: validCurrentSelectedClassId ?? validStoredSelectedClassId,
+      classes: classes,
+    );
+
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -585,10 +698,95 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         _totalStudents = totalStudents;
         _classHealthSignalsByClassId = healthSignals;
         _selectedClassId = resolvedSelectedClassId;
-        _dashboardRailSelectedClassId = resolvedRailSelectedClassId;
+        _dashboardRailSelectedClassId =
+            resolvedRailSelectedClassId ?? resolvedSelectedClassId;
+        _dashboardClassSelectionReady = true;
+        _dashboardClassSelectionConfirmed = selectionConfirmed;
       });
       _refreshNames();
     });
+    unawaited(_saveStoredSelectedDashboardClassId(
+      selectionConfirmed ? resolvedSelectedClassId : null,
+    ));
+  }
+
+  String? _dashboardClassIdIfAvailable(
+    String? classId, {
+    List<_ClassBrief>? classes,
+  }) {
+    if (classId == null) return null;
+    final source = classes ?? _classes;
+    for (final classItem in source) {
+      if (classItem.id == classId) {
+        return classId;
+      }
+    }
+    return null;
+  }
+
+  String? _resolvedDashboardSelectedClassId({
+    String? preferredId,
+    List<_ClassBrief>? classes,
+  }) {
+    final source = classes ?? _classes;
+    final validId = _dashboardClassIdIfAvailable(
+      preferredId,
+      classes: source,
+    );
+    if (validId != null) {
+      return validId;
+    }
+    return source.isNotEmpty ? source.first.id : null;
+  }
+
+  void _setSelectedDashboardClass(String? classId) {
+    final nextId = _dashboardClassIdIfAvailable(classId);
+    final nextConfirmed = nextId != null;
+    if (_selectedClassId == nextId &&
+        _dashboardClassSelectionConfirmed == nextConfirmed) {
+      _refreshNames();
+      return;
+    }
+    setState(() {
+      _selectedClassId = nextId;
+      _dashboardRailSelectedClassId = nextId;
+      _dashboardClassSelectionConfirmed = nextConfirmed;
+    });
+    unawaited(_saveStoredSelectedDashboardClassId(nextId));
+    _refreshNames();
+  }
+
+  String? _selectedDashboardClassId() {
+    return _dashboardClassIdIfAvailable(_selectedClassId);
+  }
+
+  String? _selectedDashboardActionClassId() {
+    if (!_dashboardClassSelectionReady || !_dashboardClassSelectionConfirmed) {
+      return null;
+    }
+    return _selectedDashboardClassId();
+  }
+
+  void _openSelectedClassRouteSafely(BuildContext context, String suffix) {
+    // Avoid opening the wrong class while the dashboard is still restoring the
+    // selected class from storage / initial class load.
+    if (!_dashboardClassSelectionReady) {
+      _showDashboardFeedback(
+        'Classes are still loading. Try again in a moment.',
+        title: 'Class loading',
+      );
+      return;
+    }
+
+    final classId = _selectedDashboardActionClassId();
+    if (classId == null) {
+      _showDashboardFeedback(
+        'Choose a class first to open this workspace.',
+        title: 'Select a class',
+      );
+      return;
+    }
+    context.push('/class/$classId/$suffix');
   }
 
   void _refreshNames() async {
@@ -1056,7 +1254,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   }
 
   _ClassBrief? _selectedClassBrief() {
-    final classId = _selectedClassId;
+    final classId = _selectedDashboardClassId();
     if (classId == null) return null;
     for (final classItem in _classes) {
       if (classItem.id == classId) return classItem;
@@ -2120,14 +2318,16 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   }
 
   Map<String, int> _participationForClass() {
-    if (_selectedClassId == null) return {};
-    return _participation.putIfAbsent(_selectedClassId!, () => {});
+    final classId = _selectedDashboardClassId();
+    if (classId == null) return {};
+    return _participation.putIfAbsent(classId, () => {});
   }
 
   Map<String, int> _pollCountsForClass() {
-    if (_selectedClassId == null) return {'A': 0, 'B': 0, 'C': 0, 'D': 0};
+    final classId = _selectedDashboardClassId();
+    if (classId == null) return {'A': 0, 'B': 0, 'C': 0, 'D': 0};
     return _pollCountsByClass.putIfAbsent(
-        _selectedClassId!, () => {'A': 0, 'B': 0, 'C': 0, 'D': 0});
+        classId, () => {'A': 0, 'B': 0, 'C': 0, 'D': 0});
   }
 
   void _vote(String option) => setState(() {
@@ -2136,13 +2336,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       });
 
   void _resetPoll() => setState(() {
-        if (_selectedClassId == null) return;
-        _pollCountsByClass[_selectedClassId!] = {
-          'A': 0,
-          'B': 0,
-          'C': 0,
-          'D': 0
-        };
+        final classId = _selectedDashboardClassId();
+        if (classId == null) return;
+        _pollCountsByClass[classId] = {'A': 0, 'B': 0, 'C': 0, 'D': 0};
       });
 
   void _startStopwatch() {
@@ -2401,3 +2597,300 @@ class _AddLinkPill extends StatelessWidget {
 }
 
 enum _SummaryRange { week, month }
+
+class _DashboardLayoutKeys {
+  static const String todayInsights = 'today_insights';
+  static const String todayPreviewGrid = 'today_preview_grid';
+
+  static const String classroomStudio = 'classroom_studio';
+  static const String classroomPreviewGrid = 'classroom_preview_grid';
+
+  static const String planningReminderSummary = 'planning_reminder_summary';
+  static const String planningCalendar = 'planning_calendar';
+  static const String planningTimetableSnapshot = 'planning_timetable_snapshot';
+  static const String planningPreviewGrid = 'planning_preview_grid';
+
+  static const String workspaceQuickLinks = 'workspace_quick_links';
+  static const String workspaceResearchTools = 'workspace_research_tools';
+  static const String workspacePilotFeedback = 'workspace_pilot_feedback';
+  static const String workspacePreviewGrid = 'workspace_preview_grid';
+}
+
+const Map<DashboardWorkspaceSection, List<String>>
+    _defaultDashboardWidgetOrder = {
+  DashboardWorkspaceSection.today: <String>[
+    _DashboardLayoutKeys.todayInsights,
+    _DashboardLayoutKeys.todayPreviewGrid,
+  ],
+  DashboardWorkspaceSection.classroom: <String>[
+    _DashboardLayoutKeys.classroomStudio,
+    _DashboardLayoutKeys.classroomPreviewGrid,
+  ],
+  DashboardWorkspaceSection.planning: <String>[
+    _DashboardLayoutKeys.planningReminderSummary,
+    _DashboardLayoutKeys.planningCalendar,
+    _DashboardLayoutKeys.planningTimetableSnapshot,
+    _DashboardLayoutKeys.planningPreviewGrid,
+  ],
+  DashboardWorkspaceSection.workspace: <String>[
+    _DashboardLayoutKeys.workspaceQuickLinks,
+    _DashboardLayoutKeys.workspaceResearchTools,
+    _DashboardLayoutKeys.workspacePilotFeedback,
+    _DashboardLayoutKeys.workspacePreviewGrid,
+  ],
+};
+
+class _DashboardLayoutConfig {
+  final int schemaVersion;
+  final DashboardWorkspaceSection workspaceMode;
+  final Map<DashboardWorkspaceSection, List<String>> widgetOrderBySurface;
+  final Map<DashboardWorkspaceSection, Set<String>> hiddenWidgetIdsBySurface;
+  final bool customized;
+  final int lastUpdatedEpochMs;
+
+  const _DashboardLayoutConfig({
+    required this.schemaVersion,
+    required this.workspaceMode,
+    required this.widgetOrderBySurface,
+    required this.hiddenWidgetIdsBySurface,
+    required this.customized,
+    required this.lastUpdatedEpochMs,
+  });
+
+  factory _DashboardLayoutConfig.defaults() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return _DashboardLayoutConfig(
+      schemaVersion: 1,
+      workspaceMode: DashboardWorkspaceSection.today,
+      widgetOrderBySurface: {
+        for (final entry in _defaultDashboardWidgetOrder.entries)
+          entry.key: List<String>.from(entry.value),
+      },
+      hiddenWidgetIdsBySurface: {
+        for (final surface in DashboardWorkspaceSection.values)
+          surface: <String>{},
+      },
+      customized: false,
+      lastUpdatedEpochMs: now,
+    );
+  }
+
+  factory _DashboardLayoutConfig.fromJson(Map<String, dynamic> json) {
+    final defaults = _DashboardLayoutConfig.defaults();
+
+    final schemaVersion = (json['schemaVersion'] as num?)?.toInt() ?? 1;
+    final workspaceMode = _dashboardWorkspaceSectionFromId(
+          json['workspaceMode']?.toString(),
+        ) ??
+        defaults.workspaceMode;
+
+    final rawSurfaces = json['surfaces'];
+    final surfacesMap = rawSurfaces is Map
+        ? rawSurfaces.map((k, v) => MapEntry(k.toString(), v))
+        : const <String, dynamic>{};
+
+    final widgetOrderBySurface = <DashboardWorkspaceSection, List<String>>{};
+    final hiddenWidgetIdsBySurface = <DashboardWorkspaceSection, Set<String>>{};
+
+    for (final surface in DashboardWorkspaceSection.values) {
+      final fallbackIds =
+          List<String>.from(_defaultDashboardWidgetOrder[surface] ?? const []);
+      final surfaceKey = _dashboardWorkspaceSectionId(surface);
+      final rawSurface = surfacesMap[surfaceKey];
+
+      Map<String, dynamic> parsedSurface = const <String, dynamic>{};
+      if (rawSurface is Map) {
+        parsedSurface = rawSurface.map((k, v) => MapEntry(k.toString(), v));
+      }
+
+      final orderedRaw = parsedSurface['orderedWidgetIds'];
+      final hiddenRaw = parsedSurface['hiddenWidgetIds'];
+
+      final ordered = (orderedRaw is List)
+          ? orderedRaw
+              .map((id) => id?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
+              .toList()
+          : <String>[];
+      final hidden = (hiddenRaw is List)
+          ? hiddenRaw
+              .map((id) => id?.toString() ?? '')
+              .where((id) => id.isNotEmpty)
+              .toSet()
+          : <String>{};
+
+      final valid = fallbackIds.toSet();
+      final orderedValid = <String>[
+        for (final id in ordered)
+          if (valid.contains(id)) id,
+      ];
+      for (final fallback in fallbackIds) {
+        if (!orderedValid.contains(fallback)) {
+          orderedValid.add(fallback);
+        }
+      }
+
+      widgetOrderBySurface[surface] = orderedValid;
+      hiddenWidgetIdsBySurface[surface] =
+          hidden.where((id) => valid.contains(id)).toSet();
+    }
+
+    return _DashboardLayoutConfig(
+      schemaVersion: schemaVersion,
+      workspaceMode: workspaceMode,
+      widgetOrderBySurface: widgetOrderBySurface,
+      hiddenWidgetIdsBySurface: hiddenWidgetIdsBySurface,
+      customized: (json['customized'] as bool?) ?? false,
+      lastUpdatedEpochMs: (json['lastUpdatedEpochMs'] as num?)?.toInt() ??
+          defaults.lastUpdatedEpochMs,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'schemaVersion': schemaVersion,
+      'workspaceMode': _dashboardWorkspaceSectionId(workspaceMode),
+      'customized': customized,
+      'lastUpdatedEpochMs': lastUpdatedEpochMs,
+      'surfaces': {
+        for (final surface in DashboardWorkspaceSection.values)
+          _dashboardWorkspaceSectionId(surface): {
+            'orderedWidgetIds':
+                List<String>.from(widgetOrderBySurface[surface] ?? const []),
+            'hiddenWidgetIds': List<String>.from(
+              hiddenWidgetIdsBySurface[surface] ?? const <String>{},
+            ),
+          },
+      },
+    };
+  }
+
+  _DashboardLayoutConfig copyWith({
+    int? schemaVersion,
+    DashboardWorkspaceSection? workspaceMode,
+    Map<DashboardWorkspaceSection, List<String>>? widgetOrderBySurface,
+    Map<DashboardWorkspaceSection, Set<String>>? hiddenWidgetIdsBySurface,
+    bool? customized,
+    int? lastUpdatedEpochMs,
+  }) {
+    return _DashboardLayoutConfig(
+      schemaVersion: schemaVersion ?? this.schemaVersion,
+      workspaceMode: workspaceMode ?? this.workspaceMode,
+      widgetOrderBySurface: widgetOrderBySurface ?? this.widgetOrderBySurface,
+      hiddenWidgetIdsBySurface:
+          hiddenWidgetIdsBySurface ?? this.hiddenWidgetIdsBySurface,
+      customized: customized ?? this.customized,
+      lastUpdatedEpochMs: lastUpdatedEpochMs ?? this.lastUpdatedEpochMs,
+    );
+  }
+
+  List<String> orderedWidgetIdsForSurface(
+    DashboardWorkspaceSection surface,
+    List<String> allowedIds,
+  ) {
+    final allowed = allowedIds.toSet();
+    final saved = widgetOrderBySurface[surface] ?? const <String>[];
+    final ordered = <String>[
+      for (final id in saved)
+        if (allowed.contains(id)) id,
+    ];
+    for (final id in allowedIds) {
+      if (!ordered.contains(id)) {
+        ordered.add(id);
+      }
+    }
+    return ordered;
+  }
+
+  bool isWidgetVisible({
+    required DashboardWorkspaceSection surface,
+    required String widgetId,
+  }) {
+    final hidden = hiddenWidgetIdsBySurface[surface] ?? const <String>{};
+    return !hidden.contains(widgetId);
+  }
+
+  _DashboardLayoutConfig withWorkspaceMode(DashboardWorkspaceSection mode) {
+    return copyWith(
+      workspaceMode: mode,
+      lastUpdatedEpochMs: DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  _DashboardLayoutConfig withWidgetVisibility({
+    required DashboardWorkspaceSection surface,
+    required String widgetId,
+    required bool isVisible,
+  }) {
+    final nextHidden = {
+      for (final entry in hiddenWidgetIdsBySurface.entries)
+        entry.key: Set<String>.from(entry.value),
+    };
+    final hidden = nextHidden.putIfAbsent(surface, () => <String>{});
+    if (isVisible) {
+      hidden.remove(widgetId);
+    } else {
+      hidden.add(widgetId);
+    }
+
+    return _DashboardLayoutConfig(
+      schemaVersion: schemaVersion,
+      workspaceMode: workspaceMode,
+      widgetOrderBySurface: widgetOrderBySurface,
+      hiddenWidgetIdsBySurface: nextHidden,
+      customized: true,
+      lastUpdatedEpochMs: DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  _DashboardLayoutConfig resetSurface(DashboardWorkspaceSection surface) {
+    final nextOrder = {
+      for (final entry in widgetOrderBySurface.entries)
+        entry.key: List<String>.from(entry.value),
+    };
+    final nextHidden = {
+      for (final entry in hiddenWidgetIdsBySurface.entries)
+        entry.key: Set<String>.from(entry.value),
+    };
+    nextOrder[surface] =
+        List<String>.from(_defaultDashboardWidgetOrder[surface] ?? const []);
+    nextHidden[surface] = <String>{};
+
+    return _DashboardLayoutConfig(
+      schemaVersion: schemaVersion,
+      workspaceMode: workspaceMode,
+      widgetOrderBySurface: nextOrder,
+      hiddenWidgetIdsBySurface: nextHidden,
+      customized: true,
+      lastUpdatedEpochMs: DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+}
+
+String _dashboardWorkspaceSectionId(DashboardWorkspaceSection section) {
+  switch (section) {
+    case DashboardWorkspaceSection.today:
+      return 'today';
+    case DashboardWorkspaceSection.classroom:
+      return 'classroom';
+    case DashboardWorkspaceSection.planning:
+      return 'planning';
+    case DashboardWorkspaceSection.workspace:
+      return 'workspace';
+  }
+}
+
+DashboardWorkspaceSection? _dashboardWorkspaceSectionFromId(String? value) {
+  switch (value) {
+    case 'today':
+      return DashboardWorkspaceSection.today;
+    case 'classroom':
+      return DashboardWorkspaceSection.classroom;
+    case 'planning':
+      return DashboardWorkspaceSection.planning;
+    case 'workspace':
+      return DashboardWorkspaceSection.workspace;
+    default:
+      return null;
+  }
+}

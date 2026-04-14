@@ -9,6 +9,7 @@ import 'package:gradeflow/services/student_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/theme.dart';
 
 class DeletedClassesScreen extends StatefulWidget {
@@ -52,10 +53,15 @@ class _DeletedClassesScreenState extends State<DeletedClassesScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete forever?'),
-        content: const Text('This permanently deletes the class and its data (students, categories, grade items).'),
+        content: const Text(
+            'This permanently deletes the class and its data (students, categories, grade items).'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete')),
         ],
       ),
     );
@@ -113,8 +119,12 @@ class _DeletedClassesScreenState extends State<DeletedClassesScreen> {
         title: const Text('Empty Bin'),
         content: const Text('Permanently delete all classes in the bin?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Empty')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Empty')),
         ],
       ),
     );
@@ -127,32 +137,51 @@ class _DeletedClassesScreenState extends State<DeletedClassesScreen> {
     }
   }
 
-  void _toast(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
-  void _error(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m), backgroundColor: Theme.of(context).colorScheme.error));
+  void _toast(String m) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  void _error(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(m), backgroundColor: Theme.of(context).colorScheme.error));
 
   @override
   Widget build(BuildContext context) {
     final trashSvc = context.watch<ClassTrashService>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Class Recycle Bin'),
-        actions: [
-          IconButton(onPressed: _emptyBin, icon: const Icon(Icons.delete_forever), tooltip: 'Empty Bin'),
-        ],
-      ),
-      body: trashSvc.isLoading
+    return WorkspaceScaffold(
+      title: 'Class Recycle Bin',
+      subtitle: 'Restore archived teaching spaces or remove them permanently',
+      eyebrow: 'Class Trash',
+      leadingActions: [
+        IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          tooltip: 'Back',
+          style: WorkspaceButtonStyles.icon(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+      ],
+      trailingActions: [
+        IconButton(
+          onPressed: _emptyBin,
+          tooltip: 'Empty Bin',
+          style: WorkspaceButtonStyles.icon(context),
+          icon: const Icon(Icons.delete_forever),
+        ),
+      ],
+      child: trashSvc.isLoading
           ? const Center(child: CircularProgressIndicator())
           : trashSvc.trash.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.restore_from_trash, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      Icon(Icons.restore_from_trash,
+                          size: 64,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(height: AppSpacing.md),
                       const Text('Nothing in the bin'),
                       const SizedBox(height: AppSpacing.sm),
-                      const Text('Deleted classes appear here for manual restore'),
+                      const Text(
+                          'Deleted classes appear here for manual restore'),
                     ],
                   ),
                 )
@@ -167,10 +196,17 @@ class _DeletedClassesScreenState extends State<DeletedClassesScreen> {
                       child: ListTile(
                         leading: const Icon(Icons.class_),
                         title: Text(c.className),
-                        subtitle: Text('${c.subject} • ${c.schoolYear} • ${c.term} • Deleted: ${_format(entry.deletedAt)}'),
+                        subtitle: Text(
+                            '${c.subject} • ${c.schoolYear} • ${c.term} • Deleted: ${_format(entry.deletedAt)}'),
                         trailing: Wrap(spacing: 8, children: [
-                          TextButton.icon(onPressed: () => _restore(entry), icon: const Icon(Icons.restore), label: const Text('Restore')),
-                          IconButton(onPressed: () => _deleteForever(entry), icon: const Icon(Icons.delete_outline), tooltip: 'Delete forever'),
+                          TextButton.icon(
+                              onPressed: () => _restore(entry),
+                              icon: const Icon(Icons.restore),
+                              label: const Text('Restore')),
+                          IconButton(
+                              onPressed: () => _deleteForever(entry),
+                              icon: const Icon(Icons.delete_outline),
+                              tooltip: 'Delete forever'),
                         ]),
                       ),
                     );
@@ -180,8 +216,10 @@ class _DeletedClassesScreenState extends State<DeletedClassesScreen> {
   }
 
   String _format(DateTime dt) {
-    final d = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-    final t = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    final d =
+        '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+    final t =
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     return '$d $t';
   }
 }

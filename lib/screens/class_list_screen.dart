@@ -469,7 +469,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                 ),
                 if (!createNew) ...[
                   DropdownButtonFormField<String>(
-                    initialValue: selectedClassId,
+                    value: selectedClassId,
                     isExpanded: true,
                     decoration:
                         const InputDecoration(labelText: 'Target class'),
@@ -495,7 +495,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                           const InputDecoration(labelText: 'School Year')),
                   const SizedBox(height: AppSpacing.sm),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedTerm,
+                    value: selectedTerm,
                     decoration: const InputDecoration(labelText: 'Term'),
                     items: const [
                       DropdownMenuItem(value: 'Fall', child: Text('Fall')),
@@ -845,7 +845,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                         const InputDecoration(labelText: 'School Year')),
                 const SizedBox(height: AppSpacing.sm),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedTerm,
+                  value: selectedTerm,
                   decoration: const InputDecoration(labelText: 'Term'),
                   items: const [
                     DropdownMenuItem(value: 'Fall', child: Text('Fall')),

@@ -102,7 +102,7 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<CommunicationChannelKind>(
-                      initialValue: kind,
+                      value: kind,
                       decoration:
                           const InputDecoration(labelText: 'Group type'),
                       items: const [

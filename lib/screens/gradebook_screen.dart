@@ -600,7 +600,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
           SizedBox(
             width: 200,
             child: DropdownButtonFormField<String>(
-              initialValue: widget.classId,
+              value: widget.classId,
               isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Class',
@@ -1008,7 +1008,7 @@ class _CompactGradebookToolbar extends StatelessWidget {
             SizedBox(
               width: 160,
               child: DropdownButtonFormField<String>(
-                initialValue: selectedCategoryId,
+                value: selectedCategoryId,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   hintText: 'Category',
@@ -1037,7 +1037,7 @@ class _CompactGradebookToolbar extends StatelessWidget {
             SizedBox(
               width: 160,
               child: DropdownButtonFormField<String>(
-                initialValue: selectedGradeItemId,
+                value: selectedGradeItemId,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   hintText: 'Grade Item',

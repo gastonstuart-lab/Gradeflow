@@ -535,7 +535,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<SeatingTableType>(
-                  initialValue: selectedType,
+                  value: selectedType,
                   decoration: const InputDecoration(labelText: 'Table type'),
                   items: _editableTableTypes
                       .map(

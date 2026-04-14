@@ -15,7 +15,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
     GlobalKey? focusKey,
   }) async {
     if (_workspaceSection != section) {
-      setState(() => _workspaceSection = section);
+      _setWorkspaceSection(section);
       await Future<void>.delayed(const Duration(milliseconds: 32));
     }
     if (!mounted) {
@@ -355,7 +355,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
               ],
               selected: {_workspaceSection},
               onSelectionChanged: (selection) {
-                setState(() => _workspaceSection = selection.first);
+                _setWorkspaceSection(selection.first);
               },
             ),
           ),
@@ -609,14 +609,16 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
 
   Widget _buildClassToolsSectionCard(BuildContext context) {
     final isCompact = MediaQuery.of(context).size.width < 620;
+    final selectedClassId = _selectedDashboardClassId();
+    final actionSelectedClassId = _selectedDashboardActionClassId();
     final classPicker = ConstrainedBox(
       constraints: const BoxConstraints(
         maxWidth: 280,
         minWidth: 120,
       ),
       child: DropdownButtonFormField<String>(
-        key: ValueKey(_selectedClassId),
-        initialValue: _selectedClassId,
+        key: ValueKey(selectedClassId),
+        value: selectedClassId,
         isDense: true,
         decoration: const InputDecoration(
           labelText: 'Class',
@@ -635,8 +637,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
           if (id == null) {
             return;
           }
-          setState(() => _selectedClassId = id);
-          _refreshNames();
+          _setSelectedDashboardClass(id);
         },
       ),
     );
@@ -691,7 +692,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
               ],
             ),
           const SizedBox(height: 12),
-          if (_selectedClassId != null) ...[
+          if (actionSelectedClassId != null) ...[
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(

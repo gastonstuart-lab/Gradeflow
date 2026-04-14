@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/services/grade_item_service.dart';
@@ -140,11 +142,19 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       orElse: () => throw Exception('Student not found'),
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(student.chineseName),
-      ),
-      body: _grades == null
+    return WorkspaceScaffold(
+      title: student.chineseName,
+      subtitle: student.englishFullName,
+      eyebrow: 'Student Record',
+      leadingActions: [
+        IconButton(
+          onPressed: () => context.pop(),
+          tooltip: 'Back',
+          style: WorkspaceButtonStyles.icon(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+      ],
+      child: _grades == null
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: AppSpacing.paddingLg,

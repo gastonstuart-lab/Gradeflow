@@ -944,6 +944,13 @@ class _ExportScreenState extends State<ExportScreen> {
   @override
   Widget build(BuildContext context) {
     final studentService = context.watch<StudentService>();
+    final classItem = context.watch<ClassService>().getClassById(widget.classId);
+    final className = classItem?.className ?? 'Class';
+    final classContextLine = [
+      if (classItem?.subject.trim().isNotEmpty ?? false) classItem!.subject,
+      '${studentService.students.length} '
+          'student${studentService.students.length == 1 ? '' : 's'}',
+    ].join(' • ');
 
     return Scaffold(
       appBar: AppBar(
@@ -956,6 +963,43 @@ class _ExportScreenState extends State<ExportScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Container(
+                    padding: AppSpacing.paddingMd,
+                    decoration: BoxDecoration(
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.class_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                className,
+                                style: context.textStyles.titleMedium?.semiBold,
+                              ),
+                              Text(
+                                classContextLine,
+                                style: context.textStyles.bodySmall?.withColor(
+                                  Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
                   if (_issues.isNotEmpty) ...[
                     Container(
                       padding: AppSpacing.paddingMd,

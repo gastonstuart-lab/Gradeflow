@@ -9,12 +9,15 @@
 ///   - Tab bar: Overview | Gradebook | Seating | Students | Export
 ///   - Each tab routes to the existing screen embedded in this surface
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/nav.dart';
+import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 
@@ -30,6 +33,7 @@ class ClassSurface extends StatefulWidget {
 class _ClassSurfaceState extends State<ClassSurface>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
+  bool _hydrating = false;
 
   static const _tabDefs = [
     _TabDef(icon: Icons.dashboard_outlined, label: 'Overview'),
@@ -43,6 +47,8 @@ class _ClassSurfaceState extends State<ClassSurface>
   void initState() {
     super.initState();
     _tabs = TabController(length: _tabDefs.length, vsync: this);
+    _hydrating =
+        context.read<ClassService>().getClassById(widget.classId) == null;
 
     // Tell the OS controller which class is active
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -53,12 +59,55 @@ class _ClassSurfaceState extends State<ClassSurface>
             );
       }
     });
+    _scheduleHydration();
+  }
+
+  @override
+  void didUpdateWidget(covariant ClassSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      setState(() {
+        _hydrating =
+            context.read<ClassService>().getClassById(widget.classId) == null;
+      });
+      _scheduleHydration();
+    }
   }
 
   @override
   void dispose() {
     _tabs.dispose();
     super.dispose();
+  }
+
+  void _scheduleHydration() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_hydrateClassContext());
+    });
+  }
+
+  Future<void> _hydrateClassContext() async {
+    final requestedClassId = widget.classId;
+    final auth = context.read<AuthService>();
+    final classService = context.read<ClassService>();
+    final studentService = context.read<StudentService>();
+
+    try {
+      final user = auth.currentUser;
+      // Cold OS entry can arrive before class providers have been hydrated.
+      if (user != null && classService.getClassById(requestedClassId) == null) {
+        await classService.loadClasses(user.userId);
+      }
+      await studentService.loadStudents(requestedClassId);
+    } catch (e) {
+      debugPrint('Failed to hydrate OS class surface: $e');
+    } finally {
+      final sameClass = widget.classId == requestedClassId;
+      if (mounted && sameClass && _hydrating) {
+        setState(() => _hydrating = false);
+      }
+    }
   }
 
   @override
@@ -68,6 +117,14 @@ class _ClassSurfaceState extends State<ClassSurface>
     final classModel = classService.classes
         .where((c) => c.classId == widget.classId)
         .firstOrNull;
+    if (classModel == null && _hydrating) {
+      return Scaffold(
+        backgroundColor: OSColors.bg(dark),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     final className = classModel?.className ?? 'Class';
     final subject = classModel?.subject ?? '';
 

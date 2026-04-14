@@ -120,7 +120,7 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<CommunicationAlertSeverity>(
-                      initialValue: severity,
+                      value: severity,
                       decoration: const InputDecoration(
                         labelText: 'Severity',
                       ),

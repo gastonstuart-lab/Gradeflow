@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/models/grading_category.dart';
 import 'package:gradeflow/theme.dart';
@@ -53,7 +54,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<AggregationMethod>(
-                  initialValue: selectedMethod,
+                  value: selectedMethod,
                   decoration:
                       const InputDecoration(labelText: 'Aggregation Method'),
                   items: AggregationMethod.values.map((method) {
@@ -171,68 +172,85 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
     final totalWeight = categoryService.getTotalWeight(widget.classId);
     final isValid = categoryService.isWeightValid(widget.classId);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Grading Categories'),
+    return WorkspaceScaffold(
+      title: 'Grading Categories',
+      subtitle: 'Weight, balance, and tune the process-score structure',
+      eyebrow: 'Assessment Setup',
+      leadingActions: [
+        IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          tooltip: 'Back',
+          style: WorkspaceButtonStyles.icon(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+      ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddCategoryDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Category'),
       ),
-      body: Column(
+      child: Column(
         children: [
-          Container(
-            padding: AppSpacing.paddingLg,
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Total Weight:',
-                        style: context.textStyles.titleMedium),
-                    Text('${totalWeight.toStringAsFixed(1)}% / 100%',
-                        style: context.textStyles.titleLarge?.bold.withColor(
-                            isValid
-                                ? LightModeColors.lightSuccess
-                                : LightModeColors.lightWarning)),
-                  ],
-                ),
-                if (!isValid) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Container(
-                    padding: AppSpacing.paddingMd,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning,
-                            color:
-                                Theme.of(context).colorScheme.onErrorContainer),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            'Category weights must total 100% (applied to the 40% process component)',
-                            style: TextStyle(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onErrorContainer),
+          WorkspaceSurfaceCard(
+            child: Padding(
+              padding: AppSpacing.paddingLg,
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total Weight:',
+                          style: context.textStyles.titleMedium),
+                      Text('${totalWeight.toStringAsFixed(1)}% / 100%',
+                          style: context.textStyles.titleLarge?.bold.withColor(
+                              isValid
+                                  ? LightModeColors.lightSuccess
+                                  : LightModeColors.lightWarning)),
+                    ],
+                  ),
+                  if (!isValid) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Container(
+                      padding: AppSpacing.paddingMd,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onErrorContainer),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              'Category weights must total 100% (applied to the 40% process component)',
+                              style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FilledButton.icon(
-                    onPressed: () async {
-                      await categoryService.autoFixWeights(widget.classId);
-                      _showSuccess('Weights auto-balanced to 100%');
-                    },
-                    icon: const Icon(Icons.auto_fix_high),
-                    label: const Text('Auto-Fix to 100%'),
-                  ),
+                    const SizedBox(height: AppSpacing.sm),
+                    FilledButton.icon(
+                      style: WorkspaceButtonStyles.filled(context),
+                      onPressed: () async {
+                        await categoryService.autoFixWeights(widget.classId);
+                        _showSuccess('Weights auto-balanced to 100%');
+                      },
+                      icon: const Icon(Icons.auto_fix_high),
+                      label: const Text('Auto-Fix to 100%'),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
+          const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: categoryService.categories.isEmpty
                 ? Center(
@@ -323,11 +341,6 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                   ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddCategoryDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Category'),
       ),
     );
   }

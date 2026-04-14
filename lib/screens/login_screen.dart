@@ -41,6 +41,15 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  String _postAuthDestination() {
+    final state = GoRouterState.of(context);
+    return AppRouter.postAuthDestination(state.uri.queryParameters['from']);
+  }
+
+  void _completeAuthNavigation() {
+    context.go(_postAuthDestination());
+  }
+
   Future<void> _handleLogin() async {
     if (_emailController.text.isEmpty) {
       _showError('Please enter your email');
@@ -57,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
 
       if (success) {
-        context.go(AppRoutes.osHome);
+        _completeAuthNavigation();
       } else {
         _showError('Login failed. Please check your credentials.');
       }
@@ -95,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
 
       if (success) {
-        context.go(AppRoutes.osHome);
+        _completeAuthNavigation();
       } else {
         _showError('Demo login failed. Please try again.');
       }
@@ -125,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      router.go(AppRoutes.osHome);
+      router.go(_postAuthDestination());
     } else {
       showWorkspaceSnackBar(
         context,
@@ -599,7 +608,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (auth.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        router.go(AppRoutes.osHome);
+        router.go(_postAuthDestination());
       });
     }
 

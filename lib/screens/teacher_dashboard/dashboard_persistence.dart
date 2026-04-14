@@ -106,6 +106,94 @@ extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
         userId: _dashboardStorageUserId(),
       );
 
+  String _dashboardLayoutPrefsKey() => _dashboardPreferencesService.scopedKey(
+        baseKey: 'dashboard_layout_v1',
+        userId: _dashboardStorageUserId(),
+      );
+
+  String _selectedClassPrefsKey() => _dashboardPreferencesService.scopedKey(
+        baseKey: 'dashboard_selected_class_v1',
+        userId: _dashboardStorageUserId(),
+      );
+
+  Future<void> _loadDashboardLayout() async {
+    try {
+      final raw = await _dashboardPreferencesService.readScopedString(
+        scopedKey: _dashboardLayoutPrefsKey(),
+      );
+
+      var parsed = _DashboardLayoutConfig.defaults();
+      if (raw != null && raw.trim().isNotEmpty) {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          parsed = _DashboardLayoutConfig.fromJson(
+            Map<String, dynamic>.from(decoded),
+          );
+        }
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _dashboardLayoutConfig = parsed;
+        _workspaceSection = parsed.workspaceMode;
+        _dashboardLayoutReady = true;
+      });
+    } catch (e) {
+      debugPrint('Failed to load dashboard layout: $e');
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _dashboardLayoutConfig = _DashboardLayoutConfig.defaults();
+        _workspaceSection = _dashboardLayoutConfig.workspaceMode;
+        _dashboardLayoutReady = true;
+      });
+    }
+  }
+
+  Future<void> _saveDashboardLayout({bool markCustomized = false}) async {
+    try {
+      if (markCustomized && !_dashboardLayoutConfig.customized) {
+        _dashboardLayoutConfig = _dashboardLayoutConfig.copyWith(
+          customized: true,
+          lastUpdatedEpochMs: DateTime.now().millisecondsSinceEpoch,
+        );
+      }
+
+      await _dashboardPreferencesService.writeString(
+        key: _dashboardLayoutPrefsKey(),
+        value: jsonEncode(_dashboardLayoutConfig.toJson()),
+      );
+    } catch (e) {
+      debugPrint('Failed to save dashboard layout: $e');
+    }
+  }
+
+  Future<String?> _loadStoredSelectedDashboardClassId() async {
+    try {
+      return await _dashboardPreferencesService.readScopedString(
+        scopedKey: _selectedClassPrefsKey(),
+      );
+    } catch (e) {
+      debugPrint('Failed to load selected dashboard class: $e');
+      return null;
+    }
+  }
+
+  Future<void> _saveStoredSelectedDashboardClassId(String? classId) async {
+    try {
+      await _dashboardPreferencesService.writeString(
+        key: _selectedClassPrefsKey(),
+        value: classId,
+      );
+    } catch (e) {
+      debugPrint('Failed to save selected dashboard class: $e');
+    }
+  }
+
   Future<void> _loadTimetables() async {
     try {
       final raw = await _dashboardPreferencesService.readScopedString(

@@ -2,6 +2,16 @@
 
 part of '../teacher_dashboard_screen.dart';
 
+class _DashboardWidgetToggleConfig {
+  final String id;
+  final String label;
+
+  const _DashboardWidgetToggleConfig({
+    required this.id,
+    required this.label,
+  });
+}
+
 extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
   Widget _buildDesktopMainContent(BuildContext context, DateTime now) {
     return _buildDashboardScrollPage(
@@ -53,7 +63,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
           context,
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 100),
           children: [
-            _buildDashboardWorkspaceSection(context, compact: true),
+            _buildDashboardWorkspaceSection(context, now, compact: true),
           ],
         );
         break;
@@ -221,44 +231,110 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     DateTime now, {
     required bool compact,
   }) {
-    return KeyedSubtree(
-      key: _planningSectionKey,
-      child: PlanningSection(
-        compact: compact,
-        panels: [
+    final previews =
+        _buildDashboardSectionPreviews(context, now, compact: compact);
+    final panelBuilders = <String, Widget Function()>{
+      _DashboardLayoutKeys.planningReminderSummary: () =>
           _buildReminderSummaryCard(context),
-          KeyedSubtree(
+      _DashboardLayoutKeys.planningCalendar: () => KeyedSubtree(
             key: _calendarSectionKey,
             child: _Card(
               child: _buildCalendar(context),
             ),
           ),
+      _DashboardLayoutKeys.planningTimetableSnapshot: () =>
           _buildTimetableSnapshotCard(context, now),
-        ],
+      if (previews.isNotEmpty)
+        _DashboardLayoutKeys.planningPreviewGrid: () =>
+            _buildDashboardStandbySurfaceCard(
+              context,
+              previews,
+              compact: compact,
+            ),
+    };
+    final orderedIds = _orderedWidgetIdsForSurface(
+      DashboardWorkspaceSection.planning,
+      _dashboardWidgetIdsForSurface(DashboardWorkspaceSection.planning),
+    );
+    final panels = <Widget>[];
+    for (final id in orderedIds) {
+      if (_isDashboardWidgetVisible(DashboardWorkspaceSection.planning, id)) {
+        final builder = panelBuilders[id];
+        if (builder != null) {
+          panels.add(builder());
+        }
+      }
+    }
+
+    return KeyedSubtree(
+      key: _planningSectionKey,
+      child: PlanningSection(
+        compact: compact,
+        panels: panels.isEmpty
+            ? [
+                _buildDashboardEmptySurfaceCard(
+                  context,
+                  message:
+                      'No schedule widgets are visible. Use Customize to show panels.',
+                ),
+              ]
+            : panels,
       ),
     );
   }
 
   Widget _buildDashboardWorkspaceSection(
-    BuildContext context, {
+    BuildContext context,
+    DateTime now, {
     required bool compact,
   }) {
-    return KeyedSubtree(
-      key: _workspaceSectionKey,
-      child: WorkspaceSection(
-        compact: compact,
-        panels: [
-          KeyedSubtree(
-            key: _classToolsSectionKey,
-            child: _buildClassToolsSectionCard(context),
-          ),
+    final previews =
+        _buildDashboardSectionPreviews(context, now, compact: compact);
+    final panelBuilders = <String, Widget Function()>{
+      _DashboardLayoutKeys.workspaceQuickLinks: () =>
           _buildQuickLinksCard(context),
+      _DashboardLayoutKeys.workspaceResearchTools: () =>
           _buildResearchToolsCard(context),
+      _DashboardLayoutKeys.workspacePilotFeedback: () =>
           const PilotFeedbackCard(
             initialArea: 'Dashboard redesign',
             initialRoute: '/dashboard',
           ),
-        ],
+      if (previews.isNotEmpty)
+        _DashboardLayoutKeys.workspacePreviewGrid: () =>
+            _buildDashboardStandbySurfaceCard(
+              context,
+              previews,
+              compact: compact,
+            ),
+    };
+    final orderedIds = _orderedWidgetIdsForSurface(
+      DashboardWorkspaceSection.workspace,
+      _dashboardWidgetIdsForSurface(DashboardWorkspaceSection.workspace),
+    );
+    final panels = <Widget>[];
+    for (final id in orderedIds) {
+      if (_isDashboardWidgetVisible(DashboardWorkspaceSection.workspace, id)) {
+        final builder = panelBuilders[id];
+        if (builder != null) {
+          panels.add(builder());
+        }
+      }
+    }
+
+    return KeyedSubtree(
+      key: _workspaceSectionKey,
+      child: WorkspaceSection(
+        compact: compact,
+        panels: panels.isEmpty
+            ? [
+                _buildDashboardEmptySurfaceCard(
+                  context,
+                  message:
+                      'No workspace widgets are visible. Use Customize to show panels.',
+                ),
+              ]
+            : panels,
       ),
     );
   }
@@ -267,9 +343,8 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     return DashboardWorkspaceModeStrip(
       selectedSection: _workspaceSection,
       description: _workspaceSectionDescription(_workspaceSection),
-      onSelected: (selection) {
-        setState(() => _workspaceSection = selection);
-      },
+      onCustomizeLayout: _openDashboardLayoutCustomizer,
+      onSelected: _setWorkspaceSection,
     );
   }
 
@@ -280,30 +355,98 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
   }) {
     final previews =
         _buildDashboardSectionPreviews(context, now, compact: compact);
+    final orderedIds = _orderedWidgetIdsForSurface(
+      _workspaceSection,
+      _dashboardWidgetIdsForSurface(_workspaceSection),
+    );
     switch (_workspaceSection) {
       case DashboardWorkspaceSection.today:
+        final widgets = <Widget>[];
+        for (final id in orderedIds) {
+          if (!_isDashboardWidgetVisible(DashboardWorkspaceSection.today, id)) {
+            continue;
+          }
+          switch (id) {
+            case _DashboardLayoutKeys.todayInsights:
+              widgets.add(
+                _buildDashboardInsightsSection(context, now, compact: compact),
+              );
+              break;
+            case _DashboardLayoutKeys.todayPreviewGrid:
+              if (previews.isNotEmpty) {
+                widgets.add(
+                  _buildDashboardStandbySurfaceCard(
+                    context,
+                    previews,
+                    compact: compact,
+                  ),
+                );
+              }
+              break;
+            default:
+              break;
+          }
+        }
         return [
-          _buildDashboardInsightsSection(context, now, compact: compact),
-          if (previews.isNotEmpty)
-            _buildDashboardSectionPreviewGrid(previews, compact: compact),
+          if (widgets.isEmpty)
+            _buildDashboardEmptySurfaceCard(
+              context,
+              message:
+                  'No Today widgets are visible. Use Customize to show panels.',
+            )
+          else
+            ...widgets,
         ];
       case DashboardWorkspaceSection.classroom:
+        final widgets = <Widget>[];
+        for (final id in orderedIds) {
+          if (!_isDashboardWidgetVisible(
+            DashboardWorkspaceSection.classroom,
+            id,
+          )) {
+            continue;
+          }
+          switch (id) {
+            case _DashboardLayoutKeys.classroomStudio:
+              widgets.add(
+                _buildDashboardClassroomStudioSection(
+                  context,
+                  compact: compact,
+                ),
+              );
+              break;
+            case _DashboardLayoutKeys.classroomPreviewGrid:
+              if (previews.isNotEmpty) {
+                widgets.add(
+                  _buildDashboardStandbySurfaceCard(
+                    context,
+                    previews,
+                    compact: compact,
+                  ),
+                );
+              }
+              break;
+            default:
+              break;
+          }
+        }
         return [
-          _buildDashboardClassroomStudioSection(context, compact: compact),
-          if (previews.isNotEmpty)
-            _buildDashboardSectionPreviewGrid(previews, compact: compact),
+          if (widgets.isEmpty)
+            _buildDashboardEmptySurfaceCard(
+              context,
+              message:
+                  'No Classroom widgets are visible. Use Customize to show panels.',
+            )
+          else
+            ...widgets,
         ];
       case DashboardWorkspaceSection.planning:
         return [
           _buildDashboardPlanningSection(context, now, compact: compact),
-          if (previews.isNotEmpty)
-            _buildDashboardSectionPreviewGrid(previews, compact: compact),
         ];
       case DashboardWorkspaceSection.workspace:
         return [
-          _buildDashboardWorkspaceSection(context, compact: compact),
-          if (previews.isNotEmpty)
-            _buildDashboardSectionPreviewGrid(previews, compact: compact),
+          _buildDashboardWorkspaceSection(context, now, compact: compact),
         ];
     }
   }
@@ -368,9 +511,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
           detail: 'Insights and priorities stay one tap away.',
           icon: Icons.insights_outlined,
           actionLabel: 'Open today',
-          onTap: () => setState(
-            () => _workspaceSection = DashboardWorkspaceSection.today,
-          ),
+          onTap: () => _setWorkspaceSection(DashboardWorkspaceSection.today),
         ),
       );
     }
@@ -381,9 +522,8 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
           detail: 'Whiteboard, timer, polls, and room tools.',
           icon: Icons.draw_outlined,
           actionLabel: 'Open studio',
-          onTap: () => setState(
-            () => _workspaceSection = DashboardWorkspaceSection.classroom,
-          ),
+          onTap: () =>
+              _setWorkspaceSection(DashboardWorkspaceSection.classroom),
         ),
       );
     }
@@ -396,9 +536,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
               : 'Calendar, timetable, and reminders.',
           icon: Icons.event_note_outlined,
           actionLabel: 'Open schedule',
-          onTap: () => setState(
-            () => _workspaceSection = DashboardWorkspaceSection.planning,
-          ),
+          onTap: () => _setWorkspaceSection(DashboardWorkspaceSection.planning),
         ),
       );
     }
@@ -410,14 +548,256 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
               '${_customLinks.length + 3} links and helper tools stay on standby.',
           icon: Icons.workspaces_outline,
           actionLabel: 'Open tools',
-          onTap: () => setState(
-            () => _workspaceSection = DashboardWorkspaceSection.workspace,
-          ),
+          onTap: () =>
+              _setWorkspaceSection(DashboardWorkspaceSection.workspace),
         ),
       );
     }
 
     return previews.take(compact ? 2 : 3).toList(growable: false);
+  }
+
+  List<String> _dashboardWidgetIdsForSurface(
+    DashboardWorkspaceSection surface,
+  ) {
+    return _dashboardWidgetToggleConfig(surface)
+        .map((toggle) => toggle.id)
+        .toList(growable: false);
+  }
+
+  Widget _buildDashboardEmptySurfaceCard(
+    BuildContext context, {
+    required String message,
+  }) {
+    return _Card(
+      child: Text(
+        message,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: _DashboardPalette.textSecondary,
+            ),
+      ),
+    );
+  }
+
+  Widget _buildDashboardStandbySurfaceCard(
+    BuildContext context,
+    List<DashboardSectionPreviewCard> previews, {
+    required bool compact,
+  }) {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.view_agenda_outlined),
+              const SizedBox(width: 8),
+              Text(
+                'Standby surfaces',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Keep other dashboard surfaces close without changing the default flow.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: _DashboardPalette.textSecondary,
+                ),
+          ),
+          const SizedBox(height: 14),
+          _buildDashboardSectionPreviewGrid(previews, compact: compact),
+        ],
+      ),
+    );
+  }
+
+  List<_DashboardWidgetToggleConfig> _dashboardWidgetToggleConfig(
+    DashboardWorkspaceSection surface,
+  ) {
+    switch (surface) {
+      case DashboardWorkspaceSection.today:
+        return const [
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.todayInsights,
+            label: 'Insights',
+          ),
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.todayPreviewGrid,
+            label: 'Cross-surface previews',
+          ),
+        ];
+      case DashboardWorkspaceSection.classroom:
+        return const [
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.classroomStudio,
+            label: 'Classroom studio',
+          ),
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.classroomPreviewGrid,
+            label: 'Cross-surface previews',
+          ),
+        ];
+      case DashboardWorkspaceSection.planning:
+        return const [
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.planningReminderSummary,
+            label: 'Reminder summary',
+          ),
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.planningCalendar,
+            label: 'Calendar',
+          ),
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.planningTimetableSnapshot,
+            label: 'Timetable snapshot',
+          ),
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.planningPreviewGrid,
+            label: 'Cross-surface previews',
+          ),
+        ];
+      case DashboardWorkspaceSection.workspace:
+        return const [
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.workspaceQuickLinks,
+            label: 'Quick links',
+          ),
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.workspaceResearchTools,
+            label: 'Research tools',
+          ),
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.workspacePilotFeedback,
+            label: 'Pilot feedback',
+          ),
+          _DashboardWidgetToggleConfig(
+            id: _DashboardLayoutKeys.workspacePreviewGrid,
+            label: 'Cross-surface previews',
+          ),
+        ];
+    }
+  }
+
+  Future<void> _openDashboardLayoutCustomizer() async {
+    var selectedSurface = _workspaceSection;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final toggles = _dashboardWidgetToggleConfig(selectedSurface);
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: DashboardPanelCard(
+                  radius: 20,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Customize dashboard',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SegmentedButton<DashboardWorkspaceSection>(
+                          segments: const [
+                            ButtonSegment(
+                              value: DashboardWorkspaceSection.today,
+                              label: Text('Today'),
+                            ),
+                            ButtonSegment(
+                              value: DashboardWorkspaceSection.classroom,
+                              label: Text('Classroom'),
+                            ),
+                            ButtonSegment(
+                              value: DashboardWorkspaceSection.planning,
+                              label: Text('Schedule'),
+                            ),
+                            ButtonSegment(
+                              value: DashboardWorkspaceSection.workspace,
+                              label: Text('Workspace'),
+                            ),
+                          ],
+                          selected: {selectedSurface},
+                          onSelectionChanged: (selection) {
+                            setSheetState(() {
+                              selectedSurface = selection.first;
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...toggles.map(
+                        (toggle) => SwitchListTile.adaptive(
+                          dense: true,
+                          value: _isDashboardWidgetVisible(
+                            selectedSurface,
+                            toggle.id,
+                          ),
+                          onChanged: (isVisible) {
+                            _setDashboardWidgetVisibility(
+                              surface: selectedSurface,
+                              widgetId: toggle.id,
+                              isVisible: isVisible,
+                            );
+                            setSheetState(() {});
+                          },
+                          title: Text(toggle.label),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              _resetDashboardSurfaceLayout(selectedSurface);
+                              setSheetState(() {});
+                            },
+                            child: const Text('Reset surface'),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () {
+                              _resetDashboardLayoutToDefaults();
+                              setSheetState(() {
+                                selectedSurface = _workspaceSection;
+                              });
+                            },
+                            child: const Text('Reset all'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _buildLivePanelSection(
@@ -538,12 +918,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
   }
 
   void _openSelectedClassRoute(BuildContext context, String suffix) {
-    final classId = _selectedClassId;
-    if (classId == null) {
-      context.go(AppRoutes.classes);
-      return;
-    }
-    context.push('/class/$classId/$suffix');
+    _openSelectedClassRouteSafely(context, suffix);
   }
 
   String _dashboardTodayLine(DateTime now) {
@@ -895,8 +1270,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
   }
 
   void _focusClass(String classId) {
-    setState(() => _selectedClassId = classId);
-    _refreshNames();
+    _setSelectedDashboardClass(classId);
   }
 
   void _selectDashboardClassFromRail(String classId) {
@@ -1049,7 +1423,14 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
   List<DashboardQuickActionData> _dashboardQuickActions(
     BuildContext context,
   ) {
-    final selectedName = _selectedClassBrief()?.name ?? 'selected class';
+    final selectedClassId = _selectedDashboardActionClassId();
+    final selectedName = selectedClassId == null
+        ? 'your class'
+        : (_classes
+                .where((classItem) => classItem.id == selectedClassId)
+                .firstOrNull
+                ?.name ??
+            'your class');
     return [
       DashboardQuickActionData(
         label: 'Add Class',
