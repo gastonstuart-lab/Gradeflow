@@ -11,6 +11,12 @@ void main() {
   testWidgets(
     'student list defaults to ascending student id and still supports seat sorting',
     (tester) async {
+      addTearDown(() async {
+        await tester.binding.setSurfaceSize(null);
+      });
+
+      await tester.binding.setSurfaceSize(const Size(1280, 900));
+
       final classItem = Class(
         classId: 'class-a',
         className: 'EEP 3 J2FG',
@@ -72,12 +78,14 @@ void main() {
       );
 
       await tester.tap(find.byIcon(Icons.sort));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Student ID'), findsOneWidget);
 
       await tester.tap(find.text('Seat number'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(
         _topForStudentId(tester, '1130257'),

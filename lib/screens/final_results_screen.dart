@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/components/tool_first_app_surface.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/services/grade_item_service.dart';
 import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/calculation_service.dart';
+import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/theme.dart';
-import 'package:gradeflow/components/animated_glow_border.dart';
 
 class FinalResultsScreen extends StatefulWidget {
   final String classId;
@@ -63,57 +66,185 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
     });
   }
 
+  Widget _buildContextStrip(
+    BuildContext context, {
+    required String className,
+    required String classContextLine,
+    required int studentCount,
+  }) {
+    return WorkspaceContextBar(
+      title: className,
+      subtitle: classContextLine,
+      leading: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          WorkspaceContextPill(
+            icon: Icons.people_alt_outlined,
+            label: 'Roster',
+            value: '$studentCount students',
+          ),
+          const WorkspaceContextPill(
+            icon: Icons.auto_graph_outlined,
+            label: 'Process',
+            value: '40%',
+          ),
+          const WorkspaceContextPill(
+            icon: Icons.fact_check_outlined,
+            label: 'Exam',
+            value: '60%',
+          ),
+        ],
+      ),
+      trailing: WorkspaceContextPill(
+        icon: Icons.verified_outlined,
+        label: 'View',
+        value: 'Final grades',
+        accent: Theme.of(context).colorScheme.primary,
+        emphasized: true,
+      ),
+    );
+  }
+
+  Widget _buildResultRow(
+    BuildContext context, {
+    required Student student,
+    required Map<String, double?> grades,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: WorkspaceSpacing.sm),
+      child: WorkspaceSurfaceCard(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 860;
+            final info = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  student.chineseName,
+                  style: context.textStyles.titleMedium?.semiBold,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  student.englishFullName,
+                  style: WorkspaceTypography.metadata(context),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  student.seatNo?.isNotEmpty == true
+                      ? 'ID ${student.studentId} / Seat ${student.seatNo}'
+                      : 'ID ${student.studentId}',
+                  style: context.textStyles.labelSmall?.withColor(
+                    Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            );
+            final metrics = Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
+              children: [
+                _ScorePill(label: 'Process 40%', value: grades['processScore']),
+                _ScorePill(label: 'Exam 60%', value: grades['examScore']),
+                _ScorePill(
+                  label: 'Final grade',
+                  value: grades['finalGrade'],
+                  highlight: true,
+                ),
+              ],
+            );
+
+            if (narrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  info,
+                  const SizedBox(height: WorkspaceSpacing.md),
+                  metrics,
+                ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(child: info),
+                const SizedBox(width: WorkspaceSpacing.md),
+                metrics,
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final students = context.watch<StudentService>();
-    return Scaffold(
-      appBar: AppBar(title: const Text('Final Results')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
+    final classItem = context.watch<ClassService>().getClassById(widget.classId);
+    final className = classItem?.className ?? 'Class';
+    final studentCount = students.students.length;
+    final classContextParts = <String>[
+      if (classItem?.subject.trim().isNotEmpty ?? false) classItem!.subject,
+      if (classItem?.schoolYear.trim().isNotEmpty ?? false)
+        classItem!.schoolYear,
+      if (classItem?.term.trim().isNotEmpty ?? false) classItem!.term,
+      '$studentCount student${studentCount == 1 ? '' : 's'}',
+    ];
+    final classContextLine = classContextParts.isEmpty
+        ? 'Current class context'
+        : classContextParts.join(' / ');
+
+    return ToolFirstAppSurface(
+      title: 'Final Results',
+      eyebrow: 'Student Reporting',
+      subtitle:
+          'Review weighted process, exam, and final grades in one aligned view.',
+      leading: IconButton(
+        onPressed: () => Navigator.of(context).pop(),
+        tooltip: 'Back',
+        style: WorkspaceButtonStyles.icon(context),
+        icon: const Icon(Icons.arrow_back_rounded),
+      ),
+      trailing: [
+        IconButton(
+          onPressed: _load,
+          tooltip: 'Refresh',
+          style: WorkspaceButtonStyles.icon(context),
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ],
+      contextStrip: _buildContextStrip(
+        context,
+        className: className,
+        classContextLine: classContextLine,
+        studentCount: studentCount,
+      ),
+      workspace: _loading
+          ? const WorkspaceLoadingState(
+              title: 'Calculating final results',
+              subtitle: 'Loading the roster, exam scores, and weighted grades.',
+            )
           : students.students.isEmpty
-              ? const Center(child: Text('No students in this class'))
+              ? const WorkspaceEmptyState(
+                  icon: Icons.summarize_outlined,
+                  title: 'No students in this class',
+                  subtitle:
+                      'Add students and exam scores before reviewing final results.',
+                )
               : ListView.builder(
-                  padding: AppSpacing.paddingMd,
+                  padding: const EdgeInsets.only(bottom: WorkspaceSpacing.md),
                   itemCount: students.students.length,
                   itemBuilder: (context, index) {
-                    final s = students.students[index];
-                    final g = _grades[s.studentId] ?? {};
-                    return AnimatedGlowBorder(
-                      child: Card(
-                        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: Padding(
-                          padding: AppSpacing.paddingMd,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(s.chineseName,
-                                        style: context.textStyles.titleMedium),
-                                    Text(s.englishFullName,
-                                        style: context.textStyles.bodySmall),
-                                    Text('ID: ${s.studentId}',
-                                        style: context.textStyles.labelSmall),
-                                  ],
-                                ),
-                              ),
-                              _ScorePill(
-                                  label: 'Process 40%',
-                                  value: g['processScore']),
-                              const SizedBox(width: AppSpacing.md),
-                              _ScorePill(
-                                  label: 'Exam 60%', value: g['examScore']),
-                              const SizedBox(width: AppSpacing.md),
-                              _ScorePill(
-                                  label: 'Final',
-                                  value: g['finalGrade'],
-                                  highlight: true),
-                            ],
-                          ),
-                        ),
-                      ),
+                    final student = students.students[index];
+                    final grades = _grades[student.studentId] ?? {};
+                    return _buildResultRow(
+                      context,
+                      student: student,
+                      grades: grades,
                     );
                   },
                 ),

@@ -46,9 +46,12 @@ class GradeFlowOSController extends ChangeNotifier {
   String? get activeClassId => _activeClassId;
 
   void setSurface(OSSurface surface, {String? classId}) {
-    if (_activeSurface == surface && _activeClassId == classId) return;
+    final nextClassId = surface == OSSurface.teach && classId == null
+        ? _activeClassId
+        : classId;
+    if (_activeSurface == surface && _activeClassId == nextClassId) return;
     _activeSurface = surface;
-    _activeClassId = classId;
+    _activeClassId = nextClassId;
     _closeAllOverlays();
     notifyListeners();
   }

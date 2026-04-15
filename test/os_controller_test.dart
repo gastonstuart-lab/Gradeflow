@@ -16,6 +16,16 @@ void main() {
       expect(controller.assistantOpen, isFalse);
     });
 
+    test('entering Teach Mode preserves activeClassId', () {
+      final controller = GradeFlowOSController();
+
+      controller.setSurface(OSSurface.classWorkspace, classId: 'class-1');
+      controller.setSurface(OSSurface.teach);
+
+      expect(controller.activeSurface, OSSurface.teach);
+      expect(controller.activeClassId, 'class-1');
+    });
+
     test('opening overlays is mutually exclusive', () {
       final controller = GradeFlowOSController();
 

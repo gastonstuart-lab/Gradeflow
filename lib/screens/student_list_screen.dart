@@ -6,7 +6,6 @@ import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/grade_item_service.dart';
 import 'package:gradeflow/theme.dart';
-import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:gradeflow/services/file_import_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gradeflow/models/student.dart';
@@ -38,6 +37,26 @@ class _StudentListScreenState extends State<StudentListScreen> {
   bool _ascending = true;
   bool _selectionMode = false;
   final Set<String> _selectedStudentIds = {};
+
+  void _showFeedback(
+    String message, {
+    WorkspaceFeedbackTone tone = WorkspaceFeedbackTone.info,
+    String? title,
+    String? actionLabel,
+    VoidCallback? onAction,
+    Duration duration = const Duration(seconds: 4),
+  }) {
+    if (!mounted) return;
+    showWorkspaceSnackBar(
+      context,
+      message: message,
+      tone: tone,
+      title: title,
+      actionLabel: actionLabel,
+      onAction: onAction,
+      duration: duration,
+    );
+  }
 
   @override
   void initState() {
@@ -810,11 +829,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
       _selectionMode = false;
     });
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Students moved to Restore Bin')),
-      );
-    }
+    _showSuccess('Students moved to Restore Bin');
   }
 
   Future<void> _confirmDeleteStudent(Student student) async {
@@ -867,53 +882,43 @@ class _StudentListScreenState extends State<StudentListScreen> {
         reason: 'Manual delete from roster',
       ));
 
-      // Offer UNDO
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Removed ${student.chineseName} (${student.englishFullName})'),
-          action: SnackBarAction(
-            label: 'UNDO',
-            onPressed: () async {
-              try {
-                await studentSvc.addStudent(student);
-                if (removedScores.isNotEmpty) {
-                  await scoreSvc.restoreScoresForStudent(
-                      widget.classId, removedScores);
-                }
-                if (removedExam != null) {
-                  await examSvc.restoreExam(widget.classId, removedExam);
-                }
-                // Also remove from bin since user undid it
-                await trashSvc.removeFromTrash(sid);
-                if (mounted) _showSuccess('Student restored');
-              } catch (e) {
-                debugPrint('Failed to undo student removal: $e');
-                if (mounted) _showError('Could not undo removal');
-              }
-            },
-          ),
-          duration: const Duration(seconds: 6),
-        ),
+      _showFeedback(
+        'Removed ${student.chineseName} (${student.englishFullName})',
+        tone: WorkspaceFeedbackTone.warning,
+        actionLabel: 'Undo',
+        duration: const Duration(seconds: 6),
+        onAction: () async {
+          try {
+            await studentSvc.addStudent(student);
+            if (removedScores.isNotEmpty) {
+              await scoreSvc.restoreScoresForStudent(
+                  widget.classId, removedScores);
+            }
+            if (removedExam != null) {
+              await examSvc.restoreExam(widget.classId, removedExam);
+            }
+            await trashSvc.removeFromTrash(sid);
+            if (mounted) _showSuccess('Student restored');
+          } catch (e) {
+            debugPrint('Failed to undo student removal: $e');
+            if (mounted) _showError('Could not undo removal');
+          }
+        },
       );
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(message),
-          backgroundColor: Theme.of(context).colorScheme.error),
-    );
-  }
+  void _showError(String message) => _showFeedback(
+        message,
+        tone: WorkspaceFeedbackTone.error,
+        title: 'Roster issue',
+      );
 
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
+  void _showSuccess(String message) => _showFeedback(
+        message,
+        tone: WorkspaceFeedbackTone.success,
+      );
 
   int _compareStudents(Student left, Student right) {
     int cmp;
@@ -1001,13 +1006,258 @@ class _StudentListScreenState extends State<StudentListScreen> {
     return leftParts.length.compareTo(rightParts.length);
   }
 
+  String _sortLabel() {
+    switch (_sortBy) {
+      case _SortBy.studentId:
+        return 'Student ID';
+      case _SortBy.seat:
+        return 'Seat';
+      case _SortBy.chinese:
+        return 'Chinese';
+      case _SortBy.english:
+        return 'English';
+    }
+  }
+
+  Widget _buildContextBar(
+    BuildContext context, {
+    required String className,
+    required String classContextLine,
+    required int rosterCount,
+    required int visibleCount,
+  }) {
+    return WorkspaceContextBar(
+      title: className,
+      subtitle: classContextLine,
+      leading: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          WorkspaceContextPill(
+            icon: Icons.people_alt_outlined,
+            label: 'Roster',
+            value: '$rosterCount students',
+            emphasized: true,
+          ),
+          WorkspaceContextPill(
+            icon: Icons.filter_list_outlined,
+            label: 'Visible',
+            value: '$visibleCount shown',
+          ),
+          WorkspaceContextPill(
+            icon: Icons.sort_outlined,
+            label: 'Sort',
+            value: '${_sortLabel()} ${_ascending ? 'up' : 'down'}',
+          ),
+        ],
+      ),
+      trailing: WorkspaceContextPill(
+        icon: _selectionMode ? Icons.checklist_rtl : Icons.person_add_alt_1,
+        label: _selectionMode ? 'Selection' : 'Mode',
+        value: _selectionMode
+            ? '${_selectedStudentIds.length} selected'
+            : 'Browse',
+        accent: _selectionMode
+            ? const Color(0xFFDAA85E)
+            : Theme.of(context).colorScheme.primary,
+        emphasized: true,
+      ),
+    );
+  }
+
+  Widget _buildRosterToolbar(BuildContext context) {
+    return WorkspaceSurfaceCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const WorkspaceSectionHeader(
+            title: 'Roster controls',
+            subtitle:
+                'Search, sort, and scan the current class roster without leaving the workspace shell.',
+          ),
+          const SizedBox(height: WorkspaceSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: (value) => setState(() => _query = value),
+                  decoration: InputDecoration(
+                    hintText: 'Search by name, ID, seat, or class code',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              setState(() => _query = '');
+                            },
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              PopupMenuButton<String>(
+                tooltip: 'Sort',
+                icon: const Icon(Icons.sort),
+                onSelected: (value) {
+                  setState(() {
+                    if (value == 'studentId') _sortBy = _SortBy.studentId;
+                    if (value == 'seat') _sortBy = _SortBy.seat;
+                    if (value == 'chinese') _sortBy = _SortBy.chinese;
+                    if (value == 'english') _sortBy = _SortBy.english;
+                  });
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'studentId',
+                    child: Text('Student ID'),
+                  ),
+                  PopupMenuItem(
+                    value: 'seat',
+                    child: Text('Seat number'),
+                  ),
+                  PopupMenuItem(
+                    value: 'chinese',
+                    child: Text('Chinese name'),
+                  ),
+                  PopupMenuItem(
+                    value: 'english',
+                    child: Text('English name'),
+                  ),
+                ],
+              ),
+              IconButton(
+                tooltip: _ascending ? 'Ascending' : 'Descending',
+                onPressed: () => setState(() => _ascending = !_ascending),
+                style: WorkspaceButtonStyles.icon(context),
+                icon: Icon(
+                  _ascending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudentRow(
+    BuildContext context, {
+    required Student student,
+    required bool isSelected,
+  }) {
+    final metadataParts = <String>['ID: ${student.studentId}'];
+    if (student.seatNo?.isNotEmpty ?? false) {
+      metadataParts.add('Seat: ${student.seatNo}');
+    }
+    if (student.classCode?.isNotEmpty ?? false) {
+      metadataParts.add('Class: ${student.classCode}');
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: WorkspaceSpacing.sm),
+      child: WorkspaceSurfaceCard(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        onTap: _selectionMode
+            ? () => setState(() {
+                  if (isSelected) {
+                    _selectedStudentIds.remove(student.studentId);
+                  } else {
+                    _selectedStudentIds.add(student.studentId);
+                  }
+                })
+            : () => context.push(
+                '/class/${widget.classId}/student/${student.studentId}'),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_selectionMode)
+              Checkbox(
+                value: isSelected,
+                onChanged: (checked) => setState(() {
+                  if (checked == true) {
+                    _selectedStudentIds.add(student.studentId);
+                  } else {
+                    _selectedStudentIds.remove(student.studentId);
+                  }
+                }),
+              )
+            else
+              _StudentAvatar(
+                photoBase64: student.photoBase64,
+                fallbackLetter: student.englishFirstName[0],
+              ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    student.chineseName,
+                    style: context.textStyles.titleMedium?.semiBold,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    student.englishFullName,
+                    style: WorkspaceTypography.metadata(context),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    metadataParts.join(' / '),
+                    style: context.textStyles.labelSmall?.withColor(
+                      Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (!_selectionMode)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PopupMenuButton<String>(
+                    tooltip: 'More',
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _showEditStudentDialog(student);
+                      }
+                      if (value == 'delete') {
+                        _confirmDeleteStudent(student);
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Edit'),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete'),
+                      ),
+                    ],
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final studentService = context.watch<StudentService>();
     final classService = context.watch<ClassService>();
     final classItem = classService.getClassById(widget.classId);
 
-    // Apply search + sort
     List<Student> list = List.of(studentService.students);
     if (_query.trim().isNotEmpty) {
       final q = _query.toLowerCase();
@@ -1022,6 +1272,18 @@ class _StudentListScreenState extends State<StudentListScreen> {
     }
     list.sort(_compareStudents);
 
+    final rosterCount = studentService.students.length;
+    final classContextParts = <String>[
+      if (classItem?.subject.trim().isNotEmpty ?? false) classItem!.subject,
+      if (classItem?.schoolYear.trim().isNotEmpty ?? false)
+        classItem!.schoolYear,
+      if (classItem?.term.trim().isNotEmpty ?? false) classItem!.term,
+      '$rosterCount student${rosterCount == 1 ? '' : 's'}',
+    ];
+    final classContextLine = classContextParts.isEmpty
+        ? 'Current class context'
+        : classContextParts.join(' / ');
+
     return WorkspaceScaffold(
       title: _selectionMode
           ? '${_selectedStudentIds.length} selected'
@@ -1030,6 +1292,13 @@ class _StudentListScreenState extends State<StudentListScreen> {
           ? 'Bulk actions for the current roster selection'
           : 'Roster for ${classItem?.className ?? 'this class'}',
       eyebrow: 'Class Roster',
+      contextBar: _buildContextBar(
+        context,
+        className: classItem?.className ?? 'Class',
+        classContextLine: classContextLine,
+        rosterCount: rosterCount,
+        visibleCount: list.length,
+      ),
       leadingActions: [
         IconButton(
           icon: Icon(_selectionMode ? Icons.close : Icons.arrow_back_rounded),
@@ -1109,186 +1378,43 @@ class _StudentListScreenState extends State<StudentListScreen> {
                 )
               : null,
       child: studentService.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const WorkspaceLoadingState(
+              title: 'Loading roster',
+              subtitle: 'Bringing the current class roster into view.',
+            )
           : studentService.students.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.people_outline,
-                          size: 64,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
-                      const SizedBox(height: AppSpacing.md),
-                      Text('No students yet',
-                          style: context.textStyles.titleLarge),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text('Add students manually or import from CSV/Excel',
-                          style: context.textStyles.bodyMedium),
-                      const SizedBox(height: AppSpacing.lg),
-                      FilledButton.icon(
-                        onPressed: _showAddStudentDialog,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Student'),
-                      ),
-                    ],
-                  ),
+              ? WorkspaceEmptyState(
+                  icon: Icons.people_outline_rounded,
+                  title: 'No students yet',
+                  subtitle:
+                      'Add students manually or import a roster to start building this class workspace.',
+                  actions: [
+                    FilledButton.icon(
+                      onPressed: _showAddStudentDialog,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add student'),
+                      style: WorkspaceButtonStyles.filled(context),
+                    ),
+                  ],
                 )
               : ListView.builder(
-                  padding: AppSpacing.paddingMd,
+                  padding: const EdgeInsets.only(bottom: WorkspaceSpacing.md),
                   itemCount: list.length + 1,
                   itemBuilder: (context, index) {
                     if (index == 0) {
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: Padding(
-                          padding: AppSpacing.paddingMd,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _searchCtrl,
-                                    onChanged: (v) =>
-                                        setState(() => _query = v),
-                                    decoration: InputDecoration(
-                                      hintText:
-                                          'Search by name, ID, seat, class...',
-                                      prefixIcon: const Icon(Icons.search),
-                                      suffixIcon: _query.isEmpty
-                                          ? null
-                                          : IconButton(
-                                              icon: const Icon(Icons.clear),
-                                              onPressed: () {
-                                                _searchCtrl.clear();
-                                                setState(() => _query = '');
-                                              },
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                PopupMenuButton<String>(
-                                  tooltip: 'Sort',
-                                  icon: const Icon(Icons.sort),
-                                  onSelected: (v) {
-                                    setState(() {
-                                      if (v == 'studentId') {
-                                        _sortBy = _SortBy.studentId;
-                                      }
-                                      if (v == 'seat') _sortBy = _SortBy.seat;
-                                      if (v == 'chinese') {
-                                        _sortBy = _SortBy.chinese;
-                                      }
-                                      if (v == 'english') {
-                                        _sortBy = _SortBy.english;
-                                      }
-                                    });
-                                  },
-                                  itemBuilder: (context) => const [
-                                    PopupMenuItem(
-                                        value: 'studentId',
-                                        child: Text('Student ID')),
-                                    PopupMenuItem(
-                                        value: 'seat',
-                                        child: Text('Seat number')),
-                                    PopupMenuItem(
-                                        value: 'chinese',
-                                        child: Text('Chinese name')),
-                                    PopupMenuItem(
-                                        value: 'english',
-                                        child: Text('English name')),
-                                  ],
-                                ),
-                                IconButton(
-                                  tooltip:
-                                      _ascending ? 'Ascending' : 'Descending',
-                                  onPressed: () =>
-                                      setState(() => _ascending = !_ascending),
-                                  icon: Icon(_ascending
-                                      ? Icons.arrow_upward
-                                      : Icons.arrow_downward),
-                                ),
-                              ]),
-                            ],
-                          ),
-                        ),
+                      return Padding(
+                        padding:
+                            const EdgeInsets.only(bottom: WorkspaceSpacing.sm),
+                        child: _buildRosterToolbar(context),
                       );
                     }
                     final student = list[index - 1];
                     final isSelected =
                         _selectedStudentIds.contains(student.studentId);
-                    return AnimatedGlowBorder(
-                      child: Card(
-                        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: ListTile(
-                          leading: _selectionMode
-                              ? Checkbox(
-                                  value: isSelected,
-                                  onChanged: (checked) => setState(() {
-                                    if (checked == true) {
-                                      _selectedStudentIds
-                                          .add(student.studentId);
-                                    } else {
-                                      _selectedStudentIds
-                                          .remove(student.studentId);
-                                    }
-                                  }),
-                                )
-                              : _StudentAvatar(
-                                  photoBase64: student.photoBase64,
-                                  fallbackLetter: student.englishFirstName[0]),
-                          title: Text(
-                              '${student.chineseName} (${student.englishFullName})'),
-                          subtitle: Text(
-                              'ID: ${student.studentId}${student.seatNo != null ? " • Seat: ${student.seatNo}" : ""}${student.classCode != null ? " • Class: ${student.classCode}" : ""}'),
-                          trailing: _selectionMode
-                              ? null
-                              : Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    PopupMenuButton<String>(
-                                      tooltip: 'More',
-                                      onSelected: (value) {
-                                        if (value == 'edit') {
-                                          _showEditStudentDialog(student);
-                                        }
-                                        if (value == 'delete') {
-                                          _confirmDeleteStudent(student);
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        const PopupMenuItem(
-                                            value: 'edit',
-                                            child: ListTile(
-                                                leading: Icon(Icons.edit),
-                                                title: Text('Edit'))),
-                                        const PopupMenuItem(
-                                            value: 'delete',
-                                            child: ListTile(
-                                                leading:
-                                                    Icon(Icons.delete_outline),
-                                                title: Text('Delete'))),
-                                      ],
-                                    ),
-                                    const Icon(Icons.chevron_right),
-                                  ],
-                                ),
-                          onTap: _selectionMode
-                              ? () => setState(() {
-                                    if (isSelected) {
-                                      _selectedStudentIds
-                                          .remove(student.studentId);
-                                    } else {
-                                      _selectedStudentIds
-                                          .add(student.studentId);
-                                    }
-                                  })
-                              : () => context.push(
-                                  '/class/${widget.classId}/student/${student.studentId}'),
-                        ),
-                      ),
+                    return _buildStudentRow(
+                      context,
+                      student: student,
+                      isSelected: isSelected,
                     );
                   },
                 ),
