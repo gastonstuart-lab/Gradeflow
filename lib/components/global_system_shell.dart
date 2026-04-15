@@ -12,12 +12,14 @@ class GlobalSystemShellFrame extends StatefulWidget {
   final String location;
   final Widget child;
   final bool focusMode;
+  final bool showNavigationChrome;
 
   const GlobalSystemShellFrame({
     super.key,
     required this.location,
     required this.child,
     this.focusMode = false,
+    this.showNavigationChrome = true,
   });
 
   @override
@@ -60,16 +62,21 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
     if (!auth.isAuthenticated) {
       return widget.child;
     }
+    if (!widget.showNavigationChrome && !widget.focusMode) {
+      return widget.child;
+    }
 
     final controller = context.watch<GlobalSystemShellController>();
     final communication = context.watch<CommunicationService>();
     final mediaQuery = MediaQuery.of(context);
     final width = mediaQuery.size.width;
     final dashboardManaged = widget.location == AppRoutes.dashboard;
-    final showDock = !dashboardManaged &&
+    final showDock = widget.showNavigationChrome &&
+        !dashboardManaged &&
         !widget.focusMode &&
         width >= _desktopDockBreakpoint;
-    final showAttentionFab = !dashboardManaged &&
+    final showAttentionFab = widget.showNavigationChrome &&
+        !dashboardManaged &&
         !widget.focusMode &&
         width < _desktopDockBreakpoint;
     final shellNotifications =

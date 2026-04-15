@@ -29,6 +29,7 @@ import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/surfaces/home_surface.dart';
 import 'package:gradeflow/os/surfaces/class_surface.dart';
 import 'package:gradeflow/os/surfaces/teach_surface.dart';
+import 'package:gradeflow/services/global_system_shell_service.dart';
 
 class AppRouter {
   static String loginRedirectLocationFor(GoRouterState state) {
@@ -160,7 +161,11 @@ class AppRouter {
         name: 'classDetail',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(state, ClassDetailScreen(classId: classId));
+          return _shellPage(
+            state,
+            ClassDetailScreen(classId: classId),
+            classId: classId,
+          );
         },
       ),
       GoRoute(
@@ -168,7 +173,11 @@ class AppRouter {
         name: 'students',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(state, StudentListScreen(classId: classId));
+          return _shellPage(
+            state,
+            StudentListScreen(classId: classId),
+            classId: classId,
+          );
         },
       ),
       GoRoute(
@@ -176,7 +185,11 @@ class AppRouter {
         name: 'studentsTrash',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(state, DeletedStudentsScreen(classId: classId));
+          return _shellPage(
+            state,
+            DeletedStudentsScreen(classId: classId),
+            classId: classId,
+          );
         },
       ),
       GoRoute(
@@ -188,6 +201,7 @@ class AppRouter {
           return _shellPage(
             state,
             StudentDetailScreen(classId: classId, studentId: studentId),
+            classId: classId,
           );
         },
       ),
@@ -196,7 +210,11 @@ class AppRouter {
         name: 'gradebook',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(state, GradebookScreen(classId: classId));
+          return _shellPage(
+            state,
+            GradebookScreen(classId: classId),
+            classId: classId,
+          );
         },
       ),
       GoRoute(
@@ -204,7 +222,11 @@ class AppRouter {
         name: 'classSeating',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(state, ClassSeatingScreen(classId: classId));
+          return _shellPage(
+            state,
+            ClassSeatingScreen(classId: classId),
+            classId: classId,
+          );
         },
       ),
       GoRoute(
@@ -215,6 +237,7 @@ class AppRouter {
           return _shellPage(
             state,
             CategoryManagementScreen(classId: classId),
+            classId: classId,
           );
         },
       ),
@@ -231,6 +254,7 @@ class AppRouter {
               classId: classId,
               highlightStudentId: highlightStudentId,
             ),
+            classId: classId,
           );
         },
       ),
@@ -239,7 +263,11 @@ class AppRouter {
         name: 'export',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(state, ExportScreen(classId: classId));
+          return _shellPage(
+            state,
+            ExportScreen(classId: classId),
+            classId: classId,
+          );
         },
       ),
       GoRoute(
@@ -247,7 +275,11 @@ class AppRouter {
         name: 'results',
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(state, FinalResultsScreen(classId: classId));
+          return _shellPage(
+            state,
+            FinalResultsScreen(classId: classId),
+            classId: classId,
+          );
         },
       ),
     ],
@@ -321,11 +353,18 @@ CustomTransitionPage<void> _fadePage(Widget child) {
 NoTransitionPage<void> _shellPage(
   GoRouterState state,
   Widget child,
+  {String? classId}
 ) {
   return NoTransitionPage<void>(
-    child: GlobalSystemShellFrame(
+    child: _OSRouteFrame(
       location: state.uri.path,
-      child: child,
+      surface: OSSurface.other,
+      classId: classId,
+      child: GlobalSystemShellFrame(
+        location: state.uri.path,
+        showNavigationChrome: false,
+        child: child,
+      ),
     ),
   );
 }
@@ -338,6 +377,7 @@ Page<void> _osPage(
 }) {
   return _fadePage(
     _OSRouteFrame(
+      location: state.uri.path,
       surface: surface,
       classId: classId,
       child: child,
@@ -347,11 +387,13 @@ Page<void> _osPage(
 
 class _OSRouteFrame extends StatefulWidget {
   const _OSRouteFrame({
+    required this.location,
     required this.surface,
     required this.child,
     this.classId,
   });
 
+  final String location;
   final OSSurface surface;
   final String? classId;
   final Widget child;
@@ -379,6 +421,9 @@ class _OSRouteFrameState extends State<_OSRouteFrame> {
   void _scheduleSync() {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      context
+          .read<GlobalSystemShellController>()
+          .updateLocation(widget.location);
       context.read<GradeFlowOSController>().setSurface(
             widget.surface,
             classId: widget.classId,

@@ -1192,7 +1192,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
         _focusClass(classBrief.id);
         switch (action.type) {
           case ClassHealthActionType.openClassWorkspace:
-            context.push('/class/${classBrief.id}');
+            context.go('${AppRoutes.osClass}/${classBrief.id}');
             return;
           case ClassHealthActionType.openClassesWorkspace:
             context.go(AppRoutes.classes);

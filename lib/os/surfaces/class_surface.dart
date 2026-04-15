@@ -316,7 +316,7 @@ class _ClassHeader extends StatelessWidget {
     final actionButton = FilledButton.tonalIcon(
       onPressed: () => context.go('${AppRoutes.classDetail}/$classId'),
       icon: const Icon(Icons.open_in_new_rounded),
-      label: const Text('Full class view'),
+      label: const Text('Planning & details'),
       style: WorkspaceButtonStyles.tonal(context),
     );
 
@@ -620,8 +620,8 @@ class _ClassOverviewTab extends StatelessWidget {
       ),
       _ClassToolLink(
         icon: Icons.folder_open_rounded,
-        label: 'Full View',
-        subtitle: 'Open the broader class workspace outside the OS shell.',
+        label: 'Planning & Details',
+        subtitle: 'Open class notes, schedule, and the broader detail surface.',
         color: Color(0xFF3E7EDB),
         route: '${AppRoutes.classDetail}/$classId',
       ),

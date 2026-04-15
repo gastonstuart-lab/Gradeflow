@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
+  activateControl,
   ensureDemoSignedIn,
   ensureFlutterSemantics,
   expectFeedbackMessage,
@@ -18,8 +19,8 @@ async function selectDropdownOption(
   currentValue: RegExp,
   nextValue: RegExp,
 ) {
-  await page.getByRole('button', { name: currentValue }).first().click();
-  await page.getByRole('menuitem', { name: nextValue }).first().click();
+  await activateControl(page.getByRole('button', { name: currentValue }).first());
+  await activateControl(page.getByRole('menuitem', { name: nextValue }).first());
 }
 
 test('Exam input: valid save persists into results and invalid score is rejected', async ({
@@ -72,10 +73,11 @@ test('Final results: weighted results surface loads with roster context', async 
 
   await gotoSignedInPath(page, '/class/demo-class-1/results');
 
-  await expect(page.getByText('Final Results', { exact: true }).first()).toBeVisible({
-    timeout: 60_000,
-  });
-  await expect(page.locator('body')).toContainText('Grade 10A');
+  await expect(
+    page.getByRole('group', {
+      name: /Final Results.*Grade 10A.*Mathematics \/ 2024-2025 \/ Fall \/ 5 students/i,
+    }),
+  ).toBeVisible({ timeout: 60_000 });
   await expect(page.locator('body')).toContainText('Process 40%');
   await expect(page.locator('body')).toContainText('Exam 60%');
   await expect(page.locator('body')).toContainText('Final grade');
@@ -150,16 +152,15 @@ test('Export: all-classes scope keeps trust messaging visible and previews combi
 
   await selectDropdownOption(page, /^Per class$/i, /^All classes$/i);
 
-  await expect(page.getByText('All-classes export', { exact: true }).first()).toBeVisible({
+  await expect(page.locator('body')).toContainText('All-classes logic', {
     timeout: 60_000,
   });
-  await expect(page.locator('body')).toContainText('All-classes logic');
   await expect(page.locator('body')).toContainText(
     'repository snapshots per class',
   );
 
   await page.getByRole('button', { name: /^Preview CSV$/i }).click();
-  await expect(page.getByText('All Classes CSV Preview', { exact: true }).first()).toBeVisible({
-    timeout: 90_000,
-  });
+  await expect(
+    page.getByRole('button', { name: /^Download CSV$/i }),
+  ).toBeVisible({ timeout: 90_000 });
 });

@@ -2005,7 +2005,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
       children: [
         ClassCard(
           classItem: classItem,
-          onTap: () => context.push('/class/${classItem.classId}'),
+          onTap: () => context.go('${AppRoutes.osClass}/${classItem.classId}'),
         ),
         Positioned(
           top: 4,
