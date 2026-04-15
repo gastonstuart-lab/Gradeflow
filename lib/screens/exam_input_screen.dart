@@ -18,6 +18,7 @@ import 'package:gradeflow/components/drive_file_picker_dialog.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
+import 'package:gradeflow/services/auth_service.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -51,6 +52,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
   final Map<String, GlobalKey> _itemKeys = {};
   bool _didScrollToHighlight = false;
   final Map<String, Timer> _saveDebouncers = {};
+  bool _hydratingData = true;
 
   void _showFeedback(
     String message, {
@@ -119,16 +121,37 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    final studentService = context.read<StudentService>();
-    await studentService.loadStudents(widget.classId);
+  Future<void> _ensureClassContextLoaded() async {
+    final classService = context.read<ClassService>();
+    if (classService.getClassById(widget.classId) != null) return;
 
-    final studentIds = studentService.students.map((s) => s.studentId).toList();
-    await context
-        .read<FinalExamService>()
-        .loadExams(widget.classId, studentIds);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _scrollToHighlightIfNeeded());
+    final user = context.read<AuthService>().currentUser;
+    if (user != null) {
+      await classService.loadClasses(user.userId);
+    }
+  }
+
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() => _hydratingData = true);
+    }
+
+    try {
+      await _ensureClassContextLoaded();
+      final studentService = context.read<StudentService>();
+      await studentService.loadStudents(widget.classId);
+
+      final studentIds = studentService.students.map((s) => s.studentId).toList();
+      await context
+          .read<FinalExamService>()
+          .loadExams(widget.classId, studentIds);
+    } finally {
+      if (mounted) {
+        setState(() => _hydratingData = false);
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _scrollToHighlightIfNeeded());
+      }
+    }
   }
 
   Future<int> _flushAllPendingSaves() async {
@@ -799,7 +822,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
             ),
           ],
         ),
-        workspace: studentService.isLoading
+        workspace: (_hydratingData || studentService.isLoading)
             ? const WorkspaceLoadingState(
                 title: 'Loading exam scores',
                 subtitle: 'Bringing the roster and final exam entries into view.',

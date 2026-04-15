@@ -9,6 +9,7 @@ import 'package:gradeflow/services/grade_item_service.dart';
 import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/calculation_service.dart';
+import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/theme.dart';
 
@@ -31,6 +32,16 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
     _load();
   }
 
+  Future<void> _ensureClassContextLoaded() async {
+    final classService = context.read<ClassService>();
+    if (classService.getClassById(widget.classId) != null) return;
+
+    final user = context.read<AuthService>().currentUser;
+    if (user != null) {
+      await classService.loadClasses(user.userId);
+    }
+  }
+
   Future<void> _load() async {
     setState(() => _loading = true);
     final students = context.read<StudentService>();
@@ -39,6 +50,7 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
     final scores = context.read<StudentScoreService>();
     final exams = context.read<FinalExamService>();
 
+    await _ensureClassContextLoaded();
     await students.loadStudents(widget.classId);
     await cats.loadCategories(widget.classId);
     await items.loadGradeItems(widget.classId);

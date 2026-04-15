@@ -152,6 +152,19 @@ class _ExportScreenState extends State<ExportScreen> {
     _calculateGrades();
   }
 
+  Future<void> _ensureClassContextLoaded() async {
+    final classService = context.read<ClassService>();
+    if (classService.getClassById(widget.classId) != null &&
+        classService.classes.isNotEmpty) {
+      return;
+    }
+
+    final user = context.read<AuthService>().currentUser;
+    if (user != null) {
+      await classService.loadClasses(user.userId);
+    }
+  }
+
   void _showFeedback(
     String message, {
     WorkspaceFeedbackTone tone = WorkspaceFeedbackTone.info,
@@ -404,6 +417,7 @@ class _ExportScreenState extends State<ExportScreen> {
     final scoreService = context.read<StudentScoreService>();
     final examService = context.read<FinalExamService>();
 
+    await _ensureClassContextLoaded();
     await studentService.loadStudents(widget.classId);
     await categoryService.loadCategories(widget.classId);
     await gradeItemService.loadGradeItems(widget.classId);

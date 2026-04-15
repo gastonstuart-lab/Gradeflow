@@ -10,6 +10,7 @@ import 'package:gradeflow/services/grade_item_service.dart';
 import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/calculation_service.dart';
+import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -54,6 +55,16 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     });
   }
 
+  Future<void> _ensureClassContextLoaded() async {
+    final classService = context.read<ClassService>();
+    if (classService.getClassById(widget.classId) != null) return;
+
+    final user = context.read<AuthService>().currentUser;
+    if (user != null) {
+      await classService.loadClasses(user.userId);
+    }
+  }
+
   Future<void> _loadData() async {
     final studentService = context.read<StudentService>();
     final categoryService = context.read<GradingCategoryService>();
@@ -61,6 +72,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final scoreService = context.read<StudentScoreService>();
     final examService = context.read<FinalExamService>();
 
+    await _ensureClassContextLoaded();
     await studentService.loadStudents(widget.classId);
     await categoryService.loadCategories(widget.classId);
     await gradeItemService.loadGradeItems(widget.classId);

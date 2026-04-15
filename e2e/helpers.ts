@@ -91,14 +91,56 @@ async function anyLocatorVisible(
 export async function ensureDemoSignedIn(page: Page) {
   await ensureFlutterSemantics(page);
 
-  if (/(?:#\/(?:dashboard|os\/home)|\/(?:dashboard|os\/home)(?:\b|\/|\?|$))/i.test(page.url())) {
+  const isSignedInRoute = () =>
+    /(?:#\/(?:dashboard|os\/home)|\/(?:dashboard|os\/home)(?:\b|\/|\?|$))/i.test(
+      page.url(),
+    );
+
+  const isSignedInSurfaceVisible = async () =>
+    anyLocatorVisible(
+      [
+        page.getByText(/Command deck|Teacher cockpit/i).first(),
+        page.getByRole("button", { name: /^Classes\b/i }).last(),
+        page.getByRole("button", { name: /^Studio\b/i }).last(),
+        page.getByRole("button", { name: /^Home$/i }).first(),
+      ],
+      1_000,
+    );
+
+  if (isSignedInRoute()) {
     return;
   }
 
-  const demo = page.getByRole("button", { name: "Try Demo Account" });
-  await demo.first().waitFor({ timeout: 60_000 });
-  await activateControl(demo.first());
-  await expect(page).toHaveURL(/(?:#\/(?:dashboard|os\/home)|\/(?:dashboard|os\/home)(?:\?|$))/i);
+  const demo = page.getByRole("button", { name: /^Try Demo Account$/i }).first();
+  const enteringWorkspace = page
+    .getByRole("button", { name: /^Entering workspace\.\.\.$/i })
+    .first();
+  const loadingShell = page.getByText(/Loading workspace shell/i).first();
+  const deadline = Date.now() + 180_000;
+
+  while (Date.now() < deadline) {
+    await ensureFlutterSemantics(page);
+
+    if (isSignedInRoute() || (await isSignedInSurfaceVisible())) {
+      return;
+    }
+
+    const demoVisible = await demo.isVisible({ timeout: 1_000 }).catch(() => false);
+    if (demoVisible) {
+      const demoEnabled = await demo.isEnabled().catch(() => false);
+      if (demoEnabled) {
+        await activateControl(demo);
+      }
+    }
+
+    const isTransitioning =
+      (await enteringWorkspace.isVisible({ timeout: 500 }).catch(() => false)) ||
+      (await loadingShell.isVisible({ timeout: 500 }).catch(() => false));
+
+    await page.waitForTimeout(isTransitioning ? 1_500 : 1_000);
+  }
+
+  throw new Error(`Demo sign-in did not complete. Last URL=${page.url()}`);
 }
 
 export async function expectDashboardShell(page: Page) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/grade_item_service.dart';
@@ -64,7 +65,18 @@ class _StudentListScreenState extends State<StudentListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadStudents());
   }
 
+  Future<void> _ensureClassContextLoaded() async {
+    final classService = context.read<ClassService>();
+    if (classService.getClassById(widget.classId) != null) return;
+
+    final user = context.read<AuthService>().currentUser;
+    if (user != null) {
+      await classService.loadClasses(user.userId);
+    }
+  }
+
   Future<void> _loadStudents() async {
+    await _ensureClassContextLoaded();
     await context.read<StudentService>().loadStudents(widget.classId);
   }
 
