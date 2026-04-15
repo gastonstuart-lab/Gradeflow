@@ -163,6 +163,19 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     return saved;
   }
 
+  void _restorePersistedExamValue(String studentId) {
+    final existing = context.read<FinalExamService>().getExam(studentId)?.examScore;
+    final controller = _controllers[studentId];
+    if (controller == null) return;
+    final restored = existing == null ? '' : existing.toStringAsFixed(0);
+    if (controller.text == restored) return;
+    controller.value = controller.value.copyWith(
+      text: restored,
+      selection: TextSelection.collapsed(offset: restored.length),
+      composing: TextRange.empty,
+    );
+  }
+
   void _scheduleSave(String studentId) {
     _saveDebouncers[studentId]?.cancel();
     _saveDebouncers[studentId] =
@@ -519,6 +532,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
   Future<void> _commitExamScore(
     String studentId, {
     bool showSuccessMessage = false,
+    bool showValidationMessage = false,
   }) async {
     final value = _controllers[studentId]?.text.trim() ?? '';
     final scoreValue = double.tryParse(value);
@@ -536,8 +550,9 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
       }
       return;
     }
-    if (showSuccessMessage) {
-      _showError('Invalid score (must be 0-100).');
+    _restorePersistedExamValue(studentId);
+    if (showSuccessMessage || showValidationMessage) {
+      _showError('Invalid score (must be 0-100). Restored the previous value.');
     }
   }
 
@@ -644,7 +659,10 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
                 child: Focus(
                   onFocusChange: (hasFocus) {
                     if (!hasFocus) {
-                      _commitExamScore(student.studentId);
+                      _commitExamScore(
+                        student.studentId,
+                        showValidationMessage: true,
+                      );
                     }
                   },
                   child: TextField(
@@ -663,7 +681,10 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
                       student.studentId,
                       showSuccessMessage: true,
                     ),
-                    onTapOutside: (_) => _commitExamScore(student.studentId),
+                    onTapOutside: (_) => _commitExamScore(
+                      student.studentId,
+                      showValidationMessage: true,
+                    ),
                   ),
                 ),
               );
