@@ -17,6 +17,12 @@ import {
 
 test.describe.configure({ mode: 'serial' });
 
+async function gotoDemoExport(page: import('@playwright/test').Page) {
+  await page.goto('/class/demo-class-1/export');
+  await ensureFlutterSemantics(page);
+  await expectExportSurface(page);
+}
+
 test('Export: grade export screen loads with actionable controls', async ({
   page,
 }) => {
@@ -25,11 +31,9 @@ test('Export: grade export screen loads with actionable controls', async ({
   await gotoRoot(page);
   await ensureDemoSignedIn(page);
 
-  await gotoDemoClassRoute(page, 'export');
-
-  await expectExportSurface(page);
-  await expect(page.getByRole('button', { name: /^Export(?: \(PDF\))?$/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Preview$/i })).toBeVisible();
+  await gotoDemoExport(page);
+  await expect(page.getByRole('button', { name: /^Export CSV$/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Preview CSV$/i })).toBeVisible();
 });
 
 test('Export: browser export action shows download feedback', async ({ page }) => {
@@ -38,13 +42,11 @@ test('Export: browser export action shows download feedback', async ({ page }) =
   await gotoRoot(page);
   await ensureDemoSignedIn(page);
 
-  await gotoDemoClassRoute(page, 'export');
+  await gotoDemoExport(page);
 
-  await expectExportSurface(page);
+  await page.getByRole('button', { name: /^Export CSV$/i }).click();
 
-  await page.getByRole('button', { name: /^Export(?: \(PDF\))?$/i }).click();
-
-  const exportAnyway = page.getByRole('button', { name: /^Export Anyway$/i });
+  const exportAnyway = page.getByRole('button', { name: /^Export anyway$/i });
   if (await exportAnyway.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await exportAnyway.click();
   }
@@ -61,11 +63,9 @@ test('Export: CSV preview supports download action', async ({ page }) => {
   await gotoRoot(page);
   await ensureDemoSignedIn(page);
 
-  await gotoDemoClassRoute(page, 'export');
+  await gotoDemoExport(page);
 
-  await expectExportSurface(page);
-
-  await page.getByRole('button', { name: /^Preview$/i }).click();
+  await page.getByRole('button', { name: /^Preview CSV$/i }).click();
   await expect(page.getByText(/CSV Preview/i)).toBeVisible({
     timeout: 60_000,
   });
@@ -100,16 +100,14 @@ test('Export: PDF preview exposes download action', async ({ page }) => {
 
   await gotoRoot(page);
   await ensureDemoSignedIn(page);
-  await gotoDemoClassRoute(page, 'export');
-
-  await expectExportSurface(page);
+  await gotoDemoExport(page);
 
   // Switch export format from CSV to PDF.
-  await page.getByRole('button', { name: /^CSV \(Spreadsheet\)$/i }).click();
-  await page.getByRole('menuitem', { name: /^PDF \(Report\)$/i }).click();
+  await page.getByRole('button', { name: /^CSV$/i }).click();
+  await page.getByRole('menuitem', { name: /^PDF$/i }).click();
 
   await page
-    .getByRole('button', { name: /^Preview(?: \(PDF\)| PDF)?$/i })
+    .getByRole('button', { name: /^Preview PDF$/i })
     .first()
     .click();
   await expect(
@@ -135,17 +133,15 @@ test('Export: PDF preview close and reopen keeps download action available', asy
 
   await gotoRoot(page);
   await ensureDemoSignedIn(page);
-  await gotoDemoClassRoute(page, 'export');
+  await gotoDemoExport(page);
 
-  await expectExportSurface(page);
-
-  await page.getByRole('button', { name: /^CSV \(Spreadsheet\)$/i }).click();
-  await page.getByRole('menuitem', { name: /^PDF \(Report\)$/i }).click();
+  await page.getByRole('button', { name: /^CSV$/i }).click();
+  await page.getByRole('menuitem', { name: /^PDF$/i }).click();
 
   const previewTitle = page.getByText(/Student PDF Preview|Class PDF Preview/i);
 
   await page
-    .getByRole('button', { name: /^Preview(?: \(PDF\)| PDF)?$/i })
+    .getByRole('button', { name: /^Preview PDF$/i })
     .first()
     .click();
   await expect(previewTitle).toBeVisible({ timeout: 90_000 });
@@ -155,7 +151,7 @@ test('Export: PDF preview close and reopen keeps download action available', asy
   await expect(previewTitle).toBeHidden({ timeout: 30_000 });
 
   await page
-    .getByRole('button', { name: /^Preview(?: \(PDF\)| PDF)?$/i })
+    .getByRole('button', { name: /^Preview PDF$/i })
     .first()
     .click();
   await expect(previewTitle).toBeVisible({ timeout: 90_000 });

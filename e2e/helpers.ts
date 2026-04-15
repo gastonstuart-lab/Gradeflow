@@ -314,9 +314,9 @@ export async function openFirstClassWorkspace(page: Page) {
 
 export async function expectExportSurface(page: Page) {
   const exportReady = [
-    page.getByRole("heading", { name: /^Export Grades$/i }),
-    page.getByText(/Export Options/i),
-    page.getByRole("group", { name: /Export Options/i }),
+    page.getByText(/Class export|Student report|All-classes export/i).first(),
+    page.getByRole("button", { name: /^Preview (CSV|PDF)$/i }).first(),
+    page.getByRole("button", { name: /^Export (CSV|XLSX|PDF)$/i }).first(),
   ];
   await expect
     .poll(() => anyLocatorVisible(exportReady, 1_000), { timeout: 60_000 })
@@ -349,9 +349,9 @@ async function isOnClassSurface(page: Page, suffix: string) {
   if (suffix === "export") {
     return anyLocatorVisible(
       [
-        page.getByRole("heading", { name: /^Export Grades$/i }),
-        page.getByText(/Export Options/i),
-        page.getByRole("group", { name: /Export Options/i }),
+        page.getByText(/Class export|Student report|All-classes export/i).first(),
+        page.getByRole("button", { name: /^Preview (CSV|PDF)$/i }).first(),
+        page.getByRole("button", { name: /^Export (CSV|XLSX|PDF)$/i }).first(),
       ],
       3_000,
     );
