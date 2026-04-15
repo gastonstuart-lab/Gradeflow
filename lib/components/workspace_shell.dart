@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/theme.dart';
@@ -23,6 +25,204 @@ enum WorkspaceFeedbackTone {
   success,
   warning,
   error,
+}
+
+class WorkspaceSpacing {
+  const WorkspaceSpacing._();
+
+  static const EdgeInsets shellMargin = EdgeInsets.fromLTRB(16, 12, 16, 12);
+  static const EdgeInsets shellPadding = EdgeInsets.fromLTRB(16, 16, 16, 16);
+  static const EdgeInsets shellPaddingTight =
+      EdgeInsets.fromLTRB(16, 16, 16, 8);
+  static const EdgeInsets headerPadding = EdgeInsets.all(20);
+  static const EdgeInsets headerPaddingCompact =
+      EdgeInsets.fromLTRB(16, 14, 16, 14);
+  static const EdgeInsets bandPadding =
+      EdgeInsets.symmetric(horizontal: 12, vertical: 10);
+  static const EdgeInsets contextPadding =
+      EdgeInsets.symmetric(horizontal: 12, vertical: 10);
+  static const EdgeInsets cardPadding = EdgeInsets.all(18);
+  static const double xxs = 4;
+  static const double xs = 8;
+  static const double sm = 10;
+  static const double md = 12;
+  static const double lg = 14;
+  static const double xl = 16;
+  static const double xxl = 18;
+  static const double xxxl = 20;
+}
+
+class WorkspaceRadius {
+  const WorkspaceRadius._();
+
+  static const double shell = 32;
+  static const double shellCompact = 28;
+  static const double hero = 30;
+  static const double feature = 26;
+  static const double card = 24;
+  static const double cardCompact = 22;
+  static const double band = 20;
+  static const double context = 18;
+  static const double pill = 18;
+  static const double button = 14;
+  static const double iconButton = 12;
+  static const double iconBadge = 10;
+}
+
+class WorkspaceChrome {
+  const WorkspaceChrome._();
+
+  static double get shellBlur => 28;
+  static double get panelBlur => 20;
+
+  static Color mutedText(BuildContext context) =>
+      Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.9);
+
+  static Color interactiveOverlay(
+    BuildContext context, {
+    double emphasis = 1,
+  }) =>
+      Theme.of(context).colorScheme.primary.withValues(alpha: 0.06 * emphasis);
+
+  static Color shellBorderColor(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return theme.colorScheme.outline.withValues(
+      alpha: isDark ? 0.40 : 0.22,
+    );
+  }
+
+  static Color panelBorderColor(
+    BuildContext context, {
+    double emphasis = 1,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final baseAlpha = isDark ? 0.44 : 0.24;
+    return theme.colorScheme.outline.withValues(
+      alpha: (baseAlpha * emphasis).clamp(0.0, 1.0).toDouble(),
+    );
+  }
+
+  static Color glassHighlight(
+    BuildContext context, {
+    bool shell = false,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Colors.white.withValues(
+      alpha: shell ? (isDark ? 0.08 : 0.60) : (isDark ? 0.10 : 0.62),
+    );
+  }
+
+  static List<BoxShadow> shellShadow(
+    BuildContext context, {
+    double emphasis = 1,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return [
+      BoxShadow(
+        color: theme.colorScheme.shadow.withValues(
+          alpha: ((isDark ? 0.22 : 0.08) * emphasis).clamp(0.0, 1.0).toDouble(),
+        ),
+        blurRadius: 34,
+        offset: const Offset(0, 18),
+      ),
+    ];
+  }
+
+  static List<BoxShadow> panelShadow(
+    BuildContext context, {
+    double emphasis = 1,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return [
+      BoxShadow(
+        color: theme.colorScheme.shadow.withValues(
+          alpha: ((isDark ? 0.18 : 0.07) * emphasis).clamp(0.0, 1.0).toDouble(),
+        ),
+        blurRadius: 24,
+        offset: const Offset(0, 14),
+      ),
+    ];
+  }
+}
+
+class WorkspaceTypography {
+  const WorkspaceTypography._();
+
+  static TextStyle? eyebrow(BuildContext context) =>
+      context.textStyles.labelMedium?.copyWith(
+        letterSpacing: 1.2,
+        fontWeight: FontWeight.w800,
+        color: WorkspaceChrome.mutedText(context),
+      );
+
+  static TextStyle? pageTitle(
+    BuildContext context, {
+    bool compact = false,
+  }) =>
+      (compact
+              ? context.textStyles.titleLarge
+              : context.textStyles.headlineSmall)
+          ?.copyWith(
+        fontWeight: FontWeight.w800,
+        letterSpacing: compact ? -0.2 : -0.4,
+      );
+
+  static TextStyle? pageSubtitle(
+    BuildContext context, {
+    bool compact = false,
+  }) =>
+      (compact ? context.textStyles.bodySmall : context.textStyles.bodyMedium)
+          ?.copyWith(
+        color: WorkspaceChrome.mutedText(context),
+        height: 1.4,
+        fontWeight: compact ? FontWeight.w600 : null,
+      );
+
+  static TextStyle? sectionTitle(BuildContext context) =>
+      context.textStyles.titleMedium?.copyWith(
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.1,
+      );
+
+  static TextStyle? metadata(
+    BuildContext context, {
+    bool strong = false,
+  }) =>
+      context.textStyles.bodySmall?.copyWith(
+        color: WorkspaceChrome.mutedText(context),
+        height: 1.35,
+        fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
+      );
+
+  static TextStyle? utility(
+    BuildContext context, {
+    Color? color,
+  }) =>
+      context.textStyles.labelMedium?.copyWith(
+        color: color ?? WorkspaceChrome.mutedText(context),
+        fontWeight: FontWeight.w700,
+      );
+
+  static TextStyle? pillLabel(BuildContext context) =>
+      context.textStyles.labelSmall?.copyWith(
+        letterSpacing: 0.8,
+        color: WorkspaceChrome.mutedText(context),
+        fontWeight: FontWeight.w700,
+      );
+
+  static TextStyle? pillValue(
+    BuildContext context, {
+    Color? color,
+  }) =>
+      context.textStyles.labelLarge?.copyWith(
+        fontWeight: FontWeight.w800,
+        color: color ??
+            Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.92),
+      );
 }
 
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showWorkspaceSnackBar(
@@ -168,7 +368,7 @@ class WorkspaceScaffold extends StatelessWidget {
     this.contextBar,
     this.floatingActionButton,
     this.floatingActionButtonLocation,
-    this.maxContentWidth = 1440,
+    this.maxContentWidth = 1480,
     this.compactHeader = false,
   });
 
@@ -191,57 +391,176 @@ class WorkspaceScaffold extends StatelessWidget {
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxContentWidth),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (leadingActions.isNotEmpty || trailingActions.isNotEmpty)
-                      _WorkspaceTopBar(
-                        leadingActions: leadingActions,
-                        trailingActions: trailingActions,
-                      ),
-                    if (leadingActions.isNotEmpty || trailingActions.isNotEmpty)
-                      SizedBox(height: compactHeader ? 8 : 12),
-                    WorkspaceSurfaceCard(
-                      padding: compactHeader
-                          ? const EdgeInsets.fromLTRB(16, 14, 16, 14)
-                          : const EdgeInsets.all(18),
-                      radius: compactHeader ? 20 : 22,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (eyebrow != null &&
-                              eyebrow!.trim().isNotEmpty) ...[
-                            Text(
-                              eyebrow!.toUpperCase(),
-                              style: context.textStyles.labelMedium?.copyWith(
-                                letterSpacing: 1.1,
-                                color: _workspaceMuted(context),
-                                fontWeight: FontWeight.w700,
+                padding: WorkspaceSpacing.shellMargin,
+                child: WorkspaceShellFrame(
+                  padding: WorkspaceSpacing.shellPadding,
+                  radius: compactHeader
+                      ? WorkspaceRadius.shellCompact
+                      : WorkspaceRadius.shell,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (leadingActions.isNotEmpty ||
+                          trailingActions.isNotEmpty)
+                        _WorkspaceTopBar(
+                          leadingActions: leadingActions,
+                          trailingActions: trailingActions,
+                        ),
+                      if (leadingActions.isNotEmpty ||
+                          trailingActions.isNotEmpty)
+                        SizedBox(
+                          height: compactHeader
+                              ? WorkspaceSpacing.sm
+                              : WorkspaceSpacing.lg,
+                        ),
+                      WorkspaceSurfaceCard(
+                        padding: compactHeader
+                            ? WorkspaceSpacing.headerPaddingCompact
+                            : WorkspaceSpacing.headerPadding,
+                        radius: compactHeader
+                            ? WorkspaceRadius.cardCompact
+                            : WorkspaceRadius.feature,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (eyebrow != null &&
+                                eyebrow!.trim().isNotEmpty) ...[
+                              Text(
+                                eyebrow!.toUpperCase(),
+                                style: WorkspaceTypography.eyebrow(context),
                               ),
+                              const SizedBox(height: WorkspaceSpacing.xs),
+                            ],
+                            _WorkspaceHeaderCopy(
+                              title: title,
+                              subtitle: subtitle,
+                              compact: compactHeader,
                             ),
-                            const SizedBox(height: 8),
                           ],
-                          _WorkspaceHeaderCopy(
-                            title: title,
-                            subtitle: subtitle,
-                            compact: compactHeader,
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                    if (defaultContextBar != null || contextBar != null)
-                      SizedBox(height: compactHeader ? 8 : 10),
-                    if (defaultContextBar != null) defaultContextBar,
-                    if (defaultContextBar != null && contextBar != null)
-                      const SizedBox(height: 10),
-                    if (contextBar != null) contextBar!,
-                    SizedBox(height: compactHeader ? 12 : 14),
-                    Expanded(child: child),
-                  ],
+                      if (defaultContextBar != null || contextBar != null)
+                        SizedBox(
+                          height: compactHeader
+                              ? WorkspaceSpacing.sm
+                              : WorkspaceSpacing.md,
+                        ),
+                      if (defaultContextBar != null) defaultContextBar,
+                      if (defaultContextBar != null && contextBar != null)
+                        const SizedBox(height: WorkspaceSpacing.sm),
+                      if (contextBar != null) contextBar!,
+                      SizedBox(
+                        height: compactHeader
+                            ? WorkspaceSpacing.lg
+                            : WorkspaceSpacing.xxl,
+                      ),
+                      Expanded(child: child),
+                    ],
+                  ),
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class WorkspaceShellFrame extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+
+  const WorkspaceShellFrame({
+    super.key,
+    required this.child,
+    this.padding = WorkspaceSpacing.cardPadding,
+    this.radius = WorkspaceRadius.shell,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final border = WorkspaceChrome.shellBorderColor(context);
+    final base = theme.colorScheme.surface.withValues(
+      alpha: isDark ? 0.42 : 0.72,
+    );
+    final secondary = theme.colorScheme.surfaceContainerHighest.withValues(
+      alpha: isDark ? 0.36 : 0.58,
+    );
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: border),
+        boxShadow: WorkspaceChrome.shellShadow(context),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(
+            sigmaX: WorkspaceChrome.shellBlur,
+            sigmaY: WorkspaceChrome.shellBlur,
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      base,
+                      secondary,
+                      base.withValues(alpha: isDark ? 0.48 : 0.80),
+                    ],
+                    stops: const [0.0, 0.58, 1.0],
+                  ),
+                ),
+              ),
+              Positioned(
+                left: -48,
+                top: -62,
+                child: IgnorePointer(
+                  child: _WorkspaceGlowOrb(
+                    size: 164,
+                    color: theme.colorScheme.primary.withValues(
+                      alpha: isDark ? 0.14 : 0.10,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: -28,
+                bottom: -64,
+                child: IgnorePointer(
+                  child: _WorkspaceGlowOrb(
+                    size: 186,
+                    color: const Color(0xFF5EC7E6).withValues(
+                      alpha: isDark ? 0.10 : 0.07,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 1,
+                    color: WorkspaceChrome.glassHighlight(context, shell: true),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: padding,
+                child: child,
+              ),
+            ],
           ),
         ),
       ),
@@ -258,8 +577,8 @@ class WorkspaceSurfaceCard extends StatelessWidget {
   const WorkspaceSurfaceCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(18),
-    this.radius = 22,
+    this.padding = WorkspaceSpacing.cardPadding,
+    this.radius = WorkspaceRadius.cardCompact,
     this.onTap,
   });
 
@@ -267,11 +586,13 @@ class WorkspaceSurfaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final surface = theme.colorScheme.surface;
-    final elevated = theme.colorScheme.surfaceContainerHighest;
-    final border = theme.colorScheme.outline.withValues(
-      alpha: isDark ? 0.56 : 0.32,
+    final surface = theme.colorScheme.surface.withValues(
+      alpha: isDark ? 0.50 : 0.78,
     );
+    final elevated = theme.colorScheme.surfaceContainerHighest.withValues(
+      alpha: isDark ? 0.42 : 0.70,
+    );
+    final border = WorkspaceChrome.panelBorderColor(context);
 
     final body = Padding(
       padding: padding,
@@ -281,45 +602,100 @@ class WorkspaceSurfaceCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: border),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(surface, elevated, isDark ? 0.48 : 0.24)!,
-            Color.lerp(
-              surface,
-              theme.colorScheme.primary,
-              isDark ? 0.04 : 0.018,
-            )!,
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withValues(
-              alpha: isDark ? 0.16 : 0.05,
-            ),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: WorkspaceChrome.panelShadow(context),
       ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: onTap == null
-              ? body
-              : InkWell(
-                  onTap: onTap,
-                  hoverColor: _workspaceInteractiveOverlay(context),
-                  focusColor: _workspaceInteractiveOverlay(context),
-                  highlightColor:
-                      _workspaceInteractiveOverlay(context, emphasis: 0.08),
-                  splashColor:
-                      _workspaceInteractiveOverlay(context, emphasis: 0.1),
-                  child: body,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(
+            sigmaX: WorkspaceChrome.panelBlur,
+            sigmaY: WorkspaceChrome.panelBlur,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              border: Border.all(color: border),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.lerp(surface, elevated, isDark ? 0.58 : 0.28)!,
+                  Color.lerp(
+                    surface,
+                    theme.colorScheme.primary.withValues(
+                      alpha: isDark ? 0.18 : 0.08,
+                    ),
+                    isDark ? 0.24 : 0.14,
+                  )!,
+                  surface,
+                ],
+                stops: const [0.0, 0.48, 1.0],
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 1,
+                      color: WorkspaceChrome.glassHighlight(context),
+                    ),
+                  ),
                 ),
+                Material(
+                  type: MaterialType.transparency,
+                  child: onTap == null
+                      ? body
+                      : InkWell(
+                          onTap: onTap,
+                          hoverColor: WorkspaceChrome.interactiveOverlay(
+                            context,
+                          ),
+                          focusColor: WorkspaceChrome.interactiveOverlay(
+                            context,
+                          ),
+                          highlightColor: WorkspaceChrome.interactiveOverlay(
+                            context,
+                            emphasis: 1.34,
+                          ),
+                          splashColor: WorkspaceChrome.interactiveOverlay(
+                            context,
+                            emphasis: 1.66,
+                          ),
+                          child: body,
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceGlowOrb extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _WorkspaceGlowOrb({
+    required this.size,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ImageFiltered(
+      imageFilter: ui.ImageFilter.blur(sigmaX: 38, sigmaY: 38),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color,
         ),
       ),
     );
@@ -359,11 +735,11 @@ class WorkspaceNavButton extends StatelessWidget {
         side: BorderSide(
           color: selected
               ? theme.colorScheme.primary.withValues(alpha: 0.42)
-              : theme.colorScheme.outline.withValues(alpha: 0.42),
+              : WorkspaceChrome.panelBorderColor(context, emphasis: 1.4),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(WorkspaceRadius.button),
         ),
       ),
     );
@@ -385,7 +761,7 @@ class WorkspaceButtonStyles {
           theme.colorScheme.onSurface.withValues(alpha: 0.38),
       disabledBackgroundColor:
           theme.colorScheme.surface.withValues(alpha: 0.08),
-      overlayColor: theme.colorScheme.primary.withValues(alpha: 0.06),
+      overlayColor: WorkspaceChrome.interactiveOverlay(context),
       visualDensity: VisualDensity.compact,
       minimumSize: Size(0, compact ? 36 : 40),
       padding: EdgeInsets.symmetric(
@@ -397,10 +773,13 @@ class WorkspaceButtonStyles {
         fontWeight: FontWeight.w700,
       ),
       side: BorderSide(
-        color: theme.colorScheme.outline.withValues(alpha: 0.32),
+        color: WorkspaceChrome.panelBorderColor(
+          context,
+          emphasis: compact ? 1.08 : 1.18,
+        ),
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(WorkspaceRadius.button),
       ),
     );
   }
@@ -427,7 +806,7 @@ class WorkspaceButtonStyles {
         fontWeight: FontWeight.w700,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(WorkspaceRadius.button),
       ),
     );
   }
@@ -459,7 +838,7 @@ class WorkspaceButtonStyles {
         fontWeight: FontWeight.w700,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(WorkspaceRadius.button),
       ),
     );
   }
@@ -471,7 +850,7 @@ class WorkspaceButtonStyles {
     final theme = Theme.of(context);
     return TextButton.styleFrom(
       foregroundColor: theme.colorScheme.primary,
-      overlayColor: theme.colorScheme.primary.withValues(alpha: 0.06),
+      overlayColor: WorkspaceChrome.interactiveOverlay(context),
       visualDensity: VisualDensity.compact,
       minimumSize: Size(0, compact ? 34 : 38),
       padding: EdgeInsets.symmetric(
@@ -483,7 +862,7 @@ class WorkspaceButtonStyles {
         fontWeight: FontWeight.w700,
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(WorkspaceRadius.iconButton),
       ),
     );
   }
@@ -500,15 +879,21 @@ class WorkspaceButtonStyles {
           theme.colorScheme.onSurface.withValues(alpha: 0.38),
       disabledBackgroundColor:
           theme.colorScheme.surface.withValues(alpha: 0.08),
-      hoverColor: theme.colorScheme.primary.withValues(alpha: 0.06),
-      highlightColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+      hoverColor: WorkspaceChrome.interactiveOverlay(context),
+      highlightColor: WorkspaceChrome.interactiveOverlay(
+        context,
+        emphasis: 1.34,
+      ),
       padding: EdgeInsets.all(compact ? 8 : 10),
       minimumSize: Size.square(compact ? 34 : 38),
       iconSize: 18,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(WorkspaceRadius.iconButton),
         side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.22),
+          color: WorkspaceChrome.panelBorderColor(
+            context,
+            emphasis: 0.92,
+          ),
         ),
       ),
     );
@@ -532,11 +917,11 @@ class WorkspaceSectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final titleStyle = context.textStyles.titleMedium?.copyWith(
-      fontWeight: FontWeight.w800,
-      letterSpacing: -0.1,
-    );
-    final subtitleStyle = context.textStyles.bodySmall?.copyWith(
-      color: _workspaceMuted(context),
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.1,
+        ) ??
+        WorkspaceTypography.sectionTitle(context);
+    final subtitleStyle = WorkspaceTypography.metadata(context)?.copyWith(
       height: 1.32,
     );
     final subtitleWidget = Text(
@@ -559,10 +944,10 @@ class WorkspaceSectionHeader extends StatelessWidget {
                 title,
                 style: titleStyle,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: WorkspaceSpacing.xxs),
               subtitleWidget,
               if (action != null) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: WorkspaceSpacing.sm),
                 action!,
               ],
             ],
@@ -580,13 +965,13 @@ class WorkspaceSectionHeader extends StatelessWidget {
                     title,
                     style: titleStyle,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: WorkspaceSpacing.xxs),
                   subtitleWidget,
                 ],
               ),
             ),
             if (action != null) ...[
-              const SizedBox(width: 10),
+              const SizedBox(width: WorkspaceSpacing.sm),
               action!,
             ],
           ],
@@ -614,7 +999,7 @@ class WorkspaceEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: WorkspaceSurfaceCard(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
           child: Column(
@@ -636,25 +1021,20 @@ class WorkspaceEmptyState extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: WorkspaceSpacing.lg),
               Text(
                 title,
-                style: context.textStyles.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: WorkspaceTypography.sectionTitle(context),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 6),
               Text(
                 subtitle,
-                style: context.textStyles.bodySmall?.copyWith(
-                  color: _workspaceMuted(context),
-                  height: 1.35,
-                ),
+                style: WorkspaceTypography.metadata(context),
                 textAlign: TextAlign.center,
               ),
               if (actions.isNotEmpty) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: WorkspaceSpacing.lg),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -697,7 +1077,7 @@ class WorkspaceLoadingState extends StatelessWidget {
                 height: 28,
                 child: CircularProgressIndicator(strokeWidth: 2.6),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: WorkspaceSpacing.lg),
               Text(
                 title,
                 style: context.textStyles.titleSmall?.copyWith(
@@ -705,13 +1085,10 @@ class WorkspaceLoadingState extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: WorkspaceSpacing.xxs),
               Text(
                 subtitle,
-                style: context.textStyles.bodySmall?.copyWith(
-                  color: _workspaceMuted(context),
-                  height: 1.35,
-                ),
+                style: WorkspaceTypography.metadata(context),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -744,10 +1121,10 @@ class WorkspaceInlineState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(WorkspaceRadius.context),
         color: theme.colorScheme.surface.withValues(alpha: 0.18),
         border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.18),
+          color: WorkspaceChrome.panelBorderColor(context, emphasis: 0.78),
         ),
       ),
       child: Column(
@@ -765,18 +1142,14 @@ class WorkspaceInlineState extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             title,
-            style: context.textStyles.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: WorkspaceTypography.sectionTitle(context)
+                ?.copyWith(fontSize: context.textStyles.titleSmall?.fontSize),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: WorkspaceSpacing.xxs),
           Text(
             subtitle,
-            style: context.textStyles.bodySmall?.copyWith(
-              color: _workspaceMuted(context),
-              height: 1.35,
-            ),
+            style: WorkspaceTypography.metadata(context),
             textAlign: TextAlign.center,
           ),
           if (action != null) ...[
@@ -832,20 +1205,20 @@ class WorkspaceDialogScaffold extends StatelessWidget {
           maxHeight: maxHeight ?? double.infinity,
         ),
         child: WorkspaceSurfaceCard(
-          radius: 24,
-          padding: const EdgeInsets.all(18),
+          radius: WorkspaceRadius.card,
+          padding: WorkspaceSpacing.cardPadding,
           child: Column(
             mainAxisSize:
                 maxHeight == null ? MainAxisSize.min : MainAxisSize.max,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               header,
-              const SizedBox(height: 14),
+              const SizedBox(height: WorkspaceSpacing.lg),
               if (bodyCanExpand) Flexible(child: body) else body,
               if (actions.isNotEmpty) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: WorkspaceSpacing.lg),
                 Container(
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.only(top: WorkspaceSpacing.md),
                   decoration: BoxDecoration(
                     border: Border(
                       top: BorderSide(
@@ -904,9 +1277,14 @@ class WorkspaceSheetScaffold extends StatelessWidget {
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            padding: const EdgeInsets.fromLTRB(
+              WorkspaceSpacing.md,
+              WorkspaceSpacing.xs,
+              WorkspaceSpacing.md,
+              WorkspaceSpacing.md,
+            ),
             child: WorkspaceSurfaceCard(
-              radius: 28,
+              radius: WorkspaceRadius.shellCompact,
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
               child: Column(
                 mainAxisSize:
@@ -926,17 +1304,17 @@ class WorkspaceSheetScaffold extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: WorkspaceSpacing.md),
                   _WorkspaceTransientHeader(
                     title: title,
                     subtitle: subtitle,
                     icon: icon,
                     action: headerAction,
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: WorkspaceSpacing.lg),
                   if (bodyCanExpand) Expanded(child: body) else body,
                   if (footer != null) ...[
-                    const SizedBox(height: 14),
+                    const SizedBox(height: WorkspaceSpacing.lg),
                     footer!,
                   ],
                 ],
@@ -993,8 +1371,8 @@ class WorkspaceContextBar extends StatelessWidget {
     this.subtitle,
     this.leading,
     this.trailing,
-    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-    this.radius = 18,
+    this.padding = WorkspaceSpacing.contextPadding,
+    this.radius = WorkspaceRadius.context,
   });
 
   @override
@@ -1024,7 +1402,7 @@ class WorkspaceContextBar extends StatelessWidget {
             Text(
               subtitle!,
               style: context.textStyles.bodySmall?.copyWith(
-                color: _workspaceMuted(context),
+                color: WorkspaceChrome.mutedText(context),
                 height: 1.32,
               ),
               maxLines: 2,
@@ -1045,10 +1423,11 @@ class WorkspaceContextBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (copy != null) copy,
-                if (copy != null && leading != null) const SizedBox(height: 8),
+                if (copy != null && leading != null)
+                  const SizedBox(height: WorkspaceSpacing.xs),
                 if (leading != null) leading!,
                 if ((copy != null || leading != null) && trailing != null)
-                  const SizedBox(height: 8),
+                  const SizedBox(height: WorkspaceSpacing.xs),
                 if (trailing != null) trailing!,
               ],
             );
@@ -1061,14 +1440,15 @@ class WorkspaceContextBar extends StatelessWidget {
                 Expanded(
                   child: copy,
                 ),
-              if (copy != null && leading != null) const SizedBox(width: 10),
+              if (copy != null && leading != null)
+                const SizedBox(width: WorkspaceSpacing.sm),
               if (leading != null)
                 Flexible(
                   flex: copy != null ? 3 : 1,
                   child: leading!,
                 ),
               if ((copy != null || leading != null) && trailing != null)
-                const SizedBox(width: 10),
+                const SizedBox(width: WorkspaceSpacing.sm),
               if (trailing != null)
                 Flexible(
                   child: Align(
@@ -1079,6 +1459,82 @@ class WorkspaceContextBar extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class WorkspaceContextPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? accent;
+  final bool emphasized;
+
+  const WorkspaceContextPill({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.accent,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final resolvedAccent = accent ?? theme.colorScheme.primary;
+    final baseFill = emphasized
+        ? resolvedAccent.withValues(alpha: 0.14)
+        : theme.colorScheme.surface.withValues(alpha: 0.18);
+    final border = emphasized
+        ? resolvedAccent.withValues(alpha: 0.24)
+        : theme.colorScheme.outline.withValues(alpha: 0.22);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(WorkspaceRadius.pill),
+        color: baseFill,
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: resolvedAccent.withValues(alpha: 0.12),
+            ),
+            child: Icon(
+              icon,
+              size: 16,
+              color: resolvedAccent,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: WorkspaceTypography.pillLabel(context),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: WorkspaceTypography.pillValue(
+                  context,
+                  color: emphasized ? resolvedAccent : null,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1104,7 +1560,7 @@ class _WorkspaceTopBar extends StatelessWidget {
         alignment: hasLeading ? Alignment.centerLeft : Alignment.centerRight,
         child: WorkspaceSurfaceCard(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          radius: 18,
+          radius: WorkspaceRadius.context,
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1117,7 +1573,7 @@ class _WorkspaceTopBar extends StatelessWidget {
 
     return WorkspaceSurfaceCard(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-      radius: 19,
+      radius: WorkspaceRadius.band,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 980;
@@ -1132,7 +1588,7 @@ class _WorkspaceTopBar extends StatelessWidget {
                     children: leadingActions,
                   ),
                 if (trailingActions.isNotEmpty) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: WorkspaceSpacing.sm),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -1187,24 +1643,18 @@ class _WorkspaceHeaderCopy extends StatelessWidget {
           header: true,
           child: Text(
             title,
-            style: (compact
-                    ? context.textStyles.titleLarge
-                    : context.textStyles.headlineSmall)
-                ?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: compact ? -0.2 : -0.4,
+            style: WorkspaceTypography.pageTitle(
+              context,
+              compact: compact,
             ),
           ),
         ),
-        SizedBox(height: compact ? 4 : 6),
+        SizedBox(height: compact ? WorkspaceSpacing.xxs : 6),
         Text(
           subtitle,
-          style: (compact
-                  ? context.textStyles.bodySmall
-                  : context.textStyles.bodyMedium)
-              ?.copyWith(
-            color: _workspaceMuted(context),
-            height: 1.4,
+          style: WorkspaceTypography.pageSubtitle(
+            context,
+            compact: compact,
           ),
         ),
       ],
@@ -1510,14 +1960,8 @@ class _WorkspaceFeedbackBanner extends StatelessWidget {
   }
 }
 
-Color _workspaceInteractiveOverlay(
-  BuildContext context, {
-  double emphasis = 0.06,
-}) =>
-    Theme.of(context).colorScheme.primary.withValues(alpha: emphasis);
-
 Color _workspaceMuted(BuildContext context) =>
-    Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.9);
+    WorkspaceChrome.mutedText(context);
 
 Color _workspaceFeedbackAccent(ThemeData theme, WorkspaceFeedbackTone tone) {
   switch (tone) {

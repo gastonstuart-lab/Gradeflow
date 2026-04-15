@@ -123,8 +123,10 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
             .length ??
         0;
     return ToolFirstAppSurface(
+      eyebrow: 'Class seating',
       title: classItem.className,
-      subtitle: '${classItem.subject} · ${classItem.schoolYear} · ${classItem.term}',
+      subtitle:
+          '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}',
       leading: IconButton(
         onPressed: () => context.go('/classes'),
         icon: const Icon(Icons.arrow_back_rounded),
@@ -140,7 +142,8 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
               labelText: 'Class',
               isDense: true,
               border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             ),
             items: [
               for (final item in availableClasses)
@@ -173,7 +176,8 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
             students: students,
             autoLoad: false,
             showStudentPanel: !crampedHeight,
-            onOpenRoomSetups: activeLayout == null ? null : _showRoomSetupsDialog,
+            onOpenRoomSetups:
+                activeLayout == null ? null : _showRoomSetupsDialog,
             onPreviewPdf:
                 _isBuildingHandout ? null : () => _withHandoutPdf(_previewPdf),
             onPrint:
@@ -317,7 +321,7 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                                       : roomSetup.name,
                                   child: WorkspaceSurfaceCard(
                                     padding: const EdgeInsets.all(14),
-                                    radius: 18,
+                                    radius: WorkspaceRadius.context,
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -349,12 +353,12 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                                                       .primaryContainer,
                                                   borderRadius:
                                                       BorderRadius.circular(
-                                                          999),
+                                                          WorkspaceRadius.pill),
                                                 ),
                                                 child: Text(
                                                   'Linked here',
-                                                  style: context
-                                                      .textStyles.labelSmall
+                                                  style: WorkspaceTypography
+                                                          .utility(context)
                                                       ?.withColor(
                                                     Theme.of(context)
                                                         .colorScheme
@@ -803,55 +807,40 @@ class _CompactSeatingContextStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final roomLinked = roomName != null && roomName!.trim().isNotEmpty;
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _ContextChip(icon: Icons.people_alt_outlined, label: 'Students', value: '$studentCount'),
-          const SizedBox(width: 8),
-          _ContextChip(icon: Icons.dashboard_customize_outlined, label: 'Layouts', value: '$layoutCount'),
-          const SizedBox(width: 8),
-          _ContextChip(icon: Icons.event_seat_outlined, label: 'Placed', value: '$placedCount'),
-          const SizedBox(width: 8),
-          _ContextChip(
-            icon: roomName == null ? Icons.link_off_outlined : Icons.meeting_room_outlined,
-            label: 'Room',
-            value: roomName ?? 'Unlinked',
+          WorkspaceContextPill(
+            icon: Icons.people_alt_outlined,
+            label: 'Students',
+            value: '$studentCount',
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ContextChip extends StatelessWidget {
-  const _ContextChip({required this.icon, required this.label, required this.value});
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: scheme.surface.withValues(alpha: 0.32),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: scheme.outline.withValues(alpha: 0.24)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 6),
-          Text(
-            '$label: $value',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onSurfaceVariant,
-                ),
+          const SizedBox(width: 8),
+          WorkspaceContextPill(
+            icon: Icons.dashboard_customize_outlined,
+            label: 'Layouts',
+            value: '$layoutCount',
+          ),
+          const SizedBox(width: 8),
+          WorkspaceContextPill(
+            icon: Icons.event_seat_outlined,
+            label: 'Placed',
+            value: '$placedCount',
+          ),
+          const SizedBox(width: 8),
+          WorkspaceContextPill(
+            icon: roomLinked
+                ? Icons.meeting_room_outlined
+                : Icons.link_off_outlined,
+            label: 'Room',
+            value: roomLinked ? roomName! : 'Unlinked',
+            accent: roomLinked
+                ? Theme.of(context).colorScheme.primary
+                : const Color(0xFFDAA85E),
+            emphasized: true,
           ),
         ],
       ),

@@ -10,10 +10,10 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/models/student_score.dart';
 import 'package:gradeflow/models/grading_category.dart';
 import 'package:gradeflow/components/tool_first_app_surface.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:uuid/uuid.dart';
 import 'package:gradeflow/models/grade_item.dart';
-import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:go_router/go_router.dart';
 
 class GradebookScreen extends StatefulWidget {
@@ -561,6 +561,12 @@ class _GradebookScreenState extends State<GradebookScreen> {
     final scoreService = context.watch<StudentScoreService>();
     final classItem = classService.getClassById(widget.classId);
     final availableClasses = classService.classes;
+    final selectedCategory = categoryService.categories
+        .where((c) => c.categoryId == selectedCategoryId)
+        .firstOrNull;
+    final selectedGradeItem = gradeItemService.gradeItems
+        .where((g) => g.gradeItemId == selectedGradeItemId)
+        .firstOrNull;
 
     final categoryItems = selectedCategoryId != null
         ? (gradeItemService.gradeItems
@@ -587,9 +593,10 @@ class _GradebookScreenState extends State<GradebookScreen> {
         if (ok && mounted) Navigator.of(context).pop(result);
       },
       child: ToolFirstAppSurface(
+        eyebrow: 'Class gradebook',
         title: classItem?.className ?? 'Gradebook',
         subtitle: classItem != null
-            ? '${classItem.subject} • ${classItem.schoolYear} • ${classItem.term}'
+            ? '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}'
             : 'Enter scores for students',
         leading: IconButton(
           onPressed: () => context.go('/classes'),
@@ -613,8 +620,8 @@ class _GradebookScreenState extends State<GradebookScreen> {
                 for (final item in availableClasses)
                   DropdownMenuItem(
                     value: item.classId,
-                    child: Text(item.className,
-                        overflow: TextOverflow.ellipsis),
+                    child:
+                        Text(item.className, overflow: TextOverflow.ellipsis),
                   ),
               ],
               onChanged: (value) {
@@ -628,17 +635,9 @@ class _GradebookScreenState extends State<GradebookScreen> {
         contextStrip: _CompactGradebookContextStrip(
           studentCount: studentService.students.length,
           categoryCount: categoryService.categories.length,
-          syncStatus: scoreService.hasPendingWrites
-              ? 'Saving…'
-              : 'Synced',
-          selectedCategory: selectedCategoryId != null
-              ? categoryService.categories
-                  .firstWhere(
-                    (c) => c.categoryId == selectedCategoryId,
-                    orElse: () => categoryService.categories.first,
-                  )
-                  .name
-              : null,
+          syncStatus: scoreService.hasPendingWrites ? 'Saving...' : 'Synced',
+          selectedCategory: selectedCategory?.name,
+          selectedGradeItem: selectedGradeItem?.name,
         ),
         toolbar: _CompactGradebookToolbar(
           categories: categoryService.categories,
@@ -674,8 +673,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
                 } catch (_) {}
               }
 
-              final ok =
-                  await scores.undoLastChange(userId, widget.classId);
+              final ok = await scores.undoLastChange(userId, widget.classId);
               if (!mounted) return;
               if (ok) {
                 _showSuccess('Undid last score change');
@@ -694,8 +692,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
                       .read<GradeItemService>()
                       .gradeItems
                       .firstWhere((g) => g.gradeItemId == selectedGradeItemId);
-                  double temp =
-                      item.maxScore <= 1 ? 100.0 : item.maxScore;
+                  double temp = item.maxScore <= 1 ? 100.0 : item.maxScore;
                   await showModalBottomSheet(
                     context: context,
                     showDragHandle: true,
@@ -704,24 +701,18 @@ class _GradebookScreenState extends State<GradebookScreen> {
                         padding: AppSpacing.paddingMd,
                         child: StatefulBuilder(
                           builder: (ctx, setSheetState) {
-                            final max = item.maxScore <= 1
-                                ? 100.0
-                                : item.maxScore;
+                            final max =
+                                item.maxScore <= 1 ? 100.0 : item.maxScore;
                             const min = 0.0;
-                            final divisions = max > min
-                                ? (max - min).round()
-                                : null;
+                            final divisions =
+                                max > min ? (max - min).round() : null;
                             return Column(
                               mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                    'Set score for entire class',
-                                    style:
-                                        context.textStyles.titleLarge),
-                                const SizedBox(
-                                    height: AppSpacing.sm),
+                                Text('Set score for entire class',
+                                    style: context.textStyles.titleLarge),
+                                const SizedBox(height: AppSpacing.sm),
                                 Row(children: [
                                   Expanded(
                                     child: Slider(
@@ -729,64 +720,46 @@ class _GradebookScreenState extends State<GradebookScreen> {
                                       min: min,
                                       max: max,
                                       divisions: divisions,
-                                      label: temp
-                                          .toStringAsFixed(0),
+                                      label: temp.toStringAsFixed(0),
                                       onChanged: (v) =>
-                                          setSheetState(
-                                              () => temp = v),
+                                          setSheetState(() => temp = v),
                                     ),
                                   ),
                                   SizedBox(
                                       width: 56,
-                                      child: Text(
-                                          temp.toStringAsFixed(
-                                              0),
-                                          textAlign:
-                                              TextAlign.end,
-                                          style: context
-                                              .textStyles
-                                              .titleMedium)),
+                                      child: Text(temp.toStringAsFixed(0),
+                                          textAlign: TextAlign.end,
+                                          style:
+                                              context.textStyles.titleMedium)),
                                 ]),
-                                const SizedBox(
-                                    height: AppSpacing.sm),
+                                const SizedBox(height: AppSpacing.sm),
                                 Row(
                                   children: [
                                     TextButton.icon(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx),
-                                        icon: const Icon(
-                                            Icons.close),
-                                        label: const Text(
-                                            'Cancel')),
+                                        onPressed: () => Navigator.pop(ctx),
+                                        icon: const Icon(Icons.close),
+                                        label: const Text('Cancel')),
                                     const Spacer(),
                                     FilledButton.icon(
-                                      icon: const Icon(
-                                          Icons.done_all),
-                                      label: const Text(
-                                          'Apply to all'),
+                                      icon: const Icon(Icons.done_all),
+                                      label: const Text('Apply to all'),
                                       onPressed: () async {
                                         try {
                                           final authService =
-                                              context.read<
-                                                  AuthService>();
+                                              context.read<AuthService>();
                                           final students = context
-                                              .read<
-                                                  StudentService>()
+                                              .read<StudentService>()
                                               .students
-                                              .map((s) =>
-                                                  s.studentId)
+                                              .map((s) => s.studentId)
                                               .toList();
                                           await context
-                                              .read<
-                                                  StudentScoreService>()
+                                              .read<StudentScoreService>()
                                               .setAllScoresForGradeItem(
                                                 widget.classId,
                                                 item.gradeItemId,
                                                 students,
                                                 temp,
-                                                authService
-                                                    .currentUser!
-                                                    .userId,
+                                                authService.currentUser!.userId,
                                               );
                                           if (!mounted) return;
                                           setState(
@@ -844,55 +817,70 @@ class _GradebookScreenState extends State<GradebookScreen> {
                   }
                 },
         ),
-        workspace: selectedGradeItemId == null
-            ? Center(
-                child: Padding(
-                  padding: AppSpacing.paddingLg,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.edit_note,
-                          size: 64,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant),
-                      const SizedBox(height: AppSpacing.md),
-                      Text('Select a grade item',
-                          style: context.textStyles.titleLarge),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text('Choose a category and item to start grading',
-                          style: context.textStyles.bodyMedium),
-                    ],
-                  ),
-                ),
+        workspace: selectedGradeItem == null
+            ? const WorkspaceEmptyState(
+                icon: Icons.edit_note_outlined,
+                title: 'Select a grade item',
+                subtitle:
+                    'Choose a category and an assessment to open the active grading workspace.',
               )
-            : ListView.builder(
-                padding: AppSpacing.paddingMd,
-                itemCount: studentService.students.length,
-                itemBuilder: (context, index) {
-                  final student = studentService.students[index];
-                  final item = gradeItemService.gradeItems.firstWhere(
-                      (g) => g.gradeItemId == selectedGradeItemId);
-                  final current = scoreService.getScore(
-                      student.studentId, selectedGradeItemId!);
-                  return _ScoreSliderRow(
-                    key: ValueKey(
-                        '${student.studentId}_${item.gradeItemId}'),
-                    studentName:
-                        '${student.chineseName} • ${student.englishFullName}',
-                    studentId: student.studentId,
-                    seatNo: student.seatNo,
-                    photoBase64: student.photoBase64,
-                    gradeItemId: item.gradeItemId,
-                    maxScore: item.maxScore,
-                    initialScore: current?.score,
-                    onChanged: (val) => _updateScore(
-                        student.studentId, item.gradeItemId, val),
-                    onClear: () => _updateScore(
-                        student.studentId, item.gradeItemId, null),
-                    onOpen: () => _openQuickGradeSheet(index),
-                  );
-                },
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _GradebookActiveContextCard(
+                    categoryName: selectedCategory?.name,
+                    gradeItemName: selectedGradeItem.name,
+                    maxScore: selectedGradeItem.maxScore,
+                    studentCount: studentService.students.length,
+                    syncStatus:
+                        scoreService.hasPendingWrites ? 'Saving...' : 'Synced',
+                  ),
+                  const SizedBox(height: WorkspaceSpacing.lg),
+                  const WorkspaceSectionHeader(
+                    title: 'Student roster',
+                    subtitle:
+                        'Adjust scores in place, keep class context visible, and jump into a student quick-grade sheet when you need more detail.',
+                  ),
+                  const SizedBox(height: WorkspaceSpacing.md),
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      itemCount: studentService.students.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final student = studentService.students[index];
+                        final current = scoreService.getScore(
+                          student.studentId,
+                          selectedGradeItem.gradeItemId,
+                        );
+                        return _ScoreSliderRow(
+                          key: ValueKey(
+                            '${student.studentId}_${selectedGradeItem.gradeItemId}',
+                          ),
+                          studentName:
+                              '${student.chineseName} • ${student.englishFullName}',
+                          studentId: student.studentId,
+                          seatNo: student.seatNo,
+                          photoBase64: student.photoBase64,
+                          gradeItemId: selectedGradeItem.gradeItemId,
+                          maxScore: selectedGradeItem.maxScore,
+                          initialScore: current?.score,
+                          onChanged: (val) => _updateScore(
+                            student.studentId,
+                            selectedGradeItem.gradeItemId,
+                            val,
+                          ),
+                          onClear: () => _updateScore(
+                            student.studentId,
+                            selectedGradeItem.gradeItemId,
+                            null,
+                          ),
+                          onOpen: () => _openQuickGradeSheet(index),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
       ),
     );
@@ -905,12 +893,14 @@ class _CompactGradebookContextStrip extends StatelessWidget {
     required this.categoryCount,
     required this.syncStatus,
     this.selectedCategory,
+    this.selectedGradeItem,
   });
 
   final int studentCount;
   final int categoryCount;
   final String syncStatus;
   final String? selectedCategory;
+  final String? selectedGradeItem;
 
   @override
   Widget build(BuildContext context) {
@@ -918,54 +908,44 @@ class _CompactGradebookContextStrip extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _ContextChip(icon: Icons.people_alt_outlined, label: 'Students', value: '$studentCount'),
+          WorkspaceContextPill(
+            icon: Icons.people_alt_outlined,
+            label: 'Students',
+            value: '$studentCount',
+          ),
           const SizedBox(width: 8),
-          _ContextChip(icon: Icons.category_outlined, label: 'Categories', value: '$categoryCount'),
+          WorkspaceContextPill(
+            icon: Icons.category_outlined,
+            label: 'Categories',
+            value: '$categoryCount',
+          ),
           const SizedBox(width: 8),
-          _ContextChip(
-            icon: syncStatus == 'Synced' ? Icons.cloud_done_outlined : Icons.sync,
-            label: 'Status',
+          WorkspaceContextPill(
+            icon:
+                syncStatus == 'Synced' ? Icons.cloud_done_outlined : Icons.sync,
+            label: 'Sync',
             value: syncStatus,
+            accent: syncStatus == 'Synced'
+                ? Theme.of(context).colorScheme.primary
+                : const Color(0xFFDAA85E),
+            emphasized: true,
           ),
           if (selectedCategory != null) ...[
             const SizedBox(width: 8),
-            _ContextChip(icon: Icons.bookmark_outline, label: 'Category', value: selectedCategory!),
+            WorkspaceContextPill(
+              icon: Icons.bookmark_outline,
+              label: 'Category',
+              value: selectedCategory!,
+            ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ContextChip extends StatelessWidget {
-  const _ContextChip({required this.icon, required this.label, required this.value});
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: scheme.surface.withValues(alpha: 0.32),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: scheme.outline.withValues(alpha: 0.24)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: scheme.onSurfaceVariant),
-          const SizedBox(width: 6),
-          Text(
-            '$label: $value',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
+          if (selectedGradeItem != null) ...[
+            const SizedBox(width: 8),
+            WorkspaceContextPill(
+              icon: Icons.assignment_turned_in_outlined,
+              label: 'Assessment',
+              value: selectedGradeItem!,
+            ),
+          ],
         ],
       ),
     );
@@ -1003,18 +983,18 @@ class _CompactGradebookToolbar extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          // Category selector dropdown
           if (categories.isNotEmpty)
             SizedBox(
-              width: 160,
+              width: 176,
               child: DropdownButtonFormField<String>(
                 value: selectedCategoryId,
                 isExpanded: true,
                 decoration: const InputDecoration(
-                  hintText: 'Category',
+                  labelText: 'Category',
                   isDense: true,
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 ),
                 items: [
                   for (final cat in categories)
@@ -1031,19 +1011,18 @@ class _CompactGradebookToolbar extends StatelessWidget {
               ),
             ),
           const SizedBox(width: 8),
-
-          // Grade item selector dropdown
           if (selectedCategoryId != null && categoryItems.isNotEmpty)
             SizedBox(
-              width: 160,
+              width: 190,
               child: DropdownButtonFormField<String>(
                 value: selectedGradeItemId,
                 isExpanded: true,
                 decoration: const InputDecoration(
-                  hintText: 'Grade Item',
+                  labelText: 'Assessment',
                   isDense: true,
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 ),
                 items: [
                   for (final item in categoryItems)
@@ -1059,39 +1038,97 @@ class _CompactGradebookToolbar extends StatelessWidget {
                 },
               ),
             ),
-          const SizedBox(width: 8),
-
-          // Add button
+          const SizedBox(width: 10),
           if (selectedCategoryId != null)
-            IconButton(
-              tooltip: 'Add grade item',
-              icon: const Icon(Icons.add),
+            FilledButton.icon(
               onPressed: onAddGradeItem,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add item'),
+              style: WorkspaceButtonStyles.filled(context, compact: true),
             ),
-
-          // Undo button
-          IconButton(
-            tooltip: 'Undo last change',
-            icon: const Icon(Icons.undo),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
             onPressed: onUndoLastChange,
+            icon: const Icon(Icons.undo_rounded),
+            label: const Text('Undo'),
+            style: WorkspaceButtonStyles.outlined(context, compact: true),
           ),
-
-          // Apply to all button
-          if (onApplyToAll != null)
-            IconButton(
-              tooltip: 'Apply to all students',
-              icon: const Icon(Icons.done_all),
+          if (onApplyToAll != null) ...[
+            const SizedBox(width: 8),
+            FilledButton.tonalIcon(
               onPressed: onApplyToAll,
+              icon: const Icon(Icons.done_all_rounded),
+              label: const Text('Apply to all'),
+              style: WorkspaceButtonStyles.tonal(context, compact: true),
             ),
-
-          // Delete button
-          if (onDeleteGradeItem != null)
-            IconButton(
-              tooltip: 'Delete grade item',
-              icon: const Icon(Icons.delete_outline),
+          ],
+          if (onDeleteGradeItem != null) ...[
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
               onPressed: onDeleteGradeItem,
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: const Text('Delete'),
+              style: WorkspaceButtonStyles.outlined(context, compact: true),
             ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _GradebookActiveContextCard extends StatelessWidget {
+  const _GradebookActiveContextCard({
+    required this.gradeItemName,
+    required this.maxScore,
+    required this.studentCount,
+    required this.syncStatus,
+    this.categoryName,
+  });
+
+  final String gradeItemName;
+  final double maxScore;
+  final int studentCount;
+  final String syncStatus;
+  final String? categoryName;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceContextBar(
+      title: gradeItemName,
+      subtitle: categoryName == null
+          ? 'Active grading context'
+          : 'Active grading context for $categoryName',
+      leading: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          if (categoryName != null)
+            WorkspaceContextPill(
+              icon: Icons.bookmark_outline,
+              label: 'Category',
+              value: categoryName!,
+            ),
+          WorkspaceContextPill(
+            icon: Icons.rule_folder_outlined,
+            label: 'Max score',
+            value: maxScore <= 1 ? '100' : maxScore.toStringAsFixed(0),
+          ),
+          WorkspaceContextPill(
+            icon: Icons.people_alt_outlined,
+            label: 'Roster',
+            value: '$studentCount students',
+          ),
+        ],
+      ),
+      trailing: WorkspaceContextPill(
+        icon: syncStatus == 'Synced' ? Icons.cloud_done_outlined : Icons.sync,
+        label: 'Sync',
+        value: syncStatus,
+        accent: syncStatus == 'Synced'
+            ? Theme.of(context).colorScheme.primary
+            : const Color(0xFFDAA85E),
+        emphasized: true,
       ),
     );
   }
@@ -1150,79 +1187,117 @@ class _ScoreSliderRowState extends State<_ScoreSliderRow> {
     final min = 0.0;
     final display = (_value ?? max).toStringAsFixed(0);
     final divisions = max > min ? (max - min).round() : null;
-    return AnimatedGlowBorder(
-      child: Card(
-        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-        child: InkWell(
-          onTap: widget.onOpen,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: AppSpacing.paddingMd,
-            child: Column(
+    return WorkspaceSurfaceCard(
+      radius: WorkspaceRadius.cardCompact,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: InkWell(
+        onTap: widget.onOpen,
+        borderRadius: BorderRadius.circular(WorkspaceRadius.context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    _StudentAvatar(
-                        photoBase64: widget.photoBase64,
-                        name: widget.studentName),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(widget.studentName,
-                              style: context.textStyles.titleMedium,
-                              softWrap: true,
-                              overflow: TextOverflow.ellipsis),
-                          const SizedBox(height: 2),
-                          Text(
-                              'ID: ${widget.studentId}${widget.seatNo != null ? '  •  Seat ${widget.seatNo}' : ''}',
-                              style: context.textStyles.labelSmall,
-                              overflow: TextOverflow.ellipsis),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Clear score',
-                      icon: const Icon(Icons.backspace_outlined),
-                      onPressed: () {
-                        setState(() => _value = null);
-                        widget.onClear();
-                      },
-                    ),
-                    IconButton(
-                      tooltip: 'Quick grade',
-                      icon: const Icon(Icons.chevron_right),
-                      onPressed: widget.onOpen,
-                    ),
-                  ],
+                _StudentAvatar(
+                  photoBase64: widget.photoBase64,
+                  name: widget.studentName,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: (_value ?? max).clamp(min, max),
-                        min: min,
-                        max: max,
-                        divisions: divisions,
-                        label: display,
-                        onChanged: (v) => setState(() => _value = v),
-                        onChangeEnd: (v) => widget.onChanged(v),
+                const SizedBox(width: WorkspaceSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.studentName,
+                        style: context.textStyles.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'ID: ${widget.studentId}${widget.seatNo != null ? ' • Seat ${widget.seatNo}' : ''}',
+                        style: WorkspaceTypography.utility(context)?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: WorkspaceSpacing.sm),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(WorkspaceRadius.button),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.10),
+                    border: Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.18),
                     ),
-                    SizedBox(
-                      width: 56,
-                      child: Text(display,
-                          textAlign: TextAlign.end,
-                          style: context.textStyles.titleMedium),
+                  ),
+                  child: Text(
+                    '$display / ${max.toStringAsFixed(0)}',
+                    style: WorkspaceTypography.pillValue(
+                      context,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
-                  ],
+                  ),
+                ),
+                const SizedBox(width: WorkspaceSpacing.xs),
+                IconButton(
+                  tooltip: 'Clear score',
+                  icon: const Icon(Icons.backspace_outlined),
+                  onPressed: () {
+                    setState(() => _value = null);
+                    widget.onClear();
+                  },
+                  style: WorkspaceButtonStyles.icon(context, compact: true),
+                ),
+                IconButton(
+                  tooltip: 'Quick grade',
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  onPressed: widget.onOpen,
+                  style: WorkspaceButtonStyles.icon(context, compact: true),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: WorkspaceSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: (_value ?? max).clamp(min, max),
+                    min: min,
+                    max: max,
+                    divisions: divisions,
+                    label: display,
+                    onChanged: (v) => setState(() => _value = v),
+                    onChangeEnd: (v) => widget.onChanged(v),
+                  ),
+                ),
+                const SizedBox(width: WorkspaceSpacing.md),
+                SizedBox(
+                  width: 52,
+                  child: Text(
+                    display,
+                    textAlign: TextAlign.end,
+                    style: context.textStyles.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

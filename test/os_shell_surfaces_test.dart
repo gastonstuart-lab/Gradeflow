@@ -19,9 +19,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Teacher command center'), findsOneWidget);
-    expect(find.text('Workspace widgets'), findsOneWidget);
-    expect(find.text('Legacy access'), findsOneWidget);
+    expect(find.text('HOME STAGE'), findsOneWidget);
+    expect(find.text('PINNED APPS'), findsOneWidget);
+    expect(find.text('OTHER WORKSPACES'), findsOneWidget);
   });
 
   testWidgets('GradeFlowOSShell shows one overlay at a time', (tester) async {

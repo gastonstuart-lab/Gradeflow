@@ -1,25 +1,22 @@
-/// GradeFlow OS — Class Surface
+/// GradeFlow OS - Class Surface
 ///
-/// The focused single-class workspace.  When a teacher opens a class from
+/// The focused single-class workspace. When a teacher opens a class from
 /// the OS, this surface becomes the active context with the class always
 /// pinned at the top.
-///
-/// Structure:
-///   - Class header (name, subject, student count, quick stats)
-///   - Tab bar: Overview | Gradebook | Seating | Students | Export
-///   - Each tab routes to the existing screen embedded in this surface
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:gradeflow/os/os_controller.dart';
-import 'package:gradeflow/os/os_palette.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/nav.dart';
+import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/student_service.dart';
+import 'package:gradeflow/theme.dart';
 
 class ClassSurface extends StatefulWidget {
   const ClassSurface({super.key, required this.classId});
@@ -34,6 +31,7 @@ class _ClassSurfaceState extends State<ClassSurface>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   bool _hydrating = false;
+  int _activeTabIndex = 0;
 
   static const _tabDefs = [
     _TabDef(icon: Icons.dashboard_outlined, label: 'Overview'),
@@ -46,11 +44,11 @@ class _ClassSurfaceState extends State<ClassSurface>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: _tabDefs.length, vsync: this);
+    _tabs = TabController(length: _tabDefs.length, vsync: this)
+      ..addListener(_handleTabChange);
     _hydrating =
         context.read<ClassService>().getClassById(widget.classId) == null;
 
-    // Tell the OS controller which class is active
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<GradeFlowOSController>().setSurface(
@@ -67,6 +65,8 @@ class _ClassSurfaceState extends State<ClassSurface>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.classId != widget.classId) {
       setState(() {
+        _activeTabIndex = 0;
+        _tabs.index = 0;
         _hydrating =
             context.read<ClassService>().getClassById(widget.classId) == null;
       });
@@ -76,8 +76,15 @@ class _ClassSurfaceState extends State<ClassSurface>
 
   @override
   void dispose() {
+    _tabs.removeListener(_handleTabChange);
     _tabs.dispose();
     super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (_activeTabIndex != _tabs.index && mounted) {
+      setState(() => _activeTabIndex = _tabs.index);
+    }
   }
 
   void _scheduleHydration() {
@@ -95,7 +102,6 @@ class _ClassSurfaceState extends State<ClassSurface>
 
     try {
       final user = auth.currentUser;
-      // Cold OS entry can arrive before class providers have been hydrated.
       if (user != null && classService.getClassById(requestedClassId) == null) {
         await classService.loadClasses(user.userId);
       }
@@ -110,218 +116,367 @@ class _ClassSurfaceState extends State<ClassSurface>
     }
   }
 
+  void _goBackHome() {
+    context.read<GradeFlowOSController>().setSurface(OSSurface.home);
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.osHome);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dark = context.isDark;
     final classService = context.watch<ClassService>();
     final classModel = classService.classes
         .where((c) => c.classId == widget.classId)
         .firstOrNull;
+
     if (classModel == null && _hydrating) {
-      return Scaffold(
-        backgroundColor: OSColors.bg(dark),
-        body: const Center(
-          child: CircularProgressIndicator(),
+      return const WorkspaceScaffold(
+        eyebrow: 'Class workspace',
+        title: 'Loading class workspace',
+        subtitle: 'Preparing the class context, roster, and available tools.',
+        child: WorkspaceLoadingState(
+          title: 'Loading class workspace',
+          subtitle:
+              'Restoring the active class, roster, and quick-launch tools.',
         ),
       );
     }
-    final className = classModel?.className ?? 'Class';
-    final subject = classModel?.subject ?? '';
+
+    if (classModel == null) {
+      return WorkspaceScaffold(
+        eyebrow: 'Class workspace',
+        title: 'Class unavailable',
+        subtitle: 'We could not restore this class context right now.',
+        child: WorkspaceEmptyState(
+          icon: Icons.class_outlined,
+          title: 'Class not found',
+          subtitle:
+              'Return to the OS home surface and choose another class workspace.',
+          actions: [
+            FilledButton.icon(
+              onPressed: _goBackHome,
+              icon: const Icon(Icons.arrow_back_rounded),
+              label: const Text('Back to home'),
+              style: WorkspaceButtonStyles.filled(context),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final activeTabLabel = _tabDefs[_activeTabIndex].label;
 
     return Scaffold(
-      backgroundColor: OSColors.bg(dark),
-      body: Column(
-        children: [
-          // ── Class Header ────────────────────────────────────────────────
-          SafeArea(
-            bottom: false,
-            child: _ClassHeader(
-              classId: widget.classId,
-              className: className,
-              subject: subject,
-              onBack: () {
-                context
-                    .read<GradeFlowOSController>()
-                    .setSurface(OSSurface.home);
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go(AppRoutes.osHome);
-                }
-              },
+      backgroundColor: Colors.transparent,
+      body: AnimatedPageBackground(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1480),
+              child: Padding(
+                padding: WorkspaceSpacing.shellMargin,
+                child: WorkspaceShellFrame(
+                  padding: WorkspaceSpacing.shellPadding,
+                  radius: WorkspaceRadius.shell,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _ClassHeader(
+                        classId: widget.classId,
+                        className: classModel.className,
+                        subject: classModel.subject,
+                        schoolYear: classModel.schoolYear,
+                        term: classModel.term,
+                        isArchived: classModel.isArchived,
+                        hasPlanning:
+                            classModel.syllabus?.entries.isNotEmpty ?? false,
+                        activeTabLabel: activeTabLabel,
+                        onBack: _goBackHome,
+                      ),
+                      const SizedBox(height: WorkspaceSpacing.sm),
+                      _ClassTabBar(
+                        tabs: _tabDefs,
+                        controller: _tabs,
+                      ),
+                      const SizedBox(height: WorkspaceSpacing.lg),
+                      Expanded(
+                        child: WorkspaceSurfaceCard(
+                          radius: WorkspaceRadius.hero,
+                          padding: EdgeInsets.zero,
+                          child: TabBarView(
+                            controller: _tabs,
+                            children: [
+                              _ClassOverviewTab(
+                                classId: widget.classId,
+                                className: classModel.className,
+                                subject: classModel.subject,
+                                schoolYear: classModel.schoolYear,
+                                term: classModel.term,
+                                isArchived: classModel.isArchived,
+                                hasPlanning:
+                                    classModel.syllabus?.entries.isNotEmpty ??
+                                        false,
+                                onNavigate: (route) => context.go(route),
+                              ),
+                              _ClassToolTab(
+                                icon: Icons.menu_book_rounded,
+                                title: 'Gradebook',
+                                description:
+                                    'Manage assessments, scoring, and classroom grading context.',
+                                action: 'Open gradebook',
+                                onTap: () => context.go(
+                                  '${AppRoutes.classDetail}/${widget.classId}/gradebook',
+                                ),
+                              ),
+                              _ClassToolTab(
+                                icon: Icons.event_seat_rounded,
+                                title: 'Seating',
+                                description:
+                                    'Adjust layouts, room setups, and student placement for this class.',
+                                action: 'Open seating',
+                                onTap: () => context.go(
+                                  '${AppRoutes.classDetail}/${widget.classId}/seating',
+                                ),
+                              ),
+                              _ClassToolTab(
+                                icon: Icons.people_rounded,
+                                title: 'Students',
+                                description:
+                                    'Review roster details, notes, and class-specific student records.',
+                                action: 'Open students',
+                                onTap: () => context.go(
+                                  '${AppRoutes.classDetail}/${widget.classId}/students',
+                                ),
+                              ),
+                              _ClassToolTab(
+                                icon: Icons.picture_as_pdf_rounded,
+                                title: 'Export',
+                                description:
+                                    'Prepare printable or shareable class outputs without leaving this context.',
+                                action: 'Open export',
+                                onTap: () => context.go(
+                                  '${AppRoutes.classDetail}/${widget.classId}/export',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-
-          // ── Tab Bar ─────────────────────────────────────────────────────
-          _ClassTabBar(tabs: _tabDefs, controller: _tabs, dark: dark),
-
-          // ── Tab Body ─────────────────────────────────────────────────────
-          Expanded(
-            child: TabBarView(
-              controller: _tabs,
-              children: [
-                // Tab 0: Overview
-                _ClassOverviewTab(
-                  classId: widget.classId,
-                  className: className,
-                  onNavigate: (route) => context.push(route),
-                ),
-                // Tab 1: Gradebook
-                _ClassToolTab(
-                  icon: Icons.menu_book_rounded,
-                  title: 'Gradebook',
-                  description: 'Manage scores, grade items, and assessments.',
-                  action: 'Open Gradebook',
-                  onTap: () => context.go(
-                    '${AppRoutes.classDetail}/${widget.classId}/gradebook',
-                  ),
-                ),
-                // Tab 2: Seating
-                _ClassToolTab(
-                  icon: Icons.event_seat_rounded,
-                  title: 'Seating',
-                  description: 'Assign seats and configure room layout.',
-                  action: 'Open Seating',
-                  onTap: () => context.go(
-                    '${AppRoutes.classDetail}/${widget.classId}/seating',
-                  ),
-                ),
-                // Tab 3: Students
-                _ClassToolTab(
-                  icon: Icons.people_rounded,
-                  title: 'Students',
-                  description: 'View and manage student records.',
-                  action: 'Open Students',
-                  onTap: () => context.go(
-                    '${AppRoutes.classDetail}/${widget.classId}/students',
-                  ),
-                ),
-                // Tab 4: Export
-                _ClassToolTab(
-                  icon: Icons.picture_as_pdf_rounded,
-                  title: 'Export',
-                  description: 'Export grades as PDF or CSV.',
-                  action: 'Open Export',
-                  onTap: () => context.go(
-                    '${AppRoutes.classDetail}/${widget.classId}/export',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CLASS HEADER
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ClassHeader extends StatelessWidget {
   const _ClassHeader({
     required this.classId,
     required this.className,
     required this.subject,
+    required this.schoolYear,
+    required this.term,
+    required this.isArchived,
+    required this.hasPlanning,
+    required this.activeTabLabel,
     required this.onBack,
   });
 
   final String classId;
   final String className;
   final String subject;
+  final String schoolYear;
+  final String term;
+  final bool isArchived;
+  final bool hasPlanning;
+  final String activeTabLabel;
   final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final studentService = context.watch<StudentService>();
-    final studentCount =
-        studentService.students.where((s) => s.classId == classId).length;
+    final studentCount = context
+        .watch<StudentService>()
+        .students
+        .where((s) => s.classId == classId)
+        .length;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 16, 10),
-      decoration: BoxDecoration(
-        color: OSColors.surface(dark),
-        border: Border(
-          bottom: BorderSide(color: OSColors.border(dark), width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Back button
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            iconSize: 18,
-            color: OSColors.textSecondary(dark),
-            style: IconButton.styleFrom(minimumSize: const Size(36, 36)),
-          ),
-          const SizedBox(width: 4),
+    final summaryText = [
+      if (subject.trim().isNotEmpty) subject,
+      '$schoolYear / $term',
+    ].join('  ');
 
-          // Class avatar
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: OSColors.green.withValues(alpha: 0.14),
-              borderRadius: OSRadius.mdBr,
-            ),
-            child: Icon(Icons.class_rounded, color: OSColors.green, size: 20),
-          ),
-          const SizedBox(width: 10),
+    final actionButton = FilledButton.tonalIcon(
+      onPressed: () => context.go('${AppRoutes.classDetail}/$classId'),
+      icon: const Icon(Icons.open_in_new_rounded),
+      label: const Text('Full class view'),
+      style: WorkspaceButtonStyles.tonal(context),
+    );
 
-          // Class name + info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  className,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: OSColors.text(dark),
-                    letterSpacing: -0.3,
+    return WorkspaceSurfaceCard(
+      radius: WorkspaceRadius.feature,
+      padding: WorkspaceSpacing.headerPadding,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 980;
+          final headerCopy = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'CLASS WORKSPACE',
+                style: WorkspaceTypography.eyebrow(context),
+              ),
+              const SizedBox(height: WorkspaceSpacing.xs),
+              Text(
+                className,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                summaryText,
+                style: WorkspaceTypography.pageSubtitle(
+                  context,
+                  compact: true,
+                ),
+              ),
+              const SizedBox(height: WorkspaceSpacing.xs),
+              Text(
+                'Pinned class context stays visible while you move between overview, gradebook, seating, students, and export work.',
+                style: WorkspaceTypography.metadata(context, strong: true),
+              ),
+            ],
+          );
+
+          final leadingCluster = Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IconButton(
+                onPressed: onBack,
+                icon: const Icon(Icons.arrow_back_rounded),
+                tooltip: 'Back to home',
+                style: WorkspaceButtonStyles.icon(context),
+              ),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(WorkspaceRadius.context),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.14),
+                  border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.18),
                   ),
                 ),
-                if (subject.isNotEmpty || studentCount > 0)
-                  Text(
-                    [
-                      if (subject.isNotEmpty) subject,
-                      if (studentCount > 0) '$studentCount students',
-                    ].join(' · '),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: OSColors.textSecondary(dark),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+                child: Icon(
+                  Icons.class_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 26,
+                ),
+              ),
+            ],
+          );
 
-          // More actions
-          IconButton(
-            onPressed: () => context.go(
-              '${AppRoutes.classDetail}/$classId',
-            ),
-            icon: const Icon(Icons.open_in_new_rounded),
-            iconSize: 18,
-            color: OSColors.textSecondary(dark),
-            tooltip: 'Open full class view',
-            style: IconButton.styleFrom(minimumSize: const Size(36, 36)),
-          ),
-        ],
+          final headerRow = narrow
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        leadingCluster,
+                        const SizedBox(width: WorkspaceSpacing.lg),
+                        Expanded(child: headerCopy),
+                      ],
+                    ),
+                    const SizedBox(height: WorkspaceSpacing.lg),
+                    actionButton,
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    leadingCluster,
+                    const SizedBox(width: WorkspaceSpacing.lg),
+                    Expanded(child: headerCopy),
+                    const SizedBox(width: WorkspaceSpacing.lg),
+                    actionButton,
+                  ],
+                );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              headerRow,
+              const SizedBox(height: WorkspaceSpacing.lg),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  WorkspaceContextPill(
+                    icon: Icons.auto_stories_outlined,
+                    label: 'Subject',
+                    value: subject.trim().isEmpty ? 'Class workspace' : subject,
+                  ),
+                  WorkspaceContextPill(
+                    icon: Icons.people_alt_outlined,
+                    label: 'Students',
+                    value: '$studentCount',
+                  ),
+                  WorkspaceContextPill(
+                    icon: Icons.event_note_outlined,
+                    label: 'Term',
+                    value: '$schoolYear / $term',
+                  ),
+                  WorkspaceContextPill(
+                    icon: hasPlanning
+                        ? Icons.check_circle_outline
+                        : Icons.edit_calendar_outlined,
+                    label: 'Planning',
+                    value: hasPlanning ? 'Ready' : 'Add later',
+                    accent: hasPlanning
+                        ? const Color(0xFF4C9B7A)
+                        : const Color(0xFFDAA85E),
+                    emphasized: true,
+                  ),
+                  WorkspaceContextPill(
+                    icon: isArchived
+                        ? Icons.archive_outlined
+                        : Icons.grid_view_outlined,
+                    label: 'Active tab',
+                    value: activeTabLabel,
+                    accent: isArchived
+                        ? Theme.of(context).colorScheme.secondary
+                        : Theme.of(context).colorScheme.primary,
+                    emphasized: true,
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TAB BAR
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _TabDef {
   const _TabDef({required this.icon, required this.label});
@@ -334,199 +489,236 @@ class _ClassTabBar extends StatelessWidget {
   const _ClassTabBar({
     required this.tabs,
     required this.controller,
-    required this.dark,
   });
 
   final List<_TabDef> tabs;
   final TabController controller;
-  final bool dark;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      color: OSColors.surface(dark),
-      child: TabBar(
-        controller: controller,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        labelColor: OSColors.blue,
-        unselectedLabelColor: OSColors.textSecondary(dark),
-        indicatorColor: OSColors.blue,
-        indicatorWeight: 2,
-        labelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-        tabs: tabs
-            .map(
-              (t) => Tab(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(t.icon, size: 15),
-                    const SizedBox(width: 5),
-                    Text(t.label),
-                  ],
+    final theme = Theme.of(context);
+
+    return WorkspaceSurfaceCard(
+      radius: WorkspaceRadius.band,
+      padding: const EdgeInsets.all(6),
+      child: SizedBox(
+        height: 52,
+        child: TabBar(
+          controller: controller,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          dividerColor: Colors.transparent,
+          labelColor: theme.colorScheme.onSurface,
+          unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+          labelStyle: context.textStyles.labelLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+          unselectedLabelStyle: context.textStyles.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          overlayColor: WidgetStatePropertyAll(
+            theme.colorScheme.primary.withValues(alpha: 0.06),
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
+          indicator: BoxDecoration(
+            borderRadius: BorderRadius.circular(WorkspaceRadius.context),
+            color: theme.colorScheme.primary.withValues(alpha: 0.14),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.18),
+            ),
+          ),
+          tabs: tabs
+              .map(
+                (tab) => Tab(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(tab.icon, size: 16),
+                        const SizedBox(width: 6),
+                        Text(tab.label),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            )
-            .toList(),
+              )
+              .toList(),
+        ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TAB BODIES
-// ─────────────────────────────────────────────────────────────────────────────
-
 class _ClassOverviewTab extends StatelessWidget {
   const _ClassOverviewTab({
     required this.classId,
     required this.className,
+    required this.subject,
+    required this.schoolYear,
+    required this.term,
+    required this.isArchived,
+    required this.hasPlanning,
     required this.onNavigate,
   });
 
   final String classId;
   final String className;
+  final String subject;
+  final String schoolYear;
+  final String term;
+  final bool isArchived;
+  final bool hasPlanning;
   final ValueChanged<String> onNavigate;
 
   @override
   Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final studentService = context.watch<StudentService>();
-    final studentCount =
-        studentService.students.where((s) => s.classId == classId).length;
+    final studentCount = context
+        .watch<StudentService>()
+        .students
+        .where((s) => s.classId == classId)
+        .length;
 
     final tools = [
       _ClassToolLink(
         icon: Icons.menu_book_rounded,
         label: 'Gradebook',
-        color: OSColors.coral,
+        subtitle: 'Assessments, categories, and daily scoring.',
+        color: Color(0xFFE38B5B),
         route: '${AppRoutes.classDetail}/$classId/gradebook',
       ),
       _ClassToolLink(
         icon: Icons.event_seat_rounded,
         label: 'Seating',
-        color: OSColors.amber,
+        subtitle: 'Layouts, room setups, and seat placement.',
+        color: Color(0xFFDAA85E),
         route: '${AppRoutes.classDetail}/$classId/seating',
       ),
       _ClassToolLink(
         icon: Icons.people_rounded,
         label: 'Students',
-        color: OSColors.green,
+        subtitle: 'Roster details, notes, and class records.',
+        color: Color(0xFF4C9B7A),
         route: '${AppRoutes.classDetail}/$classId/students',
       ),
       _ClassToolLink(
         icon: Icons.picture_as_pdf_rounded,
         label: 'Export',
-        color: OSColors.cyan,
+        subtitle: 'Shareable packets, printouts, and outputs.',
+        color: Color(0xFF5EC7E6),
         route: '${AppRoutes.classDetail}/$classId/export',
       ),
       _ClassToolLink(
         icon: Icons.grade_rounded,
         label: 'Final Results',
-        color: OSColors.indigo,
+        subtitle: 'End-of-term summaries and outcome review.',
+        color: Color(0xFF6F86E8),
         route: '${AppRoutes.classDetail}/$classId/results',
       ),
       _ClassToolLink(
         icon: Icons.folder_open_rounded,
         label: 'Full View',
-        color: OSColors.blue,
+        subtitle: 'Open the broader class workspace outside the OS shell.',
+        color: Color(0xFF3E7EDB),
         route: '${AppRoutes.classDetail}/$classId',
       ),
     ];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Stats row
-          Row(
-            children: [
-              _StatChip(
-                label: '$studentCount',
-                sublabel: 'Students',
-                icon: Icons.people_rounded,
-                color: OSColors.green,
-              ),
-              const SizedBox(width: 10),
-              _StatChip(
-                label: 'Open',
-                sublabel: 'Status',
-                icon: Icons.check_circle_rounded,
-                color: OSColors.blue,
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-
-          // Tools grid
-          Text(
-            'Class Tools',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: OSColors.textSecondary(dark),
-              letterSpacing: 0.5,
+          WorkspaceContextBar(
+            title: className,
+            subtitle:
+                'Keep this class pinned while you move into grading, seating, roster, and export tasks.',
+            leading: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                WorkspaceContextPill(
+                  icon: Icons.auto_stories_outlined,
+                  label: 'Subject',
+                  value: subject.trim().isEmpty ? 'Class workspace' : subject,
+                ),
+                WorkspaceContextPill(
+                  icon: Icons.people_alt_outlined,
+                  label: 'Students',
+                  value: '$studentCount',
+                ),
+                WorkspaceContextPill(
+                  icon: Icons.event_note_outlined,
+                  label: 'Term',
+                  value: '$schoolYear / $term',
+                ),
+              ],
+            ),
+            trailing: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
+              children: [
+                WorkspaceContextPill(
+                  icon: hasPlanning
+                      ? Icons.check_circle_outline
+                      : Icons.edit_calendar_outlined,
+                  label: 'Planning',
+                  value: hasPlanning ? 'Ready' : 'Add later',
+                  accent: hasPlanning
+                      ? const Color(0xFF4C9B7A)
+                      : const Color(0xFFDAA85E),
+                  emphasized: true,
+                ),
+                WorkspaceContextPill(
+                  icon:
+                      isArchived ? Icons.archive_outlined : Icons.bolt_outlined,
+                  label: 'Status',
+                  value: isArchived ? 'Archived' : 'Active',
+                  accent: isArchived
+                      ? Theme.of(context).colorScheme.secondary
+                      : Theme.of(context).colorScheme.primary,
+                  emphasized: true,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: tools
-                .map(
-                  (t) => GestureDetector(
-                    onTap: () => context.go(t.route),
-                    child: Container(
-                      width: 88,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: OSColors.surface(dark),
-                        borderRadius: OSRadius.lgBr,
-                        border: Border.all(
-                          color: OSColors.border(dark),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: t.color.withValues(alpha: 0.14),
-                              borderRadius: OSRadius.mdBr,
-                            ),
-                            child: Icon(t.icon, color: t.color, size: 20),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            t.label,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: OSColors.textSecondary(dark),
-                            ),
-                          ),
-                        ],
+          const SizedBox(height: WorkspaceSpacing.xl),
+          const WorkspaceSectionHeader(
+            title: 'Class tools',
+            subtitle:
+                'Open the dedicated workflow that matches what you need right now, while keeping the class itself staged as the active context.',
+          ),
+          const SizedBox(height: WorkspaceSpacing.md),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 12.0;
+              final columns = constraints.maxWidth >= 1180
+                  ? 3
+                  : constraints.maxWidth >= 760
+                      ? 2
+                      : 1;
+              final tileWidth =
+                  (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  for (final tool in tools)
+                    SizedBox(
+                      width: tileWidth,
+                      child: _ClassOverviewToolCard(
+                        tool: tool,
+                        onTap: () => onNavigate(tool.route),
                       ),
                     ),
-                  ),
-                )
-                .toList(),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -538,62 +730,74 @@ class _ClassToolLink {
   const _ClassToolLink({
     required this.icon,
     required this.label,
+    required this.subtitle,
     required this.color,
     required this.route,
   });
 
   final IconData icon;
   final String label;
+  final String subtitle;
   final Color color;
   final String route;
 }
 
-class _StatChip extends StatelessWidget {
-  const _StatChip({
-    required this.label,
-    required this.sublabel,
-    required this.icon,
-    required this.color,
+class _ClassOverviewToolCard extends StatelessWidget {
+  const _ClassOverviewToolCard({
+    required this.tool,
+    required this.onTap,
   });
 
-  final String label;
-  final String sublabel;
-  final IconData icon;
-  final Color color;
+  final _ClassToolLink tool;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: OSRadius.lgBr,
-        border: Border.all(color: color.withValues(alpha: 0.20), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return WorkspaceSurfaceCard(
+      radius: WorkspaceRadius.card,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(WorkspaceRadius.button),
+              color: tool.color.withValues(alpha: 0.14),
+              border: Border.all(
+                color: tool.color.withValues(alpha: 0.20),
+              ),
+            ),
+            child: Icon(tool.icon, color: tool.color, size: 22),
+          ),
+          const SizedBox(height: WorkspaceSpacing.lg),
+          Text(
+            tool.label,
+            style: WorkspaceTypography.sectionTitle(context)
+                ?.copyWith(fontSize: context.textStyles.titleSmall?.fontSize),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            tool.subtitle,
+            style: WorkspaceTypography.metadata(context),
+          ),
+          const SizedBox(height: WorkspaceSpacing.lg),
+          Row(
             children: [
               Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: OSColors.text(dark),
-                  height: 1,
+                'Open workflow',
+                style: context.textStyles.labelLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              Text(
-                sublabel,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: OSColors.textSecondary(dark),
-                ),
+              const Spacer(),
+              Icon(
+                Icons.arrow_outward_rounded,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ],
           ),
@@ -620,63 +824,67 @@ class _ClassToolTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = context.isDark;
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: OSColors.blue.withValues(alpha: 0.12),
-                borderRadius: OSRadius.lgBr,
-              ),
-              child: Icon(icon, color: OSColors.blue, size: 30),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: OSColors.text(dark),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: OSColors.textSecondary(dark),
-              ),
-            ),
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: onTap,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 11,
-                ),
-                decoration: BoxDecoration(
-                  color: OSColors.blue,
-                  borderRadius: OSRadius.pillBr,
-                ),
-                child: Text(
-                  action,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(WorkspaceSpacing.xxxl),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: WorkspaceSurfaceCard(
+            radius: WorkspaceRadius.feature,
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(
+                    borderRadius:
+                        BorderRadius.circular(WorkspaceRadius.cardCompact),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.14),
+                    border: Border.all(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 32,
                   ),
                 ),
-              ),
+                const SizedBox(height: WorkspaceSpacing.xxl),
+                Text(
+                  'DEDICATED WORKFLOW',
+                  style: WorkspaceTypography.eyebrow(context),
+                ),
+                const SizedBox(height: WorkspaceSpacing.xs),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: WorkspaceTypography.pageTitle(context),
+                ),
+                const SizedBox(height: WorkspaceSpacing.xs),
+                Text(
+                  description,
+                  textAlign: TextAlign.center,
+                  style: WorkspaceTypography.metadata(context),
+                ),
+                const SizedBox(height: WorkspaceSpacing.xxl),
+                FilledButton.icon(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.arrow_outward_rounded),
+                  label: Text(action),
+                  style: WorkspaceButtonStyles.filled(context),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

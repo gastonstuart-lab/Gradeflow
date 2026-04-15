@@ -576,6 +576,13 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
   }
 
   Widget _buildDashboardBackdrop({required Widget child}) {
+    final topVeil = _DashboardPalette.isLight
+        ? Colors.white.withValues(alpha: 0.44)
+        : Colors.white.withValues(alpha: 0.02);
+    final bottomVeil = _DashboardPalette.isLight
+        ? const Color(0xFFEDF3FB).withValues(alpha: 0.72)
+        : const Color(0xFF060A12).withValues(alpha: 0.66);
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -588,8 +595,58 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
                 colors: [
                   _DashboardPalette.background,
                   _DashboardPalette.backgroundAlt,
+                  Color.lerp(
+                    _DashboardPalette.backgroundAlt,
+                    _DashboardPalette.background,
+                    0.54,
+                  )!,
                   _DashboardPalette.background,
                 ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: -96,
+          top: -156,
+          child: _DashboardBackdropOrb(
+            size: 320,
+            color: _DashboardPalette.accent,
+            opacity: _DashboardPalette.isLight ? 0.10 : 0.16,
+          ),
+        ),
+        Positioned(
+          right: 80,
+          top: 48,
+          child: _DashboardBackdropOrb(
+            size: 220,
+            color: _DashboardPalette.cyan,
+            opacity: _DashboardPalette.isLight ? 0.08 : 0.12,
+          ),
+        ),
+        Positioned(
+          right: -84,
+          bottom: -146,
+          child: _DashboardBackdropOrb(
+            size: 360,
+            color: _DashboardPalette.green,
+            opacity: _DashboardPalette.isLight ? 0.08 : 0.11,
+          ),
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(-0.22, -0.74),
+                  radius: 1.18,
+                  colors: [
+                    topVeil,
+                    Colors.transparent,
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.38, 1.0],
+                ),
               ),
             ),
           ),
@@ -602,7 +659,9 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withValues(alpha: 0.012),
+                    Colors.white.withValues(
+                      alpha: _DashboardPalette.isLight ? 0.18 : 0.018,
+                    ),
                     Colors.transparent,
                     Colors.transparent,
                   ],
@@ -612,8 +671,58 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
             ),
           ),
         ),
+        Positioned(
+          left: 48,
+          right: 48,
+          bottom: -120,
+          child: IgnorePointer(
+            child: Container(
+              height: 280,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(180),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    bottomVeil,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
         Positioned.fill(child: child),
       ],
+    );
+  }
+}
+
+class _DashboardBackdropOrb extends StatelessWidget {
+  final double size;
+  final Color color;
+  final double opacity;
+
+  const _DashboardBackdropOrb({
+    required this.size,
+    required this.color,
+    required this.opacity,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: ImageFiltered(
+        imageFilter: ui.ImageFilter.blur(sigmaX: 54, sigmaY: 54),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withValues(alpha: opacity),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -634,19 +743,23 @@ class DashboardShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(width: 216, child: sidebar),
-            const SizedBox(width: 20),
-            Expanded(child: main),
-            const SizedBox(width: 20),
-            SizedBox(
-              width: 336,
-              child: SingleChildScrollView(child: livePanel),
-            ),
-          ],
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+        child: WorkspaceShellFrame(
+          padding: const EdgeInsets.all(18),
+          radius: 36,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(width: 220, child: sidebar),
+              const SizedBox(width: 22),
+              Expanded(child: main),
+              const SizedBox(width: 22),
+              SizedBox(
+                width: 344,
+                child: _DashboardUtilityRailFrame(child: livePanel),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -667,14 +780,18 @@ class TabletDashboardLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(width: 92, child: sidebar),
-            const SizedBox(width: 16),
-            Expanded(child: main),
-          ],
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+        child: WorkspaceShellFrame(
+          padding: const EdgeInsets.all(14),
+          radius: WorkspaceRadius.hero,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(width: 96, child: sidebar),
+              const SizedBox(width: 18),
+              Expanded(child: main),
+            ],
+          ),
         ),
       ),
     );
@@ -726,33 +843,126 @@ class MobileBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _DashboardPalette.border),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_DashboardPalette.sidebarAlt, _DashboardPalette.sidebar],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.28),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: NavigationBar(
-        selectedIndex: currentIndex,
-        onDestinationSelected: onSelected,
-        height: 72,
-        destinations: [
-          for (final destination in destinations)
-            NavigationDestination(
-              icon: Icon(destination.icon),
-              label: destination.label,
-              tooltip: destination.label,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: _DashboardPalette.border.withValues(alpha: 0.86),
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  _DashboardPalette.sidebarAlt.withValues(
+                    alpha: _DashboardPalette.isLight ? 0.94 : 0.82,
+                  ),
+                  _DashboardPalette.sidebar.withValues(
+                    alpha: _DashboardPalette.isLight ? 0.90 : 0.78,
+                  ),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.24),
+                  blurRadius: 28,
+                  offset: const Offset(0, 14),
+                ),
+              ],
             ),
+            child: NavigationBar(
+              backgroundColor: Colors.transparent,
+              selectedIndex: currentIndex,
+              onDestinationSelected: onSelected,
+              height: 76,
+              labelBehavior:
+                  NavigationDestinationLabelBehavior.onlyShowSelected,
+              destinations: [
+                for (final destination in destinations)
+                  NavigationDestination(
+                    icon: Icon(destination.icon),
+                    label: destination.label,
+                    tooltip: destination.label,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardUtilityRailFrame extends StatelessWidget {
+  final Widget child;
+
+  const _DashboardUtilityRailFrame({
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceSurfaceCard(
+      radius: WorkspaceRadius.hero,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Utility rail',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Weather, signals, audio, and communication stay nearby without crowding the main deck.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                            height: 1.4,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(WorkspaceRadius.pill),
+                  color: _DashboardPalette.accent.withValues(alpha: 0.10),
+                  border: Border.all(
+                    color: _DashboardPalette.accent.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Text(
+                  'Live',
+                  style: WorkspaceTypography.utility(
+                    context,
+                    color: _DashboardPalette.accentSoft,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: SingleChildScrollView(
+              child: child,
+            ),
+          ),
         ],
       ),
     );
@@ -960,6 +1170,8 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
   Widget build(BuildContext context) {
     final primaryMetric =
         widget.metrics.isNotEmpty ? widget.metrics.first : null;
+    final secondaryMetric =
+        widget.metrics.length > 1 ? widget.metrics[1] : null;
     final summaryPills = widget.todayLine
         .split('•')
         .map((segment) => segment.trim())
@@ -977,8 +1189,8 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
         final medium = !widget.compact && constraints.maxWidth > 820;
 
         return DashboardPanelCard(
-          padding: EdgeInsets.all(widget.compact ? 14 : 18),
-          radius: 24,
+          padding: EdgeInsets.all(widget.compact ? 16 : 20),
+          radius: wide ? 30 : 26,
           gradientColors: [
             _DashboardPalette.sidebarAlt,
             _DashboardPalette.sidebar,
@@ -1073,6 +1285,17 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
                   ],
                 ),
               ),
+              if (wide) ...[
+                const SizedBox(height: 16),
+                _CommandDeckStagePreview(
+                  presentation: widget.presentation,
+                  backgroundImage: widget.backgroundImage,
+                  summaryPills: summaryPills,
+                  accent: deckAccent,
+                  primaryMetric: primaryMetric,
+                  secondaryMetric: secondaryMetric,
+                ),
+              ],
               if (primaryMetric != null) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -1460,6 +1683,266 @@ class _CommandDeckCompactMetricCard extends StatelessWidget {
                 color: panelAccent,
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommandDeckStagePreview extends StatelessWidget {
+  final DashboardHeroPresentation presentation;
+  final ImageProvider<Object>? backgroundImage;
+  final List<String> summaryPills;
+  final Color accent;
+  final DashboardSummaryMetricData? primaryMetric;
+  final DashboardSummaryMetricData? secondaryMetric;
+
+  const _CommandDeckStagePreview({
+    required this.presentation,
+    required this.backgroundImage,
+    required this.summaryPills,
+    required this.accent,
+    required this.primaryMetric,
+    required this.secondaryMetric,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseMetric = primaryMetric ?? secondaryMetric;
+    final visiblePills = summaryPills.take(3).toList(growable: false);
+
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 250),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(
+          color: accent.withValues(alpha: 0.16),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: presentation.gradientColors,
+                ),
+              ),
+            ),
+            if (backgroundImage != null)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: backgroundImage!,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+            Positioned(
+              top: -26,
+              right: -12,
+              child: _DashboardBackdropOrb(
+                size: 148,
+                color: presentation.secondaryGlow,
+                opacity: 0.18,
+              ),
+            ),
+            Positioned(
+              left: -32,
+              bottom: -44,
+              child: _DashboardBackdropOrb(
+                size: 164,
+                color: presentation.tertiaryGlow,
+                opacity: 0.16,
+              ),
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.08),
+                      Colors.black.withValues(alpha: 0.34),
+                      Colors.black.withValues(alpha: 0.72),
+                    ],
+                    stops: const [0.0, 0.46, 1.0],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Container(
+                  height: 1,
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _CommandDeckStageChip(
+                        label: 'Workspace shell',
+                        icon: Icons.window_rounded,
+                      ),
+                      const Spacer(),
+                      _CommandDeckStageChip(
+                        label: backgroundImage == null
+                            ? presentation.label
+                            : 'Custom scene',
+                        icon: backgroundImage == null
+                            ? Icons.auto_awesome_rounded
+                            : Icons.image_outlined,
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Teacher cockpit',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.76),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    baseMetric?.value ?? 'Daily workspace ready',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.7,
+                      color: Colors.white,
+                      height: 1.04,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    baseMetric?.detail ??
+                        'Calm overview, fast pivots, and live class context stay in one shell.',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.82),
+                      height: 1.45,
+                    ),
+                  ),
+                  if (visiblePills.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final pill in visiblePills)
+                          _CommandDeckStageChip(label: pill),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: Colors.black.withValues(alpha: 0.18),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.10),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          secondaryMetric?.label ?? 'Right rail',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          secondaryMetric == null
+                              ? 'Messages, signals, and live tools stay docked nearby.'
+                              : '${secondaryMetric!.value} - ${secondaryMetric!.detail}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.78),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CommandDeckStageChip extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+
+  const _CommandDeckStageChip({
+    required this.label,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withValues(alpha: 0.10),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.82)),
+            const SizedBox(width: 7),
+          ],
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.88),
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
       ),
@@ -4410,8 +4893,8 @@ class DashboardPanelCard extends StatelessWidget {
   const DashboardPanelCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(20),
-    this.radius = 24,
+    this.padding = WorkspaceSpacing.headerPadding,
+    this.radius = WorkspaceRadius.card,
     this.minHeight = 0,
     this.gradientColors,
     this.onTap,
@@ -4419,28 +4902,23 @@ class DashboardPanelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final decoration = BoxDecoration(
-      borderRadius: BorderRadius.circular(radius),
-      border: Border.all(
-        color: _DashboardPalette.border.withValues(alpha: 0.86),
-      ),
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: gradientColors ??
+    final border = _DashboardPalette.border.withValues(
+      alpha: _DashboardPalette.isLight ? 0.72 : 0.82,
+    );
+    final highlight = Colors.white.withValues(
+      alpha: _DashboardPalette.isLight ? 0.72 : 0.10,
+    );
+    final panelColors = (gradientColors ??
             [
               _DashboardPalette.panel,
               _DashboardPalette.panelAlt,
-            ],
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.18),
-          blurRadius: 20,
-          offset: const Offset(0, 10),
-        ),
-      ],
-    );
+            ])
+        .map(
+          (color) => color.withValues(
+            alpha: _DashboardPalette.isLight ? 0.94 : 0.90,
+          ),
+        )
+        .toList(growable: false);
 
     final content = Stack(
       fit: StackFit.passthrough,
@@ -4454,13 +4932,26 @@ class DashboardPanelCard extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withValues(alpha: 0.018),
+                    Colors.white.withValues(
+                      alpha: _DashboardPalette.isLight ? 0.18 : 0.024,
+                    ),
                     Colors.transparent,
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.24, 1.0],
                 ),
               ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: Container(
+              height: 1,
+              color: highlight,
             ),
           ),
         ),
@@ -4477,21 +4968,45 @@ class DashboardPanelCard extends StatelessWidget {
     final body = content;
 
     return DecoratedBox(
-      decoration: decoration,
-      child: Material(
-        type: MaterialType.transparency,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: onTap == null
-              ? body
-              : InkWell(
-                  onTap: onTap,
-                  hoverColor: _dashboardInteractiveOverlay(),
-                  focusColor: _dashboardInteractiveOverlay(),
-                  highlightColor: _dashboardInteractiveOverlay(emphasis: 1.3),
-                  splashColor: _dashboardInteractiveOverlay(emphasis: 1.4),
-                  child: body,
-                ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: WorkspaceChrome.panelShadow(
+          context,
+          emphasis: 1.08,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(
+            sigmaX: WorkspaceChrome.panelBlur,
+            sigmaY: WorkspaceChrome.panelBlur,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              border: Border.all(color: border),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: panelColors,
+              ),
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: onTap == null
+                  ? body
+                  : InkWell(
+                      onTap: onTap,
+                      hoverColor: _dashboardInteractiveOverlay(),
+                      focusColor: _dashboardInteractiveOverlay(),
+                      highlightColor:
+                          _dashboardInteractiveOverlay(emphasis: 1.3),
+                      splashColor: _dashboardInteractiveOverlay(emphasis: 1.4),
+                      child: body,
+                    ),
+            ),
+          ),
         ),
       ),
     );

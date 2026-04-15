@@ -9,6 +9,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_app_model.dart';
@@ -437,6 +438,32 @@ class _HomeBackdrop extends StatelessWidget {
             opacity: dark ? 0.14 : 0.10,
           ),
         ),
+        Positioned(
+          left: 32,
+          right: 32,
+          bottom: -132,
+          child: IgnorePointer(
+            child: Container(
+              height: 260,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(180),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: dark
+                      ? [
+                          Colors.transparent,
+                          const Color(0xFF07101A).withValues(alpha: 0.78),
+                        ]
+                      : [
+                          Colors.transparent,
+                          const Color(0xFFF2F7FF).withValues(alpha: 0.90),
+                        ],
+                ),
+              ),
+            ),
+          ),
+        ),
         Positioned.fill(
           child: IgnorePointer(
             child: CustomPaint(
@@ -790,7 +817,7 @@ class _HomeStagePanel extends StatelessWidget {
     );
 
     return _GlassPanel(
-      radius: compact ? 28 : 34,
+      radius: compact ? WorkspaceRadius.shellCompact : WorkspaceRadius.shell,
       padding: EdgeInsets.all(compact ? 22 : 28),
       gradient: stageGradient,
       child: Stack(
@@ -811,108 +838,76 @@ class _HomeStagePanel extends StatelessWidget {
               color: OSColors.cyan,
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const _PanelEyebrow(label: 'Home Stage'),
-                  const Spacer(),
-                  _StageStatusChip(
-                    text: classCount == 0
-                        ? 'No active classes'
-                        : '$classCount active classes',
-                  ),
-                ],
-              ),
-              SizedBox(height: compact ? 18 : 24),
-              Text(
-                _formatClock(now),
-                style: TextStyle(
-                  fontSize: compact ? 58 : 84,
-                  height: 0.92,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -2.4,
-                  color: OSColors.text(dark),
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const _PanelEyebrow(label: 'Home Stage'),
+                    const Spacer(),
+                    _StageStatusChip(
+                      text: classCount == 0
+                          ? 'No active classes'
+                          : '$classCount active classes',
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _formatLongDate(now),
-                style: TextStyle(
-                  fontSize: compact ? 15 : 16,
-                  fontWeight: FontWeight.w600,
-                  color: OSColors.textSecondary(dark),
-                ),
-              ),
-              SizedBox(height: compact ? 20 : 24),
-              Text(
-                _stageHeadline(teacherName, primaryClass),
-                style: TextStyle(
-                  fontSize: compact ? 26 : 34,
-                  height: 1.04,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.0,
-                  color: OSColors.text(dark),
-                ),
-              ),
-              const SizedBox(height: 10),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
-                child: Text(
-                  _stageSupportLine(
-                    primaryClass: primaryClass,
-                    primaryReminder: primaryReminder,
-                    classCount: classCount,
-                    unread: unread,
-                    schoolName: schoolName,
-                    now: now,
-                  ),
+                SizedBox(height: compact ? 18 : 24),
+                Text(
+                  _formatClock(now),
                   style: TextStyle(
-                    fontSize: compact ? 13 : 14,
-                    height: 1.5,
+                    fontSize: compact ? 58 : 84,
+                    height: 0.92,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -2.4,
+                    color: OSColors.text(dark),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _formatLongDate(now),
+                  style: TextStyle(
+                    fontSize: compact ? 15 : 16,
+                    fontWeight: FontWeight.w600,
                     color: OSColors.textSecondary(dark),
                   ),
                 ),
-              ),
-              SizedBox(height: compact ? 18 : 22),
-              if (compact)
-                Column(
-                  children: [
-                    _StageSpotlightTile(
-                      title: 'Focus room',
-                      icon: Icons.class_rounded,
-                      accent: OSColors.green,
-                      headline: primaryClass?.className ?? 'No room pinned',
-                      detail: primaryClass == null
-                          ? 'Open Classes to pin your first active workspace.'
-                          : primaryClass!.subject,
-                      onTap: primaryClass == null
-                          ? null
-                          : () => context.go(
-                                '${AppRoutes.osClass}/${primaryClass!.classId}',
-                              ),
+                SizedBox(height: compact ? 20 : 24),
+                Text(
+                  _stageHeadline(teacherName, primaryClass),
+                  style: TextStyle(
+                    fontSize: compact ? 26 : 34,
+                    height: 1.04,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1.0,
+                    color: OSColors.text(dark),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: Text(
+                    _stageSupportLine(
+                      primaryClass: primaryClass,
+                      primaryReminder: primaryReminder,
+                      classCount: classCount,
+                      unread: unread,
+                      schoolName: schoolName,
+                      now: now,
                     ),
-                    const SizedBox(height: 12),
-                    _StageSpotlightTile(
-                      title: 'Agenda',
-                      icon: Icons.event_note_outlined,
-                      accent: OSColors.amber,
-                      headline: primaryReminder == null
-                          ? 'No pending reminders'
-                          : _relativeReminderLabel(primaryReminder!, now),
-                      detail: primaryReminder == null
-                          ? 'Your day is currently clear.'
-                          : _trimLine(primaryReminder!.text, 88),
-                      onTap: () => context.go(AppRoutes.dashboard),
+                    style: TextStyle(
+                      fontSize: compact ? 13 : 14,
+                      height: 1.5,
+                      color: OSColors.textSecondary(dark),
                     ),
-                  ],
-                )
-              else
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StageSpotlightTile(
+                  ),
+                ),
+                SizedBox(height: compact ? 18 : 22),
+                if (compact)
+                  Column(
+                    children: [
+                      _StageSpotlightTile(
                         title: 'Focus room',
                         icon: Icons.class_rounded,
                         accent: OSColors.green,
@@ -926,10 +921,8 @@ class _HomeStagePanel extends StatelessWidget {
                                   '${AppRoutes.osClass}/${primaryClass!.classId}',
                                 ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StageSpotlightTile(
+                      const SizedBox(height: 12),
+                      _StageSpotlightTile(
                         title: 'Agenda',
                         icon: Icons.event_note_outlined,
                         accent: OSColors.amber,
@@ -941,70 +934,107 @@ class _HomeStagePanel extends StatelessWidget {
                             : _trimLine(primaryReminder!.text, 88),
                         onTap: () => context.go(AppRoutes.dashboard),
                       ),
+                    ],
+                  )
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _StageSpotlightTile(
+                          title: 'Focus room',
+                          icon: Icons.class_rounded,
+                          accent: OSColors.green,
+                          headline: primaryClass?.className ?? 'No room pinned',
+                          detail: primaryClass == null
+                              ? 'Open Classes to pin your first active workspace.'
+                              : primaryClass!.subject,
+                          onTap: primaryClass == null
+                              ? null
+                              : () => context.go(
+                                    '${AppRoutes.osClass}/${primaryClass!.classId}',
+                                  ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _StageSpotlightTile(
+                          title: 'Agenda',
+                          icon: Icons.event_note_outlined,
+                          accent: OSColors.amber,
+                          headline: primaryReminder == null
+                              ? 'No pending reminders'
+                              : _relativeReminderLabel(primaryReminder!, now),
+                          detail: primaryReminder == null
+                              ? 'Your day is currently clear.'
+                              : _trimLine(primaryReminder!.text, 88),
+                          onTap: () => context.go(AppRoutes.dashboard),
+                        ),
+                      ),
+                    ],
+                  ),
+                SizedBox(height: compact ? 18 : 22),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _StageMetricPill(
+                      icon: Icons.people_alt_outlined,
+                      label: 'Students',
+                      value: totalStudents == 0 ? 'Syncing' : '$totalStudents',
+                    ),
+                    _StageMetricPill(
+                      icon: Icons.notifications_active_outlined,
+                      label: 'Messages',
+                      value: unread == 0 ? 'Quiet' : '$unread unread',
+                    ),
+                    _StageMetricPill(
+                      icon: Icons.event_available_outlined,
+                      label: 'Reminders',
+                      value:
+                          reminderCount == 0 ? 'Clear' : '$reminderCount due',
                     ),
                   ],
                 ),
-              const Spacer(),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _StageMetricPill(
-                    icon: Icons.people_alt_outlined,
-                    label: 'Students',
-                    value: totalStudents == 0 ? 'Syncing' : '$totalStudents',
-                  ),
-                  _StageMetricPill(
-                    icon: Icons.notifications_active_outlined,
-                    label: 'Messages',
-                    value: unread == 0 ? 'Quiet' : '$unread unread',
-                  ),
-                  _StageMetricPill(
-                    icon: Icons.event_available_outlined,
-                    label: 'Reminders',
-                    value: reminderCount == 0 ? 'Clear' : '$reminderCount due',
-                  ),
-                ],
-              ),
-              SizedBox(height: compact ? 14 : 18),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _StageActionButton(
-                    label: 'Teach Mode',
-                    icon: Icons.cast_for_education_rounded,
-                    accent: OSColors.blue,
-                    filled: true,
-                    onTap: () => context.go(AppRoutes.osTeach),
-                  ),
-                  _StageActionButton(
-                    label: 'Classes',
-                    icon: Icons.class_rounded,
-                    accent: OSColors.green,
-                    onTap: () => context.go(AppRoutes.classes),
-                  ),
-                  _StageActionButton(
-                    label: 'Messages',
-                    icon: Icons.forum_rounded,
-                    accent: OSColors.cyan,
-                    onTap: () => context.go(AppRoutes.communication),
-                  ),
-                  _StageActionButton(
-                    label: 'Assistant',
-                    icon: Icons.auto_awesome_rounded,
-                    accent: OSColors.indigo,
-                    onTap: onAssistantTap,
-                  ),
-                  _StageActionButton(
-                    label: 'Launcher',
-                    icon: Icons.grid_view_rounded,
-                    accent: OSColors.amber,
-                    onTap: onLauncherTap,
-                  ),
-                ],
-              ),
-            ],
+                SizedBox(height: compact ? 14 : 18),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _StageActionButton(
+                      label: 'Teach Mode',
+                      icon: Icons.cast_for_education_rounded,
+                      accent: OSColors.blue,
+                      filled: true,
+                      onTap: () => context.go(AppRoutes.osTeach),
+                    ),
+                    _StageActionButton(
+                      label: 'Classes',
+                      icon: Icons.class_rounded,
+                      accent: OSColors.green,
+                      onTap: () => context.go(AppRoutes.classes),
+                    ),
+                    _StageActionButton(
+                      label: 'Messages',
+                      icon: Icons.forum_rounded,
+                      accent: OSColors.cyan,
+                      onTap: () => context.go(AppRoutes.communication),
+                    ),
+                    _StageActionButton(
+                      label: 'Assistant',
+                      icon: Icons.auto_awesome_rounded,
+                      accent: OSColors.indigo,
+                      onTap: onAssistantTap,
+                    ),
+                    _StageActionButton(
+                      label: 'Launcher',
+                      icon: Icons.grid_view_rounded,
+                      accent: OSColors.amber,
+                      onTap: onLauncherTap,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1049,12 +1079,12 @@ class _StageStatusChip extends StatelessWidget {
     final dark = context.isDark;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: dark
             ? Colors.white.withValues(alpha: 0.08)
             : Colors.white.withValues(alpha: 0.74),
-        borderRadius: OSRadius.pillBr,
+        borderRadius: BorderRadius.circular(WorkspaceRadius.pill),
         border: Border.all(
           color: dark
               ? Colors.white.withValues(alpha: 0.08)
@@ -1063,11 +1093,10 @@ class _StageStatusChip extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
+        style: WorkspaceTypography.utility(
+          context,
           color: OSColors.textSecondary(dark),
-        ),
+        )?.copyWith(fontSize: 11),
       ),
     );
   }
@@ -1377,17 +1406,15 @@ class _HomeShortcutShelf extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Expanded(
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Wrap(
-                spacing: 14,
-                runSpacing: 16,
-                children: [
-                  for (final shortcut in shortcuts)
-                    _HomeShortcutIcon(data: shortcut),
-                ],
-              ),
+          Align(
+            alignment: Alignment.topLeft,
+            child: Wrap(
+              spacing: 14,
+              runSpacing: 16,
+              children: [
+                for (final shortcut in shortcuts)
+                  _HomeShortcutIcon(data: shortcut),
+              ],
             ),
           ),
         ],
@@ -2236,35 +2263,69 @@ class _GlassPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final baseColor = dark
+        ? Colors.white.withValues(alpha: 0.07)
+        : Colors.white.withValues(alpha: 0.74);
+    final secondaryColor = dark
+        ? const Color(0xFF162132).withValues(alpha: 0.44)
+        : const Color(0xFFF5F9FF).withValues(alpha: 0.92);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        filter: ui.ImageFilter.blur(
+          sigmaX: WorkspaceChrome.panelBlur,
+          sigmaY: WorkspaceChrome.panelBlur,
+        ),
         child: Container(
-          padding: padding,
           decoration: BoxDecoration(
-            gradient: gradient,
-            color: gradient == null
-                ? (dark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : Colors.white.withValues(alpha: 0.68))
-                : null,
             borderRadius: BorderRadius.circular(radius),
             border: Border.all(
               color: dark
-                  ? Colors.white.withValues(alpha: 0.08)
+                  ? WorkspaceChrome.panelBorderColor(context, emphasis: 0.34)
                   : Colors.white.withValues(alpha: 0.8),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: dark ? 0.22 : 0.08),
-                blurRadius: 26,
-                offset: const Offset(0, 16),
+            boxShadow: WorkspaceChrome.panelShadow(
+              context,
+              emphasis: dark ? 1.15 : 1.0,
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(radius),
+                    gradient: gradient ??
+                        LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            baseColor,
+                            secondaryColor,
+                            baseColor,
+                          ],
+                        ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 1,
+                    color: WorkspaceChrome.glassHighlight(context),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: padding,
+                child: child,
               ),
             ],
           ),
-          child: child,
         ),
       ),
     );
@@ -2280,10 +2341,7 @@ class _PanelEyebrow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label.toUpperCase(),
-      style: TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.1,
+      style: WorkspaceTypography.eyebrow(context)?.copyWith(
         color: OSColors.textMuted(context.isDark),
       ),
     );
