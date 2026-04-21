@@ -17,6 +17,7 @@ import 'package:gradeflow/services/class_note_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/nav.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -113,6 +114,10 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
   DateTime _dateOnly(DateTime value) =>
       DateTime(value.year, value.month, value.day);
+
+  void _goToClassWorkspace() {
+    context.go('${AppRoutes.osClass}/${widget.classId}');
+  }
 
   DateTime _startOfWeek(DateTime anchor) {
     final normalized = _dateOnly(anchor);
@@ -407,13 +412,14 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
     if (classItem == null) {
       return const WorkspaceScaffold(
-        eyebrow: 'Class workspace',
-        title: 'Class workspace unavailable',
-        subtitle: 'This class could not be opened in the shared workspace.',
+        eyebrow: 'Planning & details',
+        title: 'Planning surface unavailable',
+        subtitle: 'This class could not be opened in the planning surface.',
         child: WorkspaceEmptyState(
           icon: Icons.class_outlined,
           title: 'Class not found',
-          subtitle: 'Return to Classes and open another workspace to continue.',
+          subtitle:
+              'Return to the OS home surface and open another class workspace to continue.',
         ),
       );
     }
@@ -466,11 +472,19 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     ];
 
     return WorkspaceScaffold(
-      eyebrow: 'Class Workspace',
+      eyebrow: 'Planning & details',
       title: classItem.className,
       subtitle:
-          '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}',
+          'A secondary support space for schedule, notes, and class setup around the live workspace.',
       compactHeader: true,
+      leadingActions: [
+        IconButton(
+          onPressed: _goToClassWorkspace,
+          tooltip: 'Back to class workspace',
+          style: WorkspaceButtonStyles.icon(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+      ],
       contextBar: _buildCompactOverviewBar(
         context,
         studentCount: studentCount,
@@ -478,9 +492,9 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       ),
       child: studentService.isLoading || categoryService.isLoading
           ? const WorkspaceLoadingState(
-              title: 'Loading class workspace',
+              title: 'Loading planning & details',
               subtitle:
-                  'Pulling roster, categories, and planning data into this class.',
+                  'Pulling schedule, notes, roster, and supporting class context into view.',
             )
           : LayoutBuilder(
               builder: (context, constraints) {
@@ -501,9 +515,9 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const WorkspaceSectionHeader(
-                                      title: 'Class tools',
+                                      title: 'Support launches',
                                       subtitle:
-                                          'Open the next teaching task directly from the class workspace.',
+                                          'Open supporting class tools from planning, then step back into the live class workspace when you are done.',
                                     ),
                                     const SizedBox(height: AppSpacing.md),
                                     ClassWorkspaceToolGrid(tools: tools),
@@ -527,9 +541,9 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const WorkspaceSectionHeader(
-                                    title: 'Class tools',
+                                    title: 'Support launches',
                                     subtitle:
-                                        'Open the next teaching task directly from the class workspace.',
+                                        'Open supporting class tools from planning, then step back into the live class workspace when you are done.',
                                   ),
                                   const SizedBox(height: AppSpacing.md),
                                   ClassWorkspaceToolGrid(tools: tools),
@@ -552,6 +566,9 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     required int categoryCount,
   }) {
     return WorkspaceContextBar(
+      title: 'Class support lane',
+      subtitle:
+          'Planning context stays visible here while the live class workspace remains the primary room.',
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       radius: 16,
       leading: Wrap(
@@ -581,7 +598,8 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       trailing: OutlinedButton.icon(
         onPressed: () => _showScheduleDialog(context),
         icon: const Icon(Icons.calendar_month_outlined),
-        label: Text(_scheduleItems.isEmpty ? 'Add schedule' : 'Open schedule'),
+        label:
+            Text(_scheduleItems.isEmpty ? 'Add schedule' : 'Manage schedule'),
         style: WorkspaceButtonStyles.outlined(context, compact: true),
       ),
     );
@@ -598,9 +616,9 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const WorkspaceSectionHeader(
-            title: 'Planning',
+            title: 'Planning lane',
             subtitle:
-                'Weekly schedule and reminders stay visible as supporting context.',
+                'Weekly schedule and reminders stay visible here as calm support context.',
           ),
           const SizedBox(height: AppSpacing.sm),
           _buildWeekSchedulePanel(
@@ -661,7 +679,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
           const SizedBox(height: AppSpacing.xs),
           if (previewItems.isEmpty)
             Text(
-              'No scheduled items yet.',
+              'No scheduled items yet for this planning lane.',
               style: context.textStyles.labelMedium?.withColor(
                 theme.colorScheme.onSurfaceVariant,
               ),
@@ -774,7 +792,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
-                  'Class Notes & Reminders',
+                  'Notes & reminders',
                   style: context.textStyles.titleSmall?.semiBold,
                 ),
               ),
@@ -789,7 +807,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
           const SizedBox(height: AppSpacing.xs),
           if (previewItems.isEmpty)
             Text(
-              'Keep track of things to revisit with this class.',
+              'Capture reminders and follow-ups that support this class between live sessions.',
               style: context.textStyles.labelMedium?.withColor(
                 theme.colorScheme.onSurfaceVariant,
               ),

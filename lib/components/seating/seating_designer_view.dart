@@ -16,6 +16,7 @@ class SeatingDesignerView extends StatefulWidget {
   final bool presentationMode;
   final bool showStudentPanel;
   final bool showFullScreenButton;
+  final bool showUseHint;
   final VoidCallback? onOpenRoomSetups;
   final VoidCallback? onPreviewPdf;
   final VoidCallback? onPrint;
@@ -30,6 +31,7 @@ class SeatingDesignerView extends StatefulWidget {
     this.presentationMode = false,
     this.showStudentPanel = true,
     this.showFullScreenButton = true,
+    this.showUseHint = true,
     this.onOpenRoomSetups,
     this.onPreviewPdf,
     this.onPrint,
@@ -153,11 +155,11 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                       _confirmClearAssignments(context, service, active),
                   onPickStudent: () => _showStudentPicker(
                       context, service, active, studentsById),
-                    onOpenRoomSetups: widget.onOpenRoomSetups,
-                    onPreviewPdf: widget.onPreviewPdf,
-                    onPrint: widget.onPrint,
-                    onDownload: widget.onDownload,
-                    webMode: widget.webMode,
+                  onOpenRoomSetups: widget.onOpenRoomSetups,
+                  onPreviewPdf: widget.onPreviewPdf,
+                  onPrint: widget.onPrint,
+                  onDownload: widget.onDownload,
+                  webMode: widget.webMode,
                   showFullScreenButton: widget.showFullScreenButton,
                   onFullScreen: () =>
                       Navigator.of(context).push(MaterialPageRoute(
@@ -167,17 +169,18 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                     ),
                   )),
                 ),
-                if (_designMode) ...[
+                if (widget.showUseHint && _designMode) ...[
                   const SizedBox(height: 6),
                   _EditRoomHint(
                     hasSeats: active.seats.isNotEmpty,
                   ),
-                ] else if (active.seats.isNotEmpty &&
+                ] else if (widget.showUseHint &&
+                    active.seats.isNotEmpty &&
                     widget.students.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   const _SeatingUseHint(),
                 ],
-                const SizedBox(height: 8),
+                SizedBox(height: widget.showUseHint ? 8 : 6),
                 Expanded(
                   child: !showStudentPanel
                       ? _buildCanvas(context, service, active, studentsById)
@@ -535,7 +538,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<SeatingTableType>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   decoration: const InputDecoration(labelText: 'Table type'),
                   items: _editableTableTypes
                       .map(

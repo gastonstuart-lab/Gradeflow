@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/tool_first_app_surface.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
@@ -11,6 +12,7 @@ import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/calculation_service.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
+import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/theme.dart';
 
 class FinalResultsScreen extends StatefulWidget {
@@ -25,6 +27,10 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
   final CalculationService _calc = CalculationService();
   bool _loading = false;
   Map<String, Map<String, double?>> _grades = {};
+
+  void _goToClassWorkspace() {
+    context.go('${AppRoutes.osClass}/${widget.classId}');
+  }
 
   @override
   void initState() {
@@ -196,7 +202,8 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
   @override
   Widget build(BuildContext context) {
     final students = context.watch<StudentService>();
-    final classItem = context.watch<ClassService>().getClassById(widget.classId);
+    final classItem =
+        context.watch<ClassService>().getClassById(widget.classId);
     final className = classItem?.className ?? 'Class';
     final studentCount = students.students.length;
     final classContextParts = <String>[
@@ -216,8 +223,8 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
       subtitle:
           'Review weighted process, exam, and final grades in one aligned view.',
       leading: IconButton(
-        onPressed: () => Navigator.of(context).pop(),
-        tooltip: 'Back',
+        onPressed: _goToClassWorkspace,
+        tooltip: 'Back to class workspace',
         style: WorkspaceButtonStyles.icon(context),
         icon: const Icon(Icons.arrow_back_rounded),
       ),

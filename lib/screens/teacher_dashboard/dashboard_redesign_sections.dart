@@ -137,7 +137,8 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
       key: _summarySectionKey,
       child: DashboardTopSummary(
         title: 'Welcome back, $teacherName',
-        subtitle: '$schoolName • ${RepositoryFactory.sourceOfTruthLabel}',
+        subtitle:
+            '$schoolName • Planning Hub • ${RepositoryFactory.sourceOfTruthLabel}',
         todayLine: _dashboardTodayLine(now),
         actions: _dashboardHeaderActions(context, now),
         metrics: _dashboardSummaryMetrics(now),
@@ -507,10 +508,10 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     if (_workspaceSection != DashboardWorkspaceSection.today) {
       previews.add(
         DashboardSectionPreviewCard(
-          title: 'Today overview',
+          title: 'Overview',
           detail: 'Insights and priorities stay one tap away.',
           icon: Icons.insights_outlined,
-          actionLabel: 'Open today',
+          actionLabel: 'Open overview',
           onTap: () => _setWorkspaceSection(DashboardWorkspaceSection.today),
         ),
       );
@@ -518,10 +519,10 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     if (_workspaceSection != DashboardWorkspaceSection.classroom) {
       previews.add(
         DashboardSectionPreviewCard(
-          title: 'Classroom studio',
+          title: 'Class tools',
           detail: 'Whiteboard, timer, polls, and room tools.',
           icon: Icons.draw_outlined,
-          actionLabel: 'Open studio',
+          actionLabel: 'Open class tools',
           onTap: () =>
               _setWorkspaceSection(DashboardWorkspaceSection.classroom),
         ),
@@ -530,12 +531,12 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     if (_workspaceSection != DashboardWorkspaceSection.planning) {
       previews.add(
         DashboardSectionPreviewCard(
-          title: 'Schedule board',
+          title: 'Planning lane',
           detail: nextReminder != null
               ? 'Next: ${_headlineSafe(nextReminder.text, maxLength: 52)}.'
               : 'Calendar, timetable, and reminders.',
           icon: Icons.event_note_outlined,
-          actionLabel: 'Open schedule',
+          actionLabel: 'Open planning',
           onTap: () => _setWorkspaceSection(DashboardWorkspaceSection.planning),
         ),
       );
@@ -543,11 +544,11 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     if (_workspaceSection != DashboardWorkspaceSection.workspace) {
       previews.add(
         DashboardSectionPreviewCard(
-          title: 'Workspace tools',
+          title: 'Support tools',
           detail:
               '${_customLinks.length + 3} links and helper tools stay on standby.',
           icon: Icons.workspaces_outline,
-          actionLabel: 'Open tools',
+          actionLabel: 'Open support',
           onTap: () =>
               _setWorkspaceSection(DashboardWorkspaceSection.workspace),
         ),
@@ -570,6 +571,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     required String message,
   }) {
     return _Card(
+      surfaceType: SurfaceType.whisper,
       child: Text(
         message,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -585,6 +587,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     required bool compact,
   }) {
     return _Card(
+      surfaceType: SurfaceType.whisper,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -704,7 +707,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
                       Row(
                         children: [
                           Text(
-                            'Customize dashboard',
+                            'Customize planning hub',
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -724,19 +727,19 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
                           segments: const [
                             ButtonSegment(
                               value: DashboardWorkspaceSection.today,
-                              label: Text('Today'),
+                              label: Text('Overview'),
                             ),
                             ButtonSegment(
                               value: DashboardWorkspaceSection.classroom,
-                              label: Text('Classroom'),
+                              label: Text('Class tools'),
                             ),
                             ButtonSegment(
                               value: DashboardWorkspaceSection.planning,
-                              label: Text('Schedule'),
+                              label: Text('Planning'),
                             ),
                             ButtonSegment(
                               value: DashboardWorkspaceSection.workspace,
-                              label: Text('Workspace'),
+                              label: Text('Support'),
                             ),
                           ],
                           selected: {selectedSurface},
@@ -820,7 +823,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
 
   List<DashboardNavItemData> _dashboardNavItems(BuildContext context) => [
         DashboardNavItemData(
-          label: 'Dashboard',
+          label: 'Planning Hub',
           icon: Icons.dashboard_rounded,
           onTap: () => unawaited(_scrollToSection(_summarySectionKey)),
           isActive: true,
@@ -1227,7 +1230,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
       case ClassHealthActionType.openClassWorkspace:
         return const ClassHealthAction(
           label: 'Open classes',
-          detail: 'Return to the classes workspace.',
+          detail: 'Return to the classes surface.',
           type: ClassHealthActionType.openClassesWorkspace,
         );
       case ClassHealthActionType.openClassesWorkspace:
@@ -1517,7 +1520,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
       _DashboardInsightData(
         title: 'Roster Reach',
         value: _totalStudents.toString(),
-        subtitle: '${_classes.length} classes live in the teacher workspace',
+        subtitle: '${_classes.length} classes live across the teacher OS',
         bars: rosterBars,
         accent: _DashboardPalette.cyan,
       ),
@@ -1717,7 +1720,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
           ? 'Custom station'
           : station.programLabel,
       detail: station.detail.trim().isEmpty
-          ? 'Teacher-added station for the live dashboard widget.'
+          ? 'Teacher-added station for the live planning hub widget.'
           : station.detail,
       streamUrl: station.streamUrl,
       stationUrl: station.stationUrl,
@@ -1770,7 +1773,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     unawaited(_saveAudioStations());
     _showDashboardFeedback(
       'Audio now follows the recommended station for the time of day.',
-      title: 'Dashboard audio',
+      title: 'Planning hub audio',
     );
   }
 
@@ -1951,7 +1954,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     }
     _showDashboardFeedback(
       '${created.stationName} is ready in your station library.',
-      title: 'Dashboard audio',
+      title: 'Planning hub audio',
     );
   }
 
@@ -1983,7 +1986,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Remove custom station?'),
         content: Text(
-          'Remove "${station.stationName}" from your dashboard station library?',
+          'Remove "${station.stationName}" from your planning hub station library?',
         ),
         actions: [
           TextButton(
@@ -2014,7 +2017,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     }
     _showDashboardFeedback(
       '${station.stationName} was removed from your station library.',
-      title: 'Dashboard audio',
+      title: 'Planning hub audio',
     );
   }
 
@@ -2260,7 +2263,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
                 ? 'Now teaching ${currentClass.timetableClass.title} until ${_formatHourMinute(currentClass.endAt)}.'
                 : nextClass != null
                     ? 'Next up: ${nextClass.timetableClass.title} ${_relativeTimetableTime(nextClass.startAt, now)}.'
-                    : 'Upload or edit a timetable to anchor the rest of the dashboard.',
+                    : 'Upload or edit a timetable to anchor the rest of the planning hub.',
             style: context.textStyles.bodyMedium?.withColor(
               Theme.of(context).colorScheme.onSurfaceVariant,
             ),

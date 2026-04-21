@@ -21,7 +21,7 @@ void main() {
 
     expect(find.text('HOME STAGE'), findsOneWidget);
     expect(find.text('PINNED APPS'), findsOneWidget);
-    expect(find.text('OTHER WORKSPACES'), findsOneWidget);
+    expect(find.text('WORKSPACES'), findsOneWidget);
   });
 
   testWidgets('GradeFlowOSShell shows one overlay at a time', (tester) async {
@@ -51,6 +51,38 @@ void main() {
     expect(controller.launcherOpen, isFalse);
     expect(controller.shadeOpen, isFalse);
     expect(controller.assistantOpen, isTrue);
+  });
+
+  testWidgets('GradeFlowOSShell keeps desktop child taps interactive', (
+    tester,
+  ) async {
+    final controller = GradeFlowOSController();
+    var taps = 0;
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _harness(
+        GradeFlowOSShell(
+          child: Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () => taps++,
+                child: const Text('Open workspace'),
+              ),
+            ),
+          ),
+        ),
+        controller: controller,
+      ),
+    );
+
+    await tester.tap(find.text('Open workspace'));
+    await tester.pump();
+
+    expect(taps, 1);
   });
 }
 

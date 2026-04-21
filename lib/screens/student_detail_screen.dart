@@ -11,6 +11,7 @@ import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/calculation_service.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -31,6 +32,10 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   final CalculationService _calcService = CalculationService();
   Map<String, double?>? _grades;
   bool _updatingPhoto = false;
+
+  void _goToStudentList() {
+    context.go('${AppRoutes.classDetail}/${widget.classId}/students');
+  }
 
   void _showFeedback(
     String message, {
@@ -221,13 +226,14 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               CircleAvatar(
                 radius: 42,
                 backgroundColor: theme.colorScheme.primaryContainer,
-                backgroundImage:
-                    (student.photoBase64 != null && student.photoBase64!.isNotEmpty)
-                        ? MemoryImage(
-                            const Base64Decoder().convert(student.photoBase64!),
-                          )
-                        : null,
-                child: (student.photoBase64 == null || student.photoBase64!.isEmpty)
+                backgroundImage: (student.photoBase64 != null &&
+                        student.photoBase64!.isNotEmpty)
+                    ? MemoryImage(
+                        const Base64Decoder().convert(student.photoBase64!),
+                      )
+                    : null,
+                child: (student.photoBase64 == null ||
+                        student.photoBase64!.isEmpty)
                     ? Text(
                         student.englishFirstName[0],
                         style: context.textStyles.displayMedium?.withColor(
@@ -292,8 +298,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     );
   }
 
-  Widget _buildBreakdownCard(BuildContext context, dynamic student,
-      List<dynamic> categories) {
+  Widget _buildBreakdownCard(
+      BuildContext context, dynamic student, List<dynamic> categories) {
     return WorkspaceSurfaceCard(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -352,7 +358,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   Widget build(BuildContext context) {
     final studentService = context.watch<StudentService>();
     final categoryService = context.watch<GradingCategoryService>();
-    final classItem = context.watch<ClassService>().getClassById(widget.classId);
+    final classItem =
+        context.watch<ClassService>().getClassById(widget.classId);
     dynamic student;
     for (final candidate in studentService.students) {
       if (candidate.studentId == widget.studentId) {
@@ -373,14 +380,13 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
     return WorkspaceScaffold(
       title: student?.chineseName ?? 'Student record',
-      subtitle: student == null
-          ? 'Loading student profile'
-          : student.englishFullName,
+      subtitle:
+          student == null ? 'Loading student profile' : student.englishFullName,
       eyebrow: 'Student Record',
       leadingActions: [
         IconButton(
-          onPressed: () => context.pop(),
-          tooltip: 'Back',
+          onPressed: _goToStudentList,
+          tooltip: 'Back to students',
           style: WorkspaceButtonStyles.icon(context),
           icon: const Icon(Icons.arrow_back_rounded),
         ),

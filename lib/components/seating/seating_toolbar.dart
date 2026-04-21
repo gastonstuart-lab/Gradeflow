@@ -79,7 +79,7 @@ class SeatingToolbar extends StatelessWidget {
           width: 200,
           child: DropdownButtonFormField<String>(
             key: ValueKey(active.layoutId),
-            value: active.layoutId.isEmpty ? null : active.layoutId,
+            initialValue: active.layoutId.isEmpty ? null : active.layoutId,
             decoration: const InputDecoration(
               labelText: 'Layout',
               isDense: true,

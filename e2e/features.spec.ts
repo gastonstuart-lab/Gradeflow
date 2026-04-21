@@ -4,7 +4,6 @@ import {
   dashboardPath,
   ensureDemoSignedIn,
   ensureFlutterSemantics,
-  expectExportSurface,
   expectSeatingSurface,
   expectFeedbackMessage,
   expectDashboardShell,
@@ -18,9 +17,7 @@ import {
 test.describe.configure({ mode: 'serial' });
 
 async function gotoDemoExport(page: import('@playwright/test').Page) {
-  await page.goto('/class/demo-class-1/export');
-  await ensureFlutterSemantics(page);
-  await expectExportSurface(page);
+  await gotoDemoClassRoute(page, 'export');
 }
 
 test('Export: grade export screen loads with actionable controls', async ({

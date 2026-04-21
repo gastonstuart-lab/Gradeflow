@@ -146,6 +146,10 @@ class _ExportScreenState extends State<ExportScreen> {
       true; // When exporting class as PDF, use one-page table layout
   bool _progressVisible = false;
 
+  void _goToClassWorkspace() {
+    context.go('${AppRoutes.osClass}/${widget.classId}');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -320,7 +324,8 @@ class _ExportScreenState extends State<ExportScreen> {
           .toList();
       final scores = <StudentScore>[];
       for (final item in gradeItems) {
-        scores.addAll(await repo.loadScores(classItem.classId, item.gradeItemId));
+        scores
+            .addAll(await repo.loadScores(classItem.classId, item.gradeItemId));
       }
       final studentIds = students.map((student) => student.studentId).toSet();
       final exams = (await repo.loadExams(classItem.classId))
@@ -363,7 +368,8 @@ class _ExportScreenState extends State<ExportScreen> {
     final rows = <List<String>>[];
     for (final snapshot in snapshots) {
       final categoryIdByName = <String, String>{
-        for (final category in snapshot.categories) category.name: category.categoryId,
+        for (final category in snapshot.categories)
+          category.name: category.categoryId,
       };
       final examByStudentId = <String, FinalExam>{
         for (final exam in snapshot.exams) exam.studentId: exam,
@@ -607,8 +613,8 @@ class _ExportScreenState extends State<ExportScreen> {
       );
       final dataset = await _buildAllClassesExportDataset();
       _dismissBlockingProgress();
-      final csv =
-          const ListToCsvConverter().convert([dataset.headers, ...dataset.rows]);
+      final csv = const ListToCsvConverter()
+          .convert([dataset.headers, ...dataset.rows]);
       await _showCsvPreview(csv,
           title: 'All Classes CSV Preview', filename: 'grades_all_classes.csv');
     } catch (e) {
@@ -694,8 +700,8 @@ class _ExportScreenState extends State<ExportScreen> {
                                         (header) => DataColumn(
                                           label: Text(
                                             header,
-                                            style: ctx
-                                                .textStyles.labelSmall?.semiBold,
+                                            style: ctx.textStyles.labelSmall
+                                                ?.semiBold,
                                           ),
                                         ),
                                       )
@@ -828,8 +834,8 @@ class _ExportScreenState extends State<ExportScreen> {
         categoryService.categories,
         _studentGrades,
       );
-      final ok = await _downloadText(
-          csv, 'grades_${widget.classId}.csv', 'text/csv');
+      final ok =
+          await _downloadText(csv, 'grades_${widget.classId}.csv', 'text/csv');
       ok
           ? _showSuccess('Class CSV downloaded')
           : _showError(
@@ -906,9 +912,7 @@ class _ExportScreenState extends State<ExportScreen> {
     } else if (_format == _ExportFormat.xlsx) {
       final bytes = _exportService.generateXlsx(
           [student], categoryService.categories, {student.studentId: grades});
-      final ok = await _downloadBytes(
-          bytes,
-          'report_${student.studentId}.xlsx',
+      final ok = await _downloadBytes(bytes, 'report_${student.studentId}.xlsx',
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       ok
           ? _showSuccess('Student XLSX downloaded')
@@ -979,8 +983,8 @@ class _ExportScreenState extends State<ExportScreen> {
       _dismissBlockingProgress();
 
       if (_format == _ExportFormat.csv) {
-        final csv =
-            const ListToCsvConverter().convert([dataset.headers, ...dataset.rows]);
+        final csv = const ListToCsvConverter()
+            .convert([dataset.headers, ...dataset.rows]);
         final ok =
             await _downloadText(csv, 'grades_all_classes.csv', 'text/csv');
         ok
@@ -992,7 +996,9 @@ class _ExportScreenState extends State<ExportScreen> {
         final excel = Excel.createExcel();
         final sheet = excel.sheets[excel.getDefaultSheet()]!;
         sheet.appendRow(
-          dataset.headers.map<CellValue?>((value) => TextCellValue(value)).toList(),
+          dataset.headers
+              .map<CellValue?>((value) => TextCellValue(value))
+              .toList(),
         );
         for (final row in dataset.rows) {
           sheet.appendRow(
@@ -1642,7 +1648,8 @@ class _ExportScreenState extends State<ExportScreen> {
               subtitle:
                   'Class details always generates the detailed per-student packet to avoid mixed expectations.',
             ),
-          if (_scope == _ExportScope.allClasses && _format == _ExportFormat.xlsx)
+          if (_scope == _ExportScope.allClasses &&
+              _format == _ExportFormat.xlsx)
             const WorkspaceInlineState(
               icon: Icons.table_chart_outlined,
               title: 'Preview is CSV only for all classes',
@@ -1691,10 +1698,10 @@ class _ExportScreenState extends State<ExportScreen> {
     final classContextLine = classContextParts.isEmpty
         ? 'Current class context'
         : classContextParts.join(' / ');
-    final previewEnabled =
-        !_isCalculating && _canPreview(studentCount: studentCount, classCount: classCount);
-    final exportEnabled =
-        !_isCalculating && _canExport(studentCount: studentCount, classCount: classCount);
+    final previewEnabled = !_isCalculating &&
+        _canPreview(studentCount: studentCount, classCount: classCount);
+    final exportEnabled = !_isCalculating &&
+        _canExport(studentCount: studentCount, classCount: classCount);
 
     Widget workspace;
     if (_isCalculating) {
@@ -1710,9 +1717,9 @@ class _ExportScreenState extends State<ExportScreen> {
             'Add students to this roster before generating student or class reports.',
         actions: [
           FilledButton.icon(
-            onPressed: () => context.pop(),
+            onPressed: _goToClassWorkspace,
             icon: const Icon(Icons.arrow_back_rounded),
-            label: const Text('Back to class'),
+            label: const Text('Back to class workspace'),
             style: WorkspaceButtonStyles.filled(context),
           ),
         ],
@@ -1745,8 +1752,8 @@ class _ExportScreenState extends State<ExportScreen> {
       eyebrow: 'Student Reporting',
       subtitle: _reportSubtitle(className: className, classCount: classCount),
       leading: IconButton(
-        onPressed: () => context.pop(),
-        tooltip: 'Back',
+        onPressed: _goToClassWorkspace,
+        tooltip: 'Back to class workspace',
         style: WorkspaceButtonStyles.icon(context),
         icon: const Icon(Icons.arrow_back_rounded),
       ),

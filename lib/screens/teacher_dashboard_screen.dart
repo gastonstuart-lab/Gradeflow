@@ -20,6 +20,7 @@ import 'package:gradeflow/components/dashboard_story_carousel.dart';
 import 'package:gradeflow/components/drive_file_picker_dialog.dart';
 import 'package:gradeflow/components/pilot_feedback_card.dart';
 import 'package:gradeflow/components/pilot_feedback_dialog.dart';
+import 'package:gradeflow/components/command_surface.dart';
 import 'package:gradeflow/components/teacher_whiteboard.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -57,7 +58,12 @@ part 'teacher_dashboard/dashboard_timetable.dart';
 part 'teacher_dashboard/dashboard_workspace_sections.dart';
 
 class TeacherDashboardScreen extends StatefulWidget {
-  const TeacherDashboardScreen({super.key});
+  const TeacherDashboardScreen({
+    super.key,
+    this.showDashboardUtilityDock = false,
+  });
+
+  final bool showDashboardUtilityDock;
 
   @override
   State<TeacherDashboardScreen> createState() => _TeacherDashboardScreenState();
@@ -2390,12 +2396,15 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
 class _Card extends StatelessWidget {
   final Widget child;
+  final SurfaceType surfaceType;
   const _Card({
     required this.child,
+    this.surfaceType = SurfaceType.tool,
   });
   @override
   Widget build(BuildContext context) {
     return DashboardPanelCard(
+      surfaceType: surfaceType,
       minHeight: 140,
       padding: AppSpacing.paddingLg,
       child: child,

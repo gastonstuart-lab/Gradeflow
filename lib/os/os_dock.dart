@@ -15,6 +15,7 @@ import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/nav.dart';
+import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/services/communication_service.dart';
 
 class OSDock extends StatelessWidget {
@@ -26,6 +27,7 @@ class OSDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = context.watch<GradeFlowOSController>();
     final communication = context.watch<CommunicationService>();
+    final themeMode = context.watch<ThemeModeNotifier>().themeMode;
     final dark = context.isDark;
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
@@ -35,6 +37,7 @@ class OSDock extends StatelessWidget {
       context,
       controller: controller,
       communication: communication,
+      themeMode: themeMode,
       isTeach: isTeach,
       isPhone: isPhone,
     );
@@ -119,6 +122,7 @@ class OSDock extends StatelessWidget {
     BuildContext context, {
     required GradeFlowOSController controller,
     required CommunicationService communication,
+    required ThemeMode themeMode,
     required bool isTeach,
     required bool isPhone,
   }) {
@@ -182,6 +186,13 @@ class OSDock extends StatelessWidget {
         label: 'Teach',
         isActive: currentSurface == OSSurface.teach,
         onTap: () => context.go(AppRoutes.osTeach),
+      ),
+      _DockItemData(
+        icon: themeMode == ThemeMode.light
+            ? Icons.dark_mode_rounded
+            : Icons.light_mode_rounded,
+        label: 'Theme',
+        onTap: () => context.read<ThemeModeNotifier>().toggleTheme(),
       ),
     ];
 

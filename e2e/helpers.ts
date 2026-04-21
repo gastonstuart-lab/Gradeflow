@@ -7,7 +7,7 @@ async function gotoWithRetry(page: Page, path: string, attempts = 3) {
   let lastError: unknown;
   for (let i = 0; i < attempts; i += 1) {
     try {
-      await page.goto(path);
+      await page.goto(path, { waitUntil: "commit" });
       return;
     } catch (error) {
       lastError = error;
@@ -91,23 +91,51 @@ async function anyLocatorVisible(
 export async function ensureDemoSignedIn(page: Page) {
   await ensureFlutterSemantics(page);
 
+  const currentAppPath = () => {
+    try {
+      const url = new URL(page.url());
+      if (url.hash.startsWith("#/")) {
+        return url.hash.slice(1).split("?")[0];
+      }
+      return url.pathname;
+    } catch {
+      return "";
+    }
+  };
+
   const isSignedInRoute = () =>
-    /(?:#\/(?:dashboard|os\/home)|\/(?:dashboard|os\/home)(?:\b|\/|\?|$))/i.test(
-      page.url(),
+    /^\/(?:dashboard|os\/home|os\/class\/[^/?#]+|class\/[^/?#]+)(?:\/|$)/i.test(
+      currentAppPath(),
     );
 
   const isSignedInSurfaceVisible = async () =>
-    anyLocatorVisible(
+    (await anyLocatorVisible(
       [
         page.getByText(/Command deck|Teacher cockpit/i).first(),
         page.getByRole("button", { name: /^Classes\b/i }).last(),
         page.getByRole("button", { name: /^Studio\b/i }).last(),
         page.getByRole("button", { name: /^Home$/i }).first(),
+        page.getByText(/HOME STAGE|Class workspace|Loading workspace shell/i).first(),
+        page.getByRole("button", { name: /^Teach Mode$/i }).first(),
       ],
       1_000,
+    )) ||
+    /HOME STAGE|Class workspace|GradeFlow OS|Pinned apps|Class spaces/i.test(
+      await page
+        .locator("body")
+        .innerText({ timeout: 1_000 })
+        .catch(() => ""),
     );
 
   if (isSignedInRoute()) {
+    return;
+  }
+
+  // Fast-path recovery for sessions that are already authenticated but landed
+  // on a transient shell route that does not satisfy older dashboard checks.
+  await page.goto('/os/home').catch(() => undefined);
+  await ensureFlutterSemantics(page);
+  if (isSignedInRoute() || (await isSignedInSurfaceVisible())) {
     return;
   }
 
@@ -116,6 +144,7 @@ export async function ensureDemoSignedIn(page: Page) {
     .getByRole("button", { name: /^Entering workspace\.\.\.$/i })
     .first();
   const loadingShell = page.getByText(/Loading workspace shell/i).first();
+  let loadingShellVisibleSince: number | null = null;
   const deadline = Date.now() + 180_000;
 
   while (Date.now() < deadline) {
@@ -130,12 +159,34 @@ export async function ensureDemoSignedIn(page: Page) {
       const demoEnabled = await demo.isEnabled().catch(() => false);
       if (demoEnabled) {
         await activateControl(demo);
+        await ensureFlutterSemantics(page);
+        if (isSignedInRoute() || (await isSignedInSurfaceVisible())) {
+          return;
+        }
       }
     }
 
     const isTransitioning =
       (await enteringWorkspace.isVisible({ timeout: 500 }).catch(() => false)) ||
       (await loadingShell.isVisible({ timeout: 500 }).catch(() => false));
+
+    if (isTransitioning) {
+      loadingShellVisibleSince ??= Date.now();
+    } else {
+      loadingShellVisibleSince = null;
+    }
+
+    if (
+      isTransitioning &&
+      loadingShellVisibleSince != null &&
+      Date.now() - loadingShellVisibleSince > 20_000
+    ) {
+      await page.goto('/os/home').catch(() => undefined);
+      await ensureFlutterSemantics(page);
+      if (isSignedInRoute() || (await isSignedInSurfaceVisible())) {
+        return;
+      }
+    }
 
     await page.waitForTimeout(isTransitioning ? 1_500 : 1_000);
   }
@@ -154,11 +205,16 @@ export async function expectDashboardShell(page: Page) {
     await expect(attentionButton).toBeVisible({ timeout: 60_000 });
   }
 
-  for (const label of ["Classes", "Studio", "Schedule", "Messages"]) {
+  const requiredNavVariants: RegExp[] = [
+    /^Classes\b/i,
+    /^(Studio|Class tools)\b/i,
+    /^(Schedule|Planning)\b/i,
+    /^Messages\b/i,
+  ];
+
+  for (const pattern of requiredNavVariants) {
     await expect(
-      page
-        .getByRole("button", { name: new RegExp(`^${label}\\b`, "i") })
-        .last(),
+      page.getByRole("button", { name: pattern }).last(),
     ).toBeVisible({ timeout: 60_000 });
   }
 }
@@ -171,8 +227,41 @@ export async function gotoDashboard(page: Page) {
 
 export async function gotoClasses(page: Page) {
   const isClassesSurfaceVisible = async () => {
+    const bodyText = await page
+      .locator("body")
+      .innerText({ timeout: 1_000 })
+      .catch(() => "");
+    if (/Classes workspace|Class spaces|Create Class|Local import ready/i.test(bodyText)) {
+      return true;
+    }
+
+    const classesRoleHeading = page.getByRole("heading", {
+      name: /Classes workspace/i,
+    });
+    if (
+      await classesRoleHeading
+        .isVisible({ timeout: 2_000 })
+        .catch(() => false)
+    ) {
+      return true;
+    }
+
+    const importButton = page.getByRole("button", { name: /^Import$/i });
+    if (await importButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      return true;
+    }
+
     const classesHeading = page.getByText("Classes workspace", { exact: true });
     if (await classesHeading.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      return true;
+    }
+
+    const classSpacesHeading = page.getByText("Class spaces", {
+      exact: true,
+    });
+    if (
+      await classSpacesHeading.isVisible({ timeout: 2_000 }).catch(() => false)
+    ) {
       return true;
     }
 
@@ -198,17 +287,23 @@ export async function gotoClasses(page: Page) {
       await openClasses.click();
     } else {
       const classesNav = page
-        .getByRole("button", { name: /^Classes\b/i })
+        .getByRole("button", { name: /^(Classes|Class spaces)\b/i })
         .last();
       if (await classesNav.isVisible({ timeout: 5_000 }).catch(() => false)) {
         await classesNav.click();
       } else {
-        await gotoWithRetry(page, dashboardPath);
+        await gotoWithRetry(page, '/os/home');
         await ensureFlutterSemantics(page);
-        await page
-          .getByRole("button", { name: /^Classes\b/i })
-          .last()
-          .click();
+        const osHomeClasses = page
+          .getByRole("button", { name: /^(Classes|Class spaces)\b/i })
+          .last();
+        if (
+          await osHomeClasses.isVisible({ timeout: 5_000 }).catch(() => false)
+        ) {
+          await osHomeClasses.click();
+        } else {
+          await gotoWithRetry(page, classesPath);
+        }
       }
     }
     await ensureFlutterSemantics(page);
@@ -216,23 +311,25 @@ export async function gotoClasses(page: Page) {
 
   await expect.poll(isClassesSurfaceVisible, { timeout: 60_000 }).toBeTruthy();
 
-  const createClass = page.getByRole("button", { name: /^Create Class$/i });
-  if (await createClass.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await expect(createClass).toBeVisible();
-  }
 }
 
 export async function openFirstClassWorkspace(page: Page) {
-  const isOnClassRoute = () => /\/class\/[^/]+(?:\/|\?|$|#)/.test(page.url());
   const classSurfaceButton = page
-    .getByRole("button", { name: /^(Gradebook|Seating|Export|Reports)\b/i })
+    .getByRole("button", {
+      name: /^(Gradebook|Seating|Export|Reports|Open Gradebook|Open Seating|Open Export)\b/i,
+    })
+    .first();
+  const classSurfaceTab = page
+    .getByRole("tab", { name: /^(Overview|Gradebook|Seating|Students|Export)\b/i })
     .first();
 
   const isOnClassDetailSurface = async () => {
-    if (isOnClassRoute()) {
+    if (
+      await classSurfaceButton.isVisible({ timeout: 2_000 }).catch(() => false)
+    ) {
       return true;
     }
-    return classSurfaceButton.isVisible({ timeout: 2_000 }).catch(() => false);
+    return classSurfaceTab.isVisible({ timeout: 2_000 }).catch(() => false);
   };
 
   const gatherDiag = async () => {
@@ -291,6 +388,24 @@ export async function openFirstClassWorkspace(page: Page) {
   const classEntries = page.getByRole("group", {
     name: /Open class workspace|Grade .*students/i,
   });
+  const hasClassEntry = await classEntries
+    .first()
+    .isVisible({ timeout: 8_000 })
+    .catch(() => false);
+
+  if (!hasClassEntry) {
+    const homeClassButton = page
+      .getByRole("button", { name: /^Grade\s+\d+/i })
+      .first();
+    if (await homeClassButton.isVisible({ timeout: 8_000 }).catch(() => false)) {
+      await activateControl(homeClassButton);
+      await ensureFlutterSemantics(page);
+      if (await isOnClassDetailSurface()) {
+        return;
+      }
+    }
+  }
+
   await expect(classEntries.first()).toBeVisible({ timeout: 60_000 });
   const classEntry = classEntries.first();
 
@@ -387,6 +502,38 @@ export async function expectGradebookSurface(page: Page) {
     .toBeTruthy();
 }
 
+async function discoverPrimaryClassId(page: Page): Promise<string | null> {
+  await gotoWithRetry(page, '/os/home').catch(() => undefined);
+  await ensureFlutterSemantics(page);
+
+  const classLaunchButton = page
+    .getByRole('button', { name: /^Grade\s+\w+/i })
+    .first();
+
+  if (
+    await classLaunchButton
+      .isVisible({ timeout: 10_000 })
+      .catch(() => false)
+  ) {
+    await activateControl(classLaunchButton);
+    await ensureFlutterSemantics(page);
+    const match = page.url().match(/\/os\/class\/([^/?#]+)/i);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  // Fallback via classes route if OS-home launch card is not present.
+  await gotoWithRetry(page, classesPath).catch(() => undefined);
+  await ensureFlutterSemantics(page);
+  const classesRouteMatch = page.url().match(/\/os\/class\/([^/?#]+)/i);
+  if (classesRouteMatch?.[1]) {
+    return classesRouteMatch[1];
+  }
+
+  return null;
+}
+
 async function isOnClassSurface(page: Page, suffix: string) {
   if (suffix === "export") {
     return anyLocatorVisible(
@@ -415,7 +562,7 @@ async function isOnClassSurface(page: Page, suffix: string) {
       [
         page.getByRole("button", { name: /^Clear score$/i }),
         page.getByRole("button", { name: /^Quick grade$/i }),
-        page.getByRole("button", { name: /^Undo last (score )?change$/i }),
+        page.getByRole("button", { name: /^Undo( last (score )?change)?$/i }),
       ],
       3_000,
     );
@@ -427,70 +574,81 @@ async function isOnClassSurface(page: Page, suffix: string) {
 }
 
 export async function gotoDemoClassRoute(page: Page, suffix: string) {
-  await openFirstClassWorkspace(page);
+  const routesForClass = (classId: string) => {
+    const directToolRouteBySuffix: Record<string, string> = {
+      gradebook: `/class/${classId}/gradebook`,
+      seating: `/class/${classId}/seating`,
+      export: `/class/${classId}/export`,
+    };
 
-  if (await isOnClassSurface(page, suffix)) {
-    if (suffix === "export") {
-      await expectExportSurface(page);
-      return;
-    }
-    if (suffix === "seating") {
-      await expectSeatingSurface(page);
-      return;
-    }
-    if (suffix === "gradebook") {
-      await expectGradebookSurface(page);
-      return;
-    }
-  }
-
-  const surfaceButtonNameBySuffix: Record<string, RegExp> = {
-    gradebook: /^Gradebook\b/i,
-    seating: /^Seating\b/i,
-    export: /^(Export|Reports)\b/i,
+    return [
+      directToolRouteBySuffix[suffix],
+      `/os/class/${classId}`,
+      `/class/${classId}`,
+    ].filter((route): route is string => !!route);
   };
 
-  const surfaceButtonPattern = surfaceButtonNameBySuffix[suffix];
-  if (surfaceButtonPattern) {
-    let button = page
-      .getByRole("button", { name: surfaceButtonPattern })
-      .first();
-    const buttonVisible = await button
-      .isVisible({ timeout: 8_000 })
-      .catch(() => false);
-    if (!buttonVisible) {
-      await openFirstClassWorkspace(page);
-    }
+  const tryRoutes = async (routes: string[]) => {
+    const waitForTargetSurface = async () => {
+      try {
+        if (suffix === "export") {
+          await expectExportSurface(page);
+          return true;
+        }
+        if (suffix === "seating") {
+          await expectSeatingSurface(page);
+          return true;
+        }
+        if (suffix === "gradebook") {
+          await expectGradebookSurface(page);
+          return true;
+        }
+        return isOnClassSurface(page, suffix);
+      } catch {
+        return false;
+      }
+    };
 
-    const secondTryVisible = await button
-      .isVisible({ timeout: 8_000 })
-      .catch(() => false);
-    if (!secondTryVisible && suffix === "seating") {
-      const seatingQuickAction = page
-        .getByRole("button", { name: /^Seating Plan\b/i })
-        .first();
-      if (
-        await seatingQuickAction
-          .isVisible({ timeout: 5_000 })
-          .catch(() => false)
-      ) {
-        await seatingQuickAction.click();
-        await ensureFlutterSemantics(page);
+    for (const route of routes) {
+      await gotoWithRetry(page, route).catch(() => undefined);
+      await ensureFlutterSemantics(page);
+      if (await waitForTargetSurface()) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  if (await tryRoutes(routesForClass('demo-class-1'))) {
+    return;
+  }
+
+  const discoveredClassId = await discoverPrimaryClassId(page);
+  if (
+    discoveredClassId != null &&
+    discoveredClassId !== 'demo-class-1' &&
+    await tryRoutes(routesForClass(discoveredClassId))
+  ) {
+    return;
+  }
+
+  for (const route of routesForClass('demo-class-1')) {
+    await gotoWithRetry(page, route).catch(() => undefined);
+    await ensureFlutterSemantics(page);
+    if (await isOnClassSurface(page, suffix)) {
+      if (suffix === "export") {
+        await expectExportSurface(page);
+        return;
+      }
+      if (suffix === "seating") {
         await expectSeatingSurface(page);
         return;
       }
-    }
-
-    await expect(button).toBeVisible({ timeout: 60_000 });
-    let reachedTarget = await isOnClassSurface(page, suffix);
-    for (let attempt = 0; attempt < 3 && !reachedTarget; attempt += 1) {
-      button = page.getByRole("button", { name: surfaceButtonPattern }).first();
-      await activateControl(button);
-      await ensureFlutterSemantics(page);
-      reachedTarget = await isOnClassSurface(page, suffix);
-      if (!reachedTarget) {
-        await page.waitForTimeout(1_000);
+      if (suffix === "gradebook") {
+        await expectGradebookSurface(page);
+        return;
       }
+      return;
     }
   }
 

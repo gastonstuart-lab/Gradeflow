@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/models/grading_category.dart';
 import 'package:gradeflow/theme.dart';
@@ -18,6 +20,10 @@ class CategoryManagementScreen extends StatefulWidget {
 }
 
 class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
+  void _goToClassWorkspace() {
+    context.go('${AppRoutes.osClass}/${widget.classId}');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -54,7 +60,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<AggregationMethod>(
-                  value: selectedMethod,
+                  initialValue: selectedMethod,
                   decoration:
                       const InputDecoration(labelText: 'Aggregation Method'),
                   items: AggregationMethod.values.map((method) {
@@ -178,8 +184,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
       eyebrow: 'Assessment Setup',
       leadingActions: [
         IconButton(
-          onPressed: () => Navigator.of(context).maybePop(),
-          tooltip: 'Back',
+          onPressed: _goToClassWorkspace,
+          tooltip: 'Back to class workspace',
           style: WorkspaceButtonStyles.icon(context),
           icon: const Icon(Icons.arrow_back_rounded),
         ),

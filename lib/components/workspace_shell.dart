@@ -354,6 +354,7 @@ class WorkspaceScaffold extends StatelessWidget {
   final FloatingActionButtonLocation? floatingActionButtonLocation;
   final double maxContentWidth;
   final bool compactHeader;
+  final Widget? header;
 
   const WorkspaceScaffold({
     super.key,
@@ -370,6 +371,7 @@ class WorkspaceScaffold extends StatelessWidget {
     this.floatingActionButtonLocation,
     this.maxContentWidth = 1480,
     this.compactHeader = false,
+    this.header,
   });
 
   @override
@@ -413,32 +415,33 @@ class WorkspaceScaffold extends StatelessWidget {
                               ? WorkspaceSpacing.sm
                               : WorkspaceSpacing.lg,
                         ),
-                      WorkspaceSurfaceCard(
-                        padding: compactHeader
-                            ? WorkspaceSpacing.headerPaddingCompact
-                            : WorkspaceSpacing.headerPadding,
-                        radius: compactHeader
-                            ? WorkspaceRadius.cardCompact
-                            : WorkspaceRadius.feature,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (eyebrow != null &&
-                                eyebrow!.trim().isNotEmpty) ...[
-                              Text(
-                                eyebrow!.toUpperCase(),
-                                style: WorkspaceTypography.eyebrow(context),
-                              ),
-                              const SizedBox(height: WorkspaceSpacing.xs),
-                            ],
-                            _WorkspaceHeaderCopy(
-                              title: title,
-                              subtitle: subtitle,
-                              compact: compactHeader,
+                      header ??
+                          WorkspaceSurfaceCard(
+                            padding: compactHeader
+                                ? WorkspaceSpacing.headerPaddingCompact
+                                : WorkspaceSpacing.headerPadding,
+                            radius: compactHeader
+                                ? WorkspaceRadius.cardCompact
+                                : WorkspaceRadius.feature,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (eyebrow != null &&
+                                    eyebrow!.trim().isNotEmpty) ...[
+                                  Text(
+                                    eyebrow!.toUpperCase(),
+                                    style: WorkspaceTypography.eyebrow(context),
+                                  ),
+                                  const SizedBox(height: WorkspaceSpacing.xs),
+                                ],
+                                _WorkspaceHeaderCopy(
+                                  title: title,
+                                  subtitle: subtitle,
+                                  compact: compactHeader,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
                       if (defaultContextBar != null || contextBar != null)
                         SizedBox(
                           height: compactHeader

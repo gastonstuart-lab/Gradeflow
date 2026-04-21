@@ -94,6 +94,21 @@ class _TeachSurfaceState extends State<TeachSurface> {
     super.dispose();
   }
 
+  void _exitTeachMode() {
+    final classId = _observedClassId;
+    if (classId != null && classId.trim().isNotEmpty) {
+      context.read<GradeFlowOSController>().setSurface(
+            OSSurface.classWorkspace,
+            classId: classId,
+          );
+      context.go('${AppRoutes.osClass}/$classId');
+      return;
+    }
+
+    context.read<GradeFlowOSController>().setSurface(OSSurface.home);
+    context.go(AppRoutes.osHome);
+  }
+
   @override
   Widget build(BuildContext context) {
     const teachBg = OSColors.teachBg;
@@ -135,12 +150,7 @@ class _TeachSurfaceState extends State<TeachSurface> {
               child: _TeachToolbar(
                 activeTool: _activeTool,
                 onToolSelected: (t) => setState(() => _activeTool = t),
-                onExit: () {
-                  context
-                      .read<GradeFlowOSController>()
-                      .setSurface(OSSurface.home);
-                  context.go(AppRoutes.osHome);
-                },
+                onExit: _exitTeachMode,
               ),
             ),
           ),
@@ -251,6 +261,14 @@ class _TeachSurfaceState extends State<TeachSurface> {
           key: ValueKey('teach-groups-${_activeClass!.classId}'),
           studentNames: _roster.map(_displayStudentName).toList(),
         );
+      case _TeachTool.seating:
+        return _TeachSeatingTool(
+          classItem: _activeClass!,
+          studentCount: _roster.length,
+          onOpenSeating: () => context.go(
+            '${AppRoutes.classDetail}/${_activeClass!.classId}/seating',
+          ),
+        );
       case _TeachTool.poll:
         return _PollTool(
           questionController: _pollQuestionCtrl,
@@ -314,7 +332,7 @@ class _TeachSurfaceState extends State<TeachSurface> {
 // TOOL ENUM
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum _TeachTool { whiteboard, timer, groups, poll }
+enum _TeachTool { whiteboard, seating, timer, groups, poll }
 
 enum _PollMode { abcd, yesNo }
 
@@ -394,6 +412,13 @@ class _TeachToolbar extends StatelessWidget {
                     icon: Icons.draw_rounded,
                     label: 'Board',
                     tool: _TeachTool.whiteboard,
+                    active: activeTool,
+                    onTap: onToolSelected,
+                  ),
+                  _ToolButton(
+                    icon: Icons.event_seat_rounded,
+                    label: 'Seating',
+                    tool: _TeachTool.seating,
                     active: activeTool,
                     onTap: onToolSelected,
                   ),
@@ -716,6 +741,7 @@ class _WhiteboardContainer extends StatelessWidget {
       padding: const EdgeInsets.only(top: _teachContentTopInset),
       child: TeacherWhiteboardScreen(
         controller: null,
+        showCloseButton: false,
       ),
     );
   }
@@ -724,6 +750,97 @@ class _WhiteboardContainer extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // TIMER TOOL
 // ─────────────────────────────────────────────────────────────────────────────
+
+class _TeachSeatingTool extends StatelessWidget {
+  const _TeachSeatingTool({
+    required this.classItem,
+    required this.studentCount,
+    required this.onOpenSeating,
+  });
+
+  final Class classItem;
+  final int studentCount;
+  final VoidCallback onOpenSeating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, _teachContentTopInset, 20, 20),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: OSRadius.xlBr,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 54,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: OSColors.teachAccent.withValues(alpha: 0.12),
+                        borderRadius: OSRadius.lgBr,
+                      ),
+                      child: const Icon(
+                        Icons.event_seat_rounded,
+                        color: OSColors.teachAccent,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            classItem.className,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '$studentCount students ready for seating view',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withValues(alpha: 0.72),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: onOpenSeating,
+                  icon: const Icon(Icons.open_in_full_rounded),
+                  label: const Text('Open seating planner'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: OSColors.teachAccent,
+                    foregroundColor: OSColors.teachBg,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _TimerTool extends StatefulWidget {
   const _TimerTool();

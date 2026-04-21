@@ -18,6 +18,7 @@ import 'package:gradeflow/models/deleted_student_entry.dart';
 import 'package:flutter/services.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
+import 'package:gradeflow/nav.dart';
 
 enum _SortBy { studentId, seat, chinese, english }
 
@@ -38,6 +39,10 @@ class _StudentListScreenState extends State<StudentListScreen> {
   bool _ascending = true;
   bool _selectionMode = false;
   final Set<String> _selectedStudentIds = {};
+
+  void _goToClassWorkspace() {
+    context.go('${AppRoutes.osClass}/${widget.classId}');
+  }
 
   void _showFeedback(
     String message, {
@@ -1146,7 +1151,9 @@ class _StudentListScreenState extends State<StudentListScreen> {
                 onPressed: () => setState(() => _ascending = !_ascending),
                 style: WorkspaceButtonStyles.icon(context),
                 icon: Icon(
-                  _ascending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                  _ascending
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded,
                 ),
               ),
             ],
@@ -1181,8 +1188,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
                     _selectedStudentIds.add(student.studentId);
                   }
                 })
-            : () => context.push(
-                '/class/${widget.classId}/student/${student.studentId}'),
+            : () => context
+                .push('/class/${widget.classId}/student/${student.studentId}'),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1314,7 +1321,9 @@ class _StudentListScreenState extends State<StudentListScreen> {
       leadingActions: [
         IconButton(
           icon: Icon(_selectionMode ? Icons.close : Icons.arrow_back_rounded),
-          tooltip: _selectionMode ? 'Exit selection mode' : 'Back',
+          tooltip: _selectionMode
+              ? 'Exit selection mode'
+              : 'Back to class workspace',
           style: WorkspaceButtonStyles.icon(context),
           onPressed: () {
             if (_selectionMode) {
@@ -1324,7 +1333,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
               });
               return;
             }
-            context.pop();
+            _goToClassWorkspace();
           },
         ),
       ],

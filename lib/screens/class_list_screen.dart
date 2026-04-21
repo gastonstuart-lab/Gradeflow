@@ -469,7 +469,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                 ),
                 if (!createNew) ...[
                   DropdownButtonFormField<String>(
-                    value: selectedClassId,
+                    initialValue: selectedClassId,
                     isExpanded: true,
                     decoration:
                         const InputDecoration(labelText: 'Target class'),
@@ -495,7 +495,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                           const InputDecoration(labelText: 'School Year')),
                   const SizedBox(height: AppSpacing.sm),
                   DropdownButtonFormField<String>(
-                    value: selectedTerm,
+                    initialValue: selectedTerm,
                     decoration: const InputDecoration(labelText: 'Term'),
                     items: const [
                       DropdownMenuItem(value: 'Fall', child: Text('Fall')),
@@ -845,7 +845,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                         const InputDecoration(labelText: 'School Year')),
                 const SizedBox(height: AppSpacing.sm),
                 DropdownButtonFormField<String>(
-                  value: selectedTerm,
+                  initialValue: selectedTerm,
                   decoration: const InputDecoration(labelText: 'Term'),
                   items: const [
                     DropdownMenuItem(value: 'Fall', child: Text('Fall')),
@@ -2096,7 +2096,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final summary = _showArchived
         ? '$count archived class${count == 1 ? '' : 'es'} kept ready for rollover, restore, and reporting.'
         : '$count active class${count == 1 ? '' : 'es'} ready to open, act on, and reorder around your teaching day.';
-    final canReorder = !_showArchived && classService.activeClasses.length > 1;
     final importReady = _driveAccessToken != null;
 
     Widget statusPill({
@@ -2135,7 +2134,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.32),
+        color:
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.32),
         border: Border.all(
           color: theme.colorScheme.outline.withValues(alpha: 0.24),
         ),
@@ -2164,7 +2164,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         statusPill(
-          icon: _showArchived ? Icons.inventory_2_outlined : Icons.class_rounded,
+          icon:
+              _showArchived ? Icons.inventory_2_outlined : Icons.class_rounded,
           label: '$count ${_showArchived ? 'archived' : 'active'}',
           accent: _showArchived
               ? theme.colorScheme.secondary
@@ -2179,12 +2180,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
               ? theme.colorScheme.tertiary
               : theme.colorScheme.primary,
         ),
-        if (canReorder)
-          statusPill(
-            icon: Icons.drag_indicator_rounded,
-            label: 'Drag to reorder',
-            accent: theme.colorScheme.onSurfaceVariant,
-          ),
       ],
     );
 
@@ -2260,8 +2255,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
       content = GridView.builder(
         padding: EdgeInsets.zero,
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 380,
-          childAspectRatio: 1.22,
+          maxCrossAxisExtent: 320,
+          childAspectRatio: 1.56,
           crossAxisSpacing: AppSpacing.md,
           mainAxisSpacing: AppSpacing.md,
         ),
@@ -2279,36 +2274,65 @@ class _ClassListScreenState extends State<ClassListScreen> {
         builder: (context) {
           final orderedActive =
               _orderedActiveClasses(classService.activeClasses);
-          return ReorderableListView.builder(
-            padding: EdgeInsets.zero,
-            itemCount: orderedActive.length,
-            onReorder: (oldIndex, newIndex) =>
-                _reorderActiveClasses(oldIndex, newIndex, orderedActive),
-            proxyDecorator: (child, index, animation) => Material(
-              elevation: 6,
-              color: Colors.transparent,
-              child: child,
-            ),
-            buildDefaultDragHandles: false,
-            itemBuilder: (context, index) {
-              final classItem = orderedActive[index];
-              return Padding(
-                key: ValueKey(classItem.classId),
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: SizedBox(
-                  height: 228,
-                  child: _buildClassTile(
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 760) {
+                return ReorderableListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: orderedActive.length,
+                  onReorder: (oldIndex, newIndex) => _reorderActiveClasses(
+                    oldIndex,
+                    newIndex,
+                    orderedActive,
+                  ),
+                  proxyDecorator: (child, index, animation) => Material(
+                    elevation: 6,
+                    color: Colors.transparent,
+                    child: child,
+                  ),
+                  buildDefaultDragHandles: false,
+                  itemBuilder: (context, index) {
+                    final classItem = orderedActive[index];
+                    return Padding(
+                      key: ValueKey(classItem.classId),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: SizedBox(
+                        height: 178,
+                        child: _buildClassTile(
+                          classItem: classItem,
+                          archived: false,
+                          dragHandle: ReorderableDragStartListener(
+                            index: index,
+                            child: Icon(
+                              Icons.drag_indicator_rounded,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              }
+
+              return GridView.builder(
+                padding: EdgeInsets.zero,
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 320,
+                  childAspectRatio: 1.56,
+                  crossAxisSpacing: AppSpacing.md,
+                  mainAxisSpacing: AppSpacing.md,
+                ),
+                itemCount: orderedActive.length,
+                itemBuilder: (context, index) {
+                  final classItem = orderedActive[index];
+                  return _buildClassTile(
                     classItem: classItem,
                     archived: false,
-                    dragHandle: ReorderableDragStartListener(
-                      index: index,
-                      child: Icon(
-                        Icons.drag_indicator_rounded,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ),
+                  );
+                },
               );
             },
           );

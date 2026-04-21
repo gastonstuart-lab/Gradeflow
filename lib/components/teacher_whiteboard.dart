@@ -4,6 +4,8 @@ enum TeacherWhiteboardInk {
   chalk,
   amber,
   cyan,
+  green,
+  rose,
 }
 
 class TeacherWhiteboardController extends ChangeNotifier {
@@ -58,6 +60,7 @@ class TeacherWhiteboardController extends ChangeNotifier {
 class TeacherWhiteboardWorkspace extends StatefulWidget {
   final TeacherWhiteboardController? controller;
   final bool compact;
+  final bool fillAvailableHeight;
   final bool showStatusChips;
   final VoidCallback? onOpenFullscreen;
   final VoidCallback? onClose;
@@ -67,6 +70,7 @@ class TeacherWhiteboardWorkspace extends StatefulWidget {
     super.key,
     this.controller,
     this.compact = false,
+    this.fillAvailableHeight = false,
     this.showStatusChips = true,
     this.onOpenFullscreen,
     this.onClose,
@@ -85,6 +89,7 @@ class _TeacherWhiteboardWorkspaceState
   late final bool _ownsController = widget.controller == null;
   TeacherWhiteboardInk _ink = TeacherWhiteboardInk.chalk;
   double _strokeWidth = 4.0;
+  bool _showGrid = true;
   int? _pointerId;
 
   @override
@@ -110,6 +115,10 @@ class _TeacherWhiteboardWorkspaceState
         return isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
       case TeacherWhiteboardInk.cyan:
         return isDark ? const Color(0xFF67E8F9) : const Color(0xFF0F766E);
+      case TeacherWhiteboardInk.green:
+        return isDark ? const Color(0xFF86EFAC) : const Color(0xFF15803D);
+      case TeacherWhiteboardInk.rose:
+        return isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C);
     }
   }
 
@@ -142,6 +151,95 @@ class _TeacherWhiteboardWorkspaceState
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
+        final board = Container(
+          height: widget.fillAvailableHeight ? null : boardHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.compact ? 20 : 28),
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.54),
+            ),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                _boardColor(theme),
+                Color.lerp(
+                    _boardColor(theme), Colors.black, isDark ? 0.12 : 0.02)!,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: theme.shadowColor.withValues(
+                  alpha: isDark ? 0.28 : 0.08,
+                ),
+                blurRadius: 28,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(widget.compact ? 20 : 28),
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: _handlePointerDown,
+              onPointerMove: _handlePointerMove,
+              onPointerUp: (event) => _handlePointerEnd(event.pointer),
+              onPointerCancel: (event) => _handlePointerEnd(event.pointer),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CustomPaint(
+                    painter: _WhiteboardBackgroundPainter(
+                      accent: theme.colorScheme.primary,
+                      darkMode: isDark,
+                      showGrid: _showGrid,
+                    ),
+                  ),
+                  RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _WhiteboardPainter(controller: _controller),
+                      isComplex: true,
+                      willChange: true,
+                    ),
+                  ),
+                  IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            color: Colors.black.withValues(alpha: 0.18),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.10),
+                            ),
+                          ),
+                          child: Text(
+                            _controller.isEmpty
+                                ? 'Tap and draw'
+                                : '${_controller.strokeCount} stroke${_controller.strokeCount == 1 ? '' : 's'}',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.86)
+                                  : theme.colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -176,7 +274,7 @@ class _TeacherWhiteboardWorkspaceState
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Fast ink surface for annotation, explanation, and live classroom work.',
+                        'Pen, grid, and board controls stay ready.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -191,9 +289,10 @@ class _TeacherWhiteboardWorkspaceState
                   ),
                 ],
                 if (widget.onClose != null) ...[
-                  IconButton(
+                  TextButton.icon(
                     onPressed: widget.onClose,
-                    icon: const Icon(Icons.close_rounded),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('Back'),
                   ),
                 ],
               ],
@@ -221,6 +320,10 @@ class _TeacherWhiteboardWorkspaceState
                             ? 'Medium line'
                             : 'Bold line',
                     icon: Icons.line_weight_rounded,
+                  ),
+                  _WhiteboardStatusChip(
+                    label: _showGrid ? 'Grid on' : 'Grid off',
+                    icon: Icons.grid_4x4_rounded,
                   ),
                 ],
               ),
@@ -254,6 +357,14 @@ class _TeacherWhiteboardWorkspaceState
                   selected: _strokeWidth == 6.0,
                   onTap: () => setState(() => _strokeWidth = 6.0),
                 ),
+                FilterChip(
+                  label: const Text('Grid'),
+                  avatar: const Icon(Icons.grid_4x4_rounded, size: 18),
+                  selected: _showGrid,
+                  onSelected: (selected) {
+                    setState(() => _showGrid = selected);
+                  },
+                ),
                 OutlinedButton.icon(
                   onPressed: _controller.canUndo ? _controller.undo : null,
                   icon: const Icon(Icons.undo_rounded),
@@ -267,92 +378,7 @@ class _TeacherWhiteboardWorkspaceState
               ],
             ),
             const SizedBox(height: 14),
-            Container(
-              height: boardHeight,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.54),
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    _boardColor(theme),
-                    Color.lerp(_boardColor(theme), Colors.black,
-                        isDark ? 0.12 : 0.02)!,
-                  ],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.shadowColor
-                        .withValues(alpha: isDark ? 0.28 : 0.08),
-                    blurRadius: 28,
-                    offset: const Offset(0, 16),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: Listener(
-                  behavior: HitTestBehavior.opaque,
-                  onPointerDown: _handlePointerDown,
-                  onPointerMove: _handlePointerMove,
-                  onPointerUp: (event) => _handlePointerEnd(event.pointer),
-                  onPointerCancel: (event) => _handlePointerEnd(event.pointer),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CustomPaint(
-                        painter: _WhiteboardBackgroundPainter(
-                          accent: theme.colorScheme.primary,
-                          darkMode: isDark,
-                        ),
-                      ),
-                      RepaintBoundary(
-                        child: CustomPaint(
-                          painter: _WhiteboardPainter(controller: _controller),
-                          isComplex: true,
-                          willChange: true,
-                        ),
-                      ),
-                      IgnorePointer(
-                        child: Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding: const EdgeInsets.all(18),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(999),
-                                color: Colors.black.withValues(alpha: 0.18),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.10),
-                                ),
-                              ),
-                              child: Text(
-                                _controller.isEmpty
-                                    ? 'Tap and draw'
-                                    : '${_controller.strokeCount} stroke${_controller.strokeCount == 1 ? '' : 's'}',
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: isDark
-                                      ? Colors.white.withValues(alpha: 0.86)
-                                      : theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            if (widget.fillAvailableHeight) Expanded(child: board) else board,
           ],
         );
       },
@@ -367,6 +393,10 @@ class _TeacherWhiteboardWorkspaceState
         return 'Amber';
       case TeacherWhiteboardInk.cyan:
         return 'Cyan';
+      case TeacherWhiteboardInk.green:
+        return 'Green';
+      case TeacherWhiteboardInk.rose:
+        return 'Rose';
     }
   }
 }
@@ -540,24 +570,28 @@ class _WhiteboardPainter extends CustomPainter {
 class _WhiteboardBackgroundPainter extends CustomPainter {
   final Color accent;
   final bool darkMode;
+  final bool showGrid;
 
   const _WhiteboardBackgroundPainter({
     required this.accent,
     required this.darkMode,
+    required this.showGrid,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final majorPaint = Paint()
-      ..color = Colors.white.withValues(alpha: darkMode ? 0.045 : 0.08)
-      ..strokeWidth = 1;
+    if (showGrid) {
+      final majorPaint = Paint()
+        ..color = Colors.white.withValues(alpha: darkMode ? 0.045 : 0.08)
+        ..strokeWidth = 1;
 
-    const spacing = 28.0;
-    for (double x = spacing; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), majorPaint);
-    }
-    for (double y = spacing; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), majorPaint);
+      const spacing = 28.0;
+      for (double x = spacing; x < size.width; x += spacing) {
+        canvas.drawLine(Offset(x, 0), Offset(x, size.height), majorPaint);
+      }
+      for (double y = spacing; y < size.height; y += spacing) {
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), majorPaint);
+      }
     }
 
     final highlightPaint = Paint()
@@ -575,7 +609,9 @@ class _WhiteboardBackgroundPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WhiteboardBackgroundPainter oldDelegate) {
-    return oldDelegate.accent != accent || oldDelegate.darkMode != darkMode;
+    return oldDelegate.accent != accent ||
+        oldDelegate.darkMode != darkMode ||
+        oldDelegate.showGrid != showGrid;
   }
 }
 

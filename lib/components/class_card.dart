@@ -143,19 +143,21 @@ class ClassCard extends StatelessWidget {
 
     return WorkspaceSurfaceCard(
       onTap: onTap,
-      padding: AppSpacing.paddingLg,
-      radius: 22,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      radius: 18,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                   border: Border.all(
                     color: theme.colorScheme.primary.withValues(alpha: 0.28),
                   ),
@@ -163,6 +165,7 @@ class ClassCard extends StatelessWidget {
                 child: Icon(
                   Icons.class_outlined,
                   color: theme.colorScheme.primary,
+                  size: 21,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -172,7 +175,7 @@ class ClassCard extends StatelessWidget {
                   children: [
                     Text(
                       classItem.className,
-                      style: context.textStyles.titleLarge?.semiBold,
+                      style: context.textStyles.titleMedium?.semiBold,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -209,7 +212,7 @@ class ClassCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -229,34 +232,22 @@ class ClassCard extends StatelessWidget {
                 ),
             ],
           ),
-          const Spacer(),
+          const SizedBox(height: 12),
           if (classItem.syllabus != null &&
               classItem.syllabus!.entries.isNotEmpty) ...[
-            TextButton.icon(
-              onPressed: () => _showSyllabusDialog(context),
-              icon: const Icon(Icons.menu_book_outlined, size: 18),
-              label: const Text('View schedule'),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Open class workspace',
-                  style: context.textStyles.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _showSyllabusDialog(context),
+                icon: const Icon(Icons.menu_book_outlined, size: 18),
+                label: const Text('Schedule'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
-              TextButton.icon(
-                onPressed: onTap,
-                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: const Text('Open class'),
-              ),
-            ],
-          ),
+            ),
+          ],
         ],
       ),
     );

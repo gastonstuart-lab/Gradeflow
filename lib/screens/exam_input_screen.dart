@@ -22,6 +22,7 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:gradeflow/nav.dart';
 
 enum _ImportSource { local, driveLink, driveBrowse }
 
@@ -53,6 +54,10 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
   bool _didScrollToHighlight = false;
   final Map<String, Timer> _saveDebouncers = {};
   bool _hydratingData = true;
+
+  void _goToClassWorkspace() {
+    context.go('${AppRoutes.osClass}/${widget.classId}');
+  }
 
   void _showFeedback(
     String message, {
@@ -141,7 +146,8 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
       final studentService = context.read<StudentService>();
       await studentService.loadStudents(widget.classId);
 
-      final studentIds = studentService.students.map((s) => s.studentId).toList();
+      final studentIds =
+          studentService.students.map((s) => s.studentId).toList();
       await context
           .read<FinalExamService>()
           .loadExams(widget.classId, studentIds);
@@ -187,7 +193,8 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
   }
 
   void _restorePersistedExamValue(String studentId) {
-    final existing = context.read<FinalExamService>().getExam(studentId)?.examScore;
+    final existing =
+        context.read<FinalExamService>().getExam(studentId)?.examScore;
     final controller = _controllers[studentId];
     if (controller == null) return;
     final restored = existing == null ? '' : existing.toStringAsFixed(0);
@@ -742,7 +749,8 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
   Widget build(BuildContext context) {
     final studentService = context.watch<StudentService>();
     final examService = context.watch<FinalExamService>();
-    final classItem = context.watch<ClassService>().getClassById(widget.classId);
+    final classItem =
+        context.watch<ClassService>().getClassById(widget.classId);
     final className = classItem?.className ?? 'Class';
     final studentCount = studentService.students.length;
     final classContextParts = <String>[
@@ -762,7 +770,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
         if (didPop) return;
         await _handleExit();
         if (!context.mounted) return;
-        Navigator.of(context).pop(result);
+        _goToClassWorkspace();
       },
       child: ToolFirstAppSurface(
         title: 'Final Exam Scores',
@@ -773,9 +781,9 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
           onPressed: () async {
             await _handleExit();
             if (!context.mounted) return;
-            context.pop();
+            _goToClassWorkspace();
           },
-          tooltip: 'Back',
+          tooltip: 'Back to class workspace',
           style: WorkspaceButtonStyles.icon(context),
           icon: const Icon(Icons.arrow_back_rounded),
         ),
@@ -825,7 +833,8 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
         workspace: (_hydratingData || studentService.isLoading)
             ? const WorkspaceLoadingState(
                 title: 'Loading exam scores',
-                subtitle: 'Bringing the roster and final exam entries into view.',
+                subtitle:
+                    'Bringing the roster and final exam entries into view.',
               )
             : studentService.students.isEmpty
                 ? const WorkspaceEmptyState(

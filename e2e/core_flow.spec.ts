@@ -2,12 +2,24 @@ import { test, expect, type Page } from "@playwright/test";
 import {
   activateControl,
   ensureDemoSignedIn,
+  ensureFlutterSemantics,
   expectGradebookSurface,
-  gotoDemoClassRoute,
   gotoRoot,
 } from "./helpers";
 
 async function firstStudentGroup(page: Page) {
+  const firstClearScore = page
+    .getByRole("button", { name: /^Clear score$/i })
+    .first();
+  await expect(firstClearScore).toBeVisible({ timeout: 60_000 });
+
+  const ownerGroup = firstClearScore.locator(
+    'xpath=ancestor::*[@role="group" and @aria-label][1]',
+  );
+  if (await ownerGroup.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    return ownerGroup;
+  }
+
   const seatNamedGroup = page
     .getByRole("group", { name: /Seat\s*\d+/i })
     .first();
@@ -49,7 +61,8 @@ async function ensureGradebookSelection(page: Page) {
 }
 
 async function openDemoClassGradebook(page: Page) {
-  await gotoDemoClassRoute(page, "gradebook");
+  await page.goto("/class/demo-class-1/gradebook");
+  await ensureFlutterSemantics(page);
   await expectGradebookSurface(page);
 
   // Select a grade context so score controls are available even if labels shift.
@@ -68,23 +81,8 @@ async function openDemoClassGradebook(page: Page) {
 }
 
 async function reopenDemoClassGradebook(page: Page) {
-  const backToClasses = page
-    .getByRole("button", { name: /^Back to classes$/i })
-    .first();
-  if (await backToClasses.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await activateControl(backToClasses);
-  }
-
-  const openClass = page.getByRole("button", { name: /^Open class$/i }).first();
-  await expect(openClass).toBeVisible({ timeout: 60_000 });
-  await activateControl(openClass);
-
-  const gradebookLauncher = page
-    .getByRole("button", { name: /^Gradebook\b/i })
-    .first();
-  await expect(gradebookLauncher).toBeVisible({ timeout: 60_000 });
-  await activateControl(gradebookLauncher);
-
+  await page.goto("/class/demo-class-1/gradebook");
+  await ensureFlutterSemantics(page);
   await expectGradebookSurface(page);
   await ensureGradebookSelection(page);
   await expect(
@@ -123,7 +121,9 @@ test("core loop: edit score persists; undo reverts", async ({ page }) => {
   // Undo the last score change.
   expect(page.isClosed()).toBe(false);
   await activateControl(
-    page.getByRole("button", { name: /^Undo last (score )?change$/i }).first(),
+    page
+      .getByRole("button", { name: /^Undo( last (score )?change)?$/i })
+      .first(),
   );
 
   // Verify the score reverted back to what it was before the change.

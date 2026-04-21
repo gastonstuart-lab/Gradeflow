@@ -16,6 +16,7 @@ import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/export_service.dart';
 import 'package:gradeflow/services/seating_service.dart';
 import 'package:gradeflow/services/student_service.dart';
+import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
@@ -34,6 +35,10 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
   final ExportService _exportService = ExportService();
   bool _isBootstrapping = true;
   bool _isBuildingHandout = false;
+
+  void _goToClassWorkspace() {
+    context.go('${AppRoutes.osClass}/${widget.classId}');
+  }
 
   @override
   void initState() {
@@ -85,7 +90,6 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     final studentService = context.watch<StudentService>();
     final seatingService = context.watch<SeatingService>();
     final classItem = classService.getClassById(widget.classId);
-    final availableClasses = classService.classes;
 
     if (_isBootstrapping) {
       return const WorkspaceScaffold(
@@ -115,59 +119,22 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
 
     final students = studentService.students;
     final activeLayout = seatingService.activeLayout(widget.classId);
-    final layouts = seatingService.layoutsForClass(widget.classId);
-    final assignedRoomSetup = seatingService.assignedRoomSetup(widget.classId);
-    final assignedCount = activeLayout?.seats
-            .where(
-                (seat) => seat.studentId != null && seat.studentId!.isNotEmpty)
-            .length ??
-        0;
     return ToolFirstAppSurface(
       eyebrow: 'Class seating',
       title: classItem.className,
       subtitle:
           '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}',
       leading: IconButton(
-        onPressed: () => context.go('/classes'),
+        onPressed: _goToClassWorkspace,
         icon: const Icon(Icons.arrow_back_rounded),
-        tooltip: 'Back to classes',
+        tooltip: 'Back to class workspace',
       ),
       trailing: [
-        SizedBox(
-          width: 220,
-          child: DropdownButtonFormField<String>(
-            value: widget.classId,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Class',
-              isDense: true,
-              border: OutlineInputBorder(),
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            ),
-            items: [
-              for (final item in availableClasses)
-                DropdownMenuItem(
-                  value: item.classId,
-                  child: Text(item.className, overflow: TextOverflow.ellipsis),
-                ),
-            ],
-            onChanged: (value) {
-              if (value != null) _switchClass(value);
-            },
-          ),
-        ),
         PilotFeedbackIconButton(
           initialArea: 'Seating',
           initialRoute: '/class/${widget.classId}/seating',
         ),
       ],
-      contextStrip: _CompactSeatingContextStrip(
-        studentCount: students.length,
-        layoutCount: layouts.length,
-        placedCount: assignedCount,
-        roomName: assignedRoomSetup?.name,
-      ),
       workspace: LayoutBuilder(
         builder: (context, constraints) {
           final crampedHeight = constraints.maxHeight < 540;
@@ -175,7 +142,8 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
             classId: widget.classId,
             students: students,
             autoLoad: false,
-            showStudentPanel: !crampedHeight,
+            showStudentPanel: false,
+            showUseHint: false,
             onOpenRoomSetups:
                 activeLayout == null ? null : _showRoomSetupsDialog,
             onPreviewPdf:
@@ -199,11 +167,6 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
         },
       ),
     );
-  }
-
-  void _switchClass(String classId) {
-    if (classId == widget.classId) return;
-    context.go('/class/$classId/seating');
   }
 
   Future<void> _showRoomSetupsDialog() async {
@@ -788,62 +751,6 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
       context,
       message: message,
       tone: WorkspaceFeedbackTone.info,
-    );
-  }
-}
-
-class _CompactSeatingContextStrip extends StatelessWidget {
-  const _CompactSeatingContextStrip({
-    required this.studentCount,
-    required this.layoutCount,
-    required this.placedCount,
-    this.roomName,
-  });
-
-  final int studentCount;
-  final int layoutCount;
-  final int placedCount;
-  final String? roomName;
-
-  @override
-  Widget build(BuildContext context) {
-    final roomLinked = roomName != null && roomName!.trim().isNotEmpty;
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          WorkspaceContextPill(
-            icon: Icons.people_alt_outlined,
-            label: 'Students',
-            value: '$studentCount',
-          ),
-          const SizedBox(width: 8),
-          WorkspaceContextPill(
-            icon: Icons.dashboard_customize_outlined,
-            label: 'Layouts',
-            value: '$layoutCount',
-          ),
-          const SizedBox(width: 8),
-          WorkspaceContextPill(
-            icon: Icons.event_seat_outlined,
-            label: 'Placed',
-            value: '$placedCount',
-          ),
-          const SizedBox(width: 8),
-          WorkspaceContextPill(
-            icon: roomLinked
-                ? Icons.meeting_room_outlined
-                : Icons.link_off_outlined,
-            label: 'Room',
-            value: roomLinked ? roomName! : 'Unlinked',
-            accent: roomLinked
-                ? Theme.of(context).colorScheme.primary
-                : const Color(0xFFDAA85E),
-            emphasized: true,
-          ),
-        ],
-      ),
     );
   }
 }

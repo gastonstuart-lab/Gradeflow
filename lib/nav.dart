@@ -114,14 +114,10 @@ class AppRouter {
         path: AppRoutes.whiteboard,
         name: 'whiteboard',
         pageBuilder: (context, state) => _fadePage(
-          GlobalSystemShellFrame(
-            location: state.uri.path,
-            focusMode: true,
-            child: TeacherWhiteboardScreen(
-              controller: state.extra is TeacherWhiteboardController
-                  ? state.extra as TeacherWhiteboardController
-                  : null,
-            ),
+          TeacherWhiteboardScreen(
+            controller: state.extra is TeacherWhiteboardController
+                ? state.extra as TeacherWhiteboardController
+                : null,
           ),
         ),
       ),
@@ -350,11 +346,8 @@ CustomTransitionPage<void> _fadePage(Widget child) {
   );
 }
 
-NoTransitionPage<void> _shellPage(
-  GoRouterState state,
-  Widget child,
-  {String? classId}
-) {
+NoTransitionPage<void> _shellPage(GoRouterState state, Widget child,
+    {String? classId}) {
   return NoTransitionPage<void>(
     child: _OSRouteFrame(
       location: state.uri.path,

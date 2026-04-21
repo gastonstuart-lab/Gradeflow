@@ -45,7 +45,7 @@ class _OSTouchFeedbackState extends State<OSTouchFeedback> {
               minHeight: widget.minSize!.height,
             )
           : null,
-      transform: Matrix4.identity()..translate(0.0, liftY, 0.0),
+      transform: Matrix4.identity()..translateByDouble(0.0, liftY, 0.0, 1.0),
       decoration: BoxDecoration(
         borderRadius: widget.borderRadius,
         boxShadow: canHover && _hovered

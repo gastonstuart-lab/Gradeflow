@@ -271,7 +271,7 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
                     ? 'Reminder due today'
                     : 'Reminder due ${_monthDay(reminder.timestamp)}',
             detail: reminder.text,
-            actionLabel: 'Open dashboard',
+            actionLabel: 'Open planning hub',
             icon: Icons.event_note_outlined,
             severity: severity,
             accent: severity == _ShellNotificationSeverity.urgent
@@ -391,7 +391,7 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
   ) {
     controller.closeAttentionCenter();
     if (widget.location == AppRoutes.whiteboard) {
-      context.go(controller.lastNonStudioLocation ?? AppRoutes.dashboard);
+      context.go(controller.lastNonStudioLocation ?? AppRoutes.osHome);
       return;
     }
     context.push(AppRoutes.whiteboard);
