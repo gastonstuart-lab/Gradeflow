@@ -23,7 +23,7 @@ void main() {
       ),
     );
 
-    expect(find.text('HOME STAGE'), findsOneWidget);
+    expect(find.text('COMMAND CENTER'), findsOneWidget);
     expect(find.text('PINNED APPS'), findsOneWidget);
     expect(find.text('WORKSPACES'), findsOneWidget);
   });

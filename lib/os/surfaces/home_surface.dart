@@ -503,22 +503,104 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
         const SizedBox(width: 20),
         SizedBox(
           width: 388,
-          child: Column(
+          child: _HomeUtilityRail(
+            unread: widget.unread,
+            reminderCount: widget.reminders.length,
             children: [
-              const _HomeWeatherPanel(),
-              const SizedBox(height: 16),
-              _HomeAudioPanel(onTap: () => context.go(AppRoutes.dashboard)),
-              const SizedBox(height: 16),
-              Expanded(
-                child: _HomeAgendaPanel(
-                  reminders: widget.reminders,
-                  scrollable: true,
-                ),
+              const _HomeWeatherPanel(embedded: true),
+              _HomeAudioPanel(
+                embedded: true,
+                onTap: () => context.go(AppRoutes.dashboard),
+              ),
+              _HomeAgendaPanel(
+                reminders: widget.reminders,
+                scrollable: true,
+                embedded: true,
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HomeUtilityRail extends StatelessWidget {
+  const _HomeUtilityRail({
+    required this.children,
+    required this.unread,
+    required this.reminderCount,
+  });
+
+  final List<Widget> children;
+  final int unread;
+  final int reminderCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final signalText = [
+      unread == 0 ? 'Inbox quiet' : '$unread unread',
+      reminderCount == 0 ? 'agenda clear' : '$reminderCount queued',
+    ].join(' / ');
+
+    return _GlassPanel(
+      tone: _HomePanelTone.rail,
+      radius: 30,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: OSColors.blue.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: OSColors.blue.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.tune_rounded,
+                    size: 18,
+                    color: OSColors.blue,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const _PanelEyebrow(label: 'Utility Rail'),
+                      const SizedBox(height: 2),
+                      Text(
+                        signalText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: OSColors.textSecondary(dark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (int index = 0; index < children.length; index++) ...[
+            children[index],
+            if (index != children.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -1674,21 +1756,21 @@ class _HomeStagePanel extends StatelessWidget {
     final stageGradient = LinearGradient(
       colors: dark
           ? const [
-              Color(0x661B3150),
-              Color(0x55111C2E),
-              Color(0x6618223B),
+              Color(0x5518273C),
+              Color(0x44111A29),
+              Color(0x55172234),
             ]
           : const [
               Color(0xE8FFFFFF),
-              Color(0xE1F4F8FF),
-              Color(0xD8EEF4FF),
+              Color(0xE4F7FAFF),
+              Color(0xDCEEF3FA),
             ],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
     final actions = [
       _StageActionData(
-        label: 'Teach Mode',
+        label: 'Teach',
         icon: Icons.cast_for_education_rounded,
         accent: OSColors.blue,
         filled: true,
@@ -1707,7 +1789,7 @@ class _HomeStagePanel extends StatelessWidget {
         onTap: () => context.go(AppRoutes.classes),
       ),
       _StageActionData(
-        label: 'Messages',
+        label: unread == 0 ? 'Messages' : 'Messages $unread',
         icon: Icons.forum_rounded,
         accent: OSColors.cyan,
         onTap: () => context.go(AppRoutes.communication),
@@ -1738,7 +1820,7 @@ class _HomeStagePanel extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const _PanelEyebrow(label: 'Home Stage'),
+                      const _PanelEyebrow(label: 'Command Center'),
                       const Spacer(),
                       _StageStatusChip(
                         text: classCount == 0
@@ -1798,12 +1880,12 @@ class _HomeStagePanel extends StatelessWidget {
                   Column(
                     children: [
                       _StageSpotlightTile(
-                        title: 'Focus room',
+                        title: 'Lead class',
                         icon: Icons.class_rounded,
                         accent: OSColors.green,
                         headline: primaryClass?.className ?? 'No room pinned',
                         detail: primaryClass == null
-                            ? 'Open Classes to pin your first active workspace.'
+                            ? 'Open Classes to start your first workspace.'
                             : primaryClass!.subject,
                         onTap: primaryClass == null
                             ? null
@@ -1813,7 +1895,7 @@ class _HomeStagePanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       _StageSpotlightTile(
-                        title: 'Agenda',
+                        title: 'Next signal',
                         icon: Icons.event_note_outlined,
                         accent: OSColors.amber,
                         headline: primaryReminder == null
@@ -1875,7 +1957,7 @@ class _DesktopStageShell extends StatelessWidget {
       children: [
         Row(
           children: [
-            const _PanelEyebrow(label: 'Home Stage'),
+            const _PanelEyebrow(label: 'Command Center'),
             const Spacer(),
             _StageStatusChip(
               text: classCount == 0
@@ -2649,7 +2731,9 @@ class _SignalMetricTile extends StatelessWidget {
 }
 
 class _HomeWeatherPanel extends StatefulWidget {
-  const _HomeWeatherPanel();
+  const _HomeWeatherPanel({this.embedded = false});
+
+  final bool embedded;
 
   @override
   State<_HomeWeatherPanel> createState() => _HomeWeatherPanelState();
@@ -2673,70 +2757,75 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
         final forecast =
             data?.forecast.take(2).toList() ?? const <DashboardForecastDay>[];
 
-        return _GlassPanel(
-          tone: _HomePanelTone.whisper,
-          radius: 28,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(child: _PanelEyebrow(label: 'Weather')),
-                  Icon(
-                    data == null
-                        ? Icons.cloud_queue_rounded
-                        : _weatherIcon(data.weatherCode),
-                    color: OSColors.blue,
-                    size: 20,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                hasError
-                    ? 'Forecast unavailable'
-                    : loading
-                        ? 'Checking forecast'
-                        : '${data!.temperatureC.round()} C ${_weatherLabel(data.weatherCode)}',
-                style: TextStyle(
-                  fontSize: 18,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800,
-                  color: OSColors.text(dark),
+        final content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: _PanelEyebrow(label: 'Local Conditions'),
                 ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                hasError
-                    ? 'Weather will return when the network responds.'
-                    : loading
-                        ? 'Taichung City'
-                        : '${data!.locationName} - feels like ${data.apparentTempC.round()} C',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.4,
-                  color: OSColors.textSecondary(dark),
-                ),
-              ),
-              if (forecast.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    for (int index = 0; index < forecast.length; index++) ...[
-                      if (index > 0) const SizedBox(width: 8),
-                      Expanded(
-                        child: _WeatherForecastTile(day: forecast[index]),
-                      ),
-                    ],
-                  ],
+                Icon(
+                  data == null
+                      ? Icons.cloud_queue_rounded
+                      : _weatherIcon(data.weatherCode),
+                  color: OSColors.blue,
+                  size: 20,
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              hasError
+                  ? 'Forecast unavailable'
+                  : loading
+                      ? 'Checking forecast'
+                      : '${data!.temperatureC.round()} C ${_weatherLabel(data.weatherCode)}',
+              style: TextStyle(
+                fontSize: 18,
+                height: 1.1,
+                fontWeight: FontWeight.w800,
+                color: OSColors.text(dark),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              hasError
+                  ? 'Weather will return when the network responds.'
+                  : loading
+                      ? 'Taichung City'
+                      : '${data!.locationName} - feels like ${data.apparentTempC.round()} C',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: OSColors.textSecondary(dark),
+              ),
+            ),
+            if (forecast.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  for (int index = 0; index < forecast.length; index++) ...[
+                    if (index > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: _WeatherForecastTile(day: forecast[index]),
+                    ),
+                  ],
+                ],
+              ),
             ],
-          ),
+          ],
         );
+        return widget.embedded
+            ? _RailSection(child: content)
+            : _GlassPanel(
+                tone: _HomePanelTone.whisper,
+                radius: 28,
+                padding: const EdgeInsets.all(16),
+                child: content,
+              );
       },
     );
   }
@@ -2795,78 +2884,85 @@ class _WeatherForecastTile extends StatelessWidget {
 }
 
 class _HomeAudioPanel extends StatelessWidget {
-  const _HomeAudioPanel({required this.onTap});
+  const _HomeAudioPanel({
+    required this.onTap,
+    this.embedded = false,
+  });
 
   final VoidCallback onTap;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final content = Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: OSColors.indigo.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: OSColors.indigo.withValues(alpha: 0.22),
+            ),
+          ),
+          child: const Icon(
+            Icons.graphic_eq_rounded,
+            color: OSColors.indigo,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _PanelEyebrow(label: 'Focus Audio'),
+              const SizedBox(height: 6),
+              Text(
+                'Classroom sound',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: OSColors.text(dark),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                'Open stations and quiet focus audio.',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.35,
+                  color: OSColors.textSecondary(dark),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Icon(
+          Icons.chevron_right_rounded,
+          size: 20,
+          color: OSColors.textMuted(dark),
+        ),
+      ],
+    );
 
     return OSTouchFeedback(
       onTap: onTap,
       borderRadius: BorderRadius.circular(28),
       minSize: const Size(180, 104),
-      child: _GlassPanel(
-        tone: _HomePanelTone.whisper,
-        radius: 28,
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: OSColors.indigo.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: OSColors.indigo.withValues(alpha: 0.22),
-                ),
-              ),
-              child: const Icon(
-                Icons.graphic_eq_rounded,
-                color: OSColors.indigo,
-              ),
+      child: embedded
+          ? _RailSection(child: content)
+          : _GlassPanel(
+              tone: _HomePanelTone.whisper,
+              radius: 28,
+              padding: const EdgeInsets.all(16),
+              child: content,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _PanelEyebrow(label: 'Audio'),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Classroom radio',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: OSColors.text(dark),
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Open focus audio and live stations.',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.35,
-                      color: OSColors.textSecondary(dark),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: OSColors.textMuted(dark),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -2875,10 +2971,12 @@ class _HomeAgendaPanel extends StatelessWidget {
   const _HomeAgendaPanel({
     required this.reminders,
     required this.scrollable,
+    this.embedded = false,
   });
 
   final List<TeacherWorkspaceReminderSnapshot> reminders;
   final bool scrollable;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
@@ -2886,10 +2984,10 @@ class _HomeAgendaPanel extends StatelessWidget {
         scrollable ? reminders : reminders.take(4).toList();
     final dark = context.isDark;
     final headerChildren = <Widget>[
-      const _PanelEyebrow(label: 'Agenda'),
+      const _PanelEyebrow(label: 'Agenda Queue'),
       const SizedBox(height: 8),
       Text(
-        reminders.isEmpty ? 'No pending reminders' : 'Upcoming reminders',
+        reminders.isEmpty ? 'Clear for now' : 'Next reminders',
         style: TextStyle(
           fontSize: 17,
           fontWeight: FontWeight.w800,
@@ -2901,7 +2999,7 @@ class _HomeAgendaPanel extends StatelessWidget {
       Text(
         reminders.isEmpty
             ? 'Nothing is queued right now.'
-            : 'The next few actions stay ready without crowding the day.',
+            : 'Priority items stay visible without crowding the workspace.',
         style: TextStyle(
           fontSize: 12,
           height: 1.45,
@@ -2911,112 +3009,119 @@ class _HomeAgendaPanel extends StatelessWidget {
       const SizedBox(height: 10),
     ];
 
-    return _GlassPanel(
-      tone: _HomePanelTone.whisper,
-      radius: 28,
-      padding: const EdgeInsets.all(16),
-      child: scrollable
-          ? ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                ...headerChildren,
-                if (reminders.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
+    final content = scrollable
+        ? ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              ...headerChildren,
+              if (reminders.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? Colors.white.withValues(alpha: 0.04)
+                        : Colors.white.withValues(alpha: 0.66),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
                       color: dark
-                          ? Colors.white.withValues(alpha: 0.04)
-                          : Colors.white.withValues(alpha: 0.66),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: dark
-                            ? Colors.white.withValues(alpha: 0.06)
-                            : Colors.white.withValues(alpha: 0.72),
-                      ),
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.white.withValues(alpha: 0.72),
                     ),
-                    child: Text(
-                      'Your day is currently clear. New reminders from the planning hub will surface here automatically.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.45,
-                        color: OSColors.textSecondary(dark),
-                      ),
+                  ),
+                  child: Text(
+                    'Your day is currently clear. New reminders from the planning hub will surface here automatically.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.45,
+                      color: OSColors.textSecondary(dark),
                     ),
-                  )
-                else
-                  for (int index = 0;
-                      index < visibleReminders.length;
-                      index++) ...[
-                    _ReminderTile(
-                      reminder: visibleReminders[index],
-                      now: DateTime.now(),
-                    ),
-                    if (index != visibleReminders.length - 1)
-                      const SizedBox(height: 10),
-                  ],
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ...headerChildren,
-                if (reminders.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
+                  ),
+                )
+              else
+                for (int index = 0;
+                    index < visibleReminders.length;
+                    index++) ...[
+                  _ReminderTile(
+                    reminder: visibleReminders[index],
+                    now: DateTime.now(),
+                  ),
+                  if (index != visibleReminders.length - 1)
+                    const SizedBox(height: 10),
+                ],
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ...headerChildren,
+              if (reminders.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? Colors.white.withValues(alpha: 0.04)
+                        : Colors.white.withValues(alpha: 0.66),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
                       color: dark
-                          ? Colors.white.withValues(alpha: 0.04)
-                          : Colors.white.withValues(alpha: 0.66),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: dark
-                            ? Colors.white.withValues(alpha: 0.06)
-                            : Colors.white.withValues(alpha: 0.72),
-                      ),
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.white.withValues(alpha: 0.72),
                     ),
-                    child: Text(
-                      'Your day is currently clear. New reminders from the planning hub will surface here automatically.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.45,
-                        color: OSColors.textSecondary(dark),
-                      ),
+                  ),
+                  child: Text(
+                    'Your day is currently clear. New reminders from the planning hub will surface here automatically.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.45,
+                      color: OSColors.textSecondary(dark),
                     ),
-                  )
-                else
-                  Column(
-                    children: [
-                      for (int index = 0;
-                          index < visibleReminders.length;
-                          index++) ...[
-                        _ReminderTile(
-                          reminder: visibleReminders[index],
-                          now: DateTime.now(),
-                        ),
-                        if (index != visibleReminders.length - 1)
-                          const SizedBox(height: 10),
-                      ],
-                      if (reminders.length > visibleReminders.length) ...[
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            '+${reminders.length - visibleReminders.length} more in the planning hub',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: OSColors.textMuted(dark),
-                            ),
+                  ),
+                )
+              else
+                Column(
+                  children: [
+                    for (int index = 0;
+                        index < visibleReminders.length;
+                        index++) ...[
+                      _ReminderTile(
+                        reminder: visibleReminders[index],
+                        now: DateTime.now(),
+                      ),
+                      if (index != visibleReminders.length - 1)
+                        const SizedBox(height: 10),
+                    ],
+                    if (reminders.length > visibleReminders.length) ...[
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '+${reminders.length - visibleReminders.length} more in the planning hub',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: OSColors.textMuted(dark),
                           ),
                         ),
-                      ],
+                      ),
                     ],
-                  ),
-              ],
-            ),
-    );
+                  ],
+                ),
+            ],
+          );
+
+    return embedded
+        ? _RailSection(
+            expand: scrollable,
+            child: content,
+          )
+        : _GlassPanel(
+            tone: _HomePanelTone.whisper,
+            radius: 28,
+            padding: const EdgeInsets.all(16),
+            child: content,
+          );
   }
 }
 
@@ -3460,7 +3565,40 @@ class _PanelActionTile extends StatelessWidget {
   }
 }
 
-enum _HomePanelTone { stage, tool, whisper }
+enum _HomePanelTone { stage, tool, whisper, rail }
+
+class _RailSection extends StatelessWidget {
+  const _RailSection({
+    required this.child,
+    this.expand = false,
+  });
+
+  final Widget child;
+  final bool expand;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+
+    final section = Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.035)
+            : Colors.white.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.055)
+              : Colors.white.withValues(alpha: 0.58),
+        ),
+      ),
+      child: child,
+    );
+
+    return expand ? Expanded(child: section) : section;
+  }
+}
 
 class _GlassPanel extends StatelessWidget {
   const _GlassPanel({
@@ -3507,6 +3645,19 @@ class _GlassPanel extends StatelessWidget {
               : Colors.white.withValues(alpha: 0.66),
           dark ? 0.42 : 0.34,
           WorkspaceChrome.panelBlur * 0.78,
+        ),
+      _HomePanelTone.rail => (
+          dark
+              ? Colors.white.withValues(alpha: 0.055)
+              : Colors.white.withValues(alpha: 0.58),
+          dark
+              ? const Color(0xFF101827).withValues(alpha: 0.34)
+              : const Color(0xFFF7FAFF).withValues(alpha: 0.78),
+          dark
+              ? WorkspaceChrome.panelBorderColor(context, emphasis: 0.24)
+              : Colors.white.withValues(alpha: 0.72),
+          dark ? 0.76 : 0.54,
+          WorkspaceChrome.panelBlur * 0.86,
         ),
       _HomePanelTone.tool => (
           dark
@@ -3717,12 +3868,12 @@ String _stageSupportLine({
     return '${_relativeReminderLabel(primaryReminder, now)}. ${_trimLine(primaryReminder.text, 96)}';
   }
   if (unread > 0) {
-    return '$unread unread conversation${unread == 1 ? '' : 's'} are waiting in Messages. Keep the day moving from here, then dive deeper only when needed.';
+    return '$unread unread conversation${unread == 1 ? '' : 's'} waiting in Messages. Keep the day moving from this quiet command center.';
   }
   if (primaryClass != null) {
-    return '${primaryClass.subject} is pinned as your lead classroom surface. $classCount class workspace${classCount == 1 ? '' : 's'} are ready from $schoolName.';
+    return '${primaryClass.subject} is ready as your lead classroom. $classCount class workspace${classCount == 1 ? '' : 's'} available from $schoolName.';
   }
-  return 'Pin a class and enter Teach Mode when you are ready.';
+  return 'Open a class workspace or start Teach when the room is ready.';
 }
 
 String _relativeReminderLabel(
