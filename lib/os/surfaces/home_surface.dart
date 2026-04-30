@@ -447,7 +447,8 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final stageHeight = constraints.maxHeight.clamp(176.0, 206.0);
+              final stageHeight =
+                  (constraints.maxHeight * 0.27).clamp(220.0, 248.0);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -1379,6 +1380,130 @@ class _HomeSystemStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final compact = MediaQuery.sizeOf(context).width < 720;
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _GlassPanel(
+            tone: _HomePanelTone.whisper,
+            radius: 24,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF5C8AFF), Color(0xFF5EC7E6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: OSRadius.mdBr,
+                  ),
+                  child: const Icon(
+                    Icons.cast_for_education_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'GradeFlow OS',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        teacherName.isEmpty
+                            ? schoolName
+                            : '$teacherName - $schoolName',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: OSColors.textSecondary(dark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          _GlassPanel(
+            tone: _HomePanelTone.whisper,
+            radius: 24,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _formatClock(now),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatDateLine(now),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: OSColors.textSecondary(dark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _TopStripButton(
+                  icon: Icons.notifications_outlined,
+                  semanticLabel: 'Attention center',
+                  badge: unread > 0 ? '$unread' : null,
+                  onTap: onShadeTap,
+                ),
+                const SizedBox(width: 8),
+                _TopStripButton(
+                  icon: themeMode == ThemeMode.light
+                      ? Icons.dark_mode_rounded
+                      : Icons.light_mode_rounded,
+                  semanticLabel: 'Toggle theme',
+                  onTap: onThemeTap,
+                ),
+                const SizedBox(width: 8),
+                _TopStripButton(
+                  icon: Icons.wallpaper_rounded,
+                  semanticLabel: 'Change home background',
+                  onTap: onWallpaperTap,
+                ),
+                const SizedBox(width: 8),
+                _TopStripButton(
+                  icon: Icons.auto_awesome_rounded,
+                  semanticLabel: 'Assistant',
+                  onTap: onAssistantTap,
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
