@@ -1,15 +1,12 @@
-/// GradeFlow OS — Design Tokens
+﻿/// GradeFlow OS - Design Tokens
 ///
-/// Centralised colours, spacing, motion, and radius values for the OS shell
-/// layer.  Surface-level screens (HomeSurface, ClassSurface, TeachSurface)
+/// Centralized colors, spacing, motion, and radius values for the OS shell
+/// layer. Surface-level screens (HomeSurface, ClassSurface, TeachSurface)
 /// and every OS chrome component (dock, launcher, shade, assistant, idle)
-/// must use these tokens so the OS has one coherent visual identity.
+/// should use these tokens so the OS has one coherent visual identity.
+library;
 
 import 'package:flutter/material.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// COLOURS
-// ─────────────────────────────────────────────────────────────────────────────
 
 class OSColors {
   OSColors._();
@@ -66,6 +63,18 @@ class OSColors {
   static const Color teachSurface = Color(0xFF0E1520);
   static const Color teachAccent = Color(0xFF5EC7E6);
 
+  // Semantic aliases for shared design-system usage.
+  // Keep these mapped to the existing palette so current surfaces remain stable.
+  static Color appBackground(bool dark) => dark ? darkBg : lightBg;
+  static Color workspaceBackground(bool dark) => dark ? darkBgAlt : lightBgAlt;
+  static Color panelSurface(bool dark) => dark ? darkPanel : lightPanel;
+  static Color elevatedPanelSurface(bool dark) =>
+      dark ? darkSurfaceElevated : lightSurfaceElevated;
+  static Color panelBorder(bool dark) => border(dark);
+  static Color textPrimary(bool dark) => text(dark);
+  static Color textSubtle(bool dark) => textSecondary(dark);
+  static Color textFaint(bool dark) => textMuted(dark);
+
   static Color bg(bool dark) => dark ? darkBg : lightBg;
   static Color surface(bool dark) => dark ? darkSurface : lightSurface;
   static Color text(bool dark) => dark ? darkText : lightText;
@@ -75,10 +84,6 @@ class OSColors {
   static Color dock(bool dark) => dark ? dockDark : dockLight;
   static Color textMuted(bool dark) => dark ? darkTextMuted : lightTextMuted;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MOTION
-// ─────────────────────────────────────────────────────────────────────────────
 
 class OSMotion {
   OSMotion._();
@@ -104,10 +109,6 @@ class OSMotion {
   static const Duration overlayOut = Duration(milliseconds: 240);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SPACING
-// ─────────────────────────────────────────────────────────────────────────────
-
 class OSSpacing {
   OSSpacing._();
 
@@ -132,10 +133,6 @@ class OSSpacing {
   static const double widgetPad = 16.0;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RADIUS
-// ─────────────────────────────────────────────────────────────────────────────
-
 class OSRadius {
   OSRadius._();
 
@@ -154,10 +151,7 @@ class OSRadius {
   static BorderRadius get pillBr => BorderRadius.circular(pill);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-
 extension OSBrightnessX on BuildContext {
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 }
+
