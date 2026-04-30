@@ -6,10 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/components/pdf_web_viewer.dart';
 import 'package:gradeflow/components/pilot_feedback_dialog.dart';
+import 'package:gradeflow/components/command_surface.dart';
 import 'package:gradeflow/components/seating/seating_designer_view.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/models/room_setup.dart';
+import 'package:gradeflow/models/seating_layout.dart';
+import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/platform/browser_file_actions.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
@@ -124,11 +127,13 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
             .where((seat) => (seat.studentId ?? '').trim().isNotEmpty)
             .length ??
         0;
+    final seatCount = activeLayout?.seats.length ?? 0;
+    final tableCount = activeLayout?.tables.length ?? 0;
 
     return _SeatingNativeSurface(
       eyebrow: 'Class workspace',
       title: classItem.className,
-      toolLabel: 'Seating',
+      toolLabel: 'Classroom Map',
       subtitle:
           '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}',
       leading: IconButton(
@@ -145,10 +150,19 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
       contextStrip: _SeatingContextStrip(
         studentCount: students.length,
         layoutCount: seatingService.layoutsForClass(widget.classId).length,
-        tableCount: activeLayout?.tables.length ?? 0,
-        seatCount: activeLayout?.seats.length ?? 0,
+        tableCount: tableCount,
+        seatCount: seatCount,
         placedSeatCount: placedSeatCount,
         roomName: linkedRoom?.name,
+      ),
+      insightRail: _SeatingInsightRail(
+        studentCount: students.length,
+        layoutCount: seatingService.layoutsForClass(widget.classId).length,
+        tableCount: tableCount,
+        seatCount: seatCount,
+        placedSeatCount: placedSeatCount,
+        roomName: linkedRoom?.name,
+        activeLayout: activeLayout,
       ),
       workspace: LayoutBuilder(
         builder: (context, constraints) {
@@ -781,6 +795,7 @@ class _SeatingNativeSurface extends StatelessWidget {
     this.leading,
     this.trailing = const [],
     this.contextStrip,
+    this.insightRail,
   });
 
   final String eyebrow;
@@ -790,44 +805,128 @@ class _SeatingNativeSurface extends StatelessWidget {
   final Widget? leading;
   final List<Widget> trailing;
   final Widget? contextStrip;
+  final Widget? insightRail;
   final Widget workspace;
 
   @override
   Widget build(BuildContext context) {
+    final bottomClearance =
+        MediaQuery.paddingOf(context).bottom + OSSpacing.dockBottomMargin;
+    final shellMargin = EdgeInsets.fromLTRB(
+      WorkspaceSpacing.shellMargin.left,
+      WorkspaceSpacing.shellMargin.top,
+      WorkspaceSpacing.shellMargin.right,
+      WorkspaceSpacing.shellMargin.bottom + bottomClearance,
+    );
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: AnimatedPageBackground(
         child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1480),
-              child: Padding(
-                padding: WorkspaceSpacing.shellMargin,
-                child: WorkspaceShellFrame(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-                  radius: WorkspaceRadius.shell,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _SeatingNativeHeader(
-                        eyebrow: eyebrow,
-                        title: title,
-                        toolLabel: toolLabel,
-                        subtitle: subtitle,
-                        leading: leading,
-                        trailing: trailing,
-                        contextStrip: contextStrip,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final shellHeight = (constraints.maxHeight - shellMargin.vertical)
+                  .clamp(0.0, double.infinity);
+
+              return Padding(
+                padding: shellMargin,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1480),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: shellHeight,
+                      child: WorkspaceShellFrame(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                        radius: WorkspaceRadius.shell,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _SeatingNativeHeader(
+                              eyebrow: eyebrow,
+                              title: title,
+                              toolLabel: toolLabel,
+                              subtitle: subtitle,
+                              leading: leading,
+                              trailing: trailing,
+                              contextStrip: contextStrip,
+                            ),
+                            const SizedBox(height: WorkspaceSpacing.sm),
+                            Expanded(
+                              child: _SeatingWorkspaceLayout(
+                                workspace: workspace,
+                                insightRail: insightRail,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: WorkspaceSpacing.sm),
-                      Expanded(child: workspace),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SeatingWorkspaceLayout extends StatelessWidget {
+  const _SeatingWorkspaceLayout({
+    required this.workspace,
+    this.insightRail,
+  });
+
+  final Widget workspace;
+  final Widget? insightRail;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showRail = insightRail != null && constraints.maxWidth >= 1120;
+        final mapSurface = GradeFlowPanel(
+          variant: GradeFlowPanelVariant.stage,
+          padding: const EdgeInsets.all(12),
+          radius: WorkspaceRadius.card,
+          expandChild: true,
+          child: workspace,
+        );
+
+        if (showRail) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: mapSurface),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              SizedBox(
+                width: 260,
+                child: SingleChildScrollView(
+                  child: insightRail!,
+                ),
+              ),
+            ],
+          );
+        }
+
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              SizedBox(
+                height: constraints.maxHeight,
+                child: mapSurface,
+              ),
+              if (insightRail != null) ...[
+                const SizedBox(height: WorkspaceSpacing.sm),
+                insightRail!,
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -923,7 +1022,7 @@ class _SeatingNativeHeader extends StatelessWidget {
             ),
             const SizedBox(height: 7),
             Text(
-              title,
+              'Classroom Map',
               maxLines: narrow ? 2 : 1,
               overflow: TextOverflow.ellipsis,
               style: context.textStyles.headlineSmall?.copyWith(
@@ -934,7 +1033,7 @@ class _SeatingNativeHeader extends StatelessWidget {
             if ((subtitle ?? '').trim().isNotEmpty) ...[
               const SizedBox(height: 3),
               Text(
-                subtitle!,
+                '$title - $subtitle',
                 maxLines: narrow ? 2 : 1,
                 overflow: TextOverflow.ellipsis,
                 style: context.textStyles.bodyMedium?.copyWith(
@@ -1004,6 +1103,268 @@ class _SeatingNativeHeader extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _SeatingInsightRail extends StatelessWidget {
+  const _SeatingInsightRail({
+    required this.studentCount,
+    required this.layoutCount,
+    required this.tableCount,
+    required this.seatCount,
+    required this.placedSeatCount,
+    required this.activeLayout,
+    this.roomName,
+  });
+
+  final int studentCount;
+  final int layoutCount;
+  final int tableCount;
+  final int seatCount;
+  final int placedSeatCount;
+  final SeatingLayout? activeLayout;
+  final String? roomName;
+
+  @override
+  Widget build(BuildContext context) {
+    final seats = activeLayout?.seats ?? const <SeatingSeat>[];
+    final emptySeatCount = (seatCount - placedSeatCount).clamp(0, seatCount);
+    final reminderCount = seats.where((seat) => seat.reminder).length;
+    final lockedCount = seats.where((seat) => seat.locked).length;
+    final greenCount =
+        seats.where((seat) => seat.statusColor == SeatStatusColor.green).length;
+    final yellowCount = seats
+        .where((seat) => seat.statusColor == SeatStatusColor.yellow)
+        .length;
+    final redCount =
+        seats.where((seat) => seat.statusColor == SeatStatusColor.red).length;
+    final blueCount =
+        seats.where((seat) => seat.statusColor == SeatStatusColor.blue).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GradeFlowPanel(
+          variant: GradeFlowPanelVariant.tool,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const GradeFlowSectionHeader(
+                title: 'Class map',
+                subtitle: 'Live seating coverage',
+              ),
+              const SizedBox(height: WorkspaceSpacing.sm),
+              GridView.count(
+                crossAxisCount: 2,
+                childAspectRatio: 1.3,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                children: [
+                  _RailMetric(label: 'Students', value: '$studentCount'),
+                  _RailMetric(label: 'Placed', value: '$placedSeatCount'),
+                  _RailMetric(label: 'Empty', value: '$emptySeatCount'),
+                  _RailMetric(label: 'Seats', value: '$seatCount'),
+                ],
+              ),
+              const SizedBox(height: WorkspaceSpacing.sm),
+              _RailLine(
+                icon: Icons.table_bar_outlined,
+                label: 'Tables',
+                value: '$tableCount',
+              ),
+              _RailLine(
+                icon: Icons.layers_outlined,
+                label: 'Layouts',
+                value: '$layoutCount',
+              ),
+              _RailLine(
+                icon: Icons.meeting_room_outlined,
+                label: 'Room setup',
+                value:
+                    (roomName ?? '').trim().isEmpty ? 'Not linked' : roomName!,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: WorkspaceSpacing.sm),
+        GradeFlowPanel(
+          variant: GradeFlowPanelVariant.tool,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const GradeFlowSectionHeader(
+                title: 'Seat signals',
+                subtitle: 'Existing seat status only',
+              ),
+              const SizedBox(height: WorkspaceSpacing.sm),
+              _StatusLegendRow(
+                color: Colors.green.shade600,
+                label: 'Green',
+                value: '$greenCount',
+              ),
+              _StatusLegendRow(
+                color: Colors.amber.shade700,
+                label: 'Yellow',
+                value: '$yellowCount',
+              ),
+              _StatusLegendRow(
+                color: Colors.red.shade600,
+                label: 'Red',
+                value: '$redCount',
+              ),
+              _StatusLegendRow(
+                color: Colors.blue.shade600,
+                label: 'Blue',
+                value: '$blueCount',
+              ),
+              const SizedBox(height: WorkspaceSpacing.xs),
+              _RailLine(
+                icon: Icons.notifications_active_outlined,
+                label: 'Reminders',
+                value: '$reminderCount',
+              ),
+              _RailLine(
+                icon: Icons.lock_outline,
+                label: 'Locked seats',
+                value: '$lockedCount',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RailMetric extends StatelessWidget {
+  const _RailMetric({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceFlatSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.textStyles.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: WorkspaceTypography.metadata(context),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RailLine extends StatelessWidget {
+  const _RailLine({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = WorkspaceChrome.mutedText(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 17, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: WorkspaceTypography.metadata(context),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: context.textStyles.labelMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusLegendRow extends StatelessWidget {
+  const _StatusLegendRow({
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+
+  final Color color;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: WorkspaceTypography.metadata(context),
+            ),
+          ),
+          Text(
+            value,
+            style: context.textStyles.labelMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
