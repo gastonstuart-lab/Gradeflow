@@ -3536,6 +3536,13 @@ class _ClassroomTile extends StatelessWidget {
         route: AppRoutes.osClassWorkspace(classId),
       ),
       _ClassQuickTool(
+        label: 'Teach',
+        icon: Icons.cast_for_education_rounded,
+        color: OSColors.teachAccent,
+        route: AppRoutes.osTeach,
+        surface: OSSurface.teach,
+      ),
+      _ClassQuickTool(
         label: 'Seating',
         icon: Icons.event_seat_rounded,
         color: OSColors.amber,
@@ -3645,10 +3652,18 @@ class _ClassroomTile extends StatelessWidget {
                       child: _ClassQuickToolButton(
                         tool: tool,
                         className: classItem.className,
-                        onTap: () => context.go(tool.route),
+                        onTap: () {
+                          if (tool.surface == OSSurface.teach) {
+                            context.read<GradeFlowOSController>().setSurface(
+                                  OSSurface.teach,
+                                  classId: classId,
+                                );
+                          }
+                          context.go(tool.route);
+                        },
                       ),
                     ),
-                    if (tool != tools.last) const SizedBox(width: 7),
+                    if (tool != tools.last) const SizedBox(width: 6),
                   ],
                 ],
               ),
@@ -3666,12 +3681,14 @@ class _ClassQuickTool {
     required this.icon,
     required this.color,
     required this.route,
+    this.surface,
   });
 
   final String label;
   final IconData icon;
   final Color color;
   final String route;
+  final OSSurface? surface;
 }
 
 class _ClassQuickToolButton extends StatelessWidget {
@@ -3697,7 +3714,7 @@ class _ClassQuickToolButton extends StatelessWidget {
         child: OSTouchFeedback(
           onTap: onTap,
           borderRadius: OSRadius.pillBr,
-          minSize: const Size(32, 32),
+          minSize: const Size(30, 32),
           child: Container(
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(vertical: 7),
@@ -3712,7 +3729,7 @@ class _ClassQuickToolButton extends StatelessWidget {
             ),
             child: Icon(
               tool.icon,
-              size: 14,
+              size: 13,
               color: tool.color,
             ),
           ),
