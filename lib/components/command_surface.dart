@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/theme.dart';
 
 enum SurfaceType {
@@ -13,6 +14,187 @@ enum SurfaceType {
 enum CommandPulseTone {
   calm,
   attention,
+}
+
+enum GradeFlowPanelVariant {
+  stage,
+  tool,
+  whisper,
+}
+
+class GradeFlowPanel extends StatelessWidget {
+  const GradeFlowPanel({
+    super.key,
+    required this.variant,
+    required this.child,
+    this.header,
+    this.actions = const [],
+    this.onTap,
+    this.padding,
+    this.radius,
+    this.contentSpacing,
+    this.expandChild = false,
+  });
+
+  final GradeFlowPanelVariant variant;
+  final Widget child;
+  final Widget? header;
+  final List<Widget> actions;
+  final VoidCallback? onTap;
+  final EdgeInsetsGeometry? padding;
+  final double? radius;
+  final double? contentSpacing;
+  final bool expandChild;
+
+  @override
+  Widget build(BuildContext context) {
+    return CommandSurfaceCard(
+      surfaceType: switch (variant) {
+        GradeFlowPanelVariant.stage => SurfaceType.stage,
+        GradeFlowPanelVariant.tool => SurfaceType.tool,
+        GradeFlowPanelVariant.whisper => SurfaceType.whisper,
+      },
+      header: header,
+      actions: actions,
+      onTap: onTap,
+      padding: padding,
+      radius: radius,
+      contentSpacing: contentSpacing,
+      expandChild: expandChild,
+      child: child,
+    );
+  }
+}
+
+class GradeFlowSectionHeader extends StatelessWidget {
+  const GradeFlowSectionHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: WorkspaceTypography.sectionTitle(context),
+              ),
+              if ((subtitle ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle!,
+                  style: WorkspaceTypography.metadata(context),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (trailing != null) ...[
+          const SizedBox(width: 12),
+          trailing!,
+        ],
+      ],
+    );
+  }
+}
+
+class GradeFlowMetricPill extends StatelessWidget {
+  const GradeFlowMetricPill({
+    super.key,
+    required this.label,
+    required this.value,
+    this.icon,
+    this.accent,
+  });
+
+  final String label;
+  final String value;
+  final IconData? icon;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final tone = accent ?? OSColors.info;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: OSColors.panelSurface(dark).withValues(alpha: dark ? 0.54 : 0.84),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: OSColors.panelBorder(dark).withValues(alpha: dark ? 0.75 : 0.8),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(
+              icon,
+              size: 14,
+              color: tone,
+            ),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            label,
+            style: WorkspaceTypography.pillLabel(context),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: WorkspaceTypography.pillValue(
+              context,
+              color: OSColors.textPrimary(dark),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class GradeFlowActionChip extends StatelessWidget {
+  const GradeFlowActionChip({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = emphasized
+        ? WorkspaceButtonStyles.filled(context, compact: true)
+        : WorkspaceButtonStyles.tonal(context, compact: true);
+
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      style: style,
+      icon: Icon(icon ?? Icons.bolt_rounded, size: 16),
+      label: Text(label),
+    );
+  }
 }
 
 class CommandSurfaceCard extends StatefulWidget {
@@ -325,9 +507,9 @@ class CommandHeader extends StatelessWidget {
   static Color _pulseColor(BuildContext context, CommandPulseTone tone) {
     switch (tone) {
       case CommandPulseTone.calm:
-        return const Color(0xFF59A4FF);
+        return OSColors.info;
       case CommandPulseTone.attention:
-        return const Color(0xFFE3A255);
+        return OSColors.attention;
     }
   }
 }
@@ -412,10 +594,10 @@ _CommandSurfaceSpec _resolveCommandSurfaceSpec(
   required bool pressed,
 }) {
   final theme = Theme.of(context);
-  final isDark = theme.brightness == Brightness.dark;
+  final isDark = context.isDark;
   final primary = theme.colorScheme.primary;
-  final surface = theme.colorScheme.surface;
-  final elevated = theme.colorScheme.surfaceContainerHighest;
+  final surface = OSColors.panelSurface(isDark);
+  final elevated = OSColors.elevatedPanelSurface(isDark);
 
   switch (type) {
     case SurfaceType.stage:
