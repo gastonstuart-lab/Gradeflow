@@ -20,6 +20,28 @@ class ImportedClass {
   });
 }
 
+class _XlsxSheetDescriptor {
+  final String name;
+  final String path;
+
+  const _XlsxSheetDescriptor({
+    required this.name,
+    required this.path,
+  });
+}
+
+class _XlsxSheetRows {
+  final String name;
+  final String path;
+  final List<List<String>> rows;
+
+  const _XlsxSheetRows({
+    required this.name,
+    required this.path,
+    required this.rows,
+  });
+}
+
 extension FileImportServiceClasses on FileImportService {
   List<ImportedClass> parseClassesCsv(String csvContent) {
     try {
@@ -473,106 +495,212 @@ extension FileImportServiceClasses on FileImportService {
   }
 
   List<List<String>> _rowsFromXlsxZip(Uint8List bytes) {
-    final archive = ZipDecoder().decodeBytes(bytes);
+    final sheets = _xlsxSheetRowsFromZip(bytes);
+    if (sheets.isEmpty) return [];
+
+    final scoringSheets =
+        sheets.where((sheet) => sheet.rows.length > 1).toList();
+    final candidates = scoringSheets.isNotEmpty ? scoringSheets : sheets;
+
+    _XlsxSheetRows bestSheet = candidates.first;
+    var bestScore = _scoreXlsxSheetRows(bestSheet.rows);
+    for (final sheet in candidates.skip(1)) {
+      final score = _scoreXlsxSheetRows(sheet.rows);
+      if (score > bestScore) {
+        bestSheet = sheet;
+        bestScore = score;
+      }
+    }
+
+    debugPrint(
+        'XLSX ZIP/XML fallback used: sheet=${bestSheet.path} rows=${bestSheet.rows.length}');
+    return bestSheet.rows;
+  }
+
+  List<_XlsxSheetRows> _xlsxSheetRowsFromZip(Uint8List bytes) {
+    final archive = ZipDecoder().decodeBytes(bytes, verify: false);
 
     String? readText(String path) {
-      final f = archive.files.cast<ArchiveFile?>().firstWhere(
-            (af) => af != null && af.name == path,
+      final normalizedPath = path.replaceAll('\\', '/');
+      final file = archive.files.cast<ArchiveFile?>().firstWhere(
+            (entry) => entry?.name.replaceAll('\\', '/') == normalizedPath,
             orElse: () => null,
           );
-      if (f == null) return null;
-      final data = f.content;
-      if (data is List<int>) {
+      if (file == null) return null;
+      final data = file.content;
+      if (data is Uint8List) {
         return utf8.decode(data, allowMalformed: true);
       }
-      if (data is Uint8List) {
+      if (data is List<int>) {
         return utf8.decode(data, allowMalformed: true);
       }
       return null;
     }
 
-    List<String> readSharedStrings() {
-      final xmlText = readText('xl/sharedStrings.xml');
-      if (xmlText == null || xmlText.trim().isEmpty) return const [];
-      final doc = XmlDocument.parse(xmlText);
-      final out = <String>[];
-      for (final si in doc.findAllElements('si')) {
-        final parts = <String>[];
-        for (final t in si.findAllElements('t')) {
-          parts.add(t.innerText);
+    final sharedStrings = _readSharedStringsFromZip(readText);
+    final descriptors = _resolveXlsxSheetDescriptors(
+      archive: archive,
+      readText: readText,
+    );
+
+    final sheets = <_XlsxSheetRows>[];
+    for (final descriptor in descriptors) {
+      final sheetXml = readText(descriptor.path);
+      if (sheetXml == null || sheetXml.trim().isEmpty) continue;
+      final rows = _parseWorksheetRowsFromXml(
+        sheetXml,
+        sharedStrings: sharedStrings,
+      );
+      if (rows.isEmpty) continue;
+      sheets.add(
+        _XlsxSheetRows(
+          name: descriptor.name,
+          path: descriptor.path,
+          rows: rows,
+        ),
+      );
+    }
+
+    return sheets;
+  }
+
+  List<_XlsxSheetDescriptor> _resolveXlsxSheetDescriptors({
+    required Archive archive,
+    required String? Function(String path) readText,
+  }) {
+    final workbookXml = readText('xl/workbook.xml');
+    final relsXml = readText('xl/_rels/workbook.xml.rels');
+
+    final discovered = <_XlsxSheetDescriptor>[];
+    if (workbookXml != null &&
+        workbookXml.trim().isNotEmpty &&
+        relsXml != null &&
+        relsXml.trim().isNotEmpty) {
+      final workbook = XmlDocument.parse(workbookXml);
+      final rels = XmlDocument.parse(relsXml);
+      final targetById = <String, String>{};
+
+      for (final relationship in rels.findAllElements('Relationship')) {
+        final id = relationship.getAttribute('Id');
+        final target = relationship.getAttribute('Target');
+        if (id == null || target == null || target.trim().isEmpty) continue;
+        targetById[id] = target;
+      }
+
+      for (final sheet in workbook.findAllElements('sheet')) {
+        final name = sheet.getAttribute('name')?.trim();
+        final relAttr = sheet.attributes.cast<XmlAttribute?>().firstWhere(
+          (attr) {
+            final attrName = attr?.name.toString() ?? '';
+            return attrName == 'r:id' || attrName == 'id';
+          },
+          orElse: () => null,
+        );
+        final relId = relAttr?.value.trim();
+        final target = relId == null ? null : targetById[relId];
+        if (target == null || target.trim().isEmpty) continue;
+
+        var normalizedTarget = target.replaceAll('\\', '/');
+        if (normalizedTarget.startsWith('/')) {
+          normalizedTarget = normalizedTarget.substring(1);
         }
-        out.add(parts.join());
+        final resolvedPath = normalizedTarget.startsWith('xl/')
+            ? normalizedTarget
+            : 'xl/$normalizedTarget';
+        discovered.add(
+          _XlsxSheetDescriptor(
+            name: name == null || name.isEmpty ? resolvedPath : name,
+            path: resolvedPath,
+          ),
+        );
       }
-      return out;
     }
 
-    int colIndexFromCellRef(String? r) {
-      if (r == null || r.isEmpty) return -1;
-      final m = RegExp(r'^([A-Z]+)').firstMatch(r);
-      if (m == null) return -1;
-      final letters = m.group(1)!;
-      int n = 0;
-      for (final codeUnit in letters.codeUnits) {
-        n = (n * 26) + (codeUnit - 64);
-      }
-      return n - 1;
+    if (discovered.isNotEmpty) {
+      return discovered;
     }
-
-    final shared = readSharedStrings();
 
     final sheetPaths = archive.files
-        .map((f) => f.name)
-        .where((n) => n.startsWith('xl/worksheets/sheet') && n.endsWith('.xml'))
+        .map((file) => file.name.replaceAll('\\', '/'))
+        .where((name) =>
+            name.startsWith('xl/worksheets/sheet') && name.endsWith('.xml'))
         .toList()
       ..sort();
+    return [
+      for (final sheetPath in sheetPaths)
+        _XlsxSheetDescriptor(name: sheetPath, path: sheetPath),
+    ];
+  }
 
-    if (sheetPaths.isEmpty) return [];
-    final sheetXml = readText(sheetPaths.first);
-    if (sheetXml == null || sheetXml.trim().isEmpty) return [];
+  List<String> _readSharedStringsFromZip(
+      String? Function(String path) readText) {
+    final xmlText = readText('xl/sharedStrings.xml');
+    if (xmlText == null || xmlText.trim().isEmpty) return const [];
+    final doc = XmlDocument.parse(xmlText);
+    final out = <String>[];
+    for (final sharedItem in doc.findAllElements('si')) {
+      final parts = <String>[];
+      for (final textNode in sharedItem.findAllElements('t')) {
+        parts.add(textNode.innerText);
+      }
+      out.add(parts.join());
+    }
+    return out;
+  }
+
+  List<List<String>> _parseWorksheetRowsFromXml(
+    String sheetXml, {
+    required List<String> sharedStrings,
+  }) {
+    int colIndexFromCellRef(String? cellRef) {
+      if (cellRef == null || cellRef.isEmpty) return -1;
+      final match = RegExp(r'^([A-Z]+)').firstMatch(cellRef);
+      if (match == null) return -1;
+      final letters = match.group(1)!;
+      var value = 0;
+      for (final codeUnit in letters.codeUnits) {
+        value = (value * 26) + (codeUnit - 64);
+      }
+      return value - 1;
+    }
 
     final doc = XmlDocument.parse(sheetXml);
     final rowsOut = <List<String>>[];
 
     for (final rowEl in doc.findAllElements('row')) {
       final row = <String>[];
-      int maxCol = -1;
+      for (final cell in rowEl.findElements('c')) {
+        final columnIndex = colIndexFromCellRef(cell.getAttribute('r'));
+        if (columnIndex < 0) continue;
 
-      for (final c in rowEl.findElements('c')) {
-        final rAttr = c.getAttribute('r');
-        final col = colIndexFromCellRef(rAttr);
-        if (col >= 0 && col > maxCol) maxCol = col;
-        final t = c.getAttribute('t');
-
+        final cellType = cell.getAttribute('t');
         String value = '';
-        if (t == 'inlineStr') {
-          final isEl = c.getElement('is');
-          if (isEl != null) {
-            value = isEl.findAllElements('t').map((e) => e.innerText).join();
+        if (cellType == 'inlineStr') {
+          final inline = cell.getElement('is');
+          if (inline != null) {
+            value = inline
+                .findAllElements('t')
+                .map((node) => node.innerText)
+                .join();
           }
         } else {
-          final vEl = c.getElement('v');
-          final vText = vEl?.innerText ?? '';
-          if (t == 's') {
-            final idx = int.tryParse(vText);
-            if (idx != null && idx >= 0 && idx < shared.length) {
-              value = shared[idx];
-            } else {
-              value = '';
+          final rawValue = cell.getElement('v')?.innerText ?? '';
+          if (cellType == 's') {
+            final idx = int.tryParse(rawValue);
+            if (idx != null && idx >= 0 && idx < sharedStrings.length) {
+              value = sharedStrings[idx];
             }
           } else {
-            value = vText;
+            value = rawValue;
           }
         }
 
-        if (col >= 0) {
-          while (row.length <= col) {
-            row.add('');
-          }
-          row[col] = value;
+        while (row.length <= columnIndex) {
+          row.add('');
         }
+        row[columnIndex] = value;
       }
 
-      // Trim trailing empties
       while (row.isNotEmpty && row.last.trim().isEmpty) {
         row.removeLast();
       }
@@ -580,12 +708,38 @@ extension FileImportServiceClasses on FileImportService {
       rowsOut.add(row);
     }
 
-    while (rowsOut.isNotEmpty && rowsOut.first.every((c) => c.trim().isEmpty)) {
+    while (rowsOut.isNotEmpty &&
+        rowsOut.first.every((cell) => cell.trim().isEmpty)) {
       rowsOut.removeAt(0);
     }
 
-    debugPrint(
-        'XLSX ZIP/XML fallback used: sheet=${sheetPaths.first} rows=${rowsOut.length}');
     return rowsOut;
+  }
+
+  int _scoreXlsxSheetRows(List<List<String>> rows) {
+    if (rows.isEmpty) return -1;
+
+    final headerRowIndex = _pickHeaderRowIndex(rows);
+    final header = rows[headerRowIndex].map(_normalizeName).toList();
+    final recognizedHeaderCount = header.where((cell) {
+      return cell.contains('student') ||
+          cell.contains('name') ||
+          cell.contains('class') ||
+          cell.contains('seat') ||
+          cell.contains('date') ||
+          cell.contains('week') ||
+          cell.contains('title') ||
+          cell.contains('score') ||
+          cell.contains('exam') ||
+          cell.contains('subject') ||
+          cell.contains('lesson');
+    }).length;
+
+    final nonEmptyRows =
+        rows.where((row) => row.any((cell) => cell.trim().isNotEmpty)).length;
+    final maxColumns = rows.fold<int>(
+        0, (current, row) => row.length > current ? row.length : current);
+
+    return (recognizedHeaderCount * 8) + (nonEmptyRows * 2) + maxColumns;
   }
 }

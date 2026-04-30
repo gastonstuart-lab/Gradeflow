@@ -12,12 +12,14 @@ class GlobalSystemShellFrame extends StatefulWidget {
   final String location;
   final Widget child;
   final bool focusMode;
+  final bool showNavigationChrome;
 
   const GlobalSystemShellFrame({
     super.key,
     required this.location,
     required this.child,
     this.focusMode = false,
+    this.showNavigationChrome = true,
   });
 
   @override
@@ -60,16 +62,21 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
     if (!auth.isAuthenticated) {
       return widget.child;
     }
+    if (!widget.showNavigationChrome && !widget.focusMode) {
+      return widget.child;
+    }
 
     final controller = context.watch<GlobalSystemShellController>();
     final communication = context.watch<CommunicationService>();
     final mediaQuery = MediaQuery.of(context);
     final width = mediaQuery.size.width;
     final dashboardManaged = widget.location == AppRoutes.dashboard;
-    final showDock = !dashboardManaged &&
+    final showDock = widget.showNavigationChrome &&
+        !dashboardManaged &&
         !widget.focusMode &&
         width >= _desktopDockBreakpoint;
-    final showAttentionFab = !dashboardManaged &&
+    final showAttentionFab = widget.showNavigationChrome &&
+        !dashboardManaged &&
         !widget.focusMode &&
         width < _desktopDockBreakpoint;
     final shellNotifications =
@@ -264,7 +271,7 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
                     ? 'Reminder due today'
                     : 'Reminder due ${_monthDay(reminder.timestamp)}',
             detail: reminder.text,
-            actionLabel: 'Open dashboard',
+            actionLabel: 'Open planning hub',
             icon: Icons.event_note_outlined,
             severity: severity,
             accent: severity == _ShellNotificationSeverity.urgent
@@ -272,7 +279,7 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
                 : const Color(0xFFE3A23B),
             onTap: () {
               controller.closeAttentionCenter();
-              context.go(AppRoutes.dashboard);
+              context.go(AppRoutes.osPlanner);
             },
           ),
         );
@@ -318,7 +325,6 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
     required _ShellNotificationBundle notifications,
   }) {
     final currentUtility = controller.activeUtility;
-    final communication = context.watch<CommunicationService>();
 
     return [
       _GlobalDockItemData(
@@ -331,12 +337,21 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
         onTap: controller.toggleAttentionCenter,
       ),
       _GlobalDockItemData(
-        label: 'Dashboard',
-        icon: Icons.space_dashboard_outlined,
+        label: 'Home',
+        icon: Icons.home_rounded,
         isActive: currentUtility == GlobalSystemUtility.dashboard,
         onTap: () {
           controller.closeAttentionCenter();
-          context.go(AppRoutes.dashboard);
+          context.go(AppRoutes.osHome);
+        },
+      ),
+      _GlobalDockItemData(
+        label: 'Planner',
+        icon: Icons.calendar_month_rounded,
+        isActive: false,
+        onTap: () {
+          controller.closeAttentionCenter();
+          context.go(AppRoutes.osPlanner);
         },
       ),
       _GlobalDockItemData(
@@ -348,33 +363,6 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
           context.go(AppRoutes.classes);
         },
       ),
-      _GlobalDockItemData(
-        label: 'Studio',
-        icon: Icons.draw_rounded,
-        isActive: currentUtility == GlobalSystemUtility.studio,
-        onTap: () => _handleStudioTap(context, controller),
-      ),
-      _GlobalDockItemData(
-        label: 'Messages',
-        icon: Icons.forum_outlined,
-        badge: communication.totalUnreadCount > 0
-            ? '${communication.totalUnreadCount}'
-            : null,
-        isActive: currentUtility == GlobalSystemUtility.messages,
-        onTap: () {
-          controller.closeAttentionCenter();
-          context.go(AppRoutes.communication);
-        },
-      ),
-      _GlobalDockItemData(
-        label: 'Admin',
-        icon: Icons.admin_panel_settings_outlined,
-        isActive: currentUtility == GlobalSystemUtility.admin,
-        onTap: () {
-          controller.closeAttentionCenter();
-          context.go(AppRoutes.admin);
-        },
-      ),
     ];
   }
 
@@ -384,7 +372,7 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
   ) {
     controller.closeAttentionCenter();
     if (widget.location == AppRoutes.whiteboard) {
-      context.go(controller.lastNonStudioLocation ?? AppRoutes.dashboard);
+      context.go(controller.lastNonStudioLocation ?? AppRoutes.osHome);
       return;
     }
     context.push(AppRoutes.whiteboard);

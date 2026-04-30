@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/file_import_service.dart';
@@ -8,17 +10,19 @@ import 'package:gradeflow/services/drive_import_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/models/final_exam.dart';
+import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:gradeflow/components/drive_file_picker_dialog.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
+import 'package:gradeflow/services/auth_service.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:gradeflow/nav.dart';
 
 enum _ImportSource { local, driveLink, driveBrowse }
 
@@ -49,39 +53,70 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
   final Map<String, GlobalKey> _itemKeys = {};
   bool _didScrollToHighlight = false;
   final Map<String, Timer> _saveDebouncers = {};
+  bool _hydratingData = true;
+
+  void _goToClassWorkspace() {
+    context.go('${AppRoutes.osClass}/${widget.classId}');
+  }
+
+  void _showFeedback(
+    String message, {
+    WorkspaceFeedbackTone tone = WorkspaceFeedbackTone.info,
+    String? title,
+    String? actionLabel,
+    VoidCallback? onAction,
+    Duration duration = const Duration(seconds: 4),
+  }) {
+    if (!mounted) return;
+    showWorkspaceSnackBar(
+      context,
+      message: message,
+      tone: tone,
+      title: title,
+      actionLabel: actionLabel,
+      onAction: onAction,
+      duration: duration,
+    );
+  }
 
   void _showPersistentMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 12),
-        content: Text(message),
-        action: SnackBarAction(
-          label: 'Details',
-          onPressed: () {
-            showDialog<void>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('Google Sign-In'),
-                content: SelectableText(message),
-                actions: [
-                  TextButton(
-                    onPressed: () async {
-                      await Clipboard.setData(ClipboardData(text: message));
-                      if (ctx.mounted) Navigator.pop(ctx);
-                    },
-                    child: const Text('Copy'),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Close'),
-                  ),
-                ],
+    _showFeedback(
+      message,
+      title: 'Google Sign-In',
+      duration: const Duration(seconds: 12),
+      actionLabel: 'Details',
+      onAction: () {
+        showDialog<void>(
+          context: context,
+          builder: (ctx) => WorkspaceDialogScaffold(
+            title: 'Google Sign-In',
+            subtitle:
+                'Drive import uses your Google account when a file requires access.',
+            icon: Icons.login_rounded,
+            maxWidth: 560,
+            body: SelectableText(message),
+            actions: [
+              OutlinedButton(
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: message));
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  _showFeedback(
+                    'Sign-in details copied',
+                    tone: WorkspaceFeedbackTone.success,
+                  );
+                },
+                style: WorkspaceButtonStyles.outlined(ctx),
+                child: const Text('Copy'),
               ),
-            );
-          },
-        ),
-      ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: WorkspaceButtonStyles.filled(ctx),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -91,16 +126,38 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    final studentService = context.read<StudentService>();
-    await studentService.loadStudents(widget.classId);
+  Future<void> _ensureClassContextLoaded() async {
+    final classService = context.read<ClassService>();
+    if (classService.getClassById(widget.classId) != null) return;
 
-    final studentIds = studentService.students.map((s) => s.studentId).toList();
-    await context
-        .read<FinalExamService>()
-        .loadExams(widget.classId, studentIds);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _scrollToHighlightIfNeeded());
+    final user = context.read<AuthService>().currentUser;
+    if (user != null) {
+      await classService.loadClasses(user.userId);
+    }
+  }
+
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() => _hydratingData = true);
+    }
+
+    try {
+      await _ensureClassContextLoaded();
+      final studentService = context.read<StudentService>();
+      await studentService.loadStudents(widget.classId);
+
+      final studentIds =
+          studentService.students.map((s) => s.studentId).toList();
+      await context
+          .read<FinalExamService>()
+          .loadExams(widget.classId, studentIds);
+    } finally {
+      if (mounted) {
+        setState(() => _hydratingData = false);
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _scrollToHighlightIfNeeded());
+      }
+    }
   }
 
   Future<int> _flushAllPendingSaves() async {
@@ -135,6 +192,20 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     return saved;
   }
 
+  void _restorePersistedExamValue(String studentId) {
+    final existing =
+        context.read<FinalExamService>().getExam(studentId)?.examScore;
+    final controller = _controllers[studentId];
+    if (controller == null) return;
+    final restored = existing == null ? '' : existing.toStringAsFixed(0);
+    if (controller.text == restored) return;
+    controller.value = controller.value.copyWith(
+      text: restored,
+      selection: TextSelection.collapsed(offset: restored.length),
+      composing: TextRange.empty,
+    );
+  }
+
   void _scheduleSave(String studentId) {
     _saveDebouncers[studentId]?.cancel();
     _saveDebouncers[studentId] =
@@ -160,8 +231,10 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
       _didScrollToHighlight = true;
       Scrollable.ensureVisible(ctx,
           duration: const Duration(milliseconds: 500), curve: Curves.easeOut);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Jumped to student with missing exam score')));
+      _showFeedback(
+        'Jumped to the student with a missing exam score.',
+        tone: WorkspaceFeedbackTone.info,
+      );
     }
   }
 
@@ -243,8 +316,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
 
     final raw = controller.text.trim();
     if (raw.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Please paste a link')));
+      _showError('Please paste a link.');
       return null;
     }
 
@@ -258,8 +330,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     final direct = _driveImportService.driveDirectDownloadUrl(raw) ?? raw;
     final uri = Uri.tryParse(direct);
     if (uri == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Invalid link')));
+      _showError('Invalid link.');
       return null;
     }
 
@@ -267,8 +338,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
       final resp = await http.get(uri, headers: headers);
       if (!mounted) return null;
       if (resp.statusCode >= 400) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Download failed (${resp.statusCode})')));
+        _showError('Download failed (${resp.statusCode}).');
         return null;
       }
       final filename =
@@ -276,8 +346,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
       return _PickedExamBytes(filename: filename, bytes: resp.bodyBytes);
     } catch (e) {
       if (!mounted) return null;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error downloading: $e')));
+      _showError('Error downloading: $e');
       return null;
     }
   }
@@ -463,49 +532,286 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(message),
-          backgroundColor: Theme.of(context).colorScheme.error),
-    );
-  }
+  void _showError(String message) => _showFeedback(
+        message,
+        tone: WorkspaceFeedbackTone.error,
+        title: 'Exam score issue',
+      );
 
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
+  void _showSuccess(String message) => _showFeedback(
+        message,
+        tone: WorkspaceFeedbackTone.success,
+      );
 
   Future<void> _handleExit() async {
-    // Prevent getting stuck on slow storage by timing out
     try {
       final saved = await _flushAllPendingSaves()
           .timeout(const Duration(milliseconds: 1200));
       if (saved > 0 && mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Saved $saved changes')));
+        _showSuccess('Saved $saved changes');
       }
     } on TimeoutException {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saving in background…')));
-      }
-      // Fire and forget in background
+      _showFeedback(
+        'Saving in background...',
+        tone: WorkspaceFeedbackTone.info,
+      );
       unawaited(_flushAllPendingSaves());
     }
+  }
+
+  Future<void> _commitExamScore(
+    String studentId, {
+    bool showSuccessMessage = false,
+    bool showValidationMessage = false,
+  }) async {
+    final value = _controllers[studentId]?.text.trim() ?? '';
+    final scoreValue = double.tryParse(value);
+    if (scoreValue != null && scoreValue >= 0 && scoreValue <= 100) {
+      await _updateExam(studentId, scoreValue);
+      if (showSuccessMessage) {
+        _showSuccess('Exam score updated');
+      }
+      return;
+    }
+    if (value.isEmpty) {
+      await _updateExam(studentId, null);
+      if (showSuccessMessage) {
+        _showSuccess('Exam score cleared');
+      }
+      return;
+    }
+    _restorePersistedExamValue(studentId);
+    if (showSuccessMessage || showValidationMessage) {
+      _showError('Invalid score (must be 0-100). Restored the previous value.');
+    }
+  }
+
+  Widget _buildContextStrip(
+    BuildContext context, {
+    required String className,
+    required String classContextLine,
+    required int studentCount,
+  }) {
+    final drivePill = WorkspaceContextPill(
+      icon: _driveAccessToken == null
+          ? Icons.cloud_queue_outlined
+          : Icons.cloud_done_outlined,
+      label: 'Drive',
+      value: _driveAccessToken == null ? 'Optional' : 'Connected',
+      accent: _driveAccessToken == null
+          ? const Color(0xFFDAA85E)
+          : Theme.of(context).colorScheme.primary,
+      emphasized: true,
+    );
+
+    return _ExamFlatSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 980;
+          final copy = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                className,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                classContextLine,
+                maxLines: narrow ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: WorkspaceTypography.metadata(context),
+              ),
+            ],
+          );
+          final pills = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              const WorkspaceContextPill(
+                icon: Icons.auto_graph_outlined,
+                label: 'Process',
+                value: '40%',
+              ),
+              const WorkspaceContextPill(
+                icon: Icons.fact_check_outlined,
+                label: 'Final exam',
+                value: '60%',
+                emphasized: true,
+              ),
+              WorkspaceContextPill(
+                icon: Icons.people_alt_outlined,
+                label: 'Roster',
+                value: '$studentCount students',
+              ),
+              const WorkspaceContextPill(
+                icon: Icons.sync_outlined,
+                label: 'Autosave',
+                value: '500 ms',
+              ),
+            ],
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                copy,
+                const SizedBox(height: WorkspaceSpacing.xs),
+                pills,
+                const SizedBox(height: WorkspaceSpacing.xs),
+                drivePill,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: copy),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              Flexible(flex: 2, child: pills),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              drivePill,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildExamRow(
+    BuildContext context, {
+    required Student student,
+    required bool isHighlight,
+    required TextEditingController controller,
+    required GlobalKey key,
+  }) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: WorkspaceSpacing.sm),
+      child: _ExamFlatSurface(
+        key: key,
+        padding: EdgeInsets.zero,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 240),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: isHighlight
+                ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                : Colors.transparent,
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 760;
+              final info = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    student.chineseName,
+                    style: context.textStyles.titleMedium?.semiBold,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    student.englishFullName,
+                    style: WorkspaceTypography.metadata(context),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    student.seatNo?.isNotEmpty == true
+                        ? 'ID ${student.studentId} / Seat ${student.seatNo}'
+                        : 'ID ${student.studentId}',
+                    style: context.textStyles.labelSmall?.withColor(
+                      theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              );
+              final input = SizedBox(
+                width: narrow ? double.infinity : 128,
+                child: Focus(
+                  onFocusChange: (hasFocus) {
+                    if (!hasFocus) {
+                      _commitExamScore(
+                        student.studentId,
+                        showValidationMessage: true,
+                      );
+                    }
+                  },
+                  child: TextField(
+                    controller: controller,
+                    decoration: _examFieldDecoration(
+                      context,
+                      labelText: 'Exam score',
+                      suffixText: '/ 100',
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                    ],
+                    onChanged: (_) => _scheduleSave(student.studentId),
+                    onSubmitted: (_) => _commitExamScore(
+                      student.studentId,
+                      showSuccessMessage: true,
+                    ),
+                    onTapOutside: (_) => _commitExamScore(
+                      student.studentId,
+                      showValidationMessage: true,
+                    ),
+                  ),
+                ),
+              );
+
+              if (narrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    info,
+                    const SizedBox(height: WorkspaceSpacing.md),
+                    input,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(child: info),
+                  const SizedBox(width: WorkspaceSpacing.md),
+                  input,
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final studentService = context.watch<StudentService>();
     final examService = context.watch<FinalExamService>();
-    final classItem = context.watch<ClassService>().getClassById(widget.classId);
+    final classItem =
+        context.watch<ClassService>().getClassById(widget.classId);
     final className = classItem?.className ?? 'Class';
-    final classContextLine = [
+    final studentCount = studentService.students.length;
+    final classContextParts = <String>[
       if (classItem?.subject.trim().isNotEmpty ?? false) classItem!.subject,
-      '${studentService.students.length} '
-          'student${studentService.students.length == 1 ? '' : 's'}',
-    ].join(' • ');
+      if (classItem?.schoolYear.trim().isNotEmpty ?? false)
+        classItem!.schoolYear,
+      if (classItem?.term.trim().isNotEmpty ?? false) classItem!.term,
+      '$studentCount student${studentCount == 1 ? '' : 's'}',
+    ];
+    final classContextLine = classContextParts.isEmpty
+        ? 'Current class context'
+        : classContextParts.join(' / ');
 
     return PopScope(
       canPop: false,
@@ -513,253 +819,387 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
         if (didPop) return;
         await _handleExit();
         if (!context.mounted) return;
-        Navigator.of(context).pop(result);
+        _goToClassWorkspace();
       },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () async {
-              await _handleExit();
-              if (!context.mounted) return;
-              context.pop();
-            },
-          ),
-          title: const Text('Final Exam Scores'),
-          actions: [
-            IconButton(
-              icon: _driveSigningIn
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Theme.of(context).colorScheme.onSurface),
-                    )
-                  : const Icon(Icons.login),
-                tooltip: _driveAccessToken == null
-                  ? 'Drive uses your Google login (auto-connect)'
-                  : 'Google Drive connected',
+      child: _ExamNativeSurface(
+        title: className,
+        toolLabel: 'Final Exam Scores',
+        eyebrow: 'Class workspace',
+        subtitle: classContextLine,
+        leading: IconButton(
+          onPressed: () async {
+            await _handleExit();
+            if (!context.mounted) return;
+            _goToClassWorkspace();
+          },
+          tooltip: 'Back to class workspace',
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        contextStrip: _buildContextStrip(
+          context,
+          className: className,
+          classContextLine: classContextLine,
+          studentCount: studentCount,
+        ),
+        toolbar: Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            OutlinedButton.icon(
               onPressed: _driveSigningIn ? null : _ensureDriveAccessToken,
+              icon: _driveSigningIn
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    )
+                  : const Icon(Icons.login_rounded),
+              label: Text(
+                _driveAccessToken == null ? 'Connect Drive' : 'Drive connected',
+              ),
+              style: WorkspaceButtonStyles.outlined(context),
             ),
-            IconButton(
-              icon: const Icon(Icons.save),
-              tooltip: 'Save all',
+            OutlinedButton.icon(
               onPressed: () async {
                 final saved = await _flushAllPendingSaves();
                 if (saved > 0 && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Saved $saved changes')));
+                  _showSuccess('Saved $saved changes');
                 }
               },
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Save all'),
+              style: WorkspaceButtonStyles.outlined(context),
             ),
-            IconButton(
-              icon: const Icon(Icons.upload_file),
+            FilledButton.icon(
               onPressed: _showImportDialog,
-              tooltip: 'Import from CSV or Excel',
+              icon: const Icon(Icons.upload_file_outlined),
+              label: const Text('Import scores'),
+              style: WorkspaceButtonStyles.filled(context),
             ),
           ],
         ),
-        body: Column(
-          children: [
-            Container(
-              padding: AppSpacing.paddingLg,
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline,
-                      color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-              child: Text(
-                      'Final Exam = 60% of total grade\nOther categories = 40% of total grade',
-                      style: context.textStyles.bodyMedium,
-                    ),
+        workspace: (_hydratingData || studentService.isLoading)
+            ? const WorkspaceLoadingState(
+                title: 'Loading exam scores',
+                subtitle:
+                    'Bringing the roster and final exam entries into view.',
+              )
+            : studentService.students.isEmpty
+                ? const WorkspaceEmptyState(
+                    icon: Icons.fact_check_outlined,
+                    title: 'No students in this class',
+                    subtitle:
+                        'Add students before entering final exam scores or importing a score sheet.',
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: WorkspaceSpacing.md),
+                    itemCount: studentService.students.length,
+                    itemBuilder: (context, index) {
+                      final student = studentService.students[index];
+                      final exam = examService.getExam(student.studentId);
+
+                      if (!_controllers.containsKey(student.studentId)) {
+                        _controllers[student.studentId] = TextEditingController(
+                          text: exam?.examScore?.toStringAsFixed(0) ?? '',
+                        );
+                      }
+                      final key = _itemKeys.putIfAbsent(
+                        student.studentId,
+                        () => GlobalKey(),
+                      );
+                      final isHighlight =
+                          widget.highlightStudentId == student.studentId;
+
+                      return _buildExamRow(
+                        context,
+                        student: student,
+                        isHighlight: isHighlight,
+                        controller: _controllers[student.studentId]!,
+                        key: key,
+                      );
+                    },
                   ),
-                ],
-              ),
-            ),
-            Container(
-              width: double.infinity,
-              padding: AppSpacing.paddingLg,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border(
-                  bottom: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
+      ),
+    );
+  }
+}
+
+InputDecoration _examFieldDecoration(
+  BuildContext context, {
+  required String labelText,
+  String? suffixText,
+}) {
+  final theme = Theme.of(context);
+  final isDark = theme.brightness == Brightness.dark;
+  final borderRadius = BorderRadius.circular(8);
+  final baseBorder = OutlineInputBorder(
+    borderRadius: borderRadius,
+    borderSide: BorderSide(
+      color: theme.colorScheme.outline.withValues(alpha: isDark ? 0.30 : 0.22),
+    ),
+  );
+
+  return InputDecoration(
+    labelText: labelText,
+    suffixText: suffixText,
+    isDense: true,
+    filled: true,
+    fillColor: theme.colorScheme.surface.withValues(
+      alpha: isDark ? 0.22 : 0.54,
+    ),
+    border: baseBorder,
+    enabledBorder: baseBorder,
+    focusedBorder: OutlineInputBorder(
+      borderRadius: borderRadius,
+      borderSide: BorderSide(
+        color: theme.colorScheme.primary.withValues(alpha: 0.62),
+        width: 1.2,
+      ),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  );
+}
+
+class _ExamNativeSurface extends StatelessWidget {
+  const _ExamNativeSurface({
+    required this.eyebrow,
+    required this.title,
+    required this.toolLabel,
+    required this.workspace,
+    this.subtitle,
+    this.leading,
+    this.contextStrip,
+    this.toolbar,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String toolLabel;
+  final String? subtitle;
+  final Widget? leading;
+  final Widget? contextStrip;
+  final Widget? toolbar;
+  final Widget workspace;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: AnimatedPageBackground(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1480),
+              child: Padding(
+                padding: WorkspaceSpacing.shellMargin,
+                child: WorkspaceShellFrame(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                  radius: WorkspaceRadius.shell,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _ExamNativeHeader(
+                        eyebrow: eyebrow,
+                        title: title,
+                        toolLabel: toolLabel,
+                        subtitle: subtitle,
+                        leading: leading,
+                      ),
+                      const SizedBox(height: WorkspaceSpacing.sm),
+                      if (contextStrip != null) ...[
+                        contextStrip!,
+                        const SizedBox(height: WorkspaceSpacing.xs),
+                      ],
+                      if (toolbar != null) ...[
+                        _ExamCommandBand(child: toolbar!),
+                        const SizedBox(height: WorkspaceSpacing.md),
+                      ] else
+                        const SizedBox(height: WorkspaceSpacing.md),
+                      Expanded(child: workspace),
+                    ],
                   ),
                 ),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.class_rounded,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          className,
-                          style: context.textStyles.titleMedium?.semiBold,
-                        ),
-                        Text(
-                          classContextLine,
-                          style: context.textStyles.bodySmall?.withColor(
-                            Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ),
-            Expanded(
-              child: studentService.students.isEmpty
-                  ? const Center(child: Text('No students in this class'))
-                  : ListView.builder(
-                      padding: AppSpacing.paddingMd,
-                      itemCount: studentService.students.length,
-                      itemBuilder: (context, index) {
-                        final student = studentService.students[index];
-                        final exam = examService.getExam(student.studentId);
-
-                        if (!_controllers.containsKey(student.studentId)) {
-                          _controllers[student.studentId] =
-                              TextEditingController(
-                            text: exam?.examScore?.toStringAsFixed(0) ?? '',
-                          );
-                        }
-                        final key = _itemKeys.putIfAbsent(
-                            student.studentId, () => GlobalKey());
-                        final isHighlight =
-                            widget.highlightStudentId == student.studentId;
-
-                        return AnimatedGlowBorder(
-                          child: Card(
-                            key: key,
-                            margin:
-                                const EdgeInsets.only(bottom: AppSpacing.sm),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              decoration: BoxDecoration(
-                                // Replace thick border with a subtle highlight background to avoid double outline
-                                color: isHighlight
-                                    ? Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withValues(alpha: 0.06)
-                                    : null,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.md),
-                              ),
-                              child: Padding(
-                                padding: AppSpacing.paddingMd,
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      flex: 2,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(student.chineseName,
-                                              style: context
-                                                  .textStyles.titleMedium),
-                                          Text(student.englishFullName,
-                                              style:
-                                                  context.textStyles.bodySmall),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      width: 100,
-                                      child: Focus(
-                                        onFocusChange: (hasFocus) {
-                                          if (!hasFocus) {
-                                            final value =
-                                                _controllers[student.studentId]!
-                                                    .text;
-                                            final scoreValue =
-                                                double.tryParse(value);
-                                            if (scoreValue != null &&
-                                                scoreValue >= 0 &&
-                                                scoreValue <= 100) {
-                                              _updateExam(student.studentId,
-                                                  scoreValue);
-                                            } else if (value.isEmpty) {
-                                              _updateExam(
-                                                  student.studentId, null);
-                                            }
-                                          }
-                                        },
-                                        child: TextField(
-                                          controller:
-                                              _controllers[student.studentId],
-                                          decoration: const InputDecoration(
-                                            labelText: 'Exam Score',
-                                            border: OutlineInputBorder(),
-                                            isDense: true,
-                                          ),
-                                          keyboardType: TextInputType.number,
-                                          inputFormatters: [
-                                            FilteringTextInputFormatter.allow(
-                                                RegExp(r'^\d*\.?\d*'))
-                                          ],
-                                          onChanged: (_) =>
-                                              _scheduleSave(student.studentId),
-                                          onSubmitted: (value) {
-                                            final scoreValue =
-                                                double.tryParse(value);
-                                            if (scoreValue != null &&
-                                                scoreValue >= 0 &&
-                                                scoreValue <= 100) {
-                                              _updateExam(student.studentId,
-                                                  scoreValue);
-                                              _showSuccess(
-                                                  'Exam score updated');
-                                            } else if (value.isEmpty) {
-                                              _updateExam(
-                                                  student.studentId, null);
-                                            } else {
-                                              _showError(
-                                                  'Invalid score (must be 0-100)');
-                                            }
-                                          },
-                                          onTapOutside: (_) {
-                                            final value =
-                                                _controllers[student.studentId]!
-                                                    .text;
-                                            final scoreValue =
-                                                double.tryParse(value);
-                                            if (scoreValue != null &&
-                                                scoreValue >= 0 &&
-                                                scoreValue <= 100) {
-                                              _updateExam(student.studentId,
-                                                  scoreValue);
-                                            } else if (value.isEmpty) {
-                                              _updateExam(
-                                                  student.studentId, null);
-                                            }
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+class _ExamNativeHeader extends StatelessWidget {
+  const _ExamNativeHeader({
+    required this.eyebrow,
+    required this.title,
+    required this.toolLabel,
+    this.subtitle,
+    this.leading,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String toolLabel;
+  final String? subtitle;
+  final Widget? leading;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final toolBadge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: theme.colorScheme.primary.withValues(alpha: 0.11),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.description_outlined,
+            size: 16,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            toolLabel,
+            style: context.textStyles.labelLarge?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final iconTile = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Icon(
+        Icons.fact_check_outlined,
+        color: theme.colorScheme.primary,
+        size: 23,
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 760;
+        final copy = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  eyebrow.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: WorkspaceTypography.eyebrow(context),
+                ),
+                toolBadge,
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              title,
+              maxLines: narrow ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+            ),
+            if ((subtitle ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(
+                subtitle!,
+                maxLines: narrow ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.bodyMedium?.copyWith(
+                  color: WorkspaceChrome.mutedText(context),
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ],
+        );
+
+        final leadingCluster = Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (leading != null) ...[
+              leading!,
+              const SizedBox(width: WorkspaceSpacing.sm),
+            ],
+            iconTile,
+          ],
+        );
+
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              leadingCluster,
+              const SizedBox(height: WorkspaceSpacing.sm),
+              copy,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            leadingCluster,
+            const SizedBox(width: WorkspaceSpacing.md),
+            Expanded(child: copy),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ExamCommandBand extends StatelessWidget {
+  const _ExamCommandBand({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceCommandBand(child: child);
+  }
+}
+
+class _ExamFlatSurface extends StatelessWidget {
+  const _ExamFlatSurface({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceFlatSurface(
+      padding: padding,
+      child: child,
     );
   }
 }

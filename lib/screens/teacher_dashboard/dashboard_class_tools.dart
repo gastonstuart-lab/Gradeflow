@@ -504,7 +504,7 @@ extension TeacherDashboardClassTools on _TeacherDashboardScreenState {
           Expanded(
             child: Center(
               child: Text(
-                'Schedule is available on the dashboard (Calendar).',
+                'Planning is available in the planning hub calendar.',
                 style: Theme.of(ctx).textTheme.titleMedium,
                 textAlign: TextAlign.center,
               ),
@@ -1131,8 +1131,8 @@ extension TeacherDashboardClassTools on _TeacherDashboardScreenState {
       controller: _dashboardWhiteboardController,
       compact: compact,
       title: 'Classroom whiteboard',
-      onOpenFullscreen: () =>
-          context.push(AppRoutes.whiteboard, extra: _dashboardWhiteboardController),
+      onOpenFullscreen: () => context.push(AppRoutes.whiteboard,
+          extra: _dashboardWhiteboardController),
     );
   }
 }

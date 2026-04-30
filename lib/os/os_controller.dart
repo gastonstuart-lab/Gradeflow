@@ -18,6 +18,9 @@ enum OSSurface {
   /// Teacher's personal home workspace.
   home,
 
+  /// Teacher-wide planning workspace.
+  planner,
+
   /// Focused single-class workspace.
   classWorkspace,
 
@@ -46,9 +49,12 @@ class GradeFlowOSController extends ChangeNotifier {
   String? get activeClassId => _activeClassId;
 
   void setSurface(OSSurface surface, {String? classId}) {
-    if (_activeSurface == surface && _activeClassId == classId) return;
+    final nextClassId = surface == OSSurface.teach && classId == null
+        ? _activeClassId
+        : classId;
+    if (_activeSurface == surface && _activeClassId == nextClassId) return;
     _activeSurface = surface;
-    _activeClassId = classId;
+    _activeClassId = nextClassId;
     _closeAllOverlays();
     notifyListeners();
   }
@@ -57,12 +63,14 @@ class GradeFlowOSController extends ChangeNotifier {
     if ((_activeClassId ?? '').isNotEmpty) {
       return const [
         OSSurface.home,
+        OSSurface.planner,
         OSSurface.classWorkspace,
         OSSurface.teach,
       ];
     }
     return const [
       OSSurface.home,
+      OSSurface.planner,
       OSSurface.teach,
     ];
   }

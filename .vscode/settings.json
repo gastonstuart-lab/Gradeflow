@@ -7,6 +7,9 @@
   // Optional: keep Java tooling quieter in Flutter-first workspace.
   "java.autobuild.enabled": false,
 
+  // Keep remote refs fresh so the two-machine git status in VS Code is less stale.
+  "git.autofetch": true,
+
   // Keep VS Code's Dart/Flutter extension on the same SDK that passes
   // `flutter analyze` in this workspace.
   "dart.flutterSdkPath": "C:\\Users\\Stuart\\flutter",

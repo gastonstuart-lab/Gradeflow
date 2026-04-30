@@ -1,15 +1,16 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
-const port = process.env.PORT ?? '7357';
+const port = process.env.PORT ?? "7357";
 const baseURL = process.env.BASE_URL ?? `http://127.0.0.1:${port}`;
 
 export default defineConfig({
-  testDir: './e2e',
+  testDir: "./e2e",
   timeout: 60_000,
   expect: { timeout: 10_000 },
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: Number(process.env.PLAYWRIGHT_WORKERS ?? "2"),
   retries: process.env.CI ? 2 : 0,
-  reporter: [['html', { open: 'never' }], ['list']],
+  reporter: [["html", { open: "never" }], ["list"]],
   webServer: {
     command:
       process.env.E2E_WEB_SERVER_COMMAND ??
@@ -20,12 +21,12 @@ export default defineConfig({
   },
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    trace: "on-first-retry",
   },
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
 });

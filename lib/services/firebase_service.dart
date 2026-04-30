@@ -24,7 +24,7 @@ class FirebaseService {
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
-      );
+      ).timeout(const Duration(seconds: 4));
       _initialized = true;
       _available = true;
       debugPrint('Firebase initialized successfully');

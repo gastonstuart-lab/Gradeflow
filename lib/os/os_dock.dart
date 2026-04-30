@@ -6,13 +6,16 @@
 ///
 /// Adapts between phone (compact, fewer items) and tablet/desktop (full) layouts.
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/nav.dart';
-import 'package:gradeflow/services/communication_service.dart';
+import 'package:gradeflow/providers/app_providers.dart';
 
 class OSDock extends StatelessWidget {
   const OSDock({super.key, this.teachMode = false});
@@ -22,7 +25,7 @@ class OSDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<GradeFlowOSController>();
-    final communication = context.watch<CommunicationService>();
+    final themeMode = context.watch<ThemeModeNotifier>().themeMode;
     final dark = context.isDark;
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
@@ -31,40 +34,81 @@ class OSDock extends StatelessWidget {
     final items = _buildDockItems(
       context,
       controller: controller,
-      communication: communication,
+      themeMode: themeMode,
       isTeach: isTeach,
       isPhone: isPhone,
     );
 
-    return PhysicalModel(
-      color: Colors.transparent,
-      borderRadius: OSRadius.pillBr,
-      elevation: 24,
-      shadowColor: Colors.black.withValues(alpha: 0.35),
-      child: Container(
-        height: OSSpacing.dockHeight,
-        decoration: BoxDecoration(
-          color: OSColors.dock(dark),
-          borderRadius: OSRadius.pillBr,
-          border: Border.all(
-            color: dark
-                ? Colors.white.withValues(alpha: 0.07)
-                : Colors.black.withValues(alpha: 0.06),
-            width: 1,
-          ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: OSRadius.pillBr,
+        boxShadow: WorkspaceChrome.panelShadow(
+          context,
+          emphasis: dark ? 1.55 : 1.2,
         ),
-        child: ClipRRect(
-          borderRadius: OSRadius.pillBr,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(width: 12),
-              for (int i = 0; i < items.length; i++) ...[
-                if (i > 0) _DockDivider(dark: dark, items: items, index: i),
-                _DockItem(data: items[i]),
+      ),
+      child: ClipRRect(
+        borderRadius: OSRadius.pillBr,
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(
+            sigmaX: WorkspaceChrome.shellBlur,
+            sigmaY: WorkspaceChrome.shellBlur,
+          ),
+          child: Container(
+            height: OSSpacing.dockHeight,
+            decoration: BoxDecoration(
+              borderRadius: OSRadius.pillBr,
+              border: Border.all(
+                color: WorkspaceChrome.panelBorderColor(
+                  context,
+                  emphasis: dark ? 0.24 : 0.30,
+                ),
+                width: 1,
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: dark
+                    ? [
+                        OSColors.dock(dark).withValues(alpha: 0.90),
+                        const Color(0xCC101926),
+                      ]
+                    : [
+                        Colors.white.withValues(alpha: 0.92),
+                        const Color(0xDDEFF4FB),
+                      ],
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Container(
+                      height: 1,
+                      color: WorkspaceChrome.glassHighlight(
+                        context,
+                        shell: true,
+                      ),
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(width: 12),
+                    for (int i = 0; i < items.length; i++) ...[
+                      if (i > 0)
+                        _DockDivider(dark: dark, items: items, index: i),
+                      _DockItem(data: items[i]),
+                    ],
+                    const SizedBox(width: 12),
+                  ],
+                ),
               ],
-              const SizedBox(width: 12),
-            ],
+            ),
           ),
         ),
       ),
@@ -74,12 +118,11 @@ class OSDock extends StatelessWidget {
   List<_DockItemData> _buildDockItems(
     BuildContext context, {
     required GradeFlowOSController controller,
-    required CommunicationService communication,
+    required ThemeMode themeMode,
     required bool isTeach,
     required bool isPhone,
   }) {
     final currentSurface = controller.activeSurface;
-    final unread = communication.totalUnreadCount;
 
     if (isTeach) {
       return [
@@ -117,27 +160,23 @@ class OSDock extends StatelessWidget {
         onTap: () => context.go(AppRoutes.osHome),
       ),
       _DockItemData(
+        icon: Icons.calendar_month_rounded,
+        label: 'Planner',
+        isActive: currentSurface == OSSurface.planner,
+        onTap: () => context.go(AppRoutes.osPlanner),
+      ),
+      _DockItemData(
         icon: Icons.class_rounded,
         label: 'Classes',
         isActive: currentSurface == OSSurface.classWorkspace,
         onTap: () => context.go(AppRoutes.classes),
       ),
       _DockItemData(
-        icon: Icons.draw_rounded,
-        label: 'Studio',
-        onTap: () => context.push(AppRoutes.whiteboard),
-      ),
-      _DockItemData(
-        icon: Icons.forum_rounded,
-        label: 'Messages',
-        badge: unread > 0 ? '$unread' : null,
-        onTap: () => context.go(AppRoutes.communication),
-      ),
-      _DockItemData(
-        icon: Icons.cast_for_education_rounded,
-        label: 'Teach',
-        isActive: currentSurface == OSSurface.teach,
-        onTap: () => context.go(AppRoutes.osTeach),
+        icon: themeMode == ThemeMode.light
+            ? Icons.dark_mode_rounded
+            : Icons.light_mode_rounded,
+        label: 'Theme',
+        onTap: () => context.read<ThemeModeNotifier>().toggleTheme(),
       ),
     ];
 
@@ -167,14 +206,12 @@ class _DockItemData {
     required this.label,
     required this.onTap,
     this.isActive = false,
-    this.badge,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final bool isActive;
-  final String? badge;
 }
 
 class _DockDivider extends StatelessWidget {
@@ -216,6 +253,7 @@ class _DockItem extends StatefulWidget {
 
 class _DockItemState extends State<_DockItem>
     with SingleTickerProviderStateMixin {
+  bool _hovered = false;
   late final AnimationController _ac = AnimationController(
     vsync: this,
     duration: OSMotion.fast,
@@ -236,102 +274,105 @@ class _DockItemState extends State<_DockItem>
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final d = widget.data;
+    final hovered = _hovered && !d.isActive;
 
-    return GestureDetector(
-      onTapDown: (_) {
-        _ac.forward();
-      },
-      onTapUp: (_) {
-        _ac.reverse();
-        d.onTap();
-      },
-      onTapCancel: () {
-        _ac.reverse();
-      },
-      child: AnimatedBuilder(
-        animation: _scale,
-        builder: (_, child) => Transform.scale(
-          scale: 1.0 - _scale.value * 0.08,
-          child: child,
-        ),
-        child: Tooltip(
-          message: d.label,
-          preferBelow: false,
-          child: SizedBox(
-            width: OSSpacing.dockItemSize,
-            height: OSSpacing.dockHeight,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Active indicator
-                if (d.isActive)
-                  Positioned(
-                    bottom: 6,
-                    child: Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: OSColors.blue,
-                        shape: BoxShape.circle,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTapDown: (_) {
+          _ac.forward();
+        },
+        onTapUp: (_) {
+          _ac.reverse();
+          d.onTap();
+        },
+        onTapCancel: () {
+          _ac.reverse();
+        },
+        child: AnimatedBuilder(
+          animation: _scale,
+          builder: (_, child) => Transform.scale(
+            scale: 1.0 - _scale.value * 0.08,
+            child: child,
+          ),
+          child: Tooltip(
+            message: d.label,
+            preferBelow: false,
+            child: SizedBox(
+              width: OSSpacing.dockItemSize,
+              height: OSSpacing.dockHeight,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (d.isActive)
+                    Positioned(
+                      bottom: 7,
+                      child: Container(
+                        width: 18,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: OSColors.blue,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
                       ),
                     ),
+                  AnimatedContainer(
+                    duration: OSMotion.fast,
+                    curve: OSMotion.ease,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: d.isActive
+                          ? OSColors.blue.withValues(alpha: dark ? 0.18 : 0.14)
+                          : hovered
+                              ? (dark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : Colors.white.withValues(alpha: 0.74))
+                              : (dark
+                                  ? Colors.white.withValues(alpha: 0.03)
+                                  : Colors.white.withValues(alpha: 0.52)),
+                      borderRadius: OSRadius.lgBr,
+                      border: Border.all(
+                        color: d.isActive
+                            ? OSColors.blue.withValues(alpha: 0.28)
+                            : hovered
+                                ? WorkspaceChrome.panelBorderColor(
+                                    context,
+                                    emphasis: dark ? 0.34 : 0.42,
+                                  )
+                                : (dark
+                                    ? Colors.white.withValues(alpha: 0.06)
+                                    : Colors.black.withValues(alpha: 0.05)),
+                      ),
+                      boxShadow: d.isActive || hovered
+                          ? [
+                              BoxShadow(
+                                color:
+                                    (d.isActive ? OSColors.blue : Colors.black)
+                                        .withValues(
+                                  alpha:
+                                      d.isActive ? 0.18 : (dark ? 0.10 : 0.06),
+                                ),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Icon(
+                      d.icon,
+                      size: 24,
+                      color: d.isActive
+                          ? OSColors.blue
+                          : hovered
+                              ? OSColors.text(dark)
+                              : OSColors.textSecondary(dark),
+                    ),
                   ),
-                // Icon
-                AnimatedContainer(
-                  duration: OSMotion.fast,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: d.isActive
-                        ? OSColors.blue.withValues(alpha: 0.15)
-                        : Colors.transparent,
-                    borderRadius: OSRadius.lgBr,
-                  ),
-                  child: Icon(
-                    d.icon,
-                    size: 24,
-                    color: d.isActive
-                        ? OSColors.blue
-                        : OSColors.textSecondary(dark),
-                  ),
-                ),
-                // Badge
-                if (d.badge != null)
-                  Positioned(
-                    top: 8,
-                    right: 6,
-                    child: _DockBadge(text: d.badge!),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DockBadge extends StatelessWidget {
-  const _DockBadge({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 16),
-      height: 16,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: OSColors.urgent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Center(
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-            letterSpacing: 0.2,
           ),
         ),
       ),

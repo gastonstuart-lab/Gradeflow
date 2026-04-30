@@ -62,6 +62,81 @@ flutter pub get
 flutter run -d chrome
 ```
 
+## Two-Machine Sync (Surface Pro + Desktop)
+
+Use this routine on both machines to avoid drift and merge confusion during the day.
+
+The important rule is simple: do not edit the same code on both machines at the same time unless both are connected to the exact same remote workspace. This repo setup is a safe handoff workflow, not true live multi-editor sync.
+
+Fastest workflow inside VS Code:
+
+1. When you sit down at either machine, run the task `Git: Arrive On This Machine`.
+2. Work normally, then commit your changes when you want the other machine to see them.
+3. Before switching devices, run `Git: Hand Off To Other Machine`.
+4. If the task says you still have uncommitted changes, commit them first. Uncommitted work stays only on the current machine.
+
+If you are unsure whether it is safe to switch, run `Git: Check Two-Machine Status`.
+
+Terminal equivalent of the same flow:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/git-sync-safe.ps1
+```
+
+- Commit frequently in small chunks.
+- Before switching devices, push your current branch.
+- On the other machine, run the same sync command before editing.
+
+Optional: push automatically after sync when local commits exist:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/git-sync-safe.ps1 -PushIfAhead
+```
+
+Recommended one-time local Git defaults on each machine:
+
+```powershell
+git config pull.rebase true
+git config rebase.autoStash true
+git config fetch.prune true
+```
+
+## Live Shared Workspace (Recommended)
+
+If you want both machines to see the exact same files in real time, use the desktop as the host and let the Surface connect into it.
+
+Why this is better:
+
+- there is only one copy of the repo being edited
+- both VS Code windows point at the same files
+- Codex works against the same workspace instead of two drifting local copies
+
+Desktop host setup:
+
+1. On the desktop, open an elevated PowerShell window in this repo.
+2. Run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-remote-workspace-host.ps1
+```
+
+3. Then run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/show-remote-workspace-host-info.ps1
+```
+
+4. Keep the desktop awake while you want to work from the Surface.
+
+Surface client setup:
+
+1. In VS Code on the Surface, install the `Remote - SSH` extension.
+2. Run `Remote-SSH: Connect to Host...`.
+3. Enter the target printed by `show-remote-workspace-host-info.ps1`, usually `desktopUser@DESKTOPNAME`.
+4. After connecting, open `C:\Users\Stuart\Nosapp\Gradeflow` on the desktop host.
+
+After that, both machines are looking at the same repo on the desktop. You can still use the git handoff workflow when you want to work with fully local copies instead.
+
 ## Optional Configuration
 
 ### OpenAI import support

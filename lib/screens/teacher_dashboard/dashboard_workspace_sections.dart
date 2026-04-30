@@ -27,26 +27,26 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
   String _workspaceSectionTitle(DashboardWorkspaceSection section) {
     switch (section) {
       case DashboardWorkspaceSection.today:
-        return 'Today';
+        return 'Overview';
       case DashboardWorkspaceSection.classroom:
-        return 'Classroom';
+        return 'Class tools';
       case DashboardWorkspaceSection.planning:
-        return 'Schedule';
+        return 'Planning';
       case DashboardWorkspaceSection.workspace:
-        return 'Workspace';
+        return 'Support';
     }
   }
 
   String _workspaceSectionDescription(DashboardWorkspaceSection section) {
     switch (section) {
       case DashboardWorkspaceSection.today:
-        return 'Priorities, cues, and next moves.';
+        return 'Daily priorities, cues, and next moves.';
       case DashboardWorkspaceSection.classroom:
-        return 'Whiteboard, timer, grouping, and live tools.';
+        return 'Whiteboard, timer, grouping, and other class-launch tools.';
       case DashboardWorkspaceSection.planning:
-        return 'Calendar, reminders, and timetable.';
+        return 'Calendar, reminders, and timetable context.';
       case DashboardWorkspaceSection.workspace:
-        return 'Links, research, and extra tools.';
+        return 'Links, research, and secondary support tools.';
     }
   }
 
@@ -199,7 +199,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                     focusKey: _classToolsSectionKey,
                   ),
                   icon: const Icon(Icons.widgets_outlined),
-                  label: const Text('Classroom tools'),
+                  label: const Text('Class tools'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _openDashboardSection(
@@ -207,7 +207,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                     focusKey: _calendarSectionKey,
                   ),
                   icon: const Icon(Icons.event_note_outlined),
-                  label: const Text('Schedule'),
+                  label: const Text('Planning'),
                 ),
               ],
             ),
@@ -238,7 +238,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                 const Icon(Icons.space_dashboard_outlined),
                 const SizedBox(width: 8),
                 Text(
-                  'Workspace status',
+                  'Planning hub status',
                   style: context.textStyles.titleLarge?.semiBold,
                 ),
               ],
@@ -274,7 +274,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                     DashboardWorkspaceSection.today,
                   ),
                   icon: const Icon(Icons.today_outlined),
-                  label: const Text('Daily view'),
+                  label: const Text('Overview'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _openDashboardSection(
@@ -282,7 +282,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                     focusKey: _workspaceSectionKey,
                   ),
                   icon: const Icon(Icons.link_outlined),
-                  label: const Text('Workspace tools'),
+                  label: const Text('Support tools'),
                 ),
               ],
             ),
@@ -314,6 +314,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
 
   Widget _buildWorkspaceSectionSwitcher(BuildContext context) {
     return _Card(
+      surfaceType: SurfaceType.whisper,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -322,7 +323,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
               const Icon(Icons.view_carousel_outlined),
               const SizedBox(width: 8),
               Text(
-                'Teacher workspace',
+                'Planning hub views',
                 style: context.textStyles.titleMedium?.semiBold,
               ),
             ],
@@ -335,22 +336,22 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                 ButtonSegment(
                   value: DashboardWorkspaceSection.today,
                   icon: Icon(Icons.today_outlined),
-                  label: Text('Today'),
+                  label: Text('Overview'),
                 ),
                 ButtonSegment(
                   value: DashboardWorkspaceSection.classroom,
                   icon: Icon(Icons.widgets_outlined),
-                  label: Text('Classroom'),
+                  label: Text('Class tools'),
                 ),
                 ButtonSegment(
                   value: DashboardWorkspaceSection.planning,
                   icon: Icon(Icons.event_note_outlined),
-                  label: Text('Schedule'),
+                  label: Text('Planning'),
                 ),
                 ButtonSegment(
                   value: DashboardWorkspaceSection.workspace,
                   icon: Icon(Icons.workspaces_outline),
-                  label: Text('Workspace'),
+                  label: Text('Support'),
                 ),
               ],
               selected: {_workspaceSection},
@@ -439,7 +440,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
       if (nextScheduleItem?.date != null) {
         return 'The next dated class plan lands on ${_shortMonthDay(nextScheduleItem!.date!)}.';
       }
-      return 'Your dashboard is set up to keep classroom tools and schedule context one click away.';
+      return 'Your planning hub keeps class tools and timetable context one click away.';
     }
 
     return _Card(
@@ -476,7 +477,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                   focusKey: _classToolsSectionKey,
                 ),
                 icon: const Icon(Icons.widgets_outlined),
-                label: const Text('Open classroom'),
+                label: const Text('Open class tools'),
               ),
               OutlinedButton.icon(
                 onPressed: () => _openDashboardSection(
@@ -484,7 +485,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                   focusKey: _calendarSectionKey,
                 ),
                 icon: const Icon(Icons.event_note_outlined),
-                label: const Text('Open schedule'),
+                label: const Text('Open planning'),
               ),
             ],
           ),
@@ -618,7 +619,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
       ),
       child: DropdownButtonFormField<String>(
         key: ValueKey(selectedClassId),
-        value: selectedClassId,
+        initialValue: selectedClassId,
         isDense: true,
         decoration: const InputDecoration(
           labelText: 'Class',
@@ -656,7 +657,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Classroom tools',
+                        'Class tools',
                         style: context.textStyles.titleMedium?.semiBold,
                       ),
                     ),
@@ -677,7 +678,7 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
-                    'Classroom tools',
+                    'Class tools',
                     style: context.textStyles.titleMedium?.semiBold,
                     overflow: TextOverflow.ellipsis,
                   ),

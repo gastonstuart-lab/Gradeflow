@@ -67,7 +67,7 @@ extension TeacherDashboardLiveBrief on _TeacherDashboardScreenState {
               ].join(' ')
             : (_newsError != null
                 ? 'The news feeds are temporarily unavailable. This panel will keep retrying automatically in the background.'
-                : 'This panel blends world coverage with local headlines so the dashboard feels useful the moment it opens.'),
+                : 'This panel blends world coverage with local headlines so the planning hub feels useful the moment it opens.'),
         chips: [
           if (worldLead != null) 'World • ${worldLead.source}',
           if (localLead != null) 'Local • ${localLead.source}',
@@ -283,7 +283,7 @@ extension TeacherDashboardLiveBrief on _TeacherDashboardScreenState {
 
     if (_classes.isNotEmpty || _totalStudents > 0) {
       items.add(
-        '${_classes.length} classes live across $_totalStudents students in your workspace',
+        '${_classes.length} classes live across $_totalStudents students in your teacher OS',
       );
     }
 

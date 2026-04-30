@@ -14,7 +14,7 @@ test('dashboard attention center and dock stay available on desktop', async ({
   });
   await expect(attentionButton).toBeVisible({ timeout: 60_000 });
 
-  for (const label of ['Alerts', 'Classes', 'Studio', 'Schedule', 'Messages']) {
+  for (const label of ['Home', 'Planner', 'Classes', 'Theme', 'All Apps']) {
     await expect(
       page
           .getByRole('button', { name: new RegExp(`^${label}\\b`, 'i') })
@@ -25,11 +25,11 @@ test('dashboard attention center and dock stay available on desktop', async ({
   await attentionButton.click();
 
   await expect(
-    page.getByText('One place for messages, class health, reminders, and notices.'),
+    page.getByText('Notifications'),
   ).toBeVisible({ timeout: 20_000 });
 
-  const quietState = page.getByText('Nothing urgent right now.');
-  const activeSignals = page.getByText(/Messages|Class health|Schedule|Admin|Notice/);
+  const quietState = page.getByText(/All clear/i);
+  const activeSignals = page.getByText(/unread message|Admin|Today|Tomorrow|Overdue/i);
   const activeSignalCount = await activeSignals.count();
 
   if (activeSignalCount > 0) {

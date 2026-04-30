@@ -58,19 +58,21 @@ class _GradeFlowLaunchGateState extends State<GradeFlowLaunchGate> {
       });
     }
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 620),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      child: _completed
-          ? KeyedSubtree(
-              key: const ValueKey<String>('app-ready'),
-              child: widget.child,
-            )
-          : KeyedSubtree(
-              key: const ValueKey<String>('launch-experience'),
-              child: _GradeFlowLaunchExperience(auth: auth),
-            ),
+    return SizedBox.expand(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 620),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: _completed
+            ? KeyedSubtree(
+                key: const ValueKey<String>('app-ready'),
+                child: widget.child,
+              )
+            : KeyedSubtree(
+                key: const ValueKey<String>('launch-experience'),
+                child: _GradeFlowLaunchExperience(auth: auth),
+              ),
+      ),
     );
   }
 }
@@ -84,26 +86,26 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
 
   String _statusTitle() {
     if (!auth.isInitialized && auth.isLoading) {
-      return 'Restoring your teaching workspace';
+      return 'Opening GradeFlow';
     }
     if (!auth.isInitialized) {
       return 'Starting GradeFlow';
     }
     if (auth.isAuthenticated) {
-      return 'Opening your dashboard';
+      return 'Opening your workspace';
     }
-    return 'Preparing secure sign in';
+    return 'Ready for sign in';
   }
 
   String _statusDetail() {
     if (!auth.isInitialized && auth.isLoading) {
-      return 'Checking your session and restoring workspace state.';
+      return 'Restoring your session.';
     }
     if (!auth.isInitialized) {
-      return 'Loading the dashboard shell and classroom tools.';
+      return 'Preparing classroom tools.';
     }
     if (auth.isAuthenticated) {
-      return 'Classes, live rail, and teaching tools are ready.';
+      return 'Classes and teaching tools are ready.';
     }
     return 'Secure sign-in is ready.';
   }
@@ -231,7 +233,7 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        GradeFlowProductConfig.marketingTagline,
+                                        'Your classroom workspace is loading.',
                                         style:
                                             theme.textTheme.bodyLarge?.copyWith(
                                           color: theme
@@ -244,26 +246,7 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 28),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: const [
-                                _LaunchSignalChip(
-                                  icon: Icons.dvr_rounded,
-                                  label: 'Dashboard shell',
-                                ),
-                                _LaunchSignalChip(
-                                  icon: Icons.auto_awesome_rounded,
-                                  label: 'Class tools',
-                                ),
-                                _LaunchSignalChip(
-                                  icon: Icons.cloud_done_outlined,
-                                  label: 'Live context',
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 28),
+                            const SizedBox(height: 24),
                             Container(
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
@@ -304,7 +287,7 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                                           ),
                                         ),
                                         child: Text(
-                                          'Launch sequence',
+                                          'Opening',
                                           style: theme.textTheme.labelMedium
                                               ?.copyWith(
                                             color: primary,
@@ -344,26 +327,6 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 16),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: const [
-                                      _LaunchSequencePill(
-                                        label: 'Auth',
-                                        icon: Icons.verified_user_outlined,
-                                      ),
-                                      _LaunchSequencePill(
-                                        label: 'Dashboard',
-                                        icon:
-                                            Icons.dashboard_customize_outlined,
-                                      ),
-                                      _LaunchSequencePill(
-                                        label: 'Tools',
-                                        icon: Icons.draw_outlined,
-                                      ),
-                                    ],
-                                  ),
                                   const SizedBox(height: 18),
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(999),
@@ -394,44 +357,6 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
   }
 }
 
-class _LaunchSignalChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _LaunchSignalChip({
-    required this.icon,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withValues(alpha: 0.05),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.10),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _LaunchStageChip extends StatelessWidget {
   final String label;
 
@@ -455,49 +380,6 @@ class _LaunchStageChip extends StatelessWidget {
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
-      ),
-    );
-  }
-}
-
-class _LaunchSequencePill extends StatelessWidget {
-  final String label;
-  final IconData icon;
-
-  const _LaunchSequencePill({
-    required this.label,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withValues(alpha: 0.04),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }

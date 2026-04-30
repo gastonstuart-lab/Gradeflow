@@ -387,9 +387,10 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
       shadow: Colors.black,
     );
 
-    final dashboardBaseTextTheme = kIsWeb
-        ? base.textTheme
-        : GoogleFonts.plusJakartaSansTextTheme(base.textTheme);
+    final dashboardBaseTextTheme =
+        kIsWeb || !GoogleFonts.config.allowRuntimeFetching
+            ? base.textTheme
+            : GoogleFonts.plusJakartaSansTextTheme(base.textTheme);
     final textTheme = dashboardBaseTextTheme.apply(
       bodyColor: _DashboardPalette.textPrimary,
       displayColor: _DashboardPalette.textPrimary,
@@ -403,11 +404,11 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
       textTheme: textTheme.copyWith(
         headlineMedium: textTheme.headlineMedium?.copyWith(
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.4,
+          letterSpacing: 0,
         ),
         titleLarge: textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.2,
+          letterSpacing: 0,
         ),
         titleMedium: textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
@@ -531,9 +532,9 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
                   },
                   destinations: const [
                     _DashboardMobileTabData(
-                        label: 'Home', icon: Icons.grid_view),
+                        label: 'Overview', icon: Icons.grid_view),
                     _DashboardMobileTabData(
-                        label: 'Schedule', icon: Icons.event_note_outlined),
+                        label: 'Planning', icon: Icons.event_note_outlined),
                     _DashboardMobileTabData(
                         label: 'Tools', icon: Icons.widgets_outlined),
                     _DashboardMobileTabData(
@@ -588,8 +589,33 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
                 colors: [
                   _DashboardPalette.background,
                   _DashboardPalette.backgroundAlt,
+                  Color.lerp(
+                    _DashboardPalette.backgroundAlt,
+                    _DashboardPalette.background,
+                    0.42,
+                  )!,
                   _DashboardPalette.background,
                 ],
+              ),
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(-0.42, -0.94),
+                  radius: 1.26,
+                  colors: [
+                    _DashboardPalette.accent.withValues(
+                      alpha: _DashboardPalette.isLight ? 0.11 : 0.08,
+                    ),
+                    Colors.transparent,
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.44, 1.0],
+                ),
               ),
             ),
           ),
@@ -602,11 +628,41 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withValues(alpha: 0.012),
+                    _DashboardPalette.cyan.withValues(
+                      alpha: _DashboardPalette.isLight ? 0.08 : 0.035,
+                    ),
                     Colors.transparent,
-                    Colors.transparent,
+                    _DashboardPalette.green.withValues(
+                      alpha: _DashboardPalette.isLight ? 0.06 : 0.026,
+                    ),
                   ],
-                  stops: const [0, 0.28, 1],
+                  stops: const [0, 0.46, 1],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 48,
+          right: 48,
+          bottom: -120,
+          child: IgnorePointer(
+            child: Container(
+              height: 280,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(180),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    (_DashboardPalette.isLight
+                            ? const Color(0xFFEDF3FB)
+                            : const Color(0xFF060A12))
+                        .withValues(
+                      alpha: _DashboardPalette.isLight ? 0.72 : 0.66,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -634,19 +690,23 @@ class DashboardShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(width: 216, child: sidebar),
-            const SizedBox(width: 20),
-            Expanded(child: main),
-            const SizedBox(width: 20),
-            SizedBox(
-              width: 336,
-              child: SingleChildScrollView(child: livePanel),
-            ),
-          ],
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+        child: WorkspaceShellFrame(
+          padding: const EdgeInsets.all(14),
+          radius: 28,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(width: 216, child: sidebar),
+              const SizedBox(width: 18),
+              Expanded(child: main),
+              const SizedBox(width: 18),
+              SizedBox(
+                width: 336,
+                child: _DashboardUtilityRailFrame(child: livePanel),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -667,14 +727,18 @@ class TabletDashboardLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(width: 92, child: sidebar),
-            const SizedBox(width: 16),
-            Expanded(child: main),
-          ],
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+        child: WorkspaceShellFrame(
+          padding: const EdgeInsets.all(14),
+          radius: WorkspaceRadius.hero,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(width: 96, child: sidebar),
+              const SizedBox(width: 18),
+              Expanded(child: main),
+            ],
+          ),
         ),
       ),
     );
@@ -726,33 +790,126 @@ class MobileBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _DashboardPalette.border),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_DashboardPalette.sidebarAlt, _DashboardPalette.sidebar],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.28),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: NavigationBar(
-        selectedIndex: currentIndex,
-        onDestinationSelected: onSelected,
-        height: 72,
-        destinations: [
-          for (final destination in destinations)
-            NavigationDestination(
-              icon: Icon(destination.icon),
-              label: destination.label,
-              tooltip: destination.label,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: _DashboardPalette.border.withValues(alpha: 0.86),
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  _DashboardPalette.sidebarAlt.withValues(
+                    alpha: _DashboardPalette.isLight ? 0.94 : 0.82,
+                  ),
+                  _DashboardPalette.sidebar.withValues(
+                    alpha: _DashboardPalette.isLight ? 0.90 : 0.78,
+                  ),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.24),
+                  blurRadius: 28,
+                  offset: const Offset(0, 14),
+                ),
+              ],
             ),
+            child: NavigationBar(
+              backgroundColor: Colors.transparent,
+              selectedIndex: currentIndex,
+              onDestinationSelected: onSelected,
+              height: 76,
+              labelBehavior:
+                  NavigationDestinationLabelBehavior.onlyShowSelected,
+              destinations: [
+                for (final destination in destinations)
+                  NavigationDestination(
+                    icon: Icon(destination.icon),
+                    label: destination.label,
+                    tooltip: destination.label,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardUtilityRailFrame extends StatelessWidget {
+  final Widget child;
+
+  const _DashboardUtilityRailFrame({
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceSurfaceCard(
+      radius: WorkspaceRadius.hero,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Utility rail',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Weather, signals, audio, and communication stay nearby without crowding the main deck.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: _DashboardPalette.textSecondary,
+                            height: 1.4,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(WorkspaceRadius.pill),
+                  color: _DashboardPalette.accent.withValues(alpha: 0.10),
+                  border: Border.all(
+                    color: _DashboardPalette.accent.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Text(
+                  'Live',
+                  style: WorkspaceTypography.utility(
+                    context,
+                    color: _DashboardPalette.accentSoft,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: SingleChildScrollView(
+              child: child,
+            ),
+          ),
         ],
       ),
     );
@@ -773,156 +930,178 @@ class SidebarNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardPanelCard(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
-      gradientColors: [
-        _DashboardPalette.sidebar,
-        _DashboardPalette.sidebarAlt,
-      ],
-      child: Column(
-        crossAxisAlignment:
-            compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 12 : 14,
-              vertical: compact ? 12 : 12,
+    const cardPadding = EdgeInsets.fromLTRB(12, 16, 12, 16);
+    final navigationItems = Column(
+      crossAxisAlignment:
+          compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      children: [
+        for (final item in primaryItems)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: _SidebarNavButton(
+              compact: compact,
+              item: item,
             ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: _DashboardPalette.border.withValues(alpha: 0.84),
-              ),
-              color: Colors.white.withValues(alpha: 0.02),
-            ),
-            child: compact
-                ? Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: _DashboardPalette.accent.withValues(alpha: 0.16),
-                    ),
-                    child: Icon(
-                      Icons.grading_rounded,
-                      color: _DashboardPalette.accentSoft,
-                    ),
-                  )
-                : Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          color:
-                              _DashboardPalette.accent.withValues(alpha: 0.16),
-                        ),
-                        child: Icon(
-                          Icons.grading_rounded,
-                          color: _DashboardPalette.accentSoft,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              GradeFlowProductConfig.appName,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Teacher OS',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
-                                  ?.copyWith(
-                                      color: _DashboardPalette.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+          ),
+        const SizedBox(height: 16),
+        if (!compact)
+          Padding(
+            padding: const EdgeInsets.only(left: 8, bottom: 10),
+            child: Text(
+              'Connected',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: _DashboardPalette.textSecondary,
                   ),
-          ),
-          const SizedBox(height: 18),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: compact
-                    ? CrossAxisAlignment.center
-                    : CrossAxisAlignment.start,
-                children: [
-                  for (final item in primaryItems)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: _SidebarNavButton(
-                        compact: compact,
-                        item: item,
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  if (!compact)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8, bottom: 10),
-                      child: Text(
-                        'Connected',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: _DashboardPalette.textSecondary,
-                            ),
-                      ),
-                    ),
-                  for (final item in secondaryItems)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: _SidebarNavButton(
-                        compact: compact,
-                        item: item,
-                        secondary: true,
-                      ),
-                    ),
-                ],
-              ),
             ),
           ),
-          if (!compact)
+        for (final item in secondaryItems)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: _SidebarNavButton(
+              compact: compact,
+              item: item,
+              secondary: true,
+            ),
+          ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hasBoundedHeight = constraints.maxHeight.isFinite;
+        final availableHeight = hasBoundedHeight
+            ? (constraints.maxHeight - cardPadding.vertical).clamp(
+                0.0,
+                double.infinity,
+              )
+            : null;
+        final navigationBody = hasBoundedHeight
+            ? SingleChildScrollView(child: navigationItems)
+            : navigationItems;
+        final content = Column(
+          mainAxisSize: hasBoundedHeight ? MainAxisSize.max : MainAxisSize.min,
+          crossAxisAlignment:
+              compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 12 : 14,
+                vertical: compact ? 12 : 12,
+              ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
-                color: Colors.white.withValues(alpha: 0.02),
                 border: Border.all(
-                  color: _DashboardPalette.border.withValues(alpha: 0.82),
+                  color: _DashboardPalette.border.withValues(alpha: 0.84),
+                ),
+                color: Colors.white.withValues(alpha: 0.02),
+              ),
+              child: compact
+                  ? Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: _DashboardPalette.accent.withValues(alpha: 0.16),
+                      ),
+                      child: Icon(
+                        Icons.grading_rounded,
+                        color: _DashboardPalette.accentSoft,
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            color: _DashboardPalette.accent.withValues(
+                              alpha: 0.16,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.grading_rounded,
+                            color: _DashboardPalette.accentSoft,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                GradeFlowProductConfig.appName,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Teacher OS',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(
+                                      color: _DashboardPalette.textSecondary,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 18),
+            if (hasBoundedHeight)
+              Expanded(child: navigationBody)
+            else
+              navigationBody,
+            if (!compact)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: Colors.white.withValues(alpha: 0.02),
+                  border: Border.all(
+                    color: _DashboardPalette.border.withValues(alpha: 0.82),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Connected surfaces',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Admin and Messages stay nearby without crowding the planning hub.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Connected editions',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Admin and Communication stay nearby without crowding the daily dashboard.',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
+          ],
+        );
+
+        return DashboardPanelCard(
+          padding: cardPadding,
+          gradientColors: [
+            _DashboardPalette.sidebar,
+            _DashboardPalette.sidebarAlt,
+          ],
+          child: hasBoundedHeight
+              ? SizedBox(height: availableHeight, child: content)
+              : content,
+        );
+      },
     );
   }
 }
@@ -960,8 +1139,10 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
   Widget build(BuildContext context) {
     final primaryMetric =
         widget.metrics.isNotEmpty ? widget.metrics.first : null;
-    final summaryPills = widget.todayLine
-        .split('•')
+    final secondaryMetric =
+        widget.metrics.length > 1 ? widget.metrics[1] : null;
+    final summaryPills = [widget.todayLine]
+        .expand((segment) => segment.split(' - '))
         .map((segment) => segment.trim())
         .where((segment) => segment.isNotEmpty)
         .toList(growable: false);
@@ -974,11 +1155,10 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
       builder: (context, constraints) {
         final baseTheme = Theme.of(context);
         final wide = !widget.compact && constraints.maxWidth > 1060;
-        final medium = !widget.compact && constraints.maxWidth > 820;
-
         return DashboardPanelCard(
-          padding: EdgeInsets.all(widget.compact ? 14 : 18),
-          radius: 24,
+          surfaceType: SurfaceType.whisper,
+          padding: EdgeInsets.all(widget.compact ? 14 : 16),
+          radius: wide ? 24 : 22,
           gradientColors: [
             _DashboardPalette.sidebarAlt,
             _DashboardPalette.sidebar,
@@ -986,93 +1166,66 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              'Command deck',
-                              style: baseTheme.textTheme.labelLarge?.copyWith(
-                                color: _DashboardPalette.textSecondary,
-                                letterSpacing: 0.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            _CommandDeckLiveBadge(accent: deckAccent),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.title,
-                          style: (widget.compact
-                                  ? baseTheme.textTheme.titleLarge
-                                  : baseTheme.textTheme.headlineSmall)
-                              ?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.45,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.subtitle,
-                          maxLines: widget.compact ? 2 : 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: baseTheme.textTheme.bodyMedium?.copyWith(
-                            color: _DashboardPalette.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+              CommandHeader(
+                eyebrow: 'Planning hub',
+                title: widget.title,
+                subtitle: widget.subtitle,
+                leading: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: deckAccent.withValues(alpha: 0.14),
+                    border: Border.all(
+                      color: deckAccent.withValues(alpha: 0.20),
                     ),
                   ),
-                  if (widget.actions.isNotEmpty) ...[
-                    const SizedBox(width: 16),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: wide ? 236 : (medium ? 206 : 180),
-                      ),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        alignment: WrapAlignment.end,
-                        children: widget.actions,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (final pill in summaryPills) ...[
-                      _CommandDeckSummaryPill(
-                        label: pill,
-                        accent: deckAccent,
-                      ),
-                      const SizedBox(width: 8),
-                    ],
+                  child: Icon(
+                    Icons.space_dashboard_outlined,
+                    color: deckAccent,
+                    size: 22,
+                  ),
+                ),
+                primaryAction:
+                    widget.actions.isNotEmpty ? widget.actions.first : null,
+                contextPills: [
+                  for (final pill in summaryPills)
                     _CommandDeckSummaryPill(
-                      label: widget.backgroundImage != null
-                          ? 'Personalized deck'
-                          : widget.presentation.label,
-                      icon: widget.backgroundImage != null
-                          ? Icons.image_outlined
-                          : Icons.palette_outlined,
+                      label: pill,
                       accent: deckAccent,
                     ),
-                  ],
-                ),
+                  _CommandDeckSummaryPill(
+                    label: widget.backgroundImage != null
+                        ? 'Personalized hub'
+                        : widget.presentation.label,
+                    icon: widget.backgroundImage != null
+                        ? Icons.image_outlined
+                        : Icons.palette_outlined,
+                    accent: deckAccent,
+                  ),
+                ],
+                pulseTone: CommandPulseTone.calm,
+                pulseLabel: 'Planning hub staged and ready',
               ),
+              if (widget.actions.length > 1) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: widget.actions.skip(1).toList(growable: false),
+                ),
+              ],
+              if (wide) ...[
+                const SizedBox(height: 16),
+                _CommandDeckStagePreview(
+                  presentation: widget.presentation,
+                  backgroundImage: widget.backgroundImage,
+                  summaryPills: summaryPills,
+                  accent: deckAccent,
+                  primaryMetric: primaryMetric,
+                  secondaryMetric: secondaryMetric,
+                ),
+              ],
               if (primaryMetric != null) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -1129,7 +1282,7 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
                           children: [
                             Text(
                               _detailsExpanded
-                                  ? 'Dashboard details open'
+                                  ? 'Planning hub details open'
                                   : '${primaryMetric.label} is ready',
                               style: baseTheme.textTheme.labelLarge?.copyWith(
                                 fontWeight: FontWeight.w700,
@@ -1137,7 +1290,7 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${primaryMetric.value} • ${primaryMetric.detail}',
+                              '${primaryMetric.value} - ${primaryMetric.detail}',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: baseTheme.textTheme.bodySmall?.copyWith(
@@ -1245,79 +1398,6 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
   }
 }
 
-class _CommandDeckLiveBadge extends StatefulWidget {
-  final Color accent;
-
-  const _CommandDeckLiveBadge({
-    required this.accent,
-  });
-
-  @override
-  State<_CommandDeckLiveBadge> createState() => _CommandDeckLiveBadgeState();
-}
-
-class _CommandDeckLiveBadgeState extends State<_CommandDeckLiveBadge>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final pulse = 0.14 + (_controller.value * 0.16);
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            color: widget.accent.withValues(alpha: 0.10),
-            border: Border.all(
-              color: widget.accent.withValues(alpha: 0.18 + pulse),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: widget.accent.withValues(alpha: 0.92),
-                  boxShadow: [
-                    BoxShadow(
-                      color: widget.accent.withValues(alpha: 0.18 + pulse),
-                      blurRadius: 10,
-                      spreadRadius: 0.8,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Live',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: _DashboardPalette.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
 Color _commandDeckAccent({
   required DashboardHeroPresentation presentation,
   required ImageProvider<Object>? backgroundImage,
@@ -1345,10 +1425,17 @@ class _CommandDeckSummaryPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accent.withValues(alpha: 0.14),
+            Colors.white.withValues(alpha: 0.03),
+          ],
+        ),
         border: Border.all(
           color: accent.withValues(alpha: 0.18),
         ),
-        color: Colors.white.withValues(alpha: 0.04),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1356,11 +1443,29 @@ class _CommandDeckSummaryPill extends StatelessWidget {
           if (icon != null) ...[
             Icon(icon, size: 14, color: accent),
             const SizedBox(width: 8),
+          ] else ...[
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accent.withValues(alpha: 0.92),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.22),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
           ],
           Text(
             label,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: _DashboardPalette.textSecondary,
+                  color: _DashboardPalette.isLight
+                      ? _DashboardPalette.textPrimary
+                      : Colors.white.withValues(alpha: 0.90),
                   fontWeight: FontWeight.w700,
                 ),
           ),
@@ -1430,7 +1535,7 @@ class _CommandDeckCompactMetricCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+                  letterSpacing: 0,
                 ),
           ),
           const SizedBox(height: 6),
@@ -1444,22 +1549,281 @@ class _CommandDeckCompactMetricCard extends StatelessWidget {
                 ),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Text(
-                metric.actionLabel,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: panelAccent,
-                      fontWeight: FontWeight.w700,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: panelAccent.withValues(alpha: 0.10),
+              border: Border.all(
+                color: panelAccent.withValues(alpha: 0.16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  metric.actionLabel,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: panelAccent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 18,
+                  color: panelAccent,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommandDeckStagePreview extends StatelessWidget {
+  final DashboardHeroPresentation presentation;
+  final ImageProvider<Object>? backgroundImage;
+  final List<String> summaryPills;
+  final Color accent;
+  final DashboardSummaryMetricData? primaryMetric;
+  final DashboardSummaryMetricData? secondaryMetric;
+
+  const _CommandDeckStagePreview({
+    required this.presentation,
+    required this.backgroundImage,
+    required this.summaryPills,
+    required this.accent,
+    required this.primaryMetric,
+    required this.secondaryMetric,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseMetric = primaryMetric ?? secondaryMetric;
+    final visiblePills = summaryPills.take(3).toList(growable: false);
+
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 190),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: accent.withValues(alpha: 0.16),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: presentation.gradientColors,
+                ),
+              ),
+            ),
+            if (backgroundImage != null)
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: backgroundImage!,
+                      fit: BoxFit.cover,
                     ),
+                  ),
+                ),
               ),
-              const Spacer(),
-              Icon(
-                Icons.arrow_downward_rounded,
-                size: 18,
-                color: panelAccent,
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.08),
+                      Colors.black.withValues(alpha: 0.34),
+                      Colors.black.withValues(alpha: 0.72),
+                    ],
+                    stops: const [0.0, 0.46, 1.0],
+                  ),
+                ),
               ),
-            ],
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Container(
+                  height: 1,
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _CommandDeckStageChip(
+                        label: 'Workspace shell',
+                        icon: Icons.window_rounded,
+                      ),
+                      const Spacer(),
+                      _CommandDeckStageChip(
+                        label: backgroundImage == null
+                            ? presentation.label
+                            : 'Custom scene',
+                        icon: backgroundImage == null
+                            ? Icons.auto_awesome_rounded
+                            : Icons.image_outlined,
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Teacher cockpit',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.76),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    baseMetric?.value ?? 'Daily hub ready',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0,
+                      color: Colors.white,
+                      height: 1.04,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    baseMetric?.detail ??
+                        'Calm overview, fast pivots, and live class context stay in one shell.',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.82),
+                      height: 1.45,
+                    ),
+                  ),
+                  if (visiblePills.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final pill in visiblePills)
+                          _CommandDeckStageChip(label: pill),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: Colors.black.withValues(alpha: 0.18),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.10),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          secondaryMetric?.label ?? 'Right rail',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          secondaryMetric == null
+                              ? 'Messages, signals, and live tools stay docked nearby.'
+                              : '${secondaryMetric!.value} - ${secondaryMetric!.detail}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.78),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CommandDeckStageChip extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+
+  const _CommandDeckStageChip({
+    required this.label,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.16),
+            Colors.white.withValues(alpha: 0.07),
+          ],
+        ),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.82)),
+            const SizedBox(width: 7),
+          ],
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.88),
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
       ),
@@ -1606,7 +1970,7 @@ class _CommandDeckPrimaryPanelState extends State<_CommandDeckPrimaryPanel>
                                           .headlineSmall
                                           ?.copyWith(
                                             fontWeight: FontWeight.w800,
-                                            letterSpacing: -0.45,
+                                            letterSpacing: 0,
                                           ),
                                     ),
                                   ],
@@ -1790,7 +2154,7 @@ class _CommandDeckSecondaryPanelState
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
-                          letterSpacing: -0.25,
+                          letterSpacing: 0,
                         ),
                   ),
                   const SizedBox(height: 6),
@@ -1907,9 +2271,9 @@ class ClassStatusSection extends StatelessWidget {
     }
 
     return _DashboardSectionFrame(
-      title: 'Your Classes',
+      title: 'Class Spaces',
       subtitle:
-          'Scroll across the class rail, then open the selected workspace below.',
+          'Monitor class signals here, then open the selected class workspace below.',
       action: TextButton.icon(
         onPressed: onOpenClasses,
         icon: const Icon(Icons.arrow_forward_rounded, size: 18),
@@ -1943,7 +2307,7 @@ class ClassStatusSection extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Create your first class to populate the dashboard rail.',
+                      'Create your first class to populate class spaces here.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: _DashboardPalette.textSecondary,
                             height: 1.4,
@@ -2222,7 +2586,7 @@ class _SelectedDashboardClassPanel extends StatelessWidget {
                           style:
                               Theme.of(context).textTheme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.3,
+                                    letterSpacing: 0,
                                   ),
                         ),
                         const SizedBox(height: 4),
@@ -2409,16 +2773,18 @@ class QuickActionsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _DashboardSectionFrame(
-      title: 'Quick Actions',
-      subtitle: 'Fast moves for setup and live teaching.',
+      title: 'Launches',
+      subtitle: 'Fast setup and teaching jumps.',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final columns = compact
               ? 2
-              : width > 900
+              : width > 1040
                   ? 4
-                  : 2;
+                  : width > 760
+                      ? 3
+                      : 2;
           final gap = 12.0;
           final tileWidth =
               columns == 1 ? width : (width - (gap * (columns - 1))) / columns;
@@ -2456,35 +2822,35 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
   String _selectionLabel() {
     switch (selectedSection) {
       case DashboardWorkspaceSection.today:
-        return 'Today';
+        return 'Overview';
       case DashboardWorkspaceSection.classroom:
-        return 'Studio';
+        return 'Class tools';
       case DashboardWorkspaceSection.planning:
-        return 'Schedule';
+        return 'Planning';
       case DashboardWorkspaceSection.workspace:
-        return 'Tools';
+        return 'Support';
     }
   }
 
   List<_WorkspaceStripItemData> _items() => const [
         _WorkspaceStripItemData(
           section: DashboardWorkspaceSection.today,
-          label: 'Today',
+          label: 'Overview',
           icon: Icons.insights_outlined,
         ),
         _WorkspaceStripItemData(
           section: DashboardWorkspaceSection.classroom,
-          label: 'Classroom',
+          label: 'Class tools',
           icon: Icons.draw_outlined,
         ),
         _WorkspaceStripItemData(
           section: DashboardWorkspaceSection.planning,
-          label: 'Schedule',
+          label: 'Planning',
           icon: Icons.event_note_outlined,
         ),
         _WorkspaceStripItemData(
           section: DashboardWorkspaceSection.workspace,
-          label: 'Workspace',
+          label: 'Support',
           icon: Icons.workspaces_outline,
         ),
       ];
@@ -2497,6 +2863,7 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
     final items = _items();
 
     return DashboardPanelCard(
+      surfaceType: SurfaceType.whisper,
       padding: const EdgeInsets.all(16),
       radius: 22,
       child: Column(
@@ -2523,14 +2890,14 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Workspace',
+                      'Planning hub',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Primary surfaces stay pinned while one secondary surface takes focus.',
+                      'A secondary support surface for planning, reminders, and launch tools.',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -2543,7 +2910,7 @@ class DashboardWorkspaceModeStrip extends StatelessWidget {
               const SizedBox(width: 12),
               if (onCustomizeLayout != null)
                 IconButton(
-                  tooltip: 'Customize dashboard',
+                  tooltip: 'Customize planning hub',
                   onPressed: onCustomizeLayout,
                   icon: const Icon(Icons.tune),
                 ),
@@ -2748,6 +3115,7 @@ class DashboardSectionPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DashboardPanelCard(
+      surfaceType: SurfaceType.tool,
       padding: const EdgeInsets.all(16),
       radius: 22,
       minHeight: 170,
@@ -2876,8 +3244,8 @@ class PlanningSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _DashboardSectionFrame(
-      title: 'Schedule',
-      subtitle: 'Reminders, calendar, and timetable.',
+      title: 'Planning lane',
+      subtitle: 'Reminders, calendar, and timetable stay visible here.',
       child: _ResponsivePanelWrap(
         compact: compact,
         children: panels,
@@ -2899,8 +3267,8 @@ class WorkspaceSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _DashboardSectionFrame(
-      title: 'Workspace',
-      subtitle: 'Secondary tools and links on standby.',
+      title: 'Support tools',
+      subtitle: 'Links, research, and utility panels on standby.',
       child: _ResponsivePanelWrap(
         compact: compact,
         children: panels,
@@ -3033,13 +3401,13 @@ class _DashboardSystemWidgetCard extends StatelessWidget {
                   key: ValueKey<String>(data.timeLabel),
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                         fontWeight: FontWeight.w800,
-                        letterSpacing: -1.15,
+                        letterSpacing: 0,
                       ),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                '${data.weekdayLabel} • ${data.dateLabel}',
+                '${data.weekdayLabel} - ${data.dateLabel}',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: _DashboardPalette.textSecondary,
                       fontWeight: FontWeight.w600,
@@ -3353,7 +3721,7 @@ class _DashboardAudioWidgetCardState extends State<_DashboardAudioWidgetCard> {
                           ),
                         ),
                         subtitle: Text(
-                          '${station.programLabel} • ${station.countryLabel} • ${station.categoryLabel}',
+                          '${station.programLabel} - ${station.countryLabel} - ${station.categoryLabel}',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -3455,50 +3823,61 @@ class _DashboardAudioWidgetCardState extends State<_DashboardAudioWidgetCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                'Audio',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: _DashboardPalette.textSecondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const Spacer(),
-              if (widget.data.recommendedLabel.trim().isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: accent.withValues(alpha: 0.10),
-                    border: Border.all(
-                      color: accent.withValues(alpha: 0.18),
-                    ),
-                  ),
-                  child: Text(
-                    widget.data.isFollowingRecommended
-                        ? widget.data.recommendedLabel
-                        : 'Pinned station',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: accent,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final showRecommendation = constraints.maxWidth >= 360 &&
+                  widget.data.recommendedLabel.trim().isNotEmpty;
+              return Row(
+                children: [
+                  Text(
+                    'Audio',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: _DashboardPalette.textSecondary,
                           fontWeight: FontWeight.w700,
                         ),
                   ),
-                ),
-              if (stations.length > 1 ||
-                  widget.data.onAddStation != null ||
-                  widget.data.onUseRecommended != null) ...[
-                const SizedBox(width: 6),
-                IconButton(
-                  tooltip: 'Open station library',
-                  onPressed: _openStationLibrary,
-                  icon: const Icon(Icons.library_music_rounded),
-                ),
-              ],
-            ],
+                  const Spacer(),
+                  if (showRecommendation)
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(999),
+                          color: accent.withValues(alpha: 0.10),
+                          border: Border.all(
+                            color: accent.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        child: Text(
+                          widget.data.isFollowingRecommended
+                              ? widget.data.recommendedLabel
+                              : 'Pinned station',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: accent,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ),
+                    ),
+                  if (stations.length > 1 ||
+                      widget.data.onAddStation != null ||
+                      widget.data.onUseRecommended != null) ...[
+                    const SizedBox(width: 6),
+                    IconButton(
+                      tooltip: 'Open station library',
+                      onPressed: _openStationLibrary,
+                      icon: const Icon(Icons.library_music_rounded),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 12),
           Container(
@@ -3521,10 +3900,9 @@ class _DashboardAudioWidgetCardState extends State<_DashboardAudioWidgetCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stationIcon = Container(
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
@@ -3547,36 +3925,33 @@ class _DashboardAudioWidgetCardState extends State<_DashboardAudioWidgetCard> {
                         color: Colors.white,
                         size: 24,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            station.stationName,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            station.programLabel,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: _DashboardPalette.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
+                    );
+                    final stationCopy = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          station.stationName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          station.programLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: _DashboardPalette.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                      ],
+                    );
+                    final handoffBadge = Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 7,
@@ -3590,13 +3965,46 @@ class _DashboardAudioWidgetCardState extends State<_DashboardAudioWidgetCard> {
                       ),
                       child: Text(
                         inlineReady ? 'Direct web' : 'Browser handoff',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: _DashboardPalette.textPrimary,
                               fontWeight: FontWeight.w700,
                             ),
                       ),
-                    ),
-                  ],
+                    );
+
+                    if (constraints.maxWidth < 340) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              stationIcon,
+                              const SizedBox(width: 12),
+                              Expanded(child: stationCopy),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: handoffBadge,
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        stationIcon,
+                        const SizedBox(width: 12),
+                        Expanded(child: stationCopy),
+                        const SizedBox(width: 10),
+                        Flexible(child: handoffBadge),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -4031,7 +4439,7 @@ class _DashboardCommunicationWidgetCardState
                                 .titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.2,
+                                  letterSpacing: 0,
                                 ),
                           ),
                           const SizedBox(height: 4),
@@ -4406,92 +4814,34 @@ class DashboardPanelCard extends StatelessWidget {
   final double minHeight;
   final List<Color>? gradientColors;
   final VoidCallback? onTap;
+  final SurfaceType surfaceType;
+  final bool expandChild;
 
   const DashboardPanelCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(20),
-    this.radius = 24,
+    this.padding = WorkspaceSpacing.headerPadding,
+    this.radius = WorkspaceRadius.card,
     this.minHeight = 0,
     this.gradientColors,
     this.onTap,
+    this.surfaceType = SurfaceType.tool,
+    this.expandChild = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final decoration = BoxDecoration(
-      borderRadius: BorderRadius.circular(radius),
-      border: Border.all(
-        color: _DashboardPalette.border.withValues(alpha: 0.86),
-      ),
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: gradientColors ??
-            [
-              _DashboardPalette.panel,
-              _DashboardPalette.panelAlt,
-            ],
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.18),
-          blurRadius: 20,
-          offset: const Offset(0, 10),
-        ),
-      ],
-    );
-
-    final content = Stack(
-      fit: StackFit.passthrough,
-      children: [
-        Positioned.fill(
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(radius),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.018),
-                    Colors.transparent,
-                    Colors.transparent,
-                  ],
-                  stops: const [0.0, 0.24, 1.0],
-                ),
-              ),
-            ),
-          ),
-        ),
-        ConstrainedBox(
-          constraints: BoxConstraints(minHeight: minHeight),
-          child: Padding(
-            padding: padding,
-            child: child,
-          ),
-        ),
-      ],
-    );
-
-    final body = content;
-
-    return DecoratedBox(
-      decoration: decoration,
-      child: Material(
-        type: MaterialType.transparency,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: onTap == null
-              ? body
-              : InkWell(
-                  onTap: onTap,
-                  hoverColor: _dashboardInteractiveOverlay(),
-                  focusColor: _dashboardInteractiveOverlay(),
-                  highlightColor: _dashboardInteractiveOverlay(emphasis: 1.3),
-                  splashColor: _dashboardInteractiveOverlay(emphasis: 1.4),
-                  child: body,
-                ),
+    return CommandSurfaceCard(
+      surfaceType: surfaceType,
+      padding: EdgeInsets.zero,
+      radius: radius,
+      onTap: onTap,
+      expandChild: expandChild,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minHeight),
+        child: Padding(
+          padding: padding,
+          child: child,
         ),
       ),
     );
@@ -4674,7 +5024,7 @@ class _DashboardSectionFrame extends StatelessWidget {
                     title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
-                          letterSpacing: -0.35,
+                          letterSpacing: 0,
                         ),
                   ),
                   const SizedBox(height: 4),
@@ -4882,7 +5232,7 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
-                              letterSpacing: -0.15,
+                              letterSpacing: 0,
                             ),
                       ),
                       const SizedBox(height: 2),

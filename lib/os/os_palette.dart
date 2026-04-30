@@ -159,7 +159,5 @@ class OSRadius {
 // ─────────────────────────────────────────────────────────────────────────────
 
 extension OSBrightnessX on BuildContext {
-  bool get isDark =>
-      MediaQuery.platformBrightnessOf(this) == Brightness.dark ||
-      Theme.of(this).brightness == Brightness.dark;
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
 }

@@ -23,11 +23,11 @@ test('login screen loads', async ({ page }) => {
   ).toBeVisible();
 });
 
-test('demo login navigates to dashboard', async ({ page }) => {
+test('demo login opens authenticated workspace', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/');
 
   await ensureDemoSignedIn(page);
-  await expect(page).toHaveURL(/\/dashboard(?:\?|$)/);
+  await expect(page).toHaveURL(/\/(?:dashboard|os\/home)(?:\?|$)/);
   await expectDashboardShell(page);
 });

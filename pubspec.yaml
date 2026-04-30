@@ -1,5 +1,5 @@
 name: gradeflow
-description: "IEP Team is a robust web app designed to simplify high school grade management, offering intuitive input, intelligent calculations, and seamless final grade exports for teachers."
+description: "GradeFlow is a web-first teacher operating system for class workflows, rosters, grading, classroom tools, seating plans, and exports."
 publish_to: "none"
 version: 1.0.0
 
@@ -54,5 +54,5 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/icons/dreamflow_icon.jpg
+  image_path: assets/icons/gradeflow_icon.jpg
   remove_alpha_ios: true

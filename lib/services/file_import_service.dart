@@ -345,7 +345,7 @@ class FileImportService {
           ImportedStudent(
             isValid: false,
             error:
-                'This file looks like a calendar/schedule, not a student roster. Use the Schedule import in Teacher Dashboard / Class Details.',
+                'This file looks like a calendar/schedule, not a student roster. Use Planner for school-wide calendars or Class Workspace > Schedule for class schedules.',
           ),
         ];
       }
@@ -510,7 +510,7 @@ class FileImportService {
           ImportedStudent(
             isValid: false,
             error:
-                'This file looks like a calendar/schedule, not a student roster. Use the Schedule import in Teacher Dashboard / Class Details.',
+                'This file looks like a calendar/schedule, not a student roster. Use Planner for school-wide calendars or Class Workspace > Schedule for class schedules.',
           ),
         ];
       }
@@ -636,8 +636,8 @@ class FileImportService {
   Set<String> inferClassCodesForTeacherFromRoster(
       Uint8List bytes, String teacherName) {
     try {
-      final excel = Excel.decodeBytes(bytes);
-      if (excel.tables.isEmpty) return const {};
+      final sheets = _xlsxSheetRowsFromZip(bytes);
+      if (sheets.isEmpty) return const {};
 
       final normalizedTeacher = teacherName.trim().toLowerCase();
       if (normalizedTeacher.isEmpty) return const {};
@@ -662,17 +662,15 @@ class FileImportService {
       }
 
       final out = <String>{};
-      for (final entry in excel.tables.entries) {
-        final sheetName = entry.key;
-        final sheet = entry.value;
-        if (sheet.rows.isEmpty) continue;
+      for (final entry in sheets) {
+        final sheetName = entry.name;
+        final rows = entry.rows;
+        if (rows.isEmpty) continue;
 
         bool teacherMatched = false;
-        final rows = sheet.rows;
         final scanRows = rows.length < 14 ? rows.length : 14;
         for (int r = 0; r < scanRows; r++) {
-          for (final c in rows[r]) {
-            final raw = c?.value?.toString() ?? '';
+          for (final raw in rows[r]) {
             if (cellMatchesTeacher(raw)) {
               teacherMatched = true;
               break;
@@ -691,9 +689,8 @@ class FileImportService {
         int? headerRow;
         List<int> classCols = const [];
         for (int r = 0; r < rows.length && r < 40; r++) {
-          final normalized = rows[r]
-              .map((c) => (c?.value?.toString() ?? '').trim().toLowerCase())
-              .toList();
+          final normalized =
+              rows[r].map((c) => c.trim().toLowerCase()).toList();
           final cols = <int>[];
           for (int i = 0; i < normalized.length; i++) {
             final h = normalized[i];
@@ -712,8 +709,7 @@ class FileImportService {
           if (row.isEmpty) continue;
           for (final col in classCols) {
             if (col >= row.length) continue;
-            final raw = row[col]?.value?.toString() ?? '';
-            final code = raw.trim().toUpperCase();
+            final code = row[col].trim().toUpperCase();
             if (looksLikeClassCode(code)) out.add(code);
           }
         }
@@ -728,8 +724,8 @@ class FileImportService {
   List<ImportedStudent> _parseSchoolWideRosterWorkbook(Uint8List bytes,
       {String? teacherName}) {
     try {
-      final excel = Excel.decodeBytes(bytes);
-      if (excel.tables.isEmpty) return const [];
+      final sheets = _xlsxSheetRowsFromZip(bytes);
+      if (sheets.isEmpty) return const [];
 
       final out = <ImportedStudent>[];
       final seen = <String>{};
@@ -837,17 +833,11 @@ class FileImportService {
         );
       }
 
-      for (final entry in excel.tables.entries) {
+      for (final entry in sheets) {
         final teachingClassCode =
-            _inferTeachingClassCodeFromSheetName(entry.key);
-        final sheet = entry.value;
-        if (sheet.rows.isEmpty) continue;
-
-        final rows = <List<String>>[];
-        for (final r in sheet.rows) {
-          final vals = r.map((c) => c?.value?.toString() ?? '').toList();
-          rows.add(vals);
-        }
+            _inferTeachingClassCodeFromSheetName(entry.name);
+        final rows = entry.rows;
+        if (rows.isEmpty) continue;
 
         for (int r = 0; r < rows.length; r++) {
           final row = rows[r];

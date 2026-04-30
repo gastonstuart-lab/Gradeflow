@@ -39,7 +39,7 @@ Future<void> showPilotFeedbackDialog(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: selectedCategory,
+                      initialValue: selectedCategory,
                       decoration: const InputDecoration(
                         labelText: 'Category',
                         border: OutlineInputBorder(),

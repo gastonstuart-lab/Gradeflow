@@ -94,8 +94,10 @@ extension TeacherDashboardSystemOverlays on _TeacherDashboardScreenState {
     required Widget surface,
   }) {
     final notificationCenter = _dashboardNotificationCenterData(now);
-    final showDock = width >= TeacherDashboardShell._mobileBreakpoint;
     final useBottomSheet = width < TeacherDashboardShell._mobileBreakpoint;
+    // The OS dock owns global navigation; avoid stacking a second dashboard dock.
+    final showDashboardUtilityDock = widget.showDashboardUtilityDock &&
+        width >= TeacherDashboardShell._mobileBreakpoint;
     final panelWidth = (useBottomSheet
             ? width - 24
             : (width < TeacherDashboardShell._desktopBreakpoint ? 360 : 390))
@@ -104,11 +106,15 @@ extension TeacherDashboardSystemOverlays on _TeacherDashboardScreenState {
     final screenHeight = MediaQuery.sizeOf(context).height;
     final panelHeight = (useBottomSheet
             ? screenHeight * 0.72
-            : screenHeight - (showDock ? 132 : 72))
+            : screenHeight - (showDashboardUtilityDock ? 132 : 72))
         .clamp(320.0, 760.0)
         .toDouble();
-    final dockItems =
-        _dashboardUtilityDockItems(now, notificationCenter: notificationCenter);
+    final dockItems = showDashboardUtilityDock
+        ? _dashboardUtilityDockItems(
+            now,
+            notificationCenter: notificationCenter,
+          )
+        : const <DashboardUtilityDockItemData>[];
 
     return Stack(
       clipBehavior: Clip.none,
@@ -176,7 +182,7 @@ extension TeacherDashboardSystemOverlays on _TeacherDashboardScreenState {
           Positioned(
             top: 18,
             right: 18,
-            bottom: showDock ? 104 : 18,
+            bottom: showDashboardUtilityDock ? 104 : 18,
             child: SafeArea(
               left: false,
               bottom: false,
@@ -214,7 +220,7 @@ extension TeacherDashboardSystemOverlays on _TeacherDashboardScreenState {
               ),
             ),
           ),
-        if (showDock)
+        if (showDashboardUtilityDock)
           Positioned(
             left: 0,
             right: 0,
@@ -476,8 +482,8 @@ extension TeacherDashboardSystemOverlays on _TeacherDashboardScreenState {
         onTap: _toggleNotificationCenter,
       ),
       DashboardUtilityDockItemData(
-        label: 'Classes',
-        icon: Icons.class_rounded,
+        label: 'Overview',
+        icon: Icons.space_dashboard_outlined,
         badge: classSignals > 0 ? _compactBadgeCount(classSignals) : null,
         isActive: !_notificationCenterOpen &&
             _workspaceSection == DashboardWorkspaceSection.today,
@@ -492,8 +498,8 @@ extension TeacherDashboardSystemOverlays on _TeacherDashboardScreenState {
         ),
       ),
       DashboardUtilityDockItemData(
-        label: 'Studio',
-        icon: Icons.draw_rounded,
+        label: 'Class tools',
+        icon: Icons.widgets_outlined,
         isActive: !_notificationCenterOpen &&
             _workspaceSection == DashboardWorkspaceSection.classroom,
         accent: _DashboardPalette.amber,
@@ -691,172 +697,178 @@ class DashboardNotificationCenterPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardPanelCard(
-      radius: 30,
-      padding: const EdgeInsets.all(18),
-      gradientColors: [
-        _DashboardPalette.panelElevated,
-        _DashboardPalette.panel,
-      ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return SizedBox.expand(
+      child: DashboardPanelCard(
+        radius: 30,
+        padding: const EdgeInsets.all(18),
+        expandChild: true,
+        gradientColors: [
+          _DashboardPalette.panelElevated,
+          _DashboardPalette.panel,
+        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const _DashboardSectionTag(
+                        label: 'Attention center',
+                        icon: Icons.notifications_active_outlined,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        data.headline,
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5,
+                                ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        data.detail,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: _DashboardPalette.textSecondary,
+                              height: 1.45,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const _DashboardSectionTag(
-                      label: 'Attention center',
-                      icon: Icons.notifications_active_outlined,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      data.headline,
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.5,
-                              ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      data.detail,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: _DashboardPalette.textSecondary,
-                            height: 1.45,
-                          ),
+                    if (data.totalCount > 0)
+                      _DashboardCountBadge(
+                        label: '${data.totalCount}',
+                        accent: data.urgentCount > 0
+                            ? _DashboardPalette.coral
+                            : _DashboardPalette.accent,
+                      ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: onDismiss,
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (data.totalCount > 0)
-                    _DashboardCountBadge(
-                      label: '${data.totalCount}',
-                      accent: data.urgentCount > 0
-                          ? _DashboardPalette.coral
-                          : _DashboardPalette.accent,
-                    ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: onDismiss,
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _DashboardSectionTag(
-                label: data.items.isEmpty
-                    ? 'Quiet'
-                    : '${data.items.length} live item${data.items.length == 1 ? '' : 's'}',
-                icon: Icons.radar_rounded,
-                foregroundColor: _DashboardPalette.accentSoft,
-                backgroundColor:
-                    _DashboardPalette.accent.withValues(alpha: 0.10),
-                borderColor: _DashboardPalette.accent.withValues(alpha: 0.18),
-              ),
-              if (data.urgentCount > 0)
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
                 _DashboardSectionTag(
-                  label: '${data.urgentCount} urgent',
-                  icon: Icons.priority_high_rounded,
-                  foregroundColor: _DashboardPalette.coral,
+                  label: data.items.isEmpty
+                      ? 'Quiet'
+                      : '${data.items.length} live item${data.items.length == 1 ? '' : 's'}',
+                  icon: Icons.radar_rounded,
+                  foregroundColor: _DashboardPalette.accentSoft,
                   backgroundColor:
-                      _DashboardPalette.coral.withValues(alpha: 0.10),
-                  borderColor: _DashboardPalette.coral.withValues(alpha: 0.18),
+                      _DashboardPalette.accent.withValues(alpha: 0.10),
+                  borderColor: _DashboardPalette.accent.withValues(alpha: 0.18),
                 ),
-              if (data.dismissedCount > 0)
-                ActionChip(
-                  avatar: const Icon(Icons.history_rounded, size: 16),
-                  label: Text('Restore ${data.dismissedCount}'),
-                  onPressed: onRestoreDismissed,
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: data.items.isEmpty
-                ? Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        color: Colors.white.withValues(alpha: 0.03),
-                        border: Border.all(
-                          color:
-                              _DashboardPalette.border.withValues(alpha: 0.74),
+                if (data.urgentCount > 0)
+                  _DashboardSectionTag(
+                    label: '${data.urgentCount} urgent',
+                    icon: Icons.priority_high_rounded,
+                    foregroundColor: _DashboardPalette.coral,
+                    backgroundColor:
+                        _DashboardPalette.coral.withValues(alpha: 0.10),
+                    borderColor:
+                        _DashboardPalette.coral.withValues(alpha: 0.18),
+                  ),
+                if (data.dismissedCount > 0)
+                  ActionChip(
+                    avatar: const Icon(Icons.history_rounded, size: 16),
+                    label: Text('Restore ${data.dismissedCount}'),
+                    onPressed: onRestoreDismissed,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: data.items.isEmpty
+                  ? Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          color: Colors.white.withValues(alpha: 0.03),
+                          border: Border.all(
+                            color: _DashboardPalette.border
+                                .withValues(alpha: 0.74),
+                          ),
                         ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              color: _DashboardPalette.green
-                                  .withValues(alpha: 0.14),
-                              border: Border.all(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
                                 color: _DashboardPalette.green
-                                    .withValues(alpha: 0.22),
+                                    .withValues(alpha: 0.14),
+                                border: Border.all(
+                                  color: _DashboardPalette.green
+                                      .withValues(alpha: 0.22),
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.check_circle_outline_rounded,
+                                color: _DashboardPalette.green,
                               ),
                             ),
-                            child: Icon(
-                              Icons.check_circle_outline_rounded,
-                              color: _DashboardPalette.green,
+                            const SizedBox(height: 14),
+                            Text(
+                              'Nothing urgent right now.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            'Nothing urgent right now.',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Unread communication, class-health issues, reminders, and notices will appear here.',
-                            textAlign: TextAlign.center,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: _DashboardPalette.textSecondary,
-                                      height: 1.45,
-                                    ),
-                          ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Unread communication, class-health issues, reminders, and notices will appear here.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: _DashboardPalette.textSecondary,
+                                    height: 1.45,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          for (int index = 0;
+                              index < data.items.length;
+                              index++) ...[
+                            _DashboardNotificationTile(item: data.items[index]),
+                            if (index != data.items.length - 1)
+                              const SizedBox(height: 12),
+                          ],
                         ],
                       ),
                     ),
-                  )
-                : SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        for (int index = 0;
-                            index < data.items.length;
-                            index++) ...[
-                          _DashboardNotificationTile(item: data.items[index]),
-                          if (index != data.items.length - 1)
-                            const SizedBox(height: 12),
-                        ],
-                      ],
-                    ),
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1103,7 +1115,8 @@ class _DashboardDockButton extends StatelessWidget {
     final iconColor = item.isActive ? Colors.white : item.accent;
 
     return Tooltip(
-      message: item.badge == null ? item.label : '${item.label} (${item.badge})',
+      message:
+          item.badge == null ? item.label : '${item.label} (${item.badge})',
       child: Material(
         color: Colors.transparent,
         child: InkWell(
