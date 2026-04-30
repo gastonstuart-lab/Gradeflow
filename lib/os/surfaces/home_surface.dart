@@ -3527,11 +3527,44 @@ class _ClassroomTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final classId = classItem.classId;
+    final tools = [
+      _ClassQuickTool(
+        label: 'Workspace',
+        icon: Icons.dashboard_customize_rounded,
+        color: OSColors.green,
+        route: AppRoutes.osClassWorkspace(classId),
+      ),
+      _ClassQuickTool(
+        label: 'Seating',
+        icon: Icons.event_seat_rounded,
+        color: OSColors.amber,
+        route: AppRoutes.osClassSeating(classId),
+      ),
+      _ClassQuickTool(
+        label: 'Gradebook',
+        icon: Icons.menu_book_rounded,
+        color: OSColors.coral,
+        route: AppRoutes.osClassGradebook(classId),
+      ),
+      _ClassQuickTool(
+        label: 'Schedule',
+        icon: Icons.calendar_month_rounded,
+        color: OSColors.blue,
+        route: AppRoutes.osClassSchedule(classId),
+      ),
+      _ClassQuickTool(
+        label: 'Whiteboard',
+        icon: Icons.draw_rounded,
+        color: OSColors.indigo,
+        route: AppRoutes.whiteboard,
+      ),
+    ];
 
     return OSTouchFeedback(
-      onTap: () => context.go('${AppRoutes.osClass}/${classItem.classId}'),
+      onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
       borderRadius: BorderRadius.circular(20),
-      minSize: const Size(120, 62),
+      minSize: const Size(120, 102),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -3545,59 +3578,144 @@ class _ClassroomTile extends StatelessWidget {
                 : Colors.white.withValues(alpha: 0.72),
           ),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF58C78B), Color(0xFF5EC7E6)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF58C78B), Color(0xFF5EC7E6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: OSRadius.mdBr,
+                  ),
+                  child: const Icon(
+                    Icons.class_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
-                borderRadius: OSRadius.mdBr,
-              ),
-              child: const Icon(
-                Icons.class_rounded,
-                color: Colors.white,
-                size: 22,
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        classItem.className,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        classItem.subject,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: OSColors.textSecondary(dark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: OSColors.textMuted(dark),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 34,
+              child: Row(
                 children: [
-                  Text(
-                    classItem.className,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: OSColors.text(dark),
+                  for (final tool in tools) ...[
+                    Expanded(
+                      child: _ClassQuickToolButton(
+                        tool: tool,
+                        className: classItem.className,
+                        onTap: () => context.go(tool.route),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    classItem.subject,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: OSColors.textSecondary(dark),
-                    ),
-                  ),
+                    if (tool != tools.last) const SizedBox(width: 7),
+                  ],
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: OSColors.textMuted(dark),
-            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClassQuickTool {
+  const _ClassQuickTool({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.route,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final String route;
+}
+
+class _ClassQuickToolButton extends StatelessWidget {
+  const _ClassQuickToolButton({
+    required this.tool,
+    required this.className,
+    required this.onTap,
+  });
+
+  final _ClassQuickTool tool;
+  final String className;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+
+    return Tooltip(
+      message: '${tool.label} for $className',
+      child: Semantics(
+        button: true,
+        label: 'Open ${tool.label} for $className',
+        child: OSTouchFeedback(
+          onTap: onTap,
+          borderRadius: OSRadius.pillBr,
+          minSize: const Size(32, 32),
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            decoration: BoxDecoration(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.045)
+                  : Colors.white.withValues(alpha: 0.58),
+              borderRadius: OSRadius.pillBr,
+              border: Border.all(
+                color: tool.color.withValues(alpha: dark ? 0.18 : 0.22),
+              ),
+            ),
+            child: Icon(
+              tool.icon,
+              size: 14,
+              color: tool.color,
+            ),
+          ),
         ),
       ),
     );
