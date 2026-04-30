@@ -16,7 +16,6 @@ import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/providers/app_providers.dart';
-import 'package:gradeflow/services/communication_service.dart';
 
 class OSDock extends StatelessWidget {
   const OSDock({super.key, this.teachMode = false});
@@ -26,7 +25,6 @@ class OSDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<GradeFlowOSController>();
-    final communication = context.watch<CommunicationService>();
     final themeMode = context.watch<ThemeModeNotifier>().themeMode;
     final dark = context.isDark;
     final mq = MediaQuery.of(context);
@@ -36,7 +34,6 @@ class OSDock extends StatelessWidget {
     final items = _buildDockItems(
       context,
       controller: controller,
-      communication: communication,
       themeMode: themeMode,
       isTeach: isTeach,
       isPhone: isPhone,
@@ -121,13 +118,11 @@ class OSDock extends StatelessWidget {
   List<_DockItemData> _buildDockItems(
     BuildContext context, {
     required GradeFlowOSController controller,
-    required CommunicationService communication,
     required ThemeMode themeMode,
     required bool isTeach,
     required bool isPhone,
   }) {
     final currentSurface = controller.activeSurface;
-    final unread = communication.totalUnreadCount;
 
     if (isTeach) {
       return [
@@ -165,27 +160,16 @@ class OSDock extends StatelessWidget {
         onTap: () => context.go(AppRoutes.osHome),
       ),
       _DockItemData(
+        icon: Icons.calendar_month_rounded,
+        label: 'Planner',
+        isActive: currentSurface == OSSurface.planner,
+        onTap: () => context.go(AppRoutes.osPlanner),
+      ),
+      _DockItemData(
         icon: Icons.class_rounded,
         label: 'Classes',
         isActive: currentSurface == OSSurface.classWorkspace,
         onTap: () => context.go(AppRoutes.classes),
-      ),
-      _DockItemData(
-        icon: Icons.draw_rounded,
-        label: 'Studio',
-        onTap: () => context.push(AppRoutes.whiteboard),
-      ),
-      _DockItemData(
-        icon: Icons.forum_rounded,
-        label: 'Messages',
-        badge: unread > 0 ? '$unread' : null,
-        onTap: () => context.go(AppRoutes.communication),
-      ),
-      _DockItemData(
-        icon: Icons.cast_for_education_rounded,
-        label: 'Teach',
-        isActive: currentSurface == OSSurface.teach,
-        onTap: () => context.go(AppRoutes.osTeach),
       ),
       _DockItemData(
         icon: themeMode == ThemeMode.light
@@ -222,14 +206,12 @@ class _DockItemData {
     required this.label,
     required this.onTap,
     this.isActive = false,
-    this.badge,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final bool isActive;
-  final String? badge;
 }
 
 class _DockDivider extends StatelessWidget {
@@ -388,44 +370,9 @@ class _DockItemState extends State<_DockItem>
                               : OSColors.textSecondary(dark),
                     ),
                   ),
-                  if (d.badge != null)
-                    Positioned(
-                      top: 8,
-                      right: 6,
-                      child: _DockBadge(text: d.badge!),
-                    ),
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DockBadge extends StatelessWidget {
-  const _DockBadge({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 16),
-      height: 16,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: OSColors.urgent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Center(
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-            letterSpacing: 0.2,
           ),
         ),
       ),

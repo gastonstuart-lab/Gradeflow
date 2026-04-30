@@ -154,7 +154,7 @@ class WorkspaceTypography {
 
   static TextStyle? eyebrow(BuildContext context) =>
       context.textStyles.labelMedium?.copyWith(
-        letterSpacing: 1.2,
+        letterSpacing: 0,
         fontWeight: FontWeight.w800,
         color: WorkspaceChrome.mutedText(context),
       );
@@ -168,7 +168,7 @@ class WorkspaceTypography {
               : context.textStyles.headlineSmall)
           ?.copyWith(
         fontWeight: FontWeight.w800,
-        letterSpacing: compact ? -0.2 : -0.4,
+        letterSpacing: 0,
       );
 
   static TextStyle? pageSubtitle(
@@ -185,7 +185,7 @@ class WorkspaceTypography {
   static TextStyle? sectionTitle(BuildContext context) =>
       context.textStyles.titleMedium?.copyWith(
         fontWeight: FontWeight.w800,
-        letterSpacing: -0.1,
+        letterSpacing: 0,
       );
 
   static TextStyle? metadata(
@@ -209,7 +209,7 @@ class WorkspaceTypography {
 
   static TextStyle? pillLabel(BuildContext context) =>
       context.textStyles.labelSmall?.copyWith(
-        letterSpacing: 0.8,
+        letterSpacing: 0,
         color: WorkspaceChrome.mutedText(context),
         fontWeight: FontWeight.w700,
       );
@@ -680,6 +680,90 @@ class WorkspaceSurfaceCard extends StatelessWidget {
   }
 }
 
+class WorkspaceFlatSurface extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+  final VoidCallback? onTap;
+  final bool emphasized;
+
+  const WorkspaceFlatSurface({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+    this.radius = 8,
+    this.onTap,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final body = Padding(
+      padding: padding,
+      child: child,
+    );
+    final fillAlpha =
+        emphasized ? (isDark ? 0.30 : 0.56) : (isDark ? 0.24 : 0.48);
+    final borderAlpha =
+        emphasized ? (isDark ? 0.30 : 0.24) : (isDark ? 0.24 : 0.18);
+    final decoration = BoxDecoration(
+      borderRadius: BorderRadius.circular(radius),
+      color: theme.colorScheme.surface.withValues(alpha: fillAlpha),
+      border: Border.all(
+        color: theme.colorScheme.outline.withValues(alpha: borderAlpha),
+      ),
+    );
+
+    return DecoratedBox(
+      decoration: decoration,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Material(
+          type: MaterialType.transparency,
+          child: onTap == null
+              ? body
+              : InkWell(
+                  onTap: onTap,
+                  hoverColor: WorkspaceChrome.interactiveOverlay(context),
+                  focusColor: WorkspaceChrome.interactiveOverlay(context),
+                  highlightColor: WorkspaceChrome.interactiveOverlay(
+                    context,
+                    emphasis: 1.34,
+                  ),
+                  splashColor: WorkspaceChrome.interactiveOverlay(
+                    context,
+                    emphasis: 1.66,
+                  ),
+                  child: body,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class WorkspaceCommandBand extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  const WorkspaceCommandBand({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceFlatSurface(
+      padding: padding,
+      emphasized: true,
+      child: child,
+    );
+  }
+}
+
 class _WorkspaceGlowOrb extends StatelessWidget {
   final double size;
   final Color color;
@@ -921,7 +1005,7 @@ class WorkspaceSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final titleStyle = context.textStyles.titleMedium?.copyWith(
           fontWeight: FontWeight.w800,
-          letterSpacing: -0.1,
+          letterSpacing: 0,
         ) ??
         WorkspaceTypography.sectionTitle(context);
     final subtitleStyle = WorkspaceTypography.metadata(context)?.copyWith(
@@ -1393,7 +1477,7 @@ class WorkspaceContextBar extends StatelessWidget {
               title!,
               style: context.textStyles.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
-                letterSpacing: -0.1,
+                letterSpacing: 0,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1757,7 +1841,7 @@ class _WorkspaceMetricPill extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: context.textStyles.titleSmall?.copyWith(
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.1,
+                    letterSpacing: 0,
                   ),
                 ),
               ],
@@ -1822,7 +1906,7 @@ class _WorkspaceTransientHeader extends StatelessWidget {
                 title,
                 style: context.textStyles.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.1,
+                  letterSpacing: 0,
                 ),
               ),
               if (hasSubtitle) ...[

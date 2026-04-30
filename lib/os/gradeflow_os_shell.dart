@@ -110,6 +110,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     switch (surface) {
       case OSSurface.home:
         return AppRoutes.osHome;
+      case OSSurface.planner:
+        return AppRoutes.osPlanner;
       case OSSurface.classWorkspace:
         final classId = controller.activeClassId;
         if ((classId ?? '').isEmpty) return null;

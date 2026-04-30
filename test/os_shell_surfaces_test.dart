@@ -4,15 +4,19 @@ import 'package:provider/provider.dart';
 import 'package:gradeflow/os/gradeflow_os_shell.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/surfaces/home_surface.dart';
+import 'package:gradeflow/os/surfaces/planner_surface.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('HomeSurface renders native OS home sections', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+
     await tester.pumpWidget(
       _harness(
         const HomeSurface(),
@@ -22,6 +26,26 @@ void main() {
     expect(find.text('HOME STAGE'), findsOneWidget);
     expect(find.text('PINNED APPS'), findsOneWidget);
     expect(find.text('WORKSPACES'), findsOneWidget);
+  });
+
+  testWidgets('PlannerSurface exposes planning upload entry points',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(
+      _harness(
+        const PlannerSurface(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+
+    expect(find.text('Calendar'), findsOneWidget);
+    expect(find.text('Weekly Timetable'), findsOneWidget);
+    expect(find.text('Import'), findsOneWidget);
+    expect(find.text('Upload'), findsOneWidget);
+    expect(find.text('Class schedules and assessments'), findsNothing);
+    expect(find.text('Where do uploads go?'), findsNothing);
   });
 
   testWidgets('GradeFlowOSShell shows one overlay at a time', (tester) async {

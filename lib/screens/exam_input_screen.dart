@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:gradeflow/components/tool_first_app_surface.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/final_exam_service.dart';
@@ -592,46 +592,95 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     required String classContextLine,
     required int studentCount,
   }) {
-    return WorkspaceContextBar(
-      title: className,
-      subtitle: classContextLine,
-      leading: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          const WorkspaceContextPill(
-            icon: Icons.auto_graph_outlined,
-            label: 'Process',
-            value: '40%',
-          ),
-          const WorkspaceContextPill(
-            icon: Icons.fact_check_outlined,
-            label: 'Final exam',
-            value: '60%',
-            emphasized: true,
-          ),
-          WorkspaceContextPill(
-            icon: Icons.people_alt_outlined,
-            label: 'Roster',
-            value: '$studentCount students',
-          ),
-          const WorkspaceContextPill(
-            icon: Icons.sync_outlined,
-            label: 'Autosave',
-            value: '500 ms',
-          ),
-        ],
-      ),
-      trailing: WorkspaceContextPill(
-        icon: _driveAccessToken == null
-            ? Icons.cloud_queue_outlined
-            : Icons.cloud_done_outlined,
-        label: 'Drive',
-        value: _driveAccessToken == null ? 'Optional' : 'Connected',
-        accent: _driveAccessToken == null
-            ? const Color(0xFFDAA85E)
-            : Theme.of(context).colorScheme.primary,
-        emphasized: true,
+    final drivePill = WorkspaceContextPill(
+      icon: _driveAccessToken == null
+          ? Icons.cloud_queue_outlined
+          : Icons.cloud_done_outlined,
+      label: 'Drive',
+      value: _driveAccessToken == null ? 'Optional' : 'Connected',
+      accent: _driveAccessToken == null
+          ? const Color(0xFFDAA85E)
+          : Theme.of(context).colorScheme.primary,
+      emphasized: true,
+    );
+
+    return _ExamFlatSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 980;
+          final copy = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                className,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                classContextLine,
+                maxLines: narrow ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: WorkspaceTypography.metadata(context),
+              ),
+            ],
+          );
+          final pills = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              const WorkspaceContextPill(
+                icon: Icons.auto_graph_outlined,
+                label: 'Process',
+                value: '40%',
+              ),
+              const WorkspaceContextPill(
+                icon: Icons.fact_check_outlined,
+                label: 'Final exam',
+                value: '60%',
+                emphasized: true,
+              ),
+              WorkspaceContextPill(
+                icon: Icons.people_alt_outlined,
+                label: 'Roster',
+                value: '$studentCount students',
+              ),
+              const WorkspaceContextPill(
+                icon: Icons.sync_outlined,
+                label: 'Autosave',
+                value: '500 ms',
+              ),
+            ],
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                copy,
+                const SizedBox(height: WorkspaceSpacing.xs),
+                pills,
+                const SizedBox(height: WorkspaceSpacing.xs),
+                drivePill,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: copy),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              Flexible(flex: 2, child: pills),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              drivePill,
+            ],
+          );
+        },
       ),
     );
   }
@@ -646,13 +695,13 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: WorkspaceSpacing.sm),
-      child: WorkspaceSurfaceCard(
+      child: _ExamFlatSurface(
         key: key,
         padding: EdgeInsets.zero,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 240),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(WorkspaceRadius.cardCompact),
+            borderRadius: BorderRadius.circular(8),
             color: isHighlight
                 ? theme.colorScheme.primary.withValues(alpha: 0.08)
                 : Colors.transparent,
@@ -697,10 +746,10 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
                   },
                   child: TextField(
                     controller: controller,
-                    decoration: const InputDecoration(
+                    decoration: _examFieldDecoration(
+                      context,
                       labelText: 'Exam score',
-                      border: OutlineInputBorder(),
-                      isDense: true,
+                      suffixText: '/ 100',
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [
@@ -772,11 +821,11 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
         if (!context.mounted) return;
         _goToClassWorkspace();
       },
-      child: ToolFirstAppSurface(
-        title: 'Final Exam Scores',
-        eyebrow: 'Student Reporting',
-        subtitle:
-            'Capture the 60% exam score without leaving the active class context.',
+      child: _ExamNativeSurface(
+        title: className,
+        toolLabel: 'Final Exam Scores',
+        eyebrow: 'Class workspace',
+        subtitle: classContextLine,
         leading: IconButton(
           onPressed: () async {
             await _handleExit();
@@ -784,7 +833,6 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
             _goToClassWorkspace();
           },
           tooltip: 'Back to class workspace',
-          style: WorkspaceButtonStyles.icon(context),
           icon: const Icon(Icons.arrow_back_rounded),
         ),
         contextStrip: _buildContextStrip(
@@ -872,6 +920,286 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
                     },
                   ),
       ),
+    );
+  }
+}
+
+InputDecoration _examFieldDecoration(
+  BuildContext context, {
+  required String labelText,
+  String? suffixText,
+}) {
+  final theme = Theme.of(context);
+  final isDark = theme.brightness == Brightness.dark;
+  final borderRadius = BorderRadius.circular(8);
+  final baseBorder = OutlineInputBorder(
+    borderRadius: borderRadius,
+    borderSide: BorderSide(
+      color: theme.colorScheme.outline.withValues(alpha: isDark ? 0.30 : 0.22),
+    ),
+  );
+
+  return InputDecoration(
+    labelText: labelText,
+    suffixText: suffixText,
+    isDense: true,
+    filled: true,
+    fillColor: theme.colorScheme.surface.withValues(
+      alpha: isDark ? 0.22 : 0.54,
+    ),
+    border: baseBorder,
+    enabledBorder: baseBorder,
+    focusedBorder: OutlineInputBorder(
+      borderRadius: borderRadius,
+      borderSide: BorderSide(
+        color: theme.colorScheme.primary.withValues(alpha: 0.62),
+        width: 1.2,
+      ),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  );
+}
+
+class _ExamNativeSurface extends StatelessWidget {
+  const _ExamNativeSurface({
+    required this.eyebrow,
+    required this.title,
+    required this.toolLabel,
+    required this.workspace,
+    this.subtitle,
+    this.leading,
+    this.contextStrip,
+    this.toolbar,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String toolLabel;
+  final String? subtitle;
+  final Widget? leading;
+  final Widget? contextStrip;
+  final Widget? toolbar;
+  final Widget workspace;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: AnimatedPageBackground(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1480),
+              child: Padding(
+                padding: WorkspaceSpacing.shellMargin,
+                child: WorkspaceShellFrame(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                  radius: WorkspaceRadius.shell,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _ExamNativeHeader(
+                        eyebrow: eyebrow,
+                        title: title,
+                        toolLabel: toolLabel,
+                        subtitle: subtitle,
+                        leading: leading,
+                      ),
+                      const SizedBox(height: WorkspaceSpacing.sm),
+                      if (contextStrip != null) ...[
+                        contextStrip!,
+                        const SizedBox(height: WorkspaceSpacing.xs),
+                      ],
+                      if (toolbar != null) ...[
+                        _ExamCommandBand(child: toolbar!),
+                        const SizedBox(height: WorkspaceSpacing.md),
+                      ] else
+                        const SizedBox(height: WorkspaceSpacing.md),
+                      Expanded(child: workspace),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExamNativeHeader extends StatelessWidget {
+  const _ExamNativeHeader({
+    required this.eyebrow,
+    required this.title,
+    required this.toolLabel,
+    this.subtitle,
+    this.leading,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String toolLabel;
+  final String? subtitle;
+  final Widget? leading;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final toolBadge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: theme.colorScheme.primary.withValues(alpha: 0.11),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.description_outlined,
+            size: 16,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            toolLabel,
+            style: context.textStyles.labelLarge?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final iconTile = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Icon(
+        Icons.fact_check_outlined,
+        color: theme.colorScheme.primary,
+        size: 23,
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 760;
+        final copy = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  eyebrow.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: WorkspaceTypography.eyebrow(context),
+                ),
+                toolBadge,
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              title,
+              maxLines: narrow ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+            ),
+            if ((subtitle ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(
+                subtitle!,
+                maxLines: narrow ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.bodyMedium?.copyWith(
+                  color: WorkspaceChrome.mutedText(context),
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ],
+        );
+
+        final leadingCluster = Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (leading != null) ...[
+              leading!,
+              const SizedBox(width: WorkspaceSpacing.sm),
+            ],
+            iconTile,
+          ],
+        );
+
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              leadingCluster,
+              const SizedBox(height: WorkspaceSpacing.sm),
+              copy,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            leadingCluster,
+            const SizedBox(width: WorkspaceSpacing.md),
+            Expanded(child: copy),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ExamCommandBand extends StatelessWidget {
+  const _ExamCommandBand({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceCommandBand(child: child);
+  }
+}
+
+class _ExamFlatSurface extends StatelessWidget {
+  const _ExamFlatSurface({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceFlatSurface(
+      padding: padding,
+      child: child,
     );
   }
 }

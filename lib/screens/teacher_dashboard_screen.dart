@@ -203,6 +203,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Uint8List? _dashboardHeroImageBytes;
   String? _dashboardHeroImageBase64;
   bool _updatingHeroBackground = false;
+  String? _lastHandledDashboardDeepLink;
 
   void _showDashboardFeedback(
     String message, {
@@ -422,6 +423,98 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
     _dashboardLayoutConfig = _dashboardLayoutConfig.withWorkspaceMode(section);
     unawaited(_saveDashboardLayout());
+  }
+
+  void _scheduleDashboardDeepLinkHandling() {
+    Uri uri;
+    try {
+      uri = GoRouterState.of(context).uri;
+    } catch (_) {
+      return;
+    }
+    final sectionParam = uri.queryParameters['section'];
+    final actionParam = uri.queryParameters['action'];
+    if (sectionParam == null && actionParam == null) {
+      return;
+    }
+    if (!_dashboardLayoutReady) {
+      return;
+    }
+
+    final key = uri.toString();
+    if (_lastHandledDashboardDeepLink == key) {
+      return;
+    }
+    _lastHandledDashboardDeepLink = key;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_handleDashboardDeepLink(sectionParam, actionParam));
+    });
+  }
+
+  Future<void> _handleDashboardDeepLink(
+    String? sectionParam,
+    String? actionParam,
+  ) async {
+    final section = _dashboardSectionFromParam(sectionParam) ??
+        (actionParam == null ? null : DashboardWorkspaceSection.planning);
+    if (section != null) {
+      _setWorkspaceSection(section, persist: false);
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    if (!mounted) return;
+
+    final focusKey = section == DashboardWorkspaceSection.planning
+        ? _calendarSectionKey
+        : section == DashboardWorkspaceSection.classroom
+            ? _classToolsSectionKey
+            : section == DashboardWorkspaceSection.workspace
+                ? _workspaceSectionKey
+                : _summarySectionKey;
+    final targetContext = focusKey.currentContext;
+    if (targetContext != null) {
+      await Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeInOutCubic,
+        alignment: 0.08,
+      );
+    }
+
+    if (!mounted) return;
+    switch (actionParam) {
+      case 'timetable':
+        await _openTimetableDialog();
+        return;
+      case 'importCalendar':
+        await _importSchedule();
+        return;
+      case 'calendar':
+      case null:
+        return;
+      default:
+        return;
+    }
+  }
+
+  DashboardWorkspaceSection? _dashboardSectionFromParam(String? value) {
+    switch (value) {
+      case 'today':
+      case 'overview':
+        return DashboardWorkspaceSection.today;
+      case 'classroom':
+      case 'classTools':
+        return DashboardWorkspaceSection.classroom;
+      case 'planning':
+      case 'planner':
+        return DashboardWorkspaceSection.planning;
+      case 'workspace':
+      case 'support':
+        return DashboardWorkspaceSection.workspace;
+    }
+    return null;
   }
 
   List<String> _orderedWidgetIdsForSurface(
@@ -793,7 +886,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       );
       return;
     }
-    context.push('/class/$classId/$suffix');
+    context.push(AppRoutes.osClassTool(classId, suffix));
   }
 
   void _refreshNames() async {
@@ -959,6 +1052,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _scheduleDashboardDeepLinkHandling();
     return Theme(
       data: _dashboardTheme(context),
       child: Builder(
@@ -1472,7 +1566,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       if (!ok) debugPrint('Failed to launch attendance URL: $uri');
     } catch (e) {
       debugPrint('Error launching attendance URL: $e');
-      // In Dreamflow Preview, opening external tabs can be sandboxed. Offer a friendly fallback.
+      // Embedded previews can sandbox external tabs. Offer a friendly fallback.
       if (mounted) {
         _showDashboardFeedback(
           'Cannot open the link in Preview. The URL was copied instead.',

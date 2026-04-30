@@ -194,7 +194,7 @@ List<CommunicationMessage> buildDefaultCommunicationMessages(User user) {
     ),
     message(
       channelId: 'all-staff',
-      authorName: 'IEP Team',
+      authorName: 'GradeFlow Team',
       role: CommunicationRole.admin,
       text:
           'All-staff is ready for quick questions, coverage notes, and short daily coordination.',
@@ -202,7 +202,7 @@ List<CommunicationMessage> buildDefaultCommunicationMessages(User user) {
     ),
     message(
       channelId: 'teaching-team',
-      authorName: 'IEP Team',
+      authorName: 'GradeFlow Team',
       role: CommunicationRole.departmentLead,
       text:
           'Teaching team can hold department planning, intervention follow-up, and shared support notes.',
@@ -210,7 +210,7 @@ List<CommunicationMessage> buildDefaultCommunicationMessages(User user) {
     ),
     message(
       channelId: 'shared-files',
-      authorName: 'IEP Team',
+      authorName: 'GradeFlow Team',
       role: CommunicationRole.admin,
       text:
           'Shared files is the right place for pinned resources and follow-up documents once attachments are connected.',

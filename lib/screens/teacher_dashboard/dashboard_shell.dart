@@ -404,11 +404,11 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
       textTheme: textTheme.copyWith(
         headlineMedium: textTheme.headlineMedium?.copyWith(
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.4,
+          letterSpacing: 0,
         ),
         titleLarge: textTheme.titleLarge?.copyWith(
           fontWeight: FontWeight.w700,
-          letterSpacing: -0.2,
+          letterSpacing: 0,
         ),
         titleMedium: textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
@@ -577,13 +577,6 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
   }
 
   Widget _buildDashboardBackdrop({required Widget child}) {
-    final topVeil = _DashboardPalette.isLight
-        ? Colors.white.withValues(alpha: 0.44)
-        : Colors.white.withValues(alpha: 0.02);
-    final bottomVeil = _DashboardPalette.isLight
-        ? const Color(0xFFEDF3FB).withValues(alpha: 0.72)
-        : const Color(0xFF060A12).withValues(alpha: 0.66);
-
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -599,7 +592,7 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
                   Color.lerp(
                     _DashboardPalette.backgroundAlt,
                     _DashboardPalette.background,
-                    0.54,
+                    0.42,
                   )!,
                   _DashboardPalette.background,
                 ],
@@ -607,46 +600,21 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
             ),
           ),
         ),
-        Positioned(
-          left: -96,
-          top: -156,
-          child: _DashboardBackdropOrb(
-            size: 320,
-            color: _DashboardPalette.accent,
-            opacity: _DashboardPalette.isLight ? 0.10 : 0.16,
-          ),
-        ),
-        Positioned(
-          right: 80,
-          top: 48,
-          child: _DashboardBackdropOrb(
-            size: 220,
-            color: _DashboardPalette.cyan,
-            opacity: _DashboardPalette.isLight ? 0.08 : 0.12,
-          ),
-        ),
-        Positioned(
-          right: -84,
-          bottom: -146,
-          child: _DashboardBackdropOrb(
-            size: 360,
-            color: _DashboardPalette.green,
-            opacity: _DashboardPalette.isLight ? 0.08 : 0.11,
-          ),
-        ),
         Positioned.fill(
           child: IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: RadialGradient(
-                  center: const Alignment(-0.22, -0.74),
-                  radius: 1.18,
+                  center: const Alignment(-0.42, -0.94),
+                  radius: 1.26,
                   colors: [
-                    topVeil,
+                    _DashboardPalette.accent.withValues(
+                      alpha: _DashboardPalette.isLight ? 0.11 : 0.08,
+                    ),
                     Colors.transparent,
                     Colors.transparent,
                   ],
-                  stops: const [0.0, 0.38, 1.0],
+                  stops: const [0.0, 0.44, 1.0],
                 ),
               ),
             ),
@@ -660,13 +628,15 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withValues(
-                      alpha: _DashboardPalette.isLight ? 0.18 : 0.018,
+                    _DashboardPalette.cyan.withValues(
+                      alpha: _DashboardPalette.isLight ? 0.08 : 0.035,
                     ),
                     Colors.transparent,
-                    Colors.transparent,
+                    _DashboardPalette.green.withValues(
+                      alpha: _DashboardPalette.isLight ? 0.06 : 0.026,
+                    ),
                   ],
-                  stops: const [0, 0.28, 1],
+                  stops: const [0, 0.46, 1],
                 ),
               ),
             ),
@@ -686,7 +656,12 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    bottomVeil,
+                    (_DashboardPalette.isLight
+                            ? const Color(0xFFEDF3FB)
+                            : const Color(0xFF060A12))
+                        .withValues(
+                      alpha: _DashboardPalette.isLight ? 0.72 : 0.66,
+                    ),
                   ],
                 ),
               ),
@@ -695,35 +670,6 @@ extension TeacherDashboardShell on _TeacherDashboardScreenState {
         ),
         Positioned.fill(child: child),
       ],
-    );
-  }
-}
-
-class _DashboardBackdropOrb extends StatelessWidget {
-  final double size;
-  final Color color;
-  final double opacity;
-
-  const _DashboardBackdropOrb({
-    required this.size,
-    required this.color,
-    required this.opacity,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: ImageFiltered(
-        imageFilter: ui.ImageFilter.blur(sigmaX: 54, sigmaY: 54),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color.withValues(alpha: opacity),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -744,19 +690,19 @@ class DashboardShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
         child: WorkspaceShellFrame(
-          padding: const EdgeInsets.all(18),
-          radius: 36,
+          padding: const EdgeInsets.all(14),
+          radius: 28,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(width: 220, child: sidebar),
-              const SizedBox(width: 22),
+              SizedBox(width: 216, child: sidebar),
+              const SizedBox(width: 18),
               Expanded(child: main),
-              const SizedBox(width: 22),
+              const SizedBox(width: 18),
               SizedBox(
-                width: 344,
+                width: 336,
                 child: _DashboardUtilityRailFrame(child: livePanel),
               ),
             ],
@@ -923,7 +869,7 @@ class _DashboardUtilityRailFrame extends StatelessWidget {
                       'Utility rail',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
+                            letterSpacing: 0,
                           ),
                     ),
                     const SizedBox(height: 4),
@@ -1195,8 +1141,8 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
         widget.metrics.isNotEmpty ? widget.metrics.first : null;
     final secondaryMetric =
         widget.metrics.length > 1 ? widget.metrics[1] : null;
-    final summaryPills = widget.todayLine
-        .split('•')
+    final summaryPills = [widget.todayLine]
+        .expand((segment) => segment.split(' - '))
         .map((segment) => segment.trim())
         .where((segment) => segment.isNotEmpty)
         .toList(growable: false);
@@ -1211,8 +1157,8 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
         final wide = !widget.compact && constraints.maxWidth > 1060;
         return DashboardPanelCard(
           surfaceType: SurfaceType.whisper,
-          padding: EdgeInsets.all(widget.compact ? 16 : 20),
-          radius: wide ? 30 : 26,
+          padding: EdgeInsets.all(widget.compact ? 14 : 16),
+          radius: wide ? 24 : 22,
           gradientColors: [
             _DashboardPalette.sidebarAlt,
             _DashboardPalette.sidebar,
@@ -1344,7 +1290,7 @@ class _DashboardTopSummaryState extends State<DashboardTopSummary> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${primaryMetric.value} • ${primaryMetric.detail}',
+                              '${primaryMetric.value} - ${primaryMetric.detail}',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: baseTheme.textTheme.bodySmall?.copyWith(
@@ -1589,7 +1535,7 @@ class _CommandDeckCompactMetricCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+                  letterSpacing: 0,
                 ),
           ),
           const SizedBox(height: 6),
@@ -1661,9 +1607,9 @@ class _CommandDeckStagePreview extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 250),
+      constraints: const BoxConstraints(minHeight: 190),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: accent.withValues(alpha: 0.16),
         ),
@@ -1676,7 +1622,7 @@ class _CommandDeckStagePreview extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(22),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1700,24 +1646,6 @@ class _CommandDeckStagePreview extends StatelessWidget {
                   ),
                 ),
               ),
-            Positioned(
-              top: -26,
-              right: -12,
-              child: _DashboardBackdropOrb(
-                size: 148,
-                color: presentation.secondaryGlow,
-                opacity: 0.18,
-              ),
-            ),
-            Positioned(
-              left: -32,
-              bottom: -44,
-              child: _DashboardBackdropOrb(
-                size: 164,
-                color: presentation.tertiaryGlow,
-                opacity: 0.16,
-              ),
-            ),
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -1773,7 +1701,7 @@ class _CommandDeckStagePreview extends StatelessWidget {
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: Colors.white.withValues(alpha: 0.76),
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
+                      letterSpacing: 0,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1783,7 +1711,7 @@ class _CommandDeckStagePreview extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      letterSpacing: -0.7,
+                      letterSpacing: 0,
                       color: Colors.white,
                       height: 1.04,
                     ),
@@ -2042,7 +1970,7 @@ class _CommandDeckPrimaryPanelState extends State<_CommandDeckPrimaryPanel>
                                           .headlineSmall
                                           ?.copyWith(
                                             fontWeight: FontWeight.w800,
-                                            letterSpacing: -0.45,
+                                            letterSpacing: 0,
                                           ),
                                     ),
                                   ],
@@ -2226,7 +2154,7 @@ class _CommandDeckSecondaryPanelState
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
-                          letterSpacing: -0.25,
+                          letterSpacing: 0,
                         ),
                   ),
                   const SizedBox(height: 6),
@@ -2658,7 +2586,7 @@ class _SelectedDashboardClassPanel extends StatelessWidget {
                           style:
                               Theme.of(context).textTheme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.3,
+                                    letterSpacing: 0,
                                   ),
                         ),
                         const SizedBox(height: 4),
@@ -2846,15 +2774,17 @@ class QuickActionsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _DashboardSectionFrame(
       title: 'Launches',
-      subtitle: 'Fast setup and teaching jumps from the planning hub.',
+      subtitle: 'Fast setup and teaching jumps.',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final columns = compact
               ? 2
-              : width > 900
+              : width > 1040
                   ? 4
-                  : 2;
+                  : width > 760
+                      ? 3
+                      : 2;
           final gap = 12.0;
           final tileWidth =
               columns == 1 ? width : (width - (gap * (columns - 1))) / columns;
@@ -3471,13 +3401,13 @@ class _DashboardSystemWidgetCard extends StatelessWidget {
                   key: ValueKey<String>(data.timeLabel),
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                         fontWeight: FontWeight.w800,
-                        letterSpacing: -1.15,
+                        letterSpacing: 0,
                       ),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                '${data.weekdayLabel} • ${data.dateLabel}',
+                '${data.weekdayLabel} - ${data.dateLabel}',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: _DashboardPalette.textSecondary,
                       fontWeight: FontWeight.w600,
@@ -3791,7 +3721,7 @@ class _DashboardAudioWidgetCardState extends State<_DashboardAudioWidgetCard> {
                           ),
                         ),
                         subtitle: Text(
-                          '${station.programLabel} • ${station.countryLabel} • ${station.categoryLabel}',
+                          '${station.programLabel} - ${station.countryLabel} - ${station.categoryLabel}',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -4509,7 +4439,7 @@ class _DashboardCommunicationWidgetCardState
                                 .titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.2,
+                                  letterSpacing: 0,
                                 ),
                           ),
                           const SizedBox(height: 4),
@@ -5094,7 +5024,7 @@ class _DashboardSectionFrame extends StatelessWidget {
                     title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
-                          letterSpacing: -0.35,
+                          letterSpacing: 0,
                         ),
                   ),
                   const SizedBox(height: 4),
@@ -5302,7 +5232,7 @@ class _DashboardClassCardState extends State<DashboardClassCard> {
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
-                              letterSpacing: -0.15,
+                              letterSpacing: 0,
                             ),
                       ),
                       const SizedBox(height: 2),

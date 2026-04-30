@@ -34,7 +34,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   bool _updatingPhoto = false;
 
   void _goToStudentList() {
-    context.go('${AppRoutes.classDetail}/${widget.classId}/students');
+    context.go(AppRoutes.osClassStudents(widget.classId));
   }
 
   void _showFeedback(

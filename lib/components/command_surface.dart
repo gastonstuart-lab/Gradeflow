@@ -242,7 +242,7 @@ class CommandHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: context.textStyles.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -0.45,
+                  letterSpacing: 0,
                 ),
               ),
               const SizedBox(height: 6),

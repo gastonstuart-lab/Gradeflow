@@ -26,6 +26,26 @@ void main() {
       expect(controller.activeClassId, 'class-1');
     });
 
+    test('planner sits between home and teaching surfaces', () {
+      final controller = GradeFlowOSController();
+
+      expect(controller.swipeSurfaceSequence, [
+        OSSurface.home,
+        OSSurface.planner,
+        OSSurface.teach,
+      ]);
+      expect(controller.adjacentSurface(1), OSSurface.planner);
+
+      controller.setSurface(OSSurface.classWorkspace, classId: 'class-1');
+
+      expect(controller.swipeSurfaceSequence, [
+        OSSurface.home,
+        OSSurface.planner,
+        OSSurface.classWorkspace,
+        OSSurface.teach,
+      ]);
+    });
+
     test('opening overlays is mutually exclusive', () {
       final controller = GradeFlowOSController();
 

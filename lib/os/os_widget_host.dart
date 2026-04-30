@@ -565,33 +565,21 @@ class OSQuickLaunchWidget extends StatelessWidget {
 
   static const _actions = [
     _QuickAction(
-      icon: Icons.draw_rounded,
-      label: 'Whiteboard',
-      route: AppRoutes.whiteboard,
-      color: Color(0xFF7869F0),
+      icon: Icons.home_rounded,
+      label: 'Home',
+      route: AppRoutes.osHome,
+      color: Color(0xFF5C8AFF),
+    ),
+    _QuickAction(
+      icon: Icons.calendar_month_rounded,
+      label: 'Planner',
+      route: AppRoutes.osPlanner,
+      color: Color(0xFF58C78B),
     ),
     _QuickAction(
       icon: Icons.class_rounded,
       label: 'Classes',
       route: AppRoutes.classes,
-      color: Color(0xFF58C78B),
-    ),
-    _QuickAction(
-      icon: Icons.forum_rounded,
-      label: 'Messages',
-      route: AppRoutes.communication,
-      color: Color(0xFF5C8AFF),
-    ),
-    _QuickAction(
-      icon: Icons.cast_for_education_rounded,
-      label: 'Teach',
-      route: AppRoutes.osTeach,
-      color: Color(0xFF5EC7E6),
-    ),
-    _QuickAction(
-      icon: Icons.admin_panel_settings_rounded,
-      label: 'Connected',
-      route: AppRoutes.admin,
       color: Color(0xFF66758C),
     ),
   ];

@@ -266,7 +266,7 @@ class _TeachSurfaceState extends State<TeachSurface> {
           classItem: _activeClass!,
           studentCount: _roster.length,
           onOpenSeating: () => context.go(
-            '${AppRoutes.classDetail}/${_activeClass!.classId}/seating',
+            AppRoutes.osClassSeating(_activeClass!.classId),
           ),
         );
       case _TeachTool.poll:
@@ -388,7 +388,7 @@ class _TeachToolbar extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     color: activeText,
-                    letterSpacing: 1.2,
+                    letterSpacing: 0,
                   ),
                 ),
               ],
@@ -937,7 +937,7 @@ class _TimerToolState extends State<_TimerTool> {
                           fontSize: 56,
                           fontWeight: FontWeight.w200,
                           color: Colors.white,
-                          letterSpacing: -3,
+                          letterSpacing: 0,
                         ),
                       ),
                     ],
@@ -1210,7 +1210,7 @@ class _GroupPickerToolState extends State<_GroupPickerTool> {
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: OSColors.teachAccent,
-                                letterSpacing: 0.4,
+                                letterSpacing: 0,
                               ),
                             ),
                             const SizedBox(height: 6),

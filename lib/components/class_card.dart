@@ -140,6 +140,8 @@ class ClassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hasSyllabusSchedule =
+        classItem.syllabus != null && classItem.syllabus!.entries.isNotEmpty;
 
     return WorkspaceSurfaceCard(
       onTap: onTap,
@@ -232,9 +234,8 @@ class ClassCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (classItem.syllabus != null &&
-              classItem.syllabus!.entries.isNotEmpty) ...[
+          if (hasSyllabusSchedule) ...[
+            const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(

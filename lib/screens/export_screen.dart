@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:gradeflow/components/tool_first_app_surface.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/models/final_exam.dart';
@@ -66,14 +66,19 @@ class _ToolbarDropdown<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.28),
+          color: theme.colorScheme.outline.withValues(
+            alpha: isDark ? 0.30 : 0.22,
+          ),
         ),
-        color: theme.colorScheme.surface.withValues(alpha: 0.16),
+        color: theme.colorScheme.surface.withValues(
+          alpha: isDark ? 0.22 : 0.54,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,8 +86,10 @@ class _ToolbarDropdown<T> extends StatelessWidget {
         children: [
           Text(
             label,
-            style: context.textStyles.labelSmall?.withColor(
-              theme.colorScheme.onSurfaceVariant,
+            style: context.textStyles.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0,
             ),
           ),
           const SizedBox(height: 2),
@@ -96,6 +103,275 @@ class _ToolbarDropdown<T> extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ExportNativeSurface extends StatelessWidget {
+  const _ExportNativeSurface({
+    required this.eyebrow,
+    required this.title,
+    required this.toolLabel,
+    required this.workspace,
+    this.subtitle,
+    this.leading,
+    this.trailing = const [],
+    this.contextStrip,
+    this.toolbar,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String toolLabel;
+  final String? subtitle;
+  final Widget? leading;
+  final List<Widget> trailing;
+  final Widget? contextStrip;
+  final Widget? toolbar;
+  final Widget workspace;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: AnimatedPageBackground(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1480),
+              child: Padding(
+                padding: WorkspaceSpacing.shellMargin,
+                child: WorkspaceShellFrame(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                  radius: WorkspaceRadius.shell,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _ExportNativeHeader(
+                        eyebrow: eyebrow,
+                        title: title,
+                        toolLabel: toolLabel,
+                        subtitle: subtitle,
+                        leading: leading,
+                        trailing: trailing,
+                      ),
+                      const SizedBox(height: WorkspaceSpacing.sm),
+                      if (contextStrip != null) ...[
+                        contextStrip!,
+                        const SizedBox(height: WorkspaceSpacing.xs),
+                      ],
+                      if (toolbar != null) ...[
+                        _ExportCommandBand(child: toolbar!),
+                        const SizedBox(height: WorkspaceSpacing.md),
+                      ] else
+                        const SizedBox(height: WorkspaceSpacing.md),
+                      Expanded(child: workspace),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExportNativeHeader extends StatelessWidget {
+  const _ExportNativeHeader({
+    required this.eyebrow,
+    required this.title,
+    required this.toolLabel,
+    this.subtitle,
+    this.leading,
+    this.trailing = const [],
+  });
+
+  final String eyebrow;
+  final String title;
+  final String toolLabel;
+  final String? subtitle;
+  final Widget? leading;
+  final List<Widget> trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final toolBadge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: theme.colorScheme.primary.withValues(alpha: 0.11),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.picture_as_pdf_rounded,
+            size: 16,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            toolLabel,
+            style: context.textStyles.labelLarge?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final iconTile = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Icon(
+        Icons.ios_share_outlined,
+        color: theme.colorScheme.primary,
+        size: 23,
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 900;
+        final copy = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  eyebrow.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: WorkspaceTypography.eyebrow(context),
+                ),
+                toolBadge,
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              title,
+              maxLines: narrow ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+            ),
+            if ((subtitle ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(
+                subtitle!,
+                maxLines: narrow ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.bodyMedium?.copyWith(
+                  color: WorkspaceChrome.mutedText(context),
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ],
+        );
+
+        final leadingCluster = Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (leading != null) ...[
+              leading!,
+              const SizedBox(width: WorkspaceSpacing.sm),
+            ],
+            iconTile,
+          ],
+        );
+        final actions = Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: trailing,
+        );
+
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  leadingCluster,
+                  const Spacer(),
+                  if (trailing.isNotEmpty) actions,
+                ],
+              ),
+              const SizedBox(height: WorkspaceSpacing.sm),
+              copy,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            leadingCluster,
+            const SizedBox(width: WorkspaceSpacing.md),
+            Expanded(child: copy),
+            if (trailing.isNotEmpty) ...[
+              const SizedBox(width: WorkspaceSpacing.sm),
+              actions,
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ExportCommandBand extends StatelessWidget {
+  const _ExportCommandBand({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceCommandBand(child: child);
+  }
+}
+
+class _ExportFlatSurface extends StatelessWidget {
+  const _ExportFlatSurface({
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+    this.onTap,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceFlatSurface(
+      padding: padding,
+      onTap: onTap,
+      child: child,
     );
   }
 }
@@ -675,11 +951,10 @@ class _ExportScreenState extends State<ExportScreen> {
                 ),
                 const SizedBox(height: WorkspaceSpacing.md),
                 Expanded(
-                  child: WorkspaceSurfaceCard(
-                    radius: WorkspaceRadius.card,
+                  child: _ExportFlatSurface(
                     padding: const EdgeInsets.all(12),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(WorkspaceRadius.card),
+                      borderRadius: BorderRadius.circular(8),
                       child: Scrollbar(
                         controller: horizontalController,
                         thumbVisibility: true,
@@ -787,7 +1062,7 @@ class _ExportScreenState extends State<ExportScreen> {
                 const SizedBox(height: WorkspaceSpacing.md),
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(WorkspaceRadius.card),
+                    borderRadius: BorderRadius.circular(8),
                     child: isEmpty
                         ? WorkspaceInlineState(
                             icon: Icons.error_outline_rounded,
@@ -1035,10 +1310,10 @@ class _ExportScreenState extends State<ExportScreen> {
       case _IssueType.missingExamScore:
         final sid = issue.studentId;
         final qp = sid != null ? '?highlightStudentId=$sid' : '';
-        context.push('${AppRoutes.classDetail}/${widget.classId}/exams$qp');
+        context.push('${AppRoutes.osClassExams(widget.classId)}$qp');
         break;
       case _IssueType.invalidCategoryWeights:
-        context.push('${AppRoutes.classDetail}/${widget.classId}/categories');
+        context.push(AppRoutes.osClassCategories(widget.classId));
         break;
     }
   }
@@ -1265,49 +1540,101 @@ class _ExportScreenState extends State<ExportScreen> {
     final statusAccent = _issues.isEmpty
         ? Theme.of(context).colorScheme.primary
         : const Color(0xFFDAA85E);
-    return WorkspaceContextBar(
-      title: className,
-      subtitle: classContextLine,
-      leading: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          WorkspaceContextPill(
-            icon: Icons.summarize_outlined,
-            label: 'Scope',
-            value: _scopeLabel(_scope),
-            emphasized: true,
-          ),
-          WorkspaceContextPill(
-            icon: Icons.insert_drive_file_outlined,
-            label: 'Format',
-            value: _formatLabel(_format),
-          ),
-          WorkspaceContextPill(
-            icon: _scope == _ExportScope.allClasses
-                ? Icons.apartment_outlined
-                : Icons.people_alt_outlined,
-            label: _scope == _ExportScope.allClasses ? 'Coverage' : 'Roster',
-            value: _scope == _ExportScope.allClasses
-                ? (classCount > 0 ? '$classCount classes' : 'Across classes')
-                : '$studentCount students',
-          ),
-          if (selectedStudent != null && _scope == _ExportScope.perStudent)
-            WorkspaceContextPill(
-              icon: Icons.person_outline_rounded,
-              label: 'Student',
-              value: selectedStudent.chineseName,
-            ),
-        ],
-      ),
-      trailing: WorkspaceContextPill(
-        icon: _issues.isEmpty
-            ? Icons.verified_outlined
-            : Icons.warning_amber_rounded,
-        label: _issues.isEmpty ? 'Status' : 'Issues',
-        value: _issues.isEmpty ? 'Ready' : '${_issues.length} flagged',
-        accent: statusAccent,
-        emphasized: true,
+    final statusPill = WorkspaceContextPill(
+      icon: _issues.isEmpty
+          ? Icons.verified_outlined
+          : Icons.warning_amber_rounded,
+      label: _issues.isEmpty ? 'Status' : 'Issues',
+      value: _issues.isEmpty ? 'Ready' : '${_issues.length} flagged',
+      accent: statusAccent,
+      emphasized: true,
+    );
+
+    return _ExportFlatSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 980;
+          final copy = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                className,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                classContextLine,
+                maxLines: narrow ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: WorkspaceTypography.metadata(context),
+              ),
+            ],
+          );
+          final pills = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              WorkspaceContextPill(
+                icon: Icons.summarize_outlined,
+                label: 'Scope',
+                value: _scopeLabel(_scope),
+                emphasized: true,
+              ),
+              WorkspaceContextPill(
+                icon: Icons.insert_drive_file_outlined,
+                label: 'Format',
+                value: _formatLabel(_format),
+              ),
+              WorkspaceContextPill(
+                icon: _scope == _ExportScope.allClasses
+                    ? Icons.apartment_outlined
+                    : Icons.people_alt_outlined,
+                label:
+                    _scope == _ExportScope.allClasses ? 'Coverage' : 'Roster',
+                value: _scope == _ExportScope.allClasses
+                    ? (classCount > 0
+                        ? '$classCount classes'
+                        : 'Across classes')
+                    : '$studentCount students',
+              ),
+              if (selectedStudent != null && _scope == _ExportScope.perStudent)
+                WorkspaceContextPill(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Student',
+                  value: selectedStudent.chineseName,
+                ),
+            ],
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                copy,
+                const SizedBox(height: WorkspaceSpacing.xs),
+                pills,
+                const SizedBox(height: WorkspaceSpacing.xs),
+                statusPill,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: copy),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              Flexible(flex: 2, child: pills),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              statusPill,
+            ],
+          );
+        },
       ),
     );
   }
@@ -1398,7 +1725,7 @@ class _ExportScreenState extends State<ExportScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: Theme.of(context)
                     .colorScheme
@@ -1434,20 +1761,20 @@ class _ExportScreenState extends State<ExportScreen> {
           onPressed: canPreview ? _preview : null,
           icon: const Icon(Icons.visibility_outlined),
           label: Text(_previewActionLabel()),
-          style: WorkspaceButtonStyles.outlined(context),
+          style: WorkspaceButtonStyles.outlined(context, compact: true),
         ),
         FilledButton.icon(
           onPressed: canExport ? _export : null,
           icon: const Icon(Icons.download_outlined),
           label: Text(_exportActionLabel()),
-          style: WorkspaceButtonStyles.filled(context),
+          style: WorkspaceButtonStyles.filled(context, compact: true),
         ),
       ],
     );
   }
 
   Widget _buildIssueCard(BuildContext context) {
-    return WorkspaceSurfaceCard(
+    return _ExportFlatSurface(
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1467,12 +1794,11 @@ class _ExportScreenState extends State<ExportScreen> {
           ..._issues.take(10).map(
                 (issue) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: WorkspaceSurfaceCard(
+                  child: _ExportFlatSurface(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 10,
                     ),
-                    radius: WorkspaceRadius.context,
                     onTap: () => _handleIssueTap(issue),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1571,7 +1897,7 @@ class _ExportScreenState extends State<ExportScreen> {
     required bool canExport,
   }) {
     final readyForAction = _issues.isEmpty;
-    return WorkspaceSurfaceCard(
+    return _ExportFlatSurface(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1747,14 +2073,14 @@ class _ExportScreenState extends State<ExportScreen> {
       );
     }
 
-    return ToolFirstAppSurface(
-      title: _reportTitle(),
-      eyebrow: 'Student Reporting',
+    return _ExportNativeSurface(
+      title: className,
+      toolLabel: _reportTitle(),
+      eyebrow: 'Class workspace',
       subtitle: _reportSubtitle(className: className, classCount: classCount),
       leading: IconButton(
         onPressed: _goToClassWorkspace,
         tooltip: 'Back to class workspace',
-        style: WorkspaceButtonStyles.icon(context),
         icon: const Icon(Icons.arrow_back_rounded),
       ),
       trailing: [

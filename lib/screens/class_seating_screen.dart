@@ -3,10 +3,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/components/pdf_web_viewer.dart';
 import 'package:gradeflow/components/pilot_feedback_dialog.dart';
 import 'package:gradeflow/components/seating/seating_designer_view.dart';
-import 'package:gradeflow/components/tool_first_app_surface.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/models/room_setup.dart';
@@ -119,9 +119,16 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
 
     final students = studentService.students;
     final activeLayout = seatingService.activeLayout(widget.classId);
-    return ToolFirstAppSurface(
-      eyebrow: 'Class seating',
+    final linkedRoom = seatingService.assignedRoomSetup(widget.classId);
+    final placedSeatCount = activeLayout?.seats
+            .where((seat) => (seat.studentId ?? '').trim().isNotEmpty)
+            .length ??
+        0;
+
+    return _SeatingNativeSurface(
+      eyebrow: 'Class workspace',
       title: classItem.className,
+      toolLabel: 'Seating',
       subtitle:
           '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}',
       leading: IconButton(
@@ -132,9 +139,17 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
       trailing: [
         PilotFeedbackIconButton(
           initialArea: 'Seating',
-          initialRoute: '/class/${widget.classId}/seating',
+          initialRoute: AppRoutes.osClassSeating(widget.classId),
         ),
       ],
+      contextStrip: _SeatingContextStrip(
+        studentCount: students.length,
+        layoutCount: seatingService.layoutsForClass(widget.classId).length,
+        tableCount: activeLayout?.tables.length ?? 0,
+        seatCount: activeLayout?.seats.length ?? 0,
+        placedSeatCount: placedSeatCount,
+        roomName: linkedRoom?.name,
+      ),
       workspace: LayoutBuilder(
         builder: (context, constraints) {
           final crampedHeight = constraints.maxHeight < 540;
@@ -282,9 +297,8 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                                   label: isLinked
                                       ? '${roomSetup.name}, Linked here'
                                       : roomSetup.name,
-                                  child: WorkspaceSurfaceCard(
+                                  child: _SeatingFlatSurface(
                                     padding: const EdgeInsets.all(14),
-                                    radius: WorkspaceRadius.context,
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -461,7 +475,9 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Room name',
                     hintText: 'Science Lab, Room 101, English groups',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -751,6 +767,325 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
       context,
       message: message,
       tone: WorkspaceFeedbackTone.info,
+    );
+  }
+}
+
+class _SeatingNativeSurface extends StatelessWidget {
+  const _SeatingNativeSurface({
+    required this.eyebrow,
+    required this.title,
+    required this.toolLabel,
+    required this.workspace,
+    this.subtitle,
+    this.leading,
+    this.trailing = const [],
+    this.contextStrip,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String toolLabel;
+  final String? subtitle;
+  final Widget? leading;
+  final List<Widget> trailing;
+  final Widget? contextStrip;
+  final Widget workspace;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: AnimatedPageBackground(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1480),
+              child: Padding(
+                padding: WorkspaceSpacing.shellMargin,
+                child: WorkspaceShellFrame(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                  radius: WorkspaceRadius.shell,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _SeatingNativeHeader(
+                        eyebrow: eyebrow,
+                        title: title,
+                        toolLabel: toolLabel,
+                        subtitle: subtitle,
+                        leading: leading,
+                        trailing: trailing,
+                        contextStrip: contextStrip,
+                      ),
+                      const SizedBox(height: WorkspaceSpacing.sm),
+                      Expanded(child: workspace),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SeatingNativeHeader extends StatelessWidget {
+  const _SeatingNativeHeader({
+    required this.eyebrow,
+    required this.title,
+    required this.toolLabel,
+    this.subtitle,
+    this.leading,
+    this.trailing = const [],
+    this.contextStrip,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String toolLabel;
+  final String? subtitle;
+  final Widget? leading;
+  final List<Widget> trailing;
+  final Widget? contextStrip;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final toolBadge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: theme.colorScheme.primary.withValues(alpha: 0.11),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.event_seat_rounded,
+            size: 16,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            toolLabel,
+            style: context.textStyles.labelLarge?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final iconTile = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Icon(
+        Icons.chair_alt_outlined,
+        color: theme.colorScheme.primary,
+        size: 23,
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 900;
+        final copy = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  eyebrow.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: WorkspaceTypography.eyebrow(context),
+                ),
+                toolBadge,
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              title,
+              maxLines: narrow ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+            ),
+            if ((subtitle ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(
+                subtitle!,
+                maxLines: narrow ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.bodyMedium?.copyWith(
+                  color: WorkspaceChrome.mutedText(context),
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ],
+        );
+
+        final leadingCluster = Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (leading != null) ...[
+              leading!,
+              const SizedBox(width: WorkspaceSpacing.sm),
+            ],
+            iconTile,
+          ],
+        );
+        final trailingActions = Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: trailing,
+        );
+
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  leadingCluster,
+                  const Spacer(),
+                  if (trailing.isNotEmpty) trailingActions,
+                ],
+              ),
+              const SizedBox(height: WorkspaceSpacing.sm),
+              copy,
+              if (contextStrip != null) ...[
+                const SizedBox(height: WorkspaceSpacing.xs),
+                contextStrip!,
+              ],
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            leadingCluster,
+            const SizedBox(width: WorkspaceSpacing.md),
+            Expanded(child: copy),
+            if (contextStrip != null) ...[
+              const SizedBox(width: WorkspaceSpacing.md),
+              Flexible(child: contextStrip!),
+            ],
+            if (trailing.isNotEmpty) ...[
+              const SizedBox(width: WorkspaceSpacing.sm),
+              trailingActions,
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SeatingContextStrip extends StatelessWidget {
+  const _SeatingContextStrip({
+    required this.studentCount,
+    required this.layoutCount,
+    required this.tableCount,
+    required this.seatCount,
+    required this.placedSeatCount,
+    this.roomName,
+  });
+
+  final int studentCount;
+  final int layoutCount;
+  final int tableCount;
+  final int seatCount;
+  final int placedSeatCount;
+  final String? roomName;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          WorkspaceContextPill(
+            icon: Icons.people_alt_outlined,
+            label: 'Students',
+            value: '$studentCount',
+          ),
+          const SizedBox(width: 8),
+          WorkspaceContextPill(
+            icon: Icons.layers_outlined,
+            label: 'Layouts',
+            value: '$layoutCount',
+          ),
+          const SizedBox(width: 8),
+          WorkspaceContextPill(
+            icon: Icons.table_bar_outlined,
+            label: 'Room',
+            value: '$tableCount / $seatCount',
+          ),
+          const SizedBox(width: 8),
+          WorkspaceContextPill(
+            icon: Icons.event_available_outlined,
+            label: 'Placed',
+            value: '$placedSeatCount',
+            emphasized: true,
+          ),
+          if ((roomName ?? '').trim().isNotEmpty) ...[
+            const SizedBox(width: 8),
+            WorkspaceContextPill(
+              icon: Icons.meeting_room_outlined,
+              label: 'Setup',
+              value: roomName!,
+              accent: Theme.of(context).colorScheme.primary,
+              emphasized: true,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SeatingFlatSurface extends StatelessWidget {
+  const _SeatingFlatSurface({
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceFlatSurface(
+      padding: padding,
+      child: child,
     );
   }
 }

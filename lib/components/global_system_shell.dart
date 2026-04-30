@@ -279,7 +279,7 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
                 : const Color(0xFFE3A23B),
             onTap: () {
               controller.closeAttentionCenter();
-              context.go(AppRoutes.dashboard);
+              context.go(AppRoutes.osPlanner);
             },
           ),
         );
@@ -325,7 +325,6 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
     required _ShellNotificationBundle notifications,
   }) {
     final currentUtility = controller.activeUtility;
-    final communication = context.watch<CommunicationService>();
 
     return [
       _GlobalDockItemData(
@@ -338,12 +337,21 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
         onTap: controller.toggleAttentionCenter,
       ),
       _GlobalDockItemData(
-        label: 'Dashboard',
-        icon: Icons.space_dashboard_outlined,
+        label: 'Home',
+        icon: Icons.home_rounded,
         isActive: currentUtility == GlobalSystemUtility.dashboard,
         onTap: () {
           controller.closeAttentionCenter();
-          context.go(AppRoutes.dashboard);
+          context.go(AppRoutes.osHome);
+        },
+      ),
+      _GlobalDockItemData(
+        label: 'Planner',
+        icon: Icons.calendar_month_rounded,
+        isActive: false,
+        onTap: () {
+          controller.closeAttentionCenter();
+          context.go(AppRoutes.osPlanner);
         },
       ),
       _GlobalDockItemData(
@@ -353,33 +361,6 @@ class _GlobalSystemShellFrameState extends State<GlobalSystemShellFrame> {
         onTap: () {
           controller.closeAttentionCenter();
           context.go(AppRoutes.classes);
-        },
-      ),
-      _GlobalDockItemData(
-        label: 'Studio',
-        icon: Icons.draw_rounded,
-        isActive: currentUtility == GlobalSystemUtility.studio,
-        onTap: () => _handleStudioTap(context, controller),
-      ),
-      _GlobalDockItemData(
-        label: 'Messages',
-        icon: Icons.forum_outlined,
-        badge: communication.totalUnreadCount > 0
-            ? '${communication.totalUnreadCount}'
-            : null,
-        isActive: currentUtility == GlobalSystemUtility.messages,
-        onTap: () {
-          controller.closeAttentionCenter();
-          context.go(AppRoutes.communication);
-        },
-      ),
-      _GlobalDockItemData(
-        label: 'Admin',
-        icon: Icons.admin_panel_settings_outlined,
-        isActive: currentUtility == GlobalSystemUtility.admin,
-        onTap: () {
-          controller.closeAttentionCenter();
-          context.go(AppRoutes.admin);
         },
       ),
     ];

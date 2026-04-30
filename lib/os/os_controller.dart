@@ -18,6 +18,9 @@ enum OSSurface {
   /// Teacher's personal home workspace.
   home,
 
+  /// Teacher-wide planning workspace.
+  planner,
+
   /// Focused single-class workspace.
   classWorkspace,
 
@@ -60,12 +63,14 @@ class GradeFlowOSController extends ChangeNotifier {
     if ((_activeClassId ?? '').isNotEmpty) {
       return const [
         OSSurface.home,
+        OSSurface.planner,
         OSSurface.classWorkspace,
         OSSurface.teach,
       ];
     }
     return const [
       OSSurface.home,
+      OSSurface.planner,
       OSSurface.teach,
     ];
   }

@@ -37,6 +37,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
   List<ClassNoteItem> _classNotes = [];
   String? _driveAccessToken;
   bool _driveSigningIn = false;
+  bool _handledInitialAction = false;
   final ClassNoteService _classNoteService = ClassNoteService();
 
   void _showFeedback(
@@ -197,6 +198,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       _scheduleItems = items;
       _classNotes = _sortClassNotes(notes);
     });
+    _handleInitialAction();
 
     if (studentService.students.isNotEmpty) {
       final studentIds =
@@ -215,6 +217,20 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
         await examService.loadExams(widget.classId, studentIds);
       }
     }
+  }
+
+  void _handleInitialAction() {
+    if (_handledInitialAction) return;
+    _handledInitialAction = true;
+
+    final uri = GoRouterState.of(context).uri;
+    final action = uri.queryParameters['action'];
+    if (action != 'schedule' && !uri.path.endsWith('/schedule')) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showScheduleDialog(context);
+    });
   }
 
   List<ClassScheduleItem> _scheduleItemsForWeek(DateTime weekStart) {
@@ -412,9 +428,9 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
     if (classItem == null) {
       return const WorkspaceScaffold(
-        eyebrow: 'Planning & details',
-        title: 'Planning surface unavailable',
-        subtitle: 'This class could not be opened in the planning surface.',
+        eyebrow: 'Class workspace',
+        title: 'Class workspace unavailable',
+        subtitle: 'This class could not be opened in the class workspace.',
         child: WorkspaceEmptyState(
           icon: Icons.class_outlined,
           title: 'Class not found',
@@ -431,51 +447,51 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
         icon: Icons.people_alt_outlined,
         title: 'Roster',
         subtitle: 'View, manage, and verify the students in this class.',
-        onTap: () => context.push('/class/${widget.classId}/students'),
+        onTap: () => context.push(AppRoutes.osClassStudents(widget.classId)),
       ),
       ClassWorkspaceToolData(
         icon: Icons.event_seat_outlined,
         title: 'Seating',
         subtitle: 'Design room layouts and keep attendance flow fast.',
-        onTap: () => context.push('/class/${widget.classId}/seating'),
+        onTap: () => context.push(AppRoutes.osClassSeating(widget.classId)),
       ),
       ClassWorkspaceToolData(
         icon: Icons.edit_note,
         title: 'Gradebook',
         subtitle: 'Enter marks and review the current assessment picture.',
-        onTap: () => context.push('/class/${widget.classId}/gradebook'),
+        onTap: () => context.push(AppRoutes.osClassGradebook(widget.classId)),
       ),
       ClassWorkspaceToolData(
         icon: Icons.category_outlined,
         title: 'Categories',
         subtitle: 'Adjust weights and keep grading structure aligned.',
-        onTap: () => context.push('/class/${widget.classId}/categories'),
+        onTap: () => context.push(AppRoutes.osClassCategories(widget.classId)),
       ),
       ClassWorkspaceToolData(
         icon: Icons.description_outlined,
         title: 'Exams',
         subtitle: 'Capture final exam scores and keep the record complete.',
-        onTap: () => context.push('/class/${widget.classId}/exams'),
+        onTap: () => context.push(AppRoutes.osClassExams(widget.classId)),
       ),
       ClassWorkspaceToolData(
         icon: Icons.assessment_outlined,
         title: 'Results',
         subtitle: 'Review process, exam, and final outcomes together.',
-        onTap: () => context.push('/class/${widget.classId}/results'),
+        onTap: () => context.push(AppRoutes.osClassResults(widget.classId)),
       ),
       ClassWorkspaceToolData(
         icon: Icons.download_outlined,
         title: 'Export',
         subtitle: 'Download final results as a clean CSV for reporting.',
-        onTap: () => context.push('/class/${widget.classId}/export'),
+        onTap: () => context.push(AppRoutes.osClassExport(widget.classId)),
       ),
     ];
 
     return WorkspaceScaffold(
-      eyebrow: 'Planning & details',
+      eyebrow: 'Class workspace',
       title: classItem.className,
       subtitle:
-          'A secondary support space for schedule, notes, and class setup around the live workspace.',
+          'Class schedule, notes, and setup live with the rest of this class workspace.',
       compactHeader: true,
       leadingActions: [
         IconButton(
@@ -492,14 +508,22 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       ),
       child: studentService.isLoading || categoryService.isLoading
           ? const WorkspaceLoadingState(
-              title: 'Loading planning & details',
+              title: 'Loading schedule',
               subtitle:
-                  'Pulling schedule, notes, roster, and supporting class context into view.',
+                  'Pulling schedule, notes, roster, and class context into view.',
             )
           : LayoutBuilder(
               builder: (context, constraints) {
                 final wide = constraints.maxWidth >= 1180;
-                final planningRail = _buildPlanningWorkspace(context);
+                final scheduleWorkspace = _buildScheduleWorkspace(context);
+                final supportRail = Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildClassNotesPanel(context),
+                    const SizedBox(height: AppSpacing.md),
+                    _buildClassToolPanel(context, tools),
+                  ],
+                );
 
                 return SingleChildScrollView(
                   padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -508,50 +532,22 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
-                              flex: 5,
-                              child: WorkspaceSurfaceCard(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const WorkspaceSectionHeader(
-                                      title: 'Support launches',
-                                      subtitle:
-                                          'Open supporting class tools from planning, then step back into the live class workspace when you are done.',
-                                    ),
-                                    const SizedBox(height: AppSpacing.md),
-                                    ClassWorkspaceToolGrid(tools: tools),
-                                  ],
-                                ),
-                              ),
+                              flex: 6,
+                              child: scheduleWorkspace,
                             ),
                             const SizedBox(width: AppSpacing.lg),
                             Expanded(
-                              flex: 2,
-                              child: planningRail,
+                              flex: 3,
+                              child: supportRail,
                             ),
                           ],
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            WorkspaceSurfaceCard(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const WorkspaceSectionHeader(
-                                    title: 'Support launches',
-                                    subtitle:
-                                        'Open supporting class tools from planning, then step back into the live class workspace when you are done.',
-                                  ),
-                                  const SizedBox(height: AppSpacing.md),
-                                  ClassWorkspaceToolGrid(tools: tools),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-                            planningRail,
+                            scheduleWorkspace,
+                            const SizedBox(height: AppSpacing.md),
+                            supportRail,
                           ],
                         ),
                 );
@@ -566,9 +562,9 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     required int categoryCount,
   }) {
     return WorkspaceContextBar(
-      title: 'Class support lane',
+      title: 'Class context',
       subtitle:
-          'Planning context stays visible here while the live class workspace remains the primary room.',
+          'Schedule, roster, and grading context stay pinned while you plan this class.',
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       radius: 16,
       leading: Wrap(
@@ -605,37 +601,252 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     );
   }
 
-  Widget _buildPlanningWorkspace(BuildContext context) {
+  Widget _buildScheduleWorkspace(BuildContext context) {
     final now = DateTime.now();
     final thisWeekStart = _startOfWeek(now);
     final nextWeekStart = thisWeekStart.add(const Duration(days: 7));
 
-    return WorkspaceSurfaceCard(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildScheduleCommandBand(context),
+        const SizedBox(height: AppSpacing.sm),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final sideBySide = constraints.maxWidth >= 760;
+            final thisWeek = _buildWeekSchedulePanel(
+              context,
+              title: 'This Week',
+              weekStart: thisWeekStart,
+            );
+            final nextWeek = _buildWeekSchedulePanel(
+              context,
+              title: 'Next Week',
+              weekStart: nextWeekStart,
+            );
+
+            if (!sideBySide) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  thisWeek,
+                  const SizedBox(height: AppSpacing.sm),
+                  nextWeek,
+                ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: thisWeek),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: nextWeek),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _buildScheduleEvidencePanel(context),
+      ],
+    );
+  }
+
+  Widget _buildScheduleCommandBand(BuildContext context) {
+    final theme = Theme.of(context);
+    final status = _scheduleItems.isEmpty
+        ? 'No imported schedule yet'
+        : '${_scheduleItems.length} imported schedule rows';
+
+    return WorkspaceCommandBand(
+      padding: const EdgeInsets.all(14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 760;
+          final actions = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton.icon(
+                icon: _driveSigningIn
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.login_outlined),
+                label: Text(
+                  _driveAccessToken == null ? 'Connect Drive' : 'Drive ready',
+                ),
+                onPressed:
+                    _driveSigningIn ? null : () => _ensureDriveAccessToken(),
+                style: WorkspaceButtonStyles.text(context, compact: true),
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.cloud_download_outlined),
+                label: const Text('Import link'),
+                onPressed: () => _importScheduleFromUrl(
+                  context,
+                  closeParentOnSuccess: false,
+                ),
+                style: WorkspaceButtonStyles.outlined(context, compact: true),
+              ),
+              if (_scheduleItems.isNotEmpty)
+                TextButton.icon(
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Clear'),
+                  onPressed: () => _clearSchedule(
+                    context,
+                    closeParentOnSuccess: false,
+                  ),
+                  style: WorkspaceButtonStyles.text(context, compact: true),
+                ),
+              FilledButton.icon(
+                icon: const Icon(Icons.upload_file_outlined),
+                label: Text(
+                  _scheduleItems.isEmpty ? 'Upload schedule' : 'Replace',
+                ),
+                onPressed: () => _uploadSchedule(
+                  context,
+                  closeParentOnSuccess: false,
+                ),
+                style: WorkspaceButtonStyles.filled(context, compact: true),
+              ),
+            ],
+          );
+          final copy = Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Icon(
+                  Icons.calendar_month_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Schedule',
+                      style: context.textStyles.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      status,
+                      style: context.textStyles.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                copy,
+                const SizedBox(height: AppSpacing.sm),
+                actions,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: copy),
+              const SizedBox(width: AppSpacing.md),
+              Flexible(child: actions),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildScheduleEvidencePanel(BuildContext context) {
+    return _ScheduleFlatSurface(
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const WorkspaceSectionHeader(
-            title: 'Planning lane',
-            subtitle:
-                'Weekly schedule and reminders stay visible here as calm support context.',
+          WorkspaceSectionHeader(
+            title: 'Schedule evidence',
+            subtitle: _scheduleItems.isEmpty
+                ? 'Imported syllabus rows and class dates will appear here.'
+                : 'Imported syllabus rows and class dates are visible in this workspace.',
+            action: OutlinedButton.icon(
+              onPressed: () => _showScheduleDialog(context),
+              icon: const Icon(Icons.open_in_full_rounded),
+              label: const Text('Manage'),
+              style: WorkspaceButtonStyles.outlined(context, compact: true),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _buildWeekSchedulePanel(
-            context,
-            title: 'This Week',
-            weekStart: thisWeekStart,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _buildWeekSchedulePanel(
-            context,
-            title: 'Next Week',
-            weekStart: nextWeekStart,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _buildClassNotesPanel(context),
+          if (_scheduleItems.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: WorkspaceInlineState(
+                icon: Icons.calendar_month_outlined,
+                title: 'No schedule uploaded',
+                subtitle:
+                    'Upload an Excel, CSV, or Word file to make planning visible here.',
+              ),
+            )
+          else
+            Column(
+              children: [
+                for (var index = 0; index < _scheduleItems.length; index++) ...[
+                  _ScheduleItemTile(item: _scheduleItems[index]),
+                  if (index != _scheduleItems.length - 1)
+                    Divider(
+                      height: 1,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .outline
+                          .withValues(alpha: 0.16),
+                    ),
+                ],
+              ],
+            ),
         ],
       ),
+    );
+  }
+
+  Widget _buildClassToolPanel(
+    BuildContext context,
+    List<ClassWorkspaceToolData> tools,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const WorkspaceSectionHeader(
+          title: 'Class tools',
+          subtitle:
+              'Roster, seating, gradebook, exams, results, and export stay one tap away.',
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        ClassWorkspaceToolGrid(tools: tools),
+      ],
     );
   }
 
@@ -648,16 +859,8 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     final items = _scheduleItemsForWeek(weekStart);
     final previewItems = items.take(3).toList();
 
-    return Container(
-      width: double.infinity,
+    return _ScheduleFlatSurface(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.24),
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -679,7 +882,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
           const SizedBox(height: AppSpacing.xs),
           if (previewItems.isEmpty)
             Text(
-              'No scheduled items yet for this planning lane.',
+              'No scheduled items for this week.',
               style: context.textStyles.labelMedium?.withColor(
                 theme.colorScheme.onSurfaceVariant,
               ),
@@ -772,16 +975,8 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     final theme = Theme.of(context);
     final previewItems = _classNotes.take(3).toList();
 
-    return Container(
-      width: double.infinity,
+    return _ScheduleFlatSurface(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.24),
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -985,7 +1180,10 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     );
   }
 
-  Future<void> _uploadSchedule(BuildContext dialogCtx) async {
+  Future<void> _uploadSchedule(
+    BuildContext dialogCtx, {
+    bool closeParentOnSuccess = true,
+  }) async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -1022,7 +1220,11 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
         _scheduleItems = items;
       });
 
-      Navigator.of(dialogCtx).pop();
+      if (closeParentOnSuccess &&
+          dialogCtx.mounted &&
+          Navigator.of(dialogCtx).canPop()) {
+        Navigator.of(dialogCtx).pop();
+      }
       _showFeedback(
         'Uploaded ${items.length} schedule items.',
         tone: WorkspaceFeedbackTone.success,
@@ -1035,7 +1237,10 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     }
   }
 
-  Future<void> _clearSchedule(BuildContext dialogCtx) async {
+  Future<void> _clearSchedule(
+    BuildContext dialogCtx, {
+    bool closeParentOnSuccess = true,
+  }) async {
     final confirm = await showDialog<bool>(
       context: dialogCtx,
       builder: (ctx) => WorkspaceDialogScaffold(
@@ -1074,7 +1279,11 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       _scheduleItems = [];
     });
 
-    Navigator.of(dialogCtx).pop();
+    if (closeParentOnSuccess &&
+        dialogCtx.mounted &&
+        Navigator.of(dialogCtx).canPop()) {
+      Navigator.of(dialogCtx).pop();
+    }
     _showFeedback(
       'Schedule cleared.',
       tone: WorkspaceFeedbackTone.success,
@@ -1101,7 +1310,10 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     return token;
   }
 
-  Future<void> _importScheduleFromUrl(BuildContext dialogCtx) async {
+  Future<void> _importScheduleFromUrl(
+    BuildContext dialogCtx, {
+    bool closeParentOnSuccess = true,
+  }) async {
     final controller = TextEditingController();
     bool useDriveAuth = true;
 
@@ -1155,9 +1367,13 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      controller.dispose();
+      return;
+    }
 
     final rawUrl = controller.text.trim();
+    controller.dispose();
     if (rawUrl.isEmpty) {
       _showFeedback(
         'Paste a link before importing.',
@@ -1210,7 +1426,11 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       });
 
       if (mounted) {
-        Navigator.pop(dialogCtx);
+        if (closeParentOnSuccess &&
+            dialogCtx.mounted &&
+            Navigator.of(dialogCtx).canPop()) {
+          Navigator.pop(dialogCtx);
+        }
         _showFeedback(
           'Imported ${items.length} schedule items.',
           tone: WorkspaceFeedbackTone.success,
@@ -1253,6 +1473,27 @@ class ClassWorkspaceToolData {
     required this.subtitle,
     required this.onTap,
   });
+}
+
+class _ScheduleFlatSurface extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final VoidCallback? onTap;
+
+  const _ScheduleFlatSurface({
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceFlatSurface(
+      padding: padding,
+      onTap: onTap,
+      child: child,
+    );
+  }
 }
 
 class _CompactWorkspaceMetricChip extends StatelessWidget {
@@ -1373,57 +1614,62 @@ class _ClassWorkspaceToolCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return WorkspaceSurfaceCard(
+    return _ScheduleFlatSurface(
       onTap: tool.onTap,
-      radius: 20,
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.18),
+      padding: const EdgeInsets.all(12),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 58),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.16),
+                ),
+              ),
+              child: Icon(
+                tool.icon,
+                color: theme.colorScheme.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tool.title,
+                    style: context.textStyles.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-                child: Icon(
-                  tool.icon,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
+                  const SizedBox(height: 3),
+                  Text(
+                    tool.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textStyles.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
-              Icon(
-                Icons.arrow_outward_rounded,
-                size: 18,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            tool.title,
-            style: context.textStyles.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
             ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            tool.subtitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: context.textStyles.bodySmall?.copyWith(
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
               color: theme.colorScheme.onSurfaceVariant,
-              height: 1.45,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1436,78 +1682,100 @@ class _ScheduleItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final dateStr = item.date != null
         ? DateFormat('MMM d, yyyy').format(item.date!)
         : (item.week != null ? 'Week ${item.week}' : null);
 
-    return ListTile(
-      contentPadding: AppSpacing.paddingMd,
-      leading: Container(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-        ),
-        child: Icon(
-          Icons.event_note,
-          color: Theme.of(context).colorScheme.onSecondaryContainer,
-          size: 20,
-        ),
-      ),
-      title: Text(
-        item.title,
-        style: context.textStyles.titleSmall?.semiBold,
-      ),
-      subtitle: Column(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (dateStr != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Row(
+          Container(
+            width: 74,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.16),
+              ),
+            ),
+            child: Column(
               children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppSpacing.xs),
                 Text(
-                  dateStr,
-                  style: context.textStyles.bodySmall?.withColor(
-                    Theme.of(context).colorScheme.onSurfaceVariant,
+                  item.date == null
+                      ? 'Date'
+                      : DateFormat('EEE').format(item.date!),
+                  style: context.textStyles.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item.date == null
+                      ? (item.week == null ? 'TBD' : 'W${item.week}')
+                      : DateFormat('M/d').format(item.date!),
+                  style: context.textStyles.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
-          ],
-          if (item.details.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            ...item.details.entries.map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 100,
-                        child: Text(
-                          '${e.key}:',
-                          style:
-                              context.textStyles.bodySmall?.semiBold.withColor(
-                            Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: Text(
-                          e.value,
-                          style: context.textStyles.bodySmall,
-                        ),
-                      ),
-                    ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  style: context.textStyles.titleSmall?.semiBold,
+                ),
+                if (dateStr != null) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    dateStr,
+                    style: context.textStyles.labelMedium?.withColor(
+                      theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                )),
-          ],
+                ],
+                if (item.details.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  ...item.details.entries.map(
+                    (e) => Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 96,
+                            child: Text(
+                              '${e.key}:',
+                              style: context.textStyles.bodySmall?.semiBold
+                                  .withColor(
+                                theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              e.value,
+                              style: context.textStyles.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );

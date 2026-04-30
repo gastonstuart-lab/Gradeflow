@@ -192,10 +192,12 @@ class GlobalSystemShellController extends ChangeNotifier {
     return null;
   }
 
-  bool _isDashboardLocation(String location) => location == '/dashboard';
+  bool _isDashboardLocation(String location) =>
+      location == '/os/home' || location == '/dashboard';
 
   bool _isClassesLocation(String location) {
     return location == '/classes' ||
+        location.startsWith('/os/class/') ||
         location.startsWith('/class/') ||
         location == '/classes/trash';
   }

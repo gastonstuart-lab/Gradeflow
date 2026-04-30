@@ -1188,8 +1188,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
                     _selectedStudentIds.add(student.studentId);
                   }
                 })
-            : () => context
-                .push('/class/${widget.classId}/student/${student.studentId}'),
+            : () => context.push(
+                  AppRoutes.osClassStudent(
+                    widget.classId,
+                    student.studentId,
+                  ),
+                ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1384,8 +1388,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
                 icon: const Icon(Icons.restore_from_trash),
                 tooltip: 'Restore Bin',
                 style: WorkspaceButtonStyles.icon(context),
-                onPressed: () =>
-                    context.push('/class/${widget.classId}/students/trash'),
+                onPressed: () => context
+                    .push(AppRoutes.osClassStudentsTrash(widget.classId)),
               ),
             ],
       floatingActionButton:

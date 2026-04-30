@@ -176,7 +176,7 @@ class OSAppRegistry {
       icon: Icons.calendar_month_rounded,
       category: OSAppCategory.productivity,
       description: 'Schedule, reminders & timetable',
-      route: '/os/home',
+      route: '/os/planner',
       color: Color(0xFF58C78B),
     ),
     OSApp(
@@ -245,10 +245,8 @@ class OSAppRegistry {
   /// Apps suitable for the dock (non-system, non-context-requiring).
   static List<OSApp> get dockDefaults => [
         findById(OSAppId.home)!,
+        findById(OSAppId.planner)!,
         findById(OSAppId.classes)!,
-        findById(OSAppId.whiteboard)!,
-        findById(OSAppId.messages)!,
-        findById(OSAppId.teach)!,
       ];
 
   /// Apps visible in the launcher (everything except purely internal OS apps).

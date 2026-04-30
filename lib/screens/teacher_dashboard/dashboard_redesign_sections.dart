@@ -138,7 +138,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
       child: DashboardTopSummary(
         title: 'Welcome back, $teacherName',
         subtitle:
-            '$schoolName • Planning Hub • ${RepositoryFactory.sourceOfTruthLabel}',
+            '$schoolName - Planning Hub - ${RepositoryFactory.sourceOfTruthLabel}',
         todayLine: _dashboardTodayLine(now),
         actions: _dashboardHeaderActions(context, now),
         metrics: _dashboardSummaryMetrics(now),
@@ -928,8 +928,8 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
     final activeClasses = _classes.length;
     final reminders = _pendingReminders().length;
     final actionsNeeded = _dashboardAttentionCount(now);
-    return '$activeClasses class${activeClasses == 1 ? '' : 'es'} • '
-        '$reminders reminder${reminders == 1 ? '' : 's'} • '
+    return '$activeClasses class${activeClasses == 1 ? '' : 'es'} - '
+        '$reminders reminder${reminders == 1 ? '' : 's'} - '
         '$actionsNeeded to review';
   }
 
@@ -1022,7 +1022,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
   String? _focusedDepartmentName() {
     final subtitle = _selectedClassBrief()?.subtitle.trim();
     if (subtitle == null || subtitle.isEmpty) return null;
-    final parts = subtitle.split('•');
+    final parts = subtitle.split(RegExp(r'\s[-\u2022]\s'));
     final department = parts.first.trim();
     if (department.isEmpty) return null;
     return department;
@@ -1201,10 +1201,10 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
             context.go(AppRoutes.classes);
             return;
           case ClassHealthActionType.openGradebook:
-            context.push('/class/${classBrief.id}/gradebook');
+            context.push(AppRoutes.osClassGradebook(classBrief.id));
             return;
           case ClassHealthActionType.openSeating:
-            context.push('/class/${classBrief.id}/seating');
+            context.push(AppRoutes.osClassSeating(classBrief.id));
             return;
           case ClassHealthActionType.openTimetable:
             _openTimetableDialog();
@@ -1213,7 +1213,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
             unawaited(_openPlanningSurface());
             return;
           case ClassHealthActionType.openExport:
-            context.push('/class/${classBrief.id}/export');
+            context.push(AppRoutes.osClassExport(classBrief.id));
             return;
         }
       },
@@ -1511,7 +1511,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
       _DashboardInsightData(
         title: 'Action Load',
         value: _dashboardAttentionCount(now).toString(),
-        subtitle: '$overdue overdue • $dueToday today • $dueWeek within 7 days',
+        subtitle: '$overdue overdue - $dueToday today - $dueWeek within 7 days',
         bars: _normalizedBars(
             [overdue, dueToday, dueWeek, _pendingReminders().length],
             length: 4),
@@ -1556,7 +1556,7 @@ extension TeacherDashboardRedesignSections on _TeacherDashboardScreenState {
         : nextClass != null
             ? '${_headlineSafe(nextClass.timetableClass.title, maxLength: 48)} ${_relativeTimetableTime(nextClass.startAt, now)}'
             : nextReminder != null
-                ? '${_headlineSafe(nextReminder.text, maxLength: 52)} • ${_shortMonthDay(nextReminder.timestamp)}'
+                ? '${_headlineSafe(nextReminder.text, maxLength: 52)} - ${_shortMonthDay(nextReminder.timestamp)}'
                 : 'No urgent blockers in the queue.';
 
     return DashboardSystemWidgetData(

@@ -27,6 +27,7 @@ import 'package:gradeflow/screens/deleted_classes_screen.dart';
 import 'package:gradeflow/os/gradeflow_os_shell.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/surfaces/home_surface.dart';
+import 'package:gradeflow/os/surfaces/planner_surface.dart';
 import 'package:gradeflow/os/surfaces/class_surface.dart';
 import 'package:gradeflow/os/surfaces/teach_surface.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
@@ -89,6 +90,15 @@ class AppRouter {
         ),
       ),
       GoRoute(
+        path: AppRoutes.osPlanner,
+        name: 'osPlanner',
+        pageBuilder: (context, state) => _osPage(
+          state,
+          surface: OSSurface.planner,
+          child: const PlannerSurface(),
+        ),
+      ),
+      GoRoute(
         path: '${AppRoutes.osClass}/:classId',
         name: 'osClass',
         pageBuilder: (context, state) {
@@ -98,6 +108,142 @@ class AppRouter {
             surface: OSSurface.classWorkspace,
             classId: classId,
             child: ClassSurface(classId: classId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/schedule',
+        name: 'osClassSchedule',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: ClassDetailScreen(classId: classId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/students',
+        name: 'osClassStudents',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: StudentListScreen(classId: classId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/students/trash',
+        name: 'osClassStudentsTrash',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: DeletedStudentsScreen(classId: classId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/student/:studentId',
+        name: 'osClassStudentDetail',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          final studentId = state.pathParameters['studentId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: StudentDetailScreen(classId: classId, studentId: studentId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/gradebook',
+        name: 'osClassGradebook',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: GradebookScreen(classId: classId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/seating',
+        name: 'osClassSeating',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: ClassSeatingScreen(classId: classId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/categories',
+        name: 'osClassCategories',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: CategoryManagementScreen(classId: classId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/exams',
+        name: 'osClassExams',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          final highlightStudentId =
+              state.uri.queryParameters['highlightStudentId'];
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: ExamInputScreen(
+              classId: classId,
+              highlightStudentId: highlightStudentId,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/export',
+        name: 'osClassExport',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: ExportScreen(classId: classId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/results',
+        name: 'osClassResults',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: FinalResultsScreen(classId: classId),
           );
         },
       ),
@@ -155,127 +301,97 @@ class AppRouter {
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId',
         name: 'classDetail',
-        pageBuilder: (context, state) {
+        redirect: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(
+          return _redirectWithQuery(
             state,
-            ClassDetailScreen(classId: classId),
-            classId: classId,
+            AppRoutes.osClassWorkspace(classId),
           );
         },
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId/students',
         name: 'students',
-        pageBuilder: (context, state) {
+        redirect: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(
-            state,
-            StudentListScreen(classId: classId),
-            classId: classId,
-          );
+          return _redirectWithQuery(state, AppRoutes.osClassStudents(classId));
         },
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId/students/trash',
         name: 'studentsTrash',
-        pageBuilder: (context, state) {
+        redirect: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(
+          return _redirectWithQuery(
             state,
-            DeletedStudentsScreen(classId: classId),
-            classId: classId,
+            AppRoutes.osClassStudentsTrash(classId),
           );
         },
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId/student/:studentId',
         name: 'studentDetail',
-        pageBuilder: (context, state) {
+        redirect: (context, state) {
           final classId = state.pathParameters['classId']!;
           final studentId = state.pathParameters['studentId']!;
-          return _shellPage(
+          return _redirectWithQuery(
             state,
-            StudentDetailScreen(classId: classId, studentId: studentId),
-            classId: classId,
+            AppRoutes.osClassStudent(classId, studentId),
           );
         },
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId/gradebook',
         name: 'gradebook',
-        pageBuilder: (context, state) {
+        redirect: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(
+          return _redirectWithQuery(
             state,
-            GradebookScreen(classId: classId),
-            classId: classId,
+            AppRoutes.osClassGradebook(classId),
           );
         },
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId/seating',
         name: 'classSeating',
-        pageBuilder: (context, state) {
+        redirect: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(
-            state,
-            ClassSeatingScreen(classId: classId),
-            classId: classId,
-          );
+          return _redirectWithQuery(state, AppRoutes.osClassSeating(classId));
         },
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId/categories',
         name: 'categories',
-        pageBuilder: (context, state) {
+        redirect: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(
+          return _redirectWithQuery(
             state,
-            CategoryManagementScreen(classId: classId),
-            classId: classId,
+            AppRoutes.osClassCategories(classId),
           );
         },
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId/exams',
         name: 'exams',
-        pageBuilder: (context, state) {
+        redirect: (context, state) {
           final classId = state.pathParameters['classId']!;
-          final highlightStudentId =
-              state.uri.queryParameters['highlightStudentId'];
-          return _shellPage(
-            state,
-            ExamInputScreen(
-              classId: classId,
-              highlightStudentId: highlightStudentId,
-            ),
-            classId: classId,
-          );
+          return _redirectWithQuery(state, AppRoutes.osClassExams(classId));
         },
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId/export',
         name: 'export',
-        pageBuilder: (context, state) {
+        redirect: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(
-            state,
-            ExportScreen(classId: classId),
-            classId: classId,
-          );
+          return _redirectWithQuery(state, AppRoutes.osClassExport(classId));
         },
       ),
       GoRoute(
         path: '${AppRoutes.classDetail}/:classId/results',
         name: 'results',
-        pageBuilder: (context, state) {
+        redirect: (context, state) {
           final classId = state.pathParameters['classId']!;
-          return _shellPage(
-            state,
-            FinalResultsScreen(classId: classId),
-            classId: classId,
-          );
+          return _redirectWithQuery(state, AppRoutes.osClassResults(classId));
         },
       ),
     ],
@@ -294,8 +410,31 @@ class AppRoutes {
   static const String classDetail = '/class';
   // GradeFlow OS surfaces
   static const String osHome = '/os/home';
+  static const String osPlanner = '/os/planner';
   static const String osClass = '/os/class';
   static const String osTeach = '/os/teach';
+
+  static String osClassWorkspace(String classId) => '$osClass/$classId';
+  static String osClassTool(String classId, String tool) =>
+      '$osClass/$classId/$tool';
+  static String osClassSchedule(String classId) =>
+      osClassTool(classId, 'schedule');
+  static String osClassStudents(String classId) =>
+      osClassTool(classId, 'students');
+  static String osClassStudent(String classId, String studentId) =>
+      '$osClass/$classId/student/$studentId';
+  static String osClassStudentsTrash(String classId) =>
+      '$osClass/$classId/students/trash';
+  static String osClassGradebook(String classId) =>
+      osClassTool(classId, 'gradebook');
+  static String osClassSeating(String classId) =>
+      osClassTool(classId, 'seating');
+  static String osClassCategories(String classId) =>
+      osClassTool(classId, 'categories');
+  static String osClassExams(String classId) => osClassTool(classId, 'exams');
+  static String osClassExport(String classId) => osClassTool(classId, 'export');
+  static String osClassResults(String classId) =>
+      osClassTool(classId, 'results');
 }
 
 String? _validatedInternalAppLocation(String? rawLocation) {
@@ -344,6 +483,12 @@ CustomTransitionPage<void> _fadePage(Widget child) {
       );
     },
   );
+}
+
+String _redirectWithQuery(GoRouterState state, String path) {
+  final query = state.uri.queryParameters;
+  if (query.isEmpty) return path;
+  return Uri(path: path, queryParameters: query).toString();
 }
 
 NoTransitionPage<void> _shellPage(GoRouterState state, Widget child,

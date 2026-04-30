@@ -1,5 +1,5 @@
 class GradeFlowProductConfig {
-  static const String appName = 'IEP Team';
+  static const String appName = 'GradeFlow';
   static const String marketingTagline =
       'Professional workflow operating system for teachers';
   static const String defaultSchoolName =

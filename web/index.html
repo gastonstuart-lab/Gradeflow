@@ -24,7 +24,7 @@
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="IEP Team">
+  <meta name="apple-mobile-web-app-title" content="GradeFlow">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
@@ -34,7 +34,7 @@
   <!-- Set this to your OAuth Web client ID from Google Cloud Console -->
   <meta name="google-signin-client_id" content="851087972500-06hut292tqfb86o9jmfo55tc441de78.apps.googleusercontent.com">
 
-  <title>IEP Team</title>
+  <title>GradeFlow</title>
   <link rel="manifest" href="manifest.json">
   <style>
     :root {
@@ -275,7 +275,7 @@
         <div class="gf-loader-mark"></div>
         <div>
           <p class="gf-loader-kicker">Teacher Operating System</p>
-          <h1 class="gf-loader-title">IEP Team</h1>
+          <h1 class="gf-loader-title">GradeFlow</h1>
           <p class="gf-loader-copy">
             Bringing the dashboard, classes, and live classroom tools online.
           </p>
@@ -296,6 +296,7 @@
   <script>
     (function () {
       const loader = document.getElementById('gradeflow-loader');
+      const status = loader?.querySelector('.gf-loader-status');
       let removed = false;
 
       function removeLoader() {
@@ -316,6 +317,19 @@
           }
         }, 0);
       });
+
+      const flutterViewCheck = window.setInterval(() => {
+        if (document.querySelector('flt-glass-pane, flutter-view')) {
+          window.clearInterval(flutterViewCheck);
+          removeLoader();
+        }
+      }, 500);
+
+      window.setTimeout(() => {
+        if (!removed && status) {
+          status.lastChild.textContent = ' Still loading workspace shell';
+        }
+      }, 45000);
     })();
   </script>
   <script src="flutter_bootstrap.js" async></script>

@@ -197,7 +197,7 @@ extension FileImportServiceDetection on FileImportService {
       return const FileTypeDetection(
         type: ImportFileType.calendar,
         message: 'Calendar file detected (.ics)',
-        suggestion: 'Import this in Teacher Dashboard ? Schedule tab.',
+        suggestion: 'Import this in Planner for school-wide events.',
       );
     }
 
@@ -230,7 +230,7 @@ extension FileImportServiceDetection on FileImportService {
           type: ImportFileType.calendar,
           message: 'This looks like a school calendar or schedule.',
           suggestion:
-              'Import this in Teacher Dashboard ? Select Class ? Schedule tab ? Upload button',
+              'Import school-wide calendars in Planner, or class schedules in Class Workspace > Schedule.',
         );
       }
 
@@ -240,7 +240,7 @@ extension FileImportServiceDetection on FileImportService {
           type: ImportFileType.timetable,
           message: 'This looks like a weekly timetable/schedule.',
           suggestion:
-              'Import this in Teacher Dashboard ? Select Class ? Schedule tab',
+              'Import teacher timetables in Planner, or class schedules in Class Workspace > Schedule.',
         );
       }
 
@@ -249,7 +249,7 @@ extension FileImportServiceDetection on FileImportService {
         return const FileTypeDetection(
           type: ImportFileType.examResults,
           message: 'This looks like exam results or gradebook data.',
-          suggestion: 'Import this in Class ? Gradebook ? Import button',
+          suggestion: 'Import this in Class Workspace > Exams.',
         );
       }
 
@@ -417,8 +417,7 @@ extension FileImportServiceDetection on FileImportService {
           if (_looksLikeCalendarScheduleHeaders(hdr)) {
             lines.add(
                 'Detected file type: calendar/schedule (not a student roster)');
-            lines.add(
-                'Tip: Import schedules via Teacher Dashboard / Class Details schedule import.');
+            lines.add('Tip: Import schedules via Class Workspace > Schedule.');
           }
         }
         final roster = parseCSV(text);
@@ -445,8 +444,7 @@ extension FileImportServiceDetection on FileImportService {
           if (_looksLikeCalendarScheduleHeaders(hdr)) {
             lines.add(
                 'Detected file type: calendar/schedule (not a student roster)');
-            lines.add(
-                'Tip: Import schedules via Teacher Dashboard / Class Details schedule import.');
+            lines.add('Tip: Import schedules via Class Workspace > Schedule.');
           }
         }
         final roster = parseXlsxRoster(bytes);

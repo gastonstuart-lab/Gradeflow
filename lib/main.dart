@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -21,10 +23,19 @@ void main() async {
     usePathUrlStrategy();
   }
 
-  // Initialize Firebase if configured (safe even if firebase_options.dart missing)
-  await FirebaseService.maybeInitialize();
+  // Initialize Firebase if configured. On web this must not block runApp(),
+  // because browser SDK startup can stall behind network or extension state.
+  if (!kIsWeb) {
+    await FirebaseService.maybeInitialize();
+  }
 
   runApp(const MyApp());
+
+  if (kIsWeb) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(FirebaseService.maybeInitialize());
+    });
+  }
 }
 
 class MyApp extends StatefulWidget {

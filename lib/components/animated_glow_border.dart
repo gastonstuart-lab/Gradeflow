@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:gradeflow/theme.dart';
 
-/// Animated glow border similar to Dreamflow's moving gradient outline.
+/// Animated glow border for GradeFlow's moving gradient outline.
 /// Wraps any child and paints a rotating sweep gradient ring around it.
 class AnimatedGlowBorder extends StatefulWidget {
   final Widget child;

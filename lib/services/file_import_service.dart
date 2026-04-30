@@ -345,7 +345,7 @@ class FileImportService {
           ImportedStudent(
             isValid: false,
             error:
-                'This file looks like a calendar/schedule, not a student roster. Use the Schedule import in Teacher Dashboard / Class Details.',
+                'This file looks like a calendar/schedule, not a student roster. Use Planner for school-wide calendars or Class Workspace > Schedule for class schedules.',
           ),
         ];
       }
@@ -510,7 +510,7 @@ class FileImportService {
           ImportedStudent(
             isValid: false,
             error:
-                'This file looks like a calendar/schedule, not a student roster. Use the Schedule import in Teacher Dashboard / Class Details.',
+                'This file looks like a calendar/schedule, not a student roster. Use Planner for school-wide calendars or Class Workspace > Schedule for class schedules.',
           ),
         ];
       }

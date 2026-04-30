@@ -115,59 +115,61 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SeatingToolbar(
-                  layouts: layouts,
-                  activeLayoutId: active.layoutId,
-                  designMode: _designMode,
-                  onToggleDesignMode: () =>
-                      setState(() => _designMode = !_designMode),
-                  onSelectLayout: (id) =>
-                      service.selectLayout(widget.classId, id),
-                  onAddLayout: () => _promptNewLayout(context, service),
-                  onDuplicateLayout: () => _duplicateLayout(service, active),
-                  onApplyTemplate: (template) => service.applyTemplate(
-                      widget.classId, template, widget.students.length),
-                  onAddRectTable: () => service.addTable(
-                      widget.classId, SeatingTableType.rectangular,
-                      seatCount: 4),
-                  onAddSquareTable: () => service.addTable(
-                      widget.classId, SeatingTableType.square,
-                      seatCount: 4),
-                  onAddDesk: () => service.addTable(
-                      widget.classId, SeatingTableType.singleDesk,
-                      seatCount: 1),
-                  onAddTeacherDesk: () => service.addTable(
-                      widget.classId, SeatingTableType.teacherDesk,
-                      seatCount: 0),
-                  onRenameLayout: () =>
-                      _promptRenameLayout(context, service, active),
-                  onClearRoom: () =>
-                      _confirmClearRoom(context, service, active),
-                  onDeleteLayout: () =>
-                      _confirmDeleteLayout(context, service, layouts, active),
-                  onRoomSettings: () =>
-                      _promptRoomSettings(context, service, active),
-                  onAutoAssign: () =>
-                      _autoAssignStudents(context, service, active),
-                  onShuffleSeating: () =>
-                      _shuffleSeating(context, service, active),
-                  onClearAssignments: () =>
-                      _confirmClearAssignments(context, service, active),
-                  onPickStudent: () => _showStudentPicker(
-                      context, service, active, studentsById),
-                  onOpenRoomSetups: widget.onOpenRoomSetups,
-                  onPreviewPdf: widget.onPreviewPdf,
-                  onPrint: widget.onPrint,
-                  onDownload: widget.onDownload,
-                  webMode: widget.webMode,
-                  showFullScreenButton: widget.showFullScreenButton,
-                  onFullScreen: () =>
-                      Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => _FullScreenSeatingRoute(
-                      classId: widget.classId,
-                      students: widget.students,
-                    ),
-                  )),
+                _SeatingDesignerToolBand(
+                  child: SeatingToolbar(
+                    layouts: layouts,
+                    activeLayoutId: active.layoutId,
+                    designMode: _designMode,
+                    onToggleDesignMode: () =>
+                        setState(() => _designMode = !_designMode),
+                    onSelectLayout: (id) =>
+                        service.selectLayout(widget.classId, id),
+                    onAddLayout: () => _promptNewLayout(context, service),
+                    onDuplicateLayout: () => _duplicateLayout(service, active),
+                    onApplyTemplate: (template) => service.applyTemplate(
+                        widget.classId, template, widget.students.length),
+                    onAddRectTable: () => service.addTable(
+                        widget.classId, SeatingTableType.rectangular,
+                        seatCount: 4),
+                    onAddSquareTable: () => service.addTable(
+                        widget.classId, SeatingTableType.square,
+                        seatCount: 4),
+                    onAddDesk: () => service.addTable(
+                        widget.classId, SeatingTableType.singleDesk,
+                        seatCount: 1),
+                    onAddTeacherDesk: () => service.addTable(
+                        widget.classId, SeatingTableType.teacherDesk,
+                        seatCount: 0),
+                    onRenameLayout: () =>
+                        _promptRenameLayout(context, service, active),
+                    onClearRoom: () =>
+                        _confirmClearRoom(context, service, active),
+                    onDeleteLayout: () =>
+                        _confirmDeleteLayout(context, service, layouts, active),
+                    onRoomSettings: () =>
+                        _promptRoomSettings(context, service, active),
+                    onAutoAssign: () =>
+                        _autoAssignStudents(context, service, active),
+                    onShuffleSeating: () =>
+                        _shuffleSeating(context, service, active),
+                    onClearAssignments: () =>
+                        _confirmClearAssignments(context, service, active),
+                    onPickStudent: () => _showStudentPicker(
+                        context, service, active, studentsById),
+                    onOpenRoomSetups: widget.onOpenRoomSetups,
+                    onPreviewPdf: widget.onPreviewPdf,
+                    onPrint: widget.onPrint,
+                    onDownload: widget.onDownload,
+                    webMode: widget.webMode,
+                    showFullScreenButton: widget.showFullScreenButton,
+                    onFullScreen: () =>
+                        Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => _FullScreenSeatingRoute(
+                        classId: widget.classId,
+                        students: widget.students,
+                      ),
+                    )),
+                  ),
                 ),
                 if (widget.showUseHint && _designMode) ...[
                   const SizedBox(height: 6),
@@ -231,70 +233,81 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     SeatingLayout active,
     Map<String, Student> studentsById,
   ) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-      child: SeatingCanvas(
-        layout: active,
-        studentsById: studentsById,
-        designMode: _designMode,
-        interactive: true,
-        presentationMode: widget.presentationMode,
-        onMoveTable: (tableId, delta) =>
-            service.moveTable(widget.classId, tableId, delta.dx, delta.dy),
-        onRemoveTable: (tableId) =>
-            service.removeTable(widget.classId, tableId),
-        onUpdateTable: (tableId, type, seatCount) => service.updateTable(
-            widget.classId, tableId,
-            type: type, seatCount: seatCount),
-        onRotateTable: (tableId) =>
-            service.rotateTable(widget.classId, tableId),
-        onResizeTable: (tableId, delta) =>
-            service.resizeTable(widget.classId, tableId, delta.dx, delta.dy),
-        onMoveSeat: (seatId, delta) =>
-            service.moveSeat(widget.classId, seatId, delta.dx, delta.dy),
-        onEditTable: (tableId) => _promptEditTable(
-          context,
-          service,
-          active,
-          tableId,
+        color: theme.colorScheme.surface.withValues(
+          alpha: isDark ? 0.26 : 0.56,
         ),
-        onDuplicateTable: (tableId) =>
-            service.duplicateTable(widget.classId, tableId),
-        onTableDrop: (tableId, data) {
-          service
-              .assignStudentToTable(
-            widget.classId,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(
+            alpha: isDark ? 0.26 : 0.18,
+          ),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SeatingCanvas(
+          layout: active,
+          studentsById: studentsById,
+          designMode: _designMode,
+          interactive: true,
+          presentationMode: widget.presentationMode,
+          onMoveTable: (tableId, delta) =>
+              service.moveTable(widget.classId, tableId, delta.dx, delta.dy),
+          onRemoveTable: (tableId) =>
+              service.removeTable(widget.classId, tableId),
+          onUpdateTable: (tableId, type, seatCount) => service.updateTable(
+              widget.classId, tableId,
+              type: type, seatCount: seatCount),
+          onRotateTable: (tableId) =>
+              service.rotateTable(widget.classId, tableId),
+          onResizeTable: (tableId, delta) =>
+              service.resizeTable(widget.classId, tableId, delta.dx, delta.dy),
+          onMoveSeat: (seatId, delta) =>
+              service.moveSeat(widget.classId, seatId, delta.dx, delta.dy),
+          onEditTable: (tableId) => _promptEditTable(
+            context,
+            service,
+            active,
             tableId,
+          ),
+          onDuplicateTable: (tableId) =>
+              service.duplicateTable(widget.classId, tableId),
+          onTableDrop: (tableId, data) {
+            service
+                .assignStudentToTable(
+              widget.classId,
+              tableId,
+              data.studentId,
+              fromSeatId: data.fromSeatId,
+            )
+                .then((assigned) {
+              if (assigned || !context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'That table is full. Drop onto a specific seat to swap students.',
+                  ),
+                ),
+              );
+            });
+          },
+          onSeatDrop: (seatId, data) => service.assignStudentToSeat(
+            widget.classId,
+            seatId,
             data.studentId,
             fromSeatId: data.fromSeatId,
-          )
-              .then((assigned) {
-            if (assigned || !context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'That table is full. Drop onto a specific seat to swap students.',
-                ),
-              ),
-            );
-          });
-        },
-        onSeatDrop: (seatId, data) => service.assignStudentToSeat(
-          widget.classId,
-          seatId,
-          data.studentId,
-          fromSeatId: data.fromSeatId,
-        ),
-        onSeatTap: (seatId) => _showSeatActions(
-          context,
-          service,
-          active,
-          seatId,
-          studentsById,
+          ),
+          onSeatTap: (seatId) => _showSeatActions(
+            context,
+            service,
+            active,
+            seatId,
+            studentsById,
+          ),
         ),
       ),
     );
@@ -1291,6 +1304,74 @@ const List<SeatingTableType> _editableTableTypes = [
   SeatingTableType.longDouble,
 ];
 
+class _SeatingDesignerToolBand extends StatelessWidget {
+  const _SeatingDesignerToolBand({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return SizedBox(
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: theme.colorScheme.surface.withValues(
+            alpha: isDark ? 0.24 : 0.48,
+          ),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(
+              alpha: isDark ? 0.24 : 0.18,
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _SeatingHintShell extends StatelessWidget {
+  const _SeatingHintShell({
+    required this.icon,
+    required this.child,
+  });
+
+  final IconData icon;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: scheme.outline.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: scheme.primary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: child),
+        ],
+      ),
+    );
+  }
+}
+
 class _StatusChip extends StatelessWidget {
   final String label;
   final Color color;
@@ -1326,32 +1407,15 @@ class _EditRoomHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.tune,
-            size: 18,
-            color: scheme.primary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              hasSeats
-                  ? 'Edit room is on. Use Add furniture for new items, duplicate from the seat or table menus, and drag handles to place everything.'
-                  : 'Edit room is on. Use Add furniture to start building the room, then drag tables and seats where you want them.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+    return _SeatingHintShell(
+      icon: Icons.tune,
+      child: Text(
+        hasSeats
+            ? 'Edit room is on. Use Add furniture for new items, duplicate from the seat or table menus, and drag handles to place everything.'
+            : 'Edit room is on. Use Add furniture to start building the room, then drag tables and seats where you want them.',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
             ),
-          ),
-        ],
       ),
     );
   }
@@ -1363,30 +1427,13 @@ class _SeatingUseHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.swap_horiz,
-            size: 18,
-            color: scheme.primary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Drag a student onto any seat to swap places, or onto a table to use its next empty seat. Tap a seat to lock it before shuffling.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+    return _SeatingHintShell(
+      icon: Icons.swap_horiz,
+      child: Text(
+        'Drag a student onto any seat to swap places, or onto a table to use its next empty seat. Tap a seat to lock it before shuffling.',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
             ),
-          ),
-        ],
       ),
     );
   }

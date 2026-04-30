@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
@@ -11,7 +12,6 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/models/student_score.dart';
 import 'package:gradeflow/models/grading_category.dart';
-import 'package:gradeflow/components/tool_first_app_surface.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/theme.dart';
@@ -709,9 +709,10 @@ class _GradebookScreenState extends State<GradebookScreen> {
         if (didPop) return;
         await _leaveToClassWorkspace();
       },
-      child: ToolFirstAppSurface(
-        eyebrow: 'Class gradebook',
+      child: _GradebookNativeSurface(
+        eyebrow: 'Class workspace',
         title: classItem?.className ?? 'Gradebook',
+        toolLabel: 'Gradebook',
         subtitle: classItem != null
             ? '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}'
             : 'Enter scores for students',
@@ -904,7 +905,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
                 },
         ),
         workspace: selectedGradeItem == null
-            ? const WorkspaceEmptyState(
+            ? const _GradebookInlineEmptyState(
                 icon: Icons.edit_note_outlined,
                 title: 'Select a grade item',
                 subtitle:
@@ -994,6 +995,376 @@ class _GradebookScreenState extends State<GradebookScreen> {
   }
 }
 
+InputDecoration _gradebookFieldDecoration(
+  BuildContext context, {
+  required String labelText,
+  IconData? icon,
+  String? suffixText,
+}) {
+  final theme = Theme.of(context);
+  final isDark = theme.brightness == Brightness.dark;
+  final borderRadius = BorderRadius.circular(8);
+  final baseBorder = OutlineInputBorder(
+    borderRadius: borderRadius,
+    borderSide: BorderSide(
+      color: theme.colorScheme.outline.withValues(alpha: isDark ? 0.30 : 0.22),
+    ),
+  );
+
+  return InputDecoration(
+    labelText: labelText,
+    suffixText: suffixText,
+    prefixIcon: icon == null ? null : Icon(icon, size: 18),
+    prefixIconConstraints: const BoxConstraints(minWidth: 36),
+    isDense: true,
+    filled: true,
+    fillColor: theme.colorScheme.surface.withValues(
+      alpha: isDark ? 0.22 : 0.54,
+    ),
+    border: baseBorder,
+    enabledBorder: baseBorder,
+    focusedBorder: OutlineInputBorder(
+      borderRadius: borderRadius,
+      borderSide: BorderSide(
+        color: theme.colorScheme.primary.withValues(alpha: 0.62),
+        width: 1.2,
+      ),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  );
+}
+
+class _GradebookNativeSurface extends StatelessWidget {
+  const _GradebookNativeSurface({
+    required this.eyebrow,
+    required this.title,
+    required this.toolLabel,
+    required this.workspace,
+    this.subtitle,
+    this.leading,
+    this.contextStrip,
+    this.toolbar,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String toolLabel;
+  final String? subtitle;
+  final Widget? leading;
+  final Widget? contextStrip;
+  final Widget? toolbar;
+  final Widget workspace;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: AnimatedPageBackground(
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1480),
+              child: Padding(
+                padding: WorkspaceSpacing.shellMargin,
+                child: WorkspaceShellFrame(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                  radius: WorkspaceRadius.shell,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _GradebookNativeHeader(
+                        eyebrow: eyebrow,
+                        title: title,
+                        toolLabel: toolLabel,
+                        subtitle: subtitle,
+                        leading: leading,
+                      ),
+                      const SizedBox(height: WorkspaceSpacing.sm),
+                      _GradebookCommandStrip(
+                        contextStrip: contextStrip,
+                        toolbar: toolbar,
+                      ),
+                      const SizedBox(height: WorkspaceSpacing.md),
+                      Expanded(child: workspace),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GradebookNativeHeader extends StatelessWidget {
+  const _GradebookNativeHeader({
+    required this.eyebrow,
+    required this.title,
+    required this.toolLabel,
+    this.subtitle,
+    this.leading,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String toolLabel;
+  final String? subtitle;
+  final Widget? leading;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final toolBadge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: theme.colorScheme.primary.withValues(alpha: 0.11),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.menu_book_rounded,
+            size: 16,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            toolLabel,
+            style: context.textStyles.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: theme.colorScheme.primary,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final iconTile = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      child: Icon(
+        Icons.fact_check_outlined,
+        color: theme.colorScheme.primary,
+        size: 23,
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 760;
+        final copy = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  eyebrow.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: WorkspaceTypography.eyebrow(context),
+                ),
+                toolBadge,
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              title,
+              maxLines: narrow ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+            ),
+            if ((subtitle ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(
+                subtitle!,
+                maxLines: narrow ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.textStyles.bodyMedium?.copyWith(
+                  color: WorkspaceChrome.mutedText(context),
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ],
+        );
+
+        final leadingCluster = Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (leading != null) ...[
+              leading!,
+              const SizedBox(width: WorkspaceSpacing.sm),
+            ],
+            iconTile,
+          ],
+        );
+
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              leadingCluster,
+              const SizedBox(height: WorkspaceSpacing.sm),
+              copy,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            leadingCluster,
+            const SizedBox(width: WorkspaceSpacing.md),
+            Expanded(child: copy),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _GradebookCommandStrip extends StatelessWidget {
+  const _GradebookCommandStrip({
+    this.contextStrip,
+    this.toolbar,
+  });
+
+  final Widget? contextStrip;
+  final Widget? toolbar;
+
+  @override
+  Widget build(BuildContext context) {
+    if (contextStrip == null && toolbar == null) {
+      return const SizedBox.shrink();
+    }
+
+    return WorkspaceCommandBand(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 980;
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (contextStrip != null) contextStrip!,
+                if (contextStrip != null && toolbar != null)
+                  const SizedBox(height: WorkspaceSpacing.xs),
+                if (toolbar != null) toolbar!,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              if (contextStrip != null) Expanded(child: contextStrip!),
+              if (contextStrip != null && toolbar != null)
+                const SizedBox(width: WorkspaceSpacing.sm),
+              if (toolbar != null) Flexible(flex: 2, child: toolbar!),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _GradebookFlatSurface extends StatelessWidget {
+  const _GradebookFlatSurface({
+    required this.child,
+    this.padding = const EdgeInsets.all(12),
+    this.onTap,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceFlatSurface(
+      padding: padding,
+      onTap: onTap,
+      child: child,
+    );
+  }
+}
+
+class _GradebookInlineEmptyState extends StatelessWidget {
+  const _GradebookInlineEmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                ),
+              ),
+              child: Icon(icon, size: 28, color: theme.colorScheme.primary),
+            ),
+            const SizedBox(height: WorkspaceSpacing.md),
+            Text(
+              title,
+              style: context.textStyles.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: WorkspaceTypography.metadata(context),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CompactGradebookContextStrip extends StatelessWidget {
   const _CompactGradebookContextStrip({
     required this.studentCount,
@@ -1076,12 +1447,10 @@ class _CompactGradebookToolbar extends StatelessWidget {
               child: DropdownButtonFormField<String>(
                 initialValue: selectedCategoryId,
                 isExpanded: true,
-                decoration: const InputDecoration(
+                decoration: _gradebookFieldDecoration(
+                  context,
                   labelText: 'Category',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  icon: Icons.category_outlined,
                 ),
                 items: [
                   for (final cat in categories)
@@ -1104,12 +1473,10 @@ class _CompactGradebookToolbar extends StatelessWidget {
               child: DropdownButtonFormField<String>(
                 initialValue: selectedGradeItemId,
                 isExpanded: true,
-                decoration: const InputDecoration(
+                decoration: _gradebookFieldDecoration(
+                  context,
                   labelText: 'Assessment',
-                  isDense: true,
-                  border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  icon: Icons.assignment_turned_in_outlined,
                 ),
                 items: [
                   for (final item in categoryItems)
@@ -1181,44 +1548,69 @@ class _GradebookActiveContextCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WorkspaceContextBar(
+    final syncPill = WorkspaceContextPill(
+      icon: syncStatus == 'Synced' ? Icons.cloud_done_outlined : Icons.sync,
+      label: 'Sync',
+      value: syncStatus,
+      accent: syncStatus == 'Synced'
+          ? Theme.of(context).colorScheme.primary
+          : const Color(0xFFDAA85E),
+      emphasized: true,
+    );
+
+    return _GradebookFlatSurface(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      leading: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          WorkspaceContextPill(
-            icon: Icons.assignment_turned_in_outlined,
-            label: 'Assessment',
-            value: gradeItemName,
-            emphasized: true,
-          ),
-          if (categoryName != null)
-            WorkspaceContextPill(
-              icon: Icons.bookmark_outline,
-              label: 'Category',
-              value: categoryName!,
-            ),
-          WorkspaceContextPill(
-            icon: Icons.rule_folder_outlined,
-            label: 'Max score',
-            value: maxScore <= 1 ? '100' : maxScore.toStringAsFixed(0),
-          ),
-          WorkspaceContextPill(
-            icon: Icons.people_alt_outlined,
-            label: 'Roster',
-            value: '$studentCount students',
-          ),
-        ],
-      ),
-      trailing: WorkspaceContextPill(
-        icon: syncStatus == 'Synced' ? Icons.cloud_done_outlined : Icons.sync,
-        label: 'Sync',
-        value: syncStatus,
-        accent: syncStatus == 'Synced'
-            ? Theme.of(context).colorScheme.primary
-            : const Color(0xFFDAA85E),
-        emphasized: true,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 920;
+          final contextPills = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              WorkspaceContextPill(
+                icon: Icons.assignment_turned_in_outlined,
+                label: 'Assessment',
+                value: gradeItemName,
+                emphasized: true,
+              ),
+              if (categoryName != null)
+                WorkspaceContextPill(
+                  icon: Icons.bookmark_outline,
+                  label: 'Category',
+                  value: categoryName!,
+                ),
+              WorkspaceContextPill(
+                icon: Icons.rule_folder_outlined,
+                label: 'Max score',
+                value: maxScore <= 1 ? '100' : maxScore.toStringAsFixed(0),
+              ),
+              WorkspaceContextPill(
+                icon: Icons.people_alt_outlined,
+                label: 'Roster',
+                value: '$studentCount students',
+              ),
+            ],
+          );
+
+          if (narrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                contextPills,
+                const SizedBox(height: WorkspaceSpacing.xs),
+                syncPill,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: contextPills),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              syncPill,
+            ],
+          );
+        },
       ),
     );
   }
@@ -1327,188 +1719,179 @@ class _ScoreEntryRowState extends State<_ScoreEntryRow> {
     return Semantics(
       container: true,
       label: rowLabel,
-      child: WorkspaceSurfaceCard(
-        radius: WorkspaceRadius.cardCompact,
-        padding: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final narrow = constraints.maxWidth < 720;
-              final identity = Row(
-                children: [
-                  _StudentAvatar(
-                    photoBase64: widget.photoBase64,
-                    name: widget.studentName,
-                  ),
-                  const SizedBox(width: WorkspaceSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.studentName,
-                          style: context.textStyles.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+      child: _GradebookFlatSurface(
+        padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 720;
+            final identity = Row(
+              children: [
+                _StudentAvatar(
+                  photoBase64: widget.photoBase64,
+                  name: widget.studentName,
+                ),
+                const SizedBox(width: WorkspaceSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.studentName,
+                        style: context.textStyles.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          seatLabel == null
-                              ? 'ID: ${widget.studentId}'
-                              : 'ID: ${widget.studentId} / $seatLabel',
-                          style: WorkspaceTypography.utility(context)?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-
-              final input = SizedBox(
-                width: narrow ? double.infinity : 128,
-                child: Focus(
-                  focusNode: _focusNode,
-                  onFocusChange: (hasFocus) {
-                    if (!hasFocus) {
-                      widget.onCommit(showValidationMessage: true);
-                    }
-                  },
-                  child: TextField(
-                    controller: widget.controller,
-                    textAlign: TextAlign.end,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: 'Score',
-                      suffixText: '/ ${_formatGradebookScore(max)}',
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 11,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*\.?\d*'),
+                      const SizedBox(height: 2),
+                      Text(
+                        seatLabel == null
+                            ? 'ID: ${widget.studentId}'
+                            : 'ID: ${widget.studentId} / $seatLabel',
+                        style: WorkspaceTypography.utility(context)?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    onTap: () {
-                      final text = widget.controller.text;
-                      if (text.isEmpty) return;
-                      widget.controller.selection = TextSelection(
-                        baseOffset: 0,
-                        extentOffset: text.length,
-                      );
+                  ),
+                ),
+              ],
+            );
+
+            final input = SizedBox(
+              width: narrow ? double.infinity : 128,
+              child: Focus(
+                focusNode: _focusNode,
+                onFocusChange: (hasFocus) {
+                  if (!hasFocus) {
+                    widget.onCommit(showValidationMessage: true);
+                  }
+                },
+                child: TextField(
+                  controller: widget.controller,
+                  textAlign: TextAlign.end,
+                  textInputAction: TextInputAction.next,
+                  decoration: _gradebookFieldDecoration(
+                    context,
+                    labelText: 'Score',
+                    suffixText: '/ ${_formatGradebookScore(max)}',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*\.?\d*'),
+                    ),
+                  ],
+                  onTap: () {
+                    final text = widget.controller.text;
+                    if (text.isEmpty) return;
+                    widget.controller.selection = TextSelection(
+                      baseOffset: 0,
+                      extentOffset: text.length,
+                    );
+                  },
+                  onSubmitted: (_) {
+                    widget.onCommit(showValidationMessage: true);
+                    FocusScope.of(context).nextFocus();
+                  },
+                  onTapOutside: (_) => widget.onCommit(
+                    showValidationMessage: true,
+                  ),
+                ),
+              ),
+            );
+
+            final actions = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Clear score',
+                  icon: const Icon(Icons.backspace_outlined),
+                  onPressed: widget.onClear,
+                  style: WorkspaceButtonStyles.icon(context, compact: true),
+                ),
+                IconButton(
+                  tooltip: 'Quick grade',
+                  icon: const Icon(Icons.fact_check_outlined),
+                  onPressed: widget.onOpen,
+                  style: WorkspaceButtonStyles.icon(context, compact: true),
+                ),
+              ],
+            );
+
+            final sliderControl = Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    value: _sliderValue(max),
+                    min: 0,
+                    max: max,
+                    divisions: max > 0 ? max.round() : null,
+                    label: _formatGradebookScore(_sliderValue(max)),
+                    onChanged: (value) {
+                      _setControllerScore(value);
+                      setState(() {});
                     },
-                    onSubmitted: (_) {
-                      widget.onCommit(showValidationMessage: true);
-                      FocusScope.of(context).nextFocus();
-                    },
-                    onTapOutside: (_) => widget.onCommit(
+                    onChangeEnd: (_) => widget.onCommit(
                       showValidationMessage: true,
                     ),
                   ),
                 ),
-              );
-
-              final actions = Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: 'Clear score',
-                    icon: const Icon(Icons.backspace_outlined),
-                    onPressed: widget.onClear,
-                    style: WorkspaceButtonStyles.icon(context, compact: true),
-                  ),
-                  IconButton(
-                    tooltip: 'Quick grade',
-                    icon: const Icon(Icons.fact_check_outlined),
-                    onPressed: widget.onOpen,
-                    style: WorkspaceButtonStyles.icon(context, compact: true),
-                  ),
-                ],
-              );
-
-              final sliderControl = Row(
-                children: [
-                  Expanded(
-                    child: Slider(
-                      value: _sliderValue(max),
-                      min: 0,
-                      max: max,
-                      divisions: max > 0 ? max.round() : null,
-                      label: _formatGradebookScore(_sliderValue(max)),
-                      onChanged: (value) {
-                        _setControllerScore(value);
-                        setState(() {});
-                      },
-                      onChangeEnd: (_) => widget.onCommit(
-                        showValidationMessage: true,
-                      ),
+                SizedBox(
+                  width: 48,
+                  child: Text(
+                    _formatGradebookScore(_sliderValue(max)),
+                    textAlign: TextAlign.end,
+                    style: context.textStyles.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  SizedBox(
-                    width: 48,
-                    child: Text(
-                      _formatGradebookScore(_sliderValue(max)),
-                      textAlign: TextAlign.end,
-                      style: context.textStyles.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
+                ),
+              ],
+            );
+
+            final mainRow = narrow
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      identity,
+                      const SizedBox(height: WorkspaceSpacing.sm),
+                      Row(
+                        children: [
+                          Expanded(child: input),
+                          const SizedBox(width: WorkspaceSpacing.xs),
+                          actions,
+                        ],
                       ),
-                    ),
-                  ),
-                ],
-              );
+                      const SizedBox(height: WorkspaceSpacing.xs),
+                      sliderControl,
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(child: identity),
+                      const SizedBox(width: WorkspaceSpacing.md),
+                      SizedBox(
+                        width: constraints.maxWidth >= 980 ? 280 : 220,
+                        child: sliderControl,
+                      ),
+                      const SizedBox(width: WorkspaceSpacing.sm),
+                      input,
+                      const SizedBox(width: WorkspaceSpacing.xs),
+                      actions,
+                    ],
+                  );
 
-              final mainRow = narrow
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        identity,
-                        const SizedBox(height: WorkspaceSpacing.sm),
-                        Row(
-                          children: [
-                            Expanded(child: input),
-                            const SizedBox(width: WorkspaceSpacing.xs),
-                            actions,
-                          ],
-                        ),
-                        const SizedBox(height: WorkspaceSpacing.xs),
-                        sliderControl,
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(child: identity),
-                        const SizedBox(width: WorkspaceSpacing.md),
-                        SizedBox(
-                          width: constraints.maxWidth >= 980 ? 280 : 220,
-                          child: sliderControl,
-                        ),
-                        const SizedBox(width: WorkspaceSpacing.sm),
-                        input,
-                        const SizedBox(width: WorkspaceSpacing.xs),
-                        actions,
-                      ],
-                    );
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  mainRow,
-                ],
-              );
-            },
-          ),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                mainRow,
+              ],
+            );
+          },
         ),
       ),
     );
@@ -1568,118 +1951,114 @@ class _ScoreSliderRowState extends State<_ScoreSliderRow> {
     final min = 0.0;
     final display = (_value ?? max).toStringAsFixed(0);
     final divisions = max > min ? (max - min).round() : null;
-    return WorkspaceSurfaceCard(
-      radius: WorkspaceRadius.cardCompact,
+    return _GradebookFlatSurface(
+      onTap: widget.onOpen,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: InkWell(
-        onTap: widget.onOpen,
-        borderRadius: BorderRadius.circular(WorkspaceRadius.context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _StudentAvatar(
-                  photoBase64: widget.photoBase64,
-                  name: widget.studentName,
-                ),
-                const SizedBox(width: WorkspaceSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.studentName,
-                        style: context.textStyles.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _StudentAvatar(
+                photoBase64: widget.photoBase64,
+                name: widget.studentName,
+              ),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.studentName,
+                      style: context.textStyles.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        'ID: ${widget.studentId}${widget.seatNo != null ? ' • Seat ${widget.seatNo}' : ''}',
-                        style: WorkspaceTypography.utility(context)?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'ID: ${widget.studentId}${widget.seatNo != null ? ' • Seat ${widget.seatNo}' : ''}',
+                      style: WorkspaceTypography.utility(context)?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                    ],
-                  ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: WorkspaceSpacing.sm),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(WorkspaceRadius.button),
+              ),
+              const SizedBox(width: WorkspaceSpacing.sm),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(WorkspaceRadius.button),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.10),
+                  border: Border.all(
                     color: Theme.of(context)
                         .colorScheme
                         .primary
-                        .withValues(alpha: 0.10),
-                    border: Border.all(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.18),
-                    ),
-                  ),
-                  child: Text(
-                    '$display / ${max.toStringAsFixed(0)}',
-                    style: WorkspaceTypography.pillValue(
-                      context,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                        .withValues(alpha: 0.18),
                   ),
                 ),
-                const SizedBox(width: WorkspaceSpacing.xs),
-                IconButton(
-                  tooltip: 'Clear score',
-                  icon: const Icon(Icons.backspace_outlined),
-                  onPressed: () {
-                    setState(() => _value = null);
-                    widget.onClear();
-                  },
-                  style: WorkspaceButtonStyles.icon(context, compact: true),
-                ),
-                IconButton(
-                  tooltip: 'Quick grade',
-                  icon: const Icon(Icons.chevron_right_rounded),
-                  onPressed: widget.onOpen,
-                  style: WorkspaceButtonStyles.icon(context, compact: true),
-                ),
-              ],
-            ),
-            const SizedBox(height: WorkspaceSpacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: (_value ?? max).clamp(min, max),
-                    min: min,
-                    max: max,
-                    divisions: divisions,
-                    label: display,
-                    onChanged: (v) => setState(() => _value = v),
-                    onChangeEnd: (v) => widget.onChanged(v),
+                child: Text(
+                  '$display / ${max.toStringAsFixed(0)}',
+                  style: WorkspaceTypography.pillValue(
+                    context,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
-                const SizedBox(width: WorkspaceSpacing.md),
-                SizedBox(
-                  width: 52,
-                  child: Text(
-                    display,
-                    textAlign: TextAlign.end,
-                    style: context.textStyles.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+              ),
+              const SizedBox(width: WorkspaceSpacing.xs),
+              IconButton(
+                tooltip: 'Clear score',
+                icon: const Icon(Icons.backspace_outlined),
+                onPressed: () {
+                  setState(() => _value = null);
+                  widget.onClear();
+                },
+                style: WorkspaceButtonStyles.icon(context, compact: true),
+              ),
+              IconButton(
+                tooltip: 'Quick grade',
+                icon: const Icon(Icons.chevron_right_rounded),
+                onPressed: widget.onOpen,
+                style: WorkspaceButtonStyles.icon(context, compact: true),
+              ),
+            ],
+          ),
+          const SizedBox(height: WorkspaceSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: Slider(
+                  value: (_value ?? max).clamp(min, max),
+                  min: min,
+                  max: max,
+                  divisions: divisions,
+                  label: display,
+                  onChanged: (v) => setState(() => _value = v),
+                  onChangeEnd: (v) => widget.onChanged(v),
+                ),
+              ),
+              const SizedBox(width: WorkspaceSpacing.md),
+              SizedBox(
+                width: 52,
+                child: Text(
+                  display,
+                  textAlign: TextAlign.end,
+                  style: context.textStyles.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1965,9 +2344,8 @@ class _StudentScoreSheetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final max = _gradebookMaxScore(item.maxScore);
-    return WorkspaceSurfaceCard(
+    return _GradebookFlatSurface(
       padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
-      radius: WorkspaceRadius.cardCompact,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 620;
@@ -1995,15 +2373,10 @@ class _StudentScoreSheetRow extends StatelessWidget {
               controller: controller,
               focusNode: focusNode,
               textAlign: TextAlign.end,
-              decoration: InputDecoration(
+              decoration: _gradebookFieldDecoration(
+                context,
                 labelText: 'Score',
                 suffixText: '/ ${_formatGradebookScore(max)}',
-                border: const OutlineInputBorder(),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 11,
-                ),
               ),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),

@@ -104,23 +104,23 @@ export async function ensureDemoSignedIn(page: Page) {
   };
 
   const isSignedInRoute = () =>
-    /^\/(?:dashboard|os\/home|os\/class\/[^/?#]+|class\/[^/?#]+)(?:\/|$)/i.test(
+    /^\/(?:dashboard|os\/home|os\/planner|os\/class\/[^/?#]+|class\/[^/?#]+)(?:\/|$)/i.test(
       currentAppPath(),
     );
 
   const isSignedInSurfaceVisible = async () =>
     (await anyLocatorVisible(
       [
-        page.getByText(/Command deck|Teacher cockpit/i).first(),
+        page.getByText(/Command deck|Teacher cockpit|Planner/i).first(),
         page.getByRole("button", { name: /^Classes\b/i }).last(),
-        page.getByRole("button", { name: /^Studio\b/i }).last(),
+        page.getByRole("button", { name: /^Planner\b/i }).last(),
         page.getByRole("button", { name: /^Home$/i }).first(),
         page.getByText(/HOME STAGE|Class workspace|Loading workspace shell/i).first(),
         page.getByRole("button", { name: /^Teach Mode$/i }).first(),
       ],
       1_000,
     )) ||
-    /HOME STAGE|Class workspace|GradeFlow OS|Pinned apps|Class spaces/i.test(
+    /HOME STAGE|Planner|Class workspace|GradeFlow OS|Pinned apps|Class spaces/i.test(
       await page
         .locator("body")
         .innerText({ timeout: 1_000 })
@@ -206,10 +206,11 @@ export async function expectDashboardShell(page: Page) {
   }
 
   const requiredNavVariants: RegExp[] = [
+    /^Home\b/i,
+    /^Planner\b/i,
     /^Classes\b/i,
-    /^(Studio|Class tools)\b/i,
-    /^(Schedule|Planning)\b/i,
-    /^Messages\b/i,
+    /^Theme\b/i,
+    /^All Apps\b/i,
   ];
 
   for (const pattern of requiredNavVariants) {

@@ -35,6 +35,9 @@ class TeacherWhiteboardScreen extends StatelessWidget {
       case OSSurface.teach:
         context.go(AppRoutes.osTeach);
         return;
+      case OSSurface.planner:
+        context.go(AppRoutes.osPlanner);
+        return;
       case OSSurface.home:
       case OSSurface.other:
         context.go(AppRoutes.osHome);

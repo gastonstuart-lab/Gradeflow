@@ -36,7 +36,10 @@ class _ClassSurfaceState extends State<ClassSurface>
 
   static const _tabDefs = [
     _TabDef(icon: Icons.dashboard_outlined, label: 'Overview'),
+    _TabDef(icon: Icons.event_note_outlined, label: 'Schedule'),
     _TabDef(icon: Icons.menu_book_rounded, label: 'Gradebook'),
+    _TabDef(icon: Icons.description_outlined, label: 'Exams'),
+    _TabDef(icon: Icons.assessment_outlined, label: 'Results'),
     _TabDef(icon: Icons.event_seat_rounded, label: 'Seating'),
     _TabDef(icon: Icons.people_rounded, label: 'Students'),
     _TabDef(icon: Icons.picture_as_pdf_rounded, label: 'Export'),
@@ -204,61 +207,85 @@ class _ClassSurfaceState extends State<ClassSurface>
                       ),
                       const SizedBox(height: WorkspaceSpacing.lg),
                       Expanded(
-                        child: CommandSurfaceCard(
-                          surfaceType: SurfaceType.stage,
-                          radius: WorkspaceRadius.hero,
-                          padding: EdgeInsets.zero,
-                          expandChild: true,
-                          child: TabBarView(
-                            controller: _tabs,
-                            children: [
-                              _ClassOverviewTab(
-                                classId: widget.classId,
-                                className: classModel.className,
-                                onNavigate: (route) => context.go(route),
+                        child: TabBarView(
+                          controller: _tabs,
+                          children: [
+                            _ClassOverviewTab(
+                              classId: widget.classId,
+                              className: classModel.className,
+                              onNavigate: (route) => context.go(route),
+                            ),
+                            _ClassToolTab(
+                              icon: Icons.event_note_outlined,
+                              title: 'Schedule',
+                              description:
+                                  'Upload class schedules, syllabus tables, and dated planning context for this class.',
+                              action: 'Manage schedule',
+                              onTap: () => context.go(
+                                AppRoutes.osClassSchedule(widget.classId),
                               ),
-                              _ClassToolTab(
-                                icon: Icons.menu_book_rounded,
-                                title: 'Gradebook',
-                                description:
-                                    'Manage assessments, scoring, and classroom grading context.',
-                                action: 'Open gradebook',
-                                onTap: () => context.go(
-                                  '${AppRoutes.classDetail}/${widget.classId}/gradebook',
-                                ),
+                            ),
+                            _ClassToolTab(
+                              icon: Icons.menu_book_rounded,
+                              title: 'Gradebook',
+                              description:
+                                  'Manage assessments, scoring, and classroom grading context.',
+                              action: 'Open gradebook',
+                              onTap: () => context.go(
+                                AppRoutes.osClassGradebook(widget.classId),
                               ),
-                              _ClassToolTab(
-                                icon: Icons.event_seat_rounded,
-                                title: 'Seating',
-                                description:
-                                    'Adjust layouts, room setups, and student placement for this class.',
-                                action: 'Open seating',
-                                onTap: () => context.go(
-                                  '${AppRoutes.classDetail}/${widget.classId}/seating',
-                                ),
+                            ),
+                            _ClassToolTab(
+                              icon: Icons.description_outlined,
+                              title: 'Exam Scores',
+                              description:
+                                  'Import, review, and correct final exam scores for this class roster.',
+                              action: 'Import exam scores',
+                              onTap: () => context.go(
+                                AppRoutes.osClassExams(widget.classId),
                               ),
-                              _ClassToolTab(
-                                icon: Icons.people_rounded,
-                                title: 'Students',
-                                description:
-                                    'Review roster details, notes, and class-specific student records.',
-                                action: 'Open students',
-                                onTap: () => context.go(
-                                  '${AppRoutes.classDetail}/${widget.classId}/students',
-                                ),
+                            ),
+                            _ClassToolTab(
+                              icon: Icons.assessment_outlined,
+                              title: 'Final Results',
+                              description:
+                                  'Review process marks, exam scores, and final outcomes in one place.',
+                              action: 'Open results',
+                              onTap: () => context.go(
+                                AppRoutes.osClassResults(widget.classId),
                               ),
-                              _ClassToolTab(
-                                icon: Icons.picture_as_pdf_rounded,
-                                title: 'Export',
-                                description:
-                                    'Prepare printable or shareable class outputs without leaving this context.',
-                                action: 'Open export',
-                                onTap: () => context.go(
-                                  '${AppRoutes.classDetail}/${widget.classId}/export',
-                                ),
+                            ),
+                            _ClassToolTab(
+                              icon: Icons.event_seat_rounded,
+                              title: 'Seating',
+                              description:
+                                  'Adjust layouts, room setups, and student placement for this class.',
+                              action: 'Open seating',
+                              onTap: () => context.go(
+                                AppRoutes.osClassSeating(widget.classId),
                               ),
-                            ],
-                          ),
+                            ),
+                            _ClassToolTab(
+                              icon: Icons.people_rounded,
+                              title: 'Students',
+                              description:
+                                  'Review roster details, notes, and class-specific student records.',
+                              action: 'Open students',
+                              onTap: () => context.go(
+                                AppRoutes.osClassStudents(widget.classId),
+                              ),
+                            ),
+                            _ClassToolTab(
+                              icon: Icons.picture_as_pdf_rounded,
+                              title: 'Export',
+                              description:
+                                  'Prepare printable or shareable class outputs without leaving this context.',
+                              action: 'Open export',
+                              onTap: () => context.go(
+                                AppRoutes.osClassExport(widget.classId),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -314,9 +341,9 @@ class _ClassHeader extends StatelessWidget {
             : 'Planning setup still needed';
 
     final actionButton = FilledButton.icon(
-      onPressed: () => context.go('${AppRoutes.classDetail}/$classId'),
+      onPressed: () => context.go(AppRoutes.osClassSchedule(classId)),
       icon: const Icon(Icons.open_in_new_rounded),
-      label: const Text('Planning & details'),
+      label: const Text('Schedule & details'),
       style: WorkspaceButtonStyles.filled(context),
     );
 
@@ -421,56 +448,64 @@ class _ClassTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return CommandSurfaceCard(
-      surfaceType: SurfaceType.whisper,
-      radius: WorkspaceRadius.band,
-      padding: const EdgeInsets.all(6),
-      child: SizedBox(
-        height: 52,
-        child: TabBar(
-          controller: controller,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          dividerColor: Colors.transparent,
-          labelColor: theme.colorScheme.onSurface,
-          unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-          labelStyle: context.textStyles.labelLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
-          unselectedLabelStyle: context.textStyles.labelLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-          overlayColor: WidgetStatePropertyAll(
-            theme.colorScheme.primary.withValues(alpha: 0.06),
-          ),
-          indicatorSize: TabBarIndicatorSize.tab,
-          indicator: BoxDecoration(
-            borderRadius: BorderRadius.circular(WorkspaceRadius.context),
-            color: theme.colorScheme.primary.withValues(alpha: 0.14),
-            border: Border.all(
-              color: theme.colorScheme.primary.withValues(alpha: 0.18),
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(WorkspaceRadius.band),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.14),
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(WorkspaceRadius.context),
+        child: SizedBox(
+          height: 52,
+          child: TabBar(
+            controller: controller,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            dividerColor: Colors.transparent,
+            labelColor: theme.colorScheme.onSurface,
+            unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+            labelStyle: context.textStyles.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
-          ),
-          tabs: tabs
-              .map(
-                (tab) => Tab(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(tab.icon, size: 16),
-                        const SizedBox(width: 6),
-                        Text(tab.label),
-                      ],
+            unselectedLabelStyle: context.textStyles.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+            overlayColor: WidgetStatePropertyAll(
+              theme.colorScheme.primary.withValues(alpha: 0.06),
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicator: BoxDecoration(
+              borderRadius: BorderRadius.circular(WorkspaceRadius.context),
+              color: theme.colorScheme.primary.withValues(alpha: 0.14),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.18),
+              ),
+            ),
+            tabs: tabs
+                .map(
+                  (tab) => Tab(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(tab.icon, size: 16),
+                          const SizedBox(width: 6),
+                          Text(tab.label),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              )
-              .toList(),
+                )
+                .toList(),
+          ),
         ),
       ),
     );
@@ -492,46 +527,60 @@ class _ClassOverviewTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final tools = [
       _ClassToolLink(
+        icon: Icons.event_note_outlined,
+        label: 'Schedule',
+        subtitle: 'Upload class schedule files and dated planning context.',
+        color: Color(0xFF58C78B),
+        route: AppRoutes.osClassSchedule(classId),
+      ),
+      _ClassToolLink(
         icon: Icons.menu_book_rounded,
         label: 'Gradebook',
         subtitle: 'Assessments, categories, and daily scoring.',
         color: Color(0xFFE38B5B),
-        route: '${AppRoutes.classDetail}/$classId/gradebook',
+        route: AppRoutes.osClassGradebook(classId),
+      ),
+      _ClassToolLink(
+        icon: Icons.description_outlined,
+        label: 'Exam Scores',
+        subtitle: 'Import final exam scores for this roster.',
+        color: Color(0xFF9A7AE8),
+        route: AppRoutes.osClassExams(classId),
+      ),
+      _ClassToolLink(
+        icon: Icons.assessment_outlined,
+        label: 'Final Results',
+        subtitle: 'Review process, exam, and final outcomes together.',
+        color: Color(0xFF6F86E8),
+        route: AppRoutes.osClassResults(classId),
       ),
       _ClassToolLink(
         icon: Icons.event_seat_rounded,
         label: 'Seating',
         subtitle: 'Layouts, room setups, and seat placement.',
         color: Color(0xFFDAA85E),
-        route: '${AppRoutes.classDetail}/$classId/seating',
+        route: AppRoutes.osClassSeating(classId),
       ),
       _ClassToolLink(
         icon: Icons.people_rounded,
         label: 'Students',
         subtitle: 'Roster details, notes, and class records.',
         color: Color(0xFF4C9B7A),
-        route: '${AppRoutes.classDetail}/$classId/students',
+        route: AppRoutes.osClassStudents(classId),
       ),
       _ClassToolLink(
         icon: Icons.picture_as_pdf_rounded,
         label: 'Export',
         subtitle: 'Shareable packets, printouts, and outputs.',
         color: Color(0xFF5EC7E6),
-        route: '${AppRoutes.classDetail}/$classId/export',
-      ),
-      _ClassToolLink(
-        icon: Icons.grade_rounded,
-        label: 'Final Results',
-        subtitle: 'End-of-term summaries and outcome review.',
-        color: Color(0xFF6F86E8),
-        route: '${AppRoutes.classDetail}/$classId/results',
+        route: AppRoutes.osClassExport(classId),
       ),
       _ClassToolLink(
         icon: Icons.folder_open_rounded,
-        label: 'Planning & Details',
-        subtitle: 'Open class notes, schedule, and the broader detail surface.',
+        label: 'Schedule & Details',
+        subtitle: 'Open class notes, schedule, and setup for this class.',
         color: Color(0xFF3E7EDB),
-        route: '${AppRoutes.classDetail}/$classId',
+        route: AppRoutes.osClassSchedule(classId),
       ),
     ];
 
@@ -605,45 +654,48 @@ class _ClassOverviewToolCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CommandSurfaceCard(
-      surfaceType: SurfaceType.tool,
-      radius: WorkspaceRadius.card,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+    final theme = Theme.of(context);
+
+    return WorkspaceFlatSurface(
       onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(WorkspaceRadius.button),
+              borderRadius: BorderRadius.circular(8),
               color: tool.color.withValues(alpha: 0.14),
-              border: Border.all(
-                color: tool.color.withValues(alpha: 0.20),
-              ),
             ),
             child: Icon(tool.icon, color: tool.color, size: 22),
           ),
-          const SizedBox(height: WorkspaceSpacing.lg),
-          Text(
-            tool.label,
-            style: WorkspaceTypography.sectionTitle(context)
-                ?.copyWith(fontSize: context.textStyles.titleSmall?.fontSize),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            tool.subtitle,
-            style: WorkspaceTypography.metadata(context),
-          ),
-          const SizedBox(height: WorkspaceSpacing.md),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Icon(
-              Icons.arrow_outward_rounded,
-              size: 18,
-              color: Theme.of(context).colorScheme.primary,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tool.label,
+                  style: context.textStyles.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  tool.subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: WorkspaceTypography.metadata(context),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(width: 10),
+          Icon(
+            Icons.arrow_outward_rounded,
+            size: 18,
+            color: theme.colorScheme.primary,
           ),
         ],
       ),
@@ -668,69 +720,147 @@ class _ClassToolTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(WorkspaceSpacing.xxxl),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: CommandSurfaceCard(
-            surfaceType: SurfaceType.tool,
-            radius: WorkspaceRadius.feature,
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 68,
-                  height: 68,
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          WorkspaceFlatSurface(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final narrow = constraints.maxWidth < 620;
+                final iconBox = Container(
+                  width: 54,
+                  height: 54,
                   decoration: BoxDecoration(
-                    borderRadius:
-                        BorderRadius.circular(WorkspaceRadius.cardCompact),
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.14),
-                    border: Border.all(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.18),
-                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.13),
                   ),
                   child: Icon(
                     icon,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 32,
+                    color: theme.colorScheme.primary,
+                    size: 28,
                   ),
-                ),
-                const SizedBox(height: WorkspaceSpacing.xxl),
-                Text(
-                  'DEDICATED WORKFLOW',
-                  style: WorkspaceTypography.eyebrow(context),
-                ),
-                const SizedBox(height: WorkspaceSpacing.xs),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: WorkspaceTypography.pageTitle(context),
-                ),
-                const SizedBox(height: WorkspaceSpacing.xs),
-                Text(
-                  description,
-                  textAlign: TextAlign.center,
-                  style: WorkspaceTypography.metadata(context),
-                ),
-                const SizedBox(height: WorkspaceSpacing.xxl),
-                FilledButton.icon(
+                );
+                final copy = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: context.textStyles.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      description,
+                      style: WorkspaceTypography.metadata(context),
+                    ),
+                  ],
+                );
+                final button = FilledButton.icon(
                   onPressed: onTap,
                   icon: const Icon(Icons.arrow_outward_rounded),
                   label: Text(action),
                   style: WorkspaceButtonStyles.filled(context),
-                ),
-              ],
+                );
+
+                if (narrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          iconBox,
+                          const SizedBox(width: 14),
+                          Expanded(child: copy),
+                        ],
+                      ),
+                      const SizedBox(height: WorkspaceSpacing.md),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: button,
+                      ),
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    iconBox,
+                    const SizedBox(width: 16),
+                    Expanded(child: copy),
+                    const SizedBox(width: 16),
+                    button,
+                  ],
+                );
+              },
             ),
           ),
+          const SizedBox(height: WorkspaceSpacing.lg),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: const [
+              _ClassToolAffordance(
+                icon: Icons.push_pin_outlined,
+                label: 'Class context stays pinned',
+              ),
+              _ClassToolAffordance(
+                icon: Icons.flash_on_outlined,
+                label: 'Opens immediately',
+              ),
+              _ClassToolAffordance(
+                icon: Icons.keyboard_return_rounded,
+                label: 'Back returns here',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClassToolAffordance extends StatelessWidget {
+  const _ClassToolAffordance({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(WorkspaceRadius.pill),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.10),
         ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: theme.colorScheme.primary),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: WorkspaceTypography.metadata(context)?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

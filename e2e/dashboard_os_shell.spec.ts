@@ -14,7 +14,7 @@ test('dashboard attention center and dock stay available on desktop', async ({
   });
   await expect(attentionButton).toBeVisible({ timeout: 60_000 });
 
-  for (const label of ['Classes', 'Studio', 'Messages', 'Teach', 'All Apps']) {
+  for (const label of ['Home', 'Planner', 'Classes', 'Theme', 'All Apps']) {
     await expect(
       page
           .getByRole('button', { name: new RegExp(`^${label}\\b`, 'i') })
