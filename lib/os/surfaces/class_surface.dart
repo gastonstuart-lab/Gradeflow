@@ -164,6 +164,7 @@ class _ClassSurfaceState extends State<ClassSurface>
                     classId: widget.classId,
                     className: className,
                     subject: subject,
+                    compact: isCompact,
                     onBack: _goBackHome,
                     onOpenFullView: () {
                       context.go('${AppRoutes.classDetail}/${widget.classId}');
@@ -354,6 +355,7 @@ class _ClassWorkspaceHero extends StatelessWidget {
     required this.classId,
     required this.className,
     required this.subject,
+    required this.compact,
     required this.onBack,
     required this.onOpenFullView,
   });
@@ -361,6 +363,7 @@ class _ClassWorkspaceHero extends StatelessWidget {
   final String classId;
   final String className;
   final String subject;
+  final bool compact;
   final VoidCallback onBack;
   final VoidCallback onOpenFullView;
 
@@ -375,7 +378,9 @@ class _ClassWorkspaceHero extends StatelessWidget {
 
     return GradeFlowPanel(
       variant: GradeFlowPanelVariant.stage,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: compact
+          ? const EdgeInsets.fromLTRB(14, 12, 14, 12)
+          : const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -394,13 +399,13 @@ class _ClassWorkspaceHero extends StatelessWidget {
                 ),
               ),
               GradeFlowActionChip(
-                label: 'View full class',
+                label: compact ? 'Full class' : 'View full class',
                 icon: Icons.open_in_new_rounded,
                 onPressed: onOpenFullView,
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: compact ? 8 : 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -410,11 +415,11 @@ class _ClassWorkspaceHero extends StatelessWidget {
                 iconSize: 18,
                 color: OSColors.textSubtle(dark),
                 style: IconButton.styleFrom(
-                  minimumSize: const Size(36, 36),
+                  minimumSize: Size(compact ? 32 : 36, compact ? 32 : 36),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: compact ? 6 : 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,31 +432,32 @@ class _ClassWorkspaceHero extends StatelessWidget {
                         Text(
                           className,
                           style: TextStyle(
-                            fontSize: 42,
+                            fontSize: compact ? 30 : 42,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: -1.2,
+                            letterSpacing: 0,
                             color: OSColors.textPrimary(dark),
                           ),
                         ),
                         Text(
                           subject,
                           style: TextStyle(
-                            fontSize: 42,
+                            fontSize: compact ? 30 : 42,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: -1.0,
+                            letterSpacing: 0,
                             color: OSColors.blueSoft,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: compact ? 6 : 8),
                     Wrap(
-                      spacing: 14,
-                      runSpacing: 6,
-                      children: const [
-                        _MetaItem(label: 'Term 2'),
-                        _MetaItem(label: 'Live now', accent: OSColors.green),
-                        _MetaItem(label: 'Class OS workspace'),
+                      spacing: compact ? 10 : 14,
+                      runSpacing: compact ? 4 : 6,
+                      children: [
+                        const _MetaItem(label: 'Term 2'),
+                        const _MetaItem(
+                            label: 'Live now', accent: OSColors.green),
+                        if (!compact) _MetaItem(label: 'Class OS workspace'),
                       ],
                     ),
                   ],
@@ -459,36 +465,40 @@ class _ClassWorkspaceHero extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              GradeFlowMetricPill(
-                icon: Icons.people_alt_outlined,
-                label: 'Students',
-                value: '$studentCount',
-                accent: OSColors.blue,
-              ),
-              const GradeFlowMetricPill(
-                icon: Icons.check_circle_outline,
-                label: 'Attendance',
-                value: '92%',
-                accent: OSColors.green,
-              ),
-              const GradeFlowMetricPill(
-                icon: Icons.insights_outlined,
-                label: 'Class average',
-                value: '84.3',
-                accent: OSColors.cyan,
-              ),
-              const GradeFlowMetricPill(
-                icon: Icons.assignment_turned_in_outlined,
-                label: 'Activities',
-                value: '12',
-                accent: OSColors.indigo,
-              ),
-            ],
+          SizedBox(height: compact ? 10 : 14),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                GradeFlowMetricPill(
+                  icon: Icons.people_alt_outlined,
+                  label: 'Students',
+                  value: '$studentCount',
+                  accent: OSColors.blue,
+                ),
+                const SizedBox(width: 10),
+                const GradeFlowMetricPill(
+                  icon: Icons.check_circle_outline,
+                  label: 'Attendance',
+                  value: '92%',
+                  accent: OSColors.green,
+                ),
+                const SizedBox(width: 10),
+                const GradeFlowMetricPill(
+                  icon: Icons.insights_outlined,
+                  label: 'Class average',
+                  value: '84.3',
+                  accent: OSColors.cyan,
+                ),
+                const SizedBox(width: 10),
+                const GradeFlowMetricPill(
+                  icon: Icons.assignment_turned_in_outlined,
+                  label: 'Activities',
+                  value: '12',
+                  accent: OSColors.indigo,
+                ),
+              ],
+            ),
           ),
         ],
       ),

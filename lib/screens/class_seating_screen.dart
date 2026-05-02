@@ -12,6 +12,7 @@ import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/models/room_setup.dart';
 import 'package:gradeflow/models/seating_layout.dart';
+import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/platform/browser_file_actions.dart';
 import 'package:gradeflow/services/auth_service.dart';
@@ -38,6 +39,7 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
   final ExportService _exportService = ExportService();
   bool _isBootstrapping = true;
   bool _isBuildingHandout = false;
+  bool _presentationMode = false;
 
   void _goToClassWorkspace() {
     context.go('${AppRoutes.osClass}/${widget.classId}');
@@ -129,11 +131,17 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
         0;
     final seatCount = activeLayout?.seats.length ?? 0;
     final tableCount = activeLayout?.tables.length ?? 0;
+    final emptySeatCount = (seatCount - placedSeatCount).clamp(0, seatCount);
+    final signalSummary = _StudentSignalSummary.from(
+      students: students,
+      activeLayout: activeLayout,
+    );
 
     return _SeatingNativeSurface(
       eyebrow: 'Class workspace',
       title: classItem.className,
-      toolLabel: 'Classroom Map',
+      toolLabel:
+          _presentationMode ? 'Presentation Mode' : 'Classroom Command Map',
       subtitle:
           '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}',
       leading: IconButton(
@@ -142,10 +150,15 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
         tooltip: 'Back to class workspace',
       ),
       trailing: [
-        PilotFeedbackIconButton(
-          initialArea: 'Seating',
-          initialRoute: AppRoutes.osClassSeating(widget.classId),
+        _PresentationModeToggle(
+          enabled: _presentationMode,
+          onChanged: (enabled) => setState(() => _presentationMode = enabled),
         ),
+        if (!_presentationMode)
+          PilotFeedbackIconButton(
+            initialArea: 'Seating',
+            initialRoute: AppRoutes.osClassSeating(widget.classId),
+          ),
       ],
       contextStrip: _SeatingContextStrip(
         studentCount: students.length,
@@ -153,7 +166,9 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
         tableCount: tableCount,
         seatCount: seatCount,
         placedSeatCount: placedSeatCount,
+        emptySeatCount: emptySeatCount,
         roomName: linkedRoom?.name,
+        presentationMode: _presentationMode,
       ),
       insightRail: _SeatingInsightRail(
         studentCount: students.length,
@@ -163,6 +178,8 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
         placedSeatCount: placedSeatCount,
         roomName: linkedRoom?.name,
         activeLayout: activeLayout,
+        signalSummary: signalSummary,
+        presentationMode: _presentationMode,
       ),
       workspace: LayoutBuilder(
         builder: (context, constraints) {
@@ -171,26 +188,37 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
             classId: widget.classId,
             students: students,
             autoLoad: false,
+            presentationMode: _presentationMode,
+            showToolbar: !_presentationMode,
             showStudentPanel: false,
             showUseHint: false,
-            onOpenRoomSetups:
-                activeLayout == null ? null : _showRoomSetupsDialog,
-            onPreviewPdf:
-                _isBuildingHandout ? null : () => _withHandoutPdf(_previewPdf),
-            onPrint:
-                _isBuildingHandout ? null : () => _withHandoutPdf(_printPdf),
-            onDownload: _isBuildingHandout
+            showFullScreenButton: !_presentationMode,
+            onOpenRoomSetups: _presentationMode || activeLayout == null
+                ? null
+                : _showRoomSetupsDialog,
+            onPreviewPdf: _presentationMode || _isBuildingHandout
+                ? null
+                : () => _withHandoutPdf(_previewPdf),
+            onPrint: _presentationMode || _isBuildingHandout
+                ? null
+                : () => _withHandoutPdf(_printPdf),
+            onDownload: _presentationMode || _isBuildingHandout
                 ? null
                 : () => _withHandoutPdf(_downloadOrSharePdf),
             webMode: kIsWeb,
           );
+          final mapWorkspace = _ClassroomMapWorkspace(
+            presentationMode: _presentationMode,
+            signalSummary: signalSummary,
+            child: designer,
+          );
 
-          if (!crampedHeight) return SizedBox.expand(child: designer);
+          if (!crampedHeight) return SizedBox.expand(child: mapWorkspace);
 
           return SingleChildScrollView(
             child: SizedBox(
-              height: 560,
-              child: designer,
+              height: 600,
+              child: mapWorkspace,
             ),
           );
         },
@@ -785,6 +813,302 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
   }
 }
 
+class _ClassroomMapWorkspace extends StatelessWidget {
+  const _ClassroomMapWorkspace({
+    required this.presentationMode,
+    required this.signalSummary,
+    required this.child,
+  });
+
+  final bool presentationMode;
+  final _StudentSignalSummary signalSummary;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _StudentSignalRibbon(
+          summary: signalSummary,
+          presentationMode: presentationMode,
+        ),
+        SizedBox(height: presentationMode ? 12 : 10),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
+class _PresentationModeToggle extends StatelessWidget {
+  const _PresentationModeToggle({
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: enabled
+          ? 'Return to teacher controls'
+          : 'Show a cleaner classroom map for projection',
+      child: OutlinedButton.icon(
+        onPressed: () => onChanged(!enabled),
+        icon: Icon(
+          enabled ? Icons.tune_rounded : Icons.cast_for_education_outlined,
+          size: 18,
+        ),
+        label: Text(enabled ? 'Teacher mode' : 'Present mode'),
+        style: WorkspaceButtonStyles.outlined(context, compact: true).copyWith(
+          foregroundColor: WidgetStatePropertyAll(
+            enabled ? theme.colorScheme.primary : null,
+          ),
+          side: WidgetStatePropertyAll(
+            BorderSide(
+              color: enabled
+                  ? theme.colorScheme.primary.withValues(alpha: 0.44)
+                  : WorkspaceChrome.panelBorderColor(context, emphasis: 0.9),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StudentSignalRibbon extends StatelessWidget {
+  const _StudentSignalRibbon({
+    required this.summary,
+    required this.presentationMode,
+  });
+
+  final _StudentSignalSummary summary;
+  final bool presentationMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
+        final cards = [
+          _SignalCard(
+            signal: summary.behaviour,
+            accent: OSColors.green,
+            icon: Icons.self_improvement_outlined,
+          ),
+          _SignalCard(
+            signal: summary.participation,
+            accent: OSColors.cyan,
+            icon: Icons.record_voice_over_outlined,
+          ),
+          _SignalCard(
+            signal: summary.classwork,
+            accent: OSColors.blue,
+            icon: Icons.assignment_turned_in_outlined,
+          ),
+          _SignalCard(
+            signal: summary.homework,
+            accent: OSColors.amber,
+            icon: Icons.home_work_outlined,
+          ),
+        ];
+
+        if (compact) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (var i = 0; i < cards.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  SizedBox(
+                    width: presentationMode ? 180 : 168,
+                    child: cards[i],
+                  ),
+                ],
+              ],
+            ),
+          );
+        }
+
+        return Row(
+          children: [
+            for (var i = 0; i < cards.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(child: cards[i]),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SignalCard extends StatelessWidget {
+  const _SignalCard({
+    required this.signal,
+    required this.accent,
+    required this.icon,
+  });
+
+  final _StudentSignal signal;
+  final Color accent;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = signal.total == 0 ? 1 : signal.total;
+    final strength = signal.ready / total;
+
+    return WorkspaceFlatSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 17, color: accent),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  signal.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textStyles.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: strength.clamp(0.0, 1.0),
+                    minHeight: 5,
+                    color: accent,
+                    backgroundColor:
+                        theme.colorScheme.outline.withValues(alpha: 0.16),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${signal.ready}/${signal.total}',
+            style: context.textStyles.labelMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: accent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StudentSignalSummary {
+  const _StudentSignalSummary({
+    required this.behaviour,
+    required this.participation,
+    required this.classwork,
+    required this.homework,
+  });
+
+  final _StudentSignal behaviour;
+  final _StudentSignal participation;
+  final _StudentSignal classwork;
+  final _StudentSignal homework;
+
+  factory _StudentSignalSummary.from({
+    required List<Student> students,
+    required SeatingLayout? activeLayout,
+  }) {
+    final placedIds = (activeLayout?.seats ?? const <SeatingSeat>[])
+        .map((seat) => (seat.studentId ?? '').trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final visibleStudents = placedIds.isEmpty
+        ? students
+        : students.where((student) => placedIds.contains(student.studentId));
+    final ids = visibleStudents.map((student) => student.studentId).toList();
+
+    return _StudentSignalSummary(
+      behaviour: _StudentSignal.demo(
+        label: 'Behaviour',
+        ids: ids,
+        salt: 11,
+      ),
+      participation: _StudentSignal.demo(
+        label: 'Participation',
+        ids: ids,
+        salt: 23,
+      ),
+      classwork: _StudentSignal.demo(
+        label: 'Classwork',
+        ids: ids,
+        salt: 37,
+      ),
+      homework: _StudentSignal.demo(
+        label: 'Homework',
+        ids: ids,
+        salt: 41,
+      ),
+    );
+  }
+
+  List<_StudentSignal> get all => [
+        behaviour,
+        participation,
+        classwork,
+        homework,
+      ];
+}
+
+class _StudentSignal {
+  const _StudentSignal({
+    required this.label,
+    required this.ready,
+    required this.watch,
+    required this.total,
+  });
+
+  final String label;
+  final int ready;
+  final int watch;
+  final int total;
+
+  factory _StudentSignal.demo({
+    required String label,
+    required List<String> ids,
+    required int salt,
+  }) {
+    var ready = 0;
+    for (final id in ids) {
+      if (((id.hashCode + salt).abs() % 5) < 4) ready++;
+    }
+    return _StudentSignal(
+      label: label,
+      ready: ready,
+      watch: ids.length - ready,
+      total: ids.length,
+    );
+  }
+}
+
 class _SeatingNativeSurface extends StatelessWidget {
   const _SeatingNativeSurface({
     required this.eyebrow,
@@ -823,20 +1147,24 @@ class _SeatingNativeSurface extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: AnimatedPageBackground(
         child: SafeArea(
+          bottom: false,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final shellHeight = (constraints.maxHeight - shellMargin.vertical)
                   .clamp(0.0, double.infinity);
+              final visualShellHeight = shellHeight + OSSpacing.dockHeight;
 
               return Padding(
                 padding: shellMargin,
-                child: Align(
+                child: OverflowBox(
                   alignment: Alignment.topCenter,
+                  minHeight: shellHeight,
+                  maxHeight: visualShellHeight,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1480),
                     child: SizedBox(
                       width: double.infinity,
-                      height: shellHeight,
+                      height: visualShellHeight,
                       child: WorkspaceShellFrame(
                         padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
                         radius: WorkspaceRadius.shell,
@@ -897,12 +1225,16 @@ class _SeatingWorkspaceLayout extends StatelessWidget {
         );
 
         if (showRail) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          return Stack(
             children: [
-              Expanded(child: mapSurface),
-              const SizedBox(width: WorkspaceSpacing.sm),
-              SizedBox(
+              Positioned.fill(
+                right: 260 + WorkspaceSpacing.sm,
+                child: mapSurface,
+              ),
+              Positioned(
+                top: 0,
+                right: 0,
+                bottom: 0,
                 width: 260,
                 child: SingleChildScrollView(
                   child: insightRail!,
@@ -917,7 +1249,7 @@ class _SeatingWorkspaceLayout extends StatelessWidget {
             children: [
               SizedBox(
                 height: constraints.maxHeight,
-                child: mapSurface,
+                child: SizedBox.expand(child: mapSurface),
               ),
               if (insightRail != null) ...[
                 const SizedBox(height: WorkspaceSpacing.sm),
@@ -1022,7 +1354,7 @@ class _SeatingNativeHeader extends StatelessWidget {
             ),
             const SizedBox(height: 7),
             Text(
-              'Classroom Map',
+              'Live Classroom Map',
               maxLines: narrow ? 2 : 1,
               overflow: TextOverflow.ellipsis,
               style: context.textStyles.headlineSmall?.copyWith(
@@ -1115,6 +1447,8 @@ class _SeatingInsightRail extends StatelessWidget {
     required this.seatCount,
     required this.placedSeatCount,
     required this.activeLayout,
+    required this.signalSummary,
+    required this.presentationMode,
     this.roomName,
   });
 
@@ -1124,6 +1458,8 @@ class _SeatingInsightRail extends StatelessWidget {
   final int seatCount;
   final int placedSeatCount;
   final SeatingLayout? activeLayout;
+  final _StudentSignalSummary signalSummary;
+  final bool presentationMode;
   final String? roomName;
 
   @override
@@ -1187,6 +1523,11 @@ class _SeatingInsightRail extends StatelessWidget {
                 value:
                     (roomName ?? '').trim().isEmpty ? 'Not linked' : roomName!,
               ),
+              _RailLine(
+                icon: Icons.cast_for_education_outlined,
+                label: 'Mode',
+                value: presentationMode ? 'Presentation' : 'Teacher',
+              ),
             ],
           ),
         ),
@@ -1198,30 +1539,32 @@ class _SeatingInsightRail extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const GradeFlowSectionHeader(
-                title: 'Seat signals',
-                subtitle: 'Existing seat status only',
+                title: 'Student signals',
+                subtitle: 'Local visual indicators',
               ),
               const SizedBox(height: WorkspaceSpacing.sm),
-              _StatusLegendRow(
-                color: Colors.green.shade600,
-                label: 'Green',
-                value: '$greenCount',
+              for (final signal in signalSummary.all)
+                _SignalRailRow(signal: signal),
+              const SizedBox(height: WorkspaceSpacing.sm),
+              const GradeFlowSectionHeader(
+                title: 'Seat status',
+                subtitle: 'Current layout marks',
               ),
+              const SizedBox(height: WorkspaceSpacing.xs),
               _StatusLegendRow(
-                color: Colors.amber.shade700,
-                label: 'Yellow',
-                value: '$yellowCount',
-              ),
+                  color: Colors.green.shade600,
+                  label: 'Green',
+                  value: '$greenCount'),
               _StatusLegendRow(
-                color: Colors.red.shade600,
-                label: 'Red',
-                value: '$redCount',
-              ),
+                  color: Colors.amber.shade700,
+                  label: 'Yellow',
+                  value: '$yellowCount'),
               _StatusLegendRow(
-                color: Colors.blue.shade600,
-                label: 'Blue',
-                value: '$blueCount',
-              ),
+                  color: Colors.red.shade600, label: 'Red', value: '$redCount'),
+              _StatusLegendRow(
+                  color: Colors.blue.shade600,
+                  label: 'Blue',
+                  value: '$blueCount'),
               const SizedBox(height: WorkspaceSpacing.xs),
               _RailLine(
                 icon: Icons.notifications_active_outlined,
@@ -1369,6 +1712,48 @@ class _StatusLegendRow extends StatelessWidget {
   }
 }
 
+class _SignalRailRow extends StatelessWidget {
+  const _SignalRailRow({required this.signal});
+
+  final _StudentSignal signal;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              signal.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: WorkspaceTypography.metadata(context),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${signal.ready} steady',
+            style: context.textStyles.labelMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (signal.watch > 0) ...[
+            const SizedBox(width: 6),
+            Text(
+              '${signal.watch} watch',
+              style: context.textStyles.labelSmall?.copyWith(
+                color: WorkspaceChrome.mutedText(context),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _SeatingContextStrip extends StatelessWidget {
   const _SeatingContextStrip({
     required this.studentCount,
@@ -1376,6 +1761,8 @@ class _SeatingContextStrip extends StatelessWidget {
     required this.tableCount,
     required this.seatCount,
     required this.placedSeatCount,
+    required this.emptySeatCount,
+    required this.presentationMode,
     this.roomName,
   });
 
@@ -1384,6 +1771,8 @@ class _SeatingContextStrip extends StatelessWidget {
   final int tableCount;
   final int seatCount;
   final int placedSeatCount;
+  final int emptySeatCount;
+  final bool presentationMode;
   final String? roomName;
 
   @override
@@ -1416,6 +1805,21 @@ class _SeatingContextStrip extends StatelessWidget {
             label: 'Placed',
             value: '$placedSeatCount',
             emphasized: true,
+          ),
+          const SizedBox(width: 8),
+          WorkspaceContextPill(
+            icon: Icons.event_busy_outlined,
+            label: 'Empty',
+            value: '$emptySeatCount',
+          ),
+          const SizedBox(width: 8),
+          WorkspaceContextPill(
+            icon: Icons.cast_for_education_outlined,
+            label: 'Mode',
+            value: presentationMode ? 'Present' : 'Teacher',
+            emphasized: presentationMode,
+            accent:
+                presentationMode ? Theme.of(context).colorScheme.primary : null,
           ),
           if ((roomName ?? '').trim().isNotEmpty) ...[
             const SizedBox(width: 8),

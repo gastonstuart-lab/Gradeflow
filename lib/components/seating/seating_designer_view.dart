@@ -14,6 +14,7 @@ class SeatingDesignerView extends StatefulWidget {
   final List<Student> students;
   final bool autoLoad;
   final bool presentationMode;
+  final bool showToolbar;
   final bool showStudentPanel;
   final bool showFullScreenButton;
   final bool showUseHint;
@@ -29,6 +30,7 @@ class SeatingDesignerView extends StatefulWidget {
     required this.students,
     this.autoLoad = true,
     this.presentationMode = false,
+    this.showToolbar = true,
     this.showStudentPanel = true,
     this.showFullScreenButton = true,
     this.showUseHint = true,
@@ -115,62 +117,64 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _SeatingDesignerToolBand(
-                  child: SeatingToolbar(
-                    layouts: layouts,
-                    activeLayoutId: active.layoutId,
-                    designMode: _designMode,
-                    onToggleDesignMode: () =>
-                        setState(() => _designMode = !_designMode),
-                    onSelectLayout: (id) =>
-                        service.selectLayout(widget.classId, id),
-                    onAddLayout: () => _promptNewLayout(context, service),
-                    onDuplicateLayout: () => _duplicateLayout(service, active),
-                    onApplyTemplate: (template) => service.applyTemplate(
-                        widget.classId, template, widget.students.length),
-                    onAddRectTable: () => service.addTable(
-                        widget.classId, SeatingTableType.rectangular,
-                        seatCount: 4),
-                    onAddSquareTable: () => service.addTable(
-                        widget.classId, SeatingTableType.square,
-                        seatCount: 4),
-                    onAddDesk: () => service.addTable(
-                        widget.classId, SeatingTableType.singleDesk,
-                        seatCount: 1),
-                    onAddTeacherDesk: () => service.addTable(
-                        widget.classId, SeatingTableType.teacherDesk,
-                        seatCount: 0),
-                    onRenameLayout: () =>
-                        _promptRenameLayout(context, service, active),
-                    onClearRoom: () =>
-                        _confirmClearRoom(context, service, active),
-                    onDeleteLayout: () =>
-                        _confirmDeleteLayout(context, service, layouts, active),
-                    onRoomSettings: () =>
-                        _promptRoomSettings(context, service, active),
-                    onAutoAssign: () =>
-                        _autoAssignStudents(context, service, active),
-                    onShuffleSeating: () =>
-                        _shuffleSeating(context, service, active),
-                    onClearAssignments: () =>
-                        _confirmClearAssignments(context, service, active),
-                    onPickStudent: () => _showStudentPicker(
-                        context, service, active, studentsById),
-                    onOpenRoomSetups: widget.onOpenRoomSetups,
-                    onPreviewPdf: widget.onPreviewPdf,
-                    onPrint: widget.onPrint,
-                    onDownload: widget.onDownload,
-                    webMode: widget.webMode,
-                    showFullScreenButton: widget.showFullScreenButton,
-                    onFullScreen: () =>
-                        Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => _FullScreenSeatingRoute(
-                        classId: widget.classId,
-                        students: widget.students,
-                      ),
-                    )),
+                if (widget.showToolbar)
+                  _SeatingDesignerToolBand(
+                    child: SeatingToolbar(
+                      layouts: layouts,
+                      activeLayoutId: active.layoutId,
+                      designMode: _designMode,
+                      onToggleDesignMode: () =>
+                          setState(() => _designMode = !_designMode),
+                      onSelectLayout: (id) =>
+                          service.selectLayout(widget.classId, id),
+                      onAddLayout: () => _promptNewLayout(context, service),
+                      onDuplicateLayout: () =>
+                          _duplicateLayout(service, active),
+                      onApplyTemplate: (template) => service.applyTemplate(
+                          widget.classId, template, widget.students.length),
+                      onAddRectTable: () => service.addTable(
+                          widget.classId, SeatingTableType.rectangular,
+                          seatCount: 4),
+                      onAddSquareTable: () => service.addTable(
+                          widget.classId, SeatingTableType.square,
+                          seatCount: 4),
+                      onAddDesk: () => service.addTable(
+                          widget.classId, SeatingTableType.singleDesk,
+                          seatCount: 1),
+                      onAddTeacherDesk: () => service.addTable(
+                          widget.classId, SeatingTableType.teacherDesk,
+                          seatCount: 0),
+                      onRenameLayout: () =>
+                          _promptRenameLayout(context, service, active),
+                      onClearRoom: () =>
+                          _confirmClearRoom(context, service, active),
+                      onDeleteLayout: () => _confirmDeleteLayout(
+                          context, service, layouts, active),
+                      onRoomSettings: () =>
+                          _promptRoomSettings(context, service, active),
+                      onAutoAssign: () =>
+                          _autoAssignStudents(context, service, active),
+                      onShuffleSeating: () =>
+                          _shuffleSeating(context, service, active),
+                      onClearAssignments: () =>
+                          _confirmClearAssignments(context, service, active),
+                      onPickStudent: () => _showStudentPicker(
+                          context, service, active, studentsById),
+                      onOpenRoomSetups: widget.onOpenRoomSetups,
+                      onPreviewPdf: widget.onPreviewPdf,
+                      onPrint: widget.onPrint,
+                      onDownload: widget.onDownload,
+                      webMode: widget.webMode,
+                      showFullScreenButton: widget.showFullScreenButton,
+                      onFullScreen: () =>
+                          Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => _FullScreenSeatingRoute(
+                          classId: widget.classId,
+                          students: widget.students,
+                        ),
+                      )),
+                    ),
                   ),
-                ),
                 if (widget.showUseHint && _designMode) ...[
                   const SizedBox(height: 6),
                   _EditRoomHint(
@@ -182,7 +186,9 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                   const SizedBox(height: 6),
                   const _SeatingUseHint(),
                 ],
-                SizedBox(height: widget.showUseHint ? 8 : 6),
+                SizedBox(
+                  height: widget.showToolbar || widget.showUseHint ? 8 : 0,
+                ),
                 Expanded(
                   child: !showStudentPanel
                       ? _buildCanvas(context, service, active, studentsById)
