@@ -50,6 +50,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
   final Map<String, FocusNode> _scoreFocusNodes = {};
   final Map<String, GlobalKey> _scoreRowKeys = {};
   final Set<String> _autoEnsuredCategories = <String>{};
+  int? _activeRowIndex;
 
   Future<bool> _confirmLeaveIfSaving() async {
     final scores = context.read<StudentScoreService>();
@@ -994,7 +995,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
                   WorkspaceSectionHeader(
                     title: 'Student scores',
                     subtitle:
-                        'Rapid entry: Enter moves to next student. Arrow keys move through score fields.',
+                        'Click a row or use Enter / Arrow keys to move through scores',
                     subtitleMaxLines: 1,
                     action: FilledButton.tonalIcon(
                       onPressed: studentService.students.isEmpty
@@ -1065,6 +1066,12 @@ class _GradebookScreenState extends State<GradebookScreen> {
                             item: selectedGradeItem,
                             direction: direction,
                           ),
+                          isActive: index == _activeRowIndex,
+                          onBecameActive: () {
+                            if (_activeRowIndex != index) {
+                              setState(() => _activeRowIndex = index);
+                            }
+                          },
                         );
                       },
                     ),
@@ -1376,18 +1383,56 @@ class _GradebookFlatSurface extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(12),
     this.onTap,
+    this.isActive = false,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
-    return WorkspaceFlatSurface(
+    final surface = WorkspaceFlatSurface(
       padding: padding,
       onTap: onTap,
       child: child,
+    );
+    if (!isActive) return surface;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return Stack(
+      children: [
+        surface,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(
+                  alpha: isDark ? 0.08 : 0.07,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          child: IgnorePointer(
+            child: Container(
+              width: 3,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.75),
+                borderRadius: const BorderRadius.horizontal(
+                  right: Radius.circular(1.5),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1715,6 +1760,8 @@ class _ScoreEntryRow extends StatefulWidget {
   final Future<void> Function() onClear;
   final VoidCallback onOpen;
   final Future<bool> Function(int direction) onMoveFocus;
+  final bool isActive;
+  final VoidCallback onBecameActive;
 
   const _ScoreEntryRow({
     super.key,
@@ -1731,6 +1778,8 @@ class _ScoreEntryRow extends StatefulWidget {
     required this.onClear,
     required this.onOpen,
     required this.onMoveFocus,
+    this.isActive = false,
+    required this.onBecameActive,
   });
 
   @override
@@ -1768,7 +1817,10 @@ class _ScoreEntryRowState extends State<_ScoreEntryRow> {
   }
 
   void _handleScoreFocusChange() {
-    if (widget.focusNode.hasFocus) return;
+    if (widget.focusNode.hasFocus) {
+      widget.onBecameActive();
+      return;
+    }
     if (_skipNextBlurCommit) {
       _skipNextBlurCommit = false;
       return;
@@ -1827,6 +1879,7 @@ class _ScoreEntryRowState extends State<_ScoreEntryRow> {
       container: true,
       label: rowLabel,
       child: _GradebookFlatSurface(
+        isActive: widget.isActive,
         padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -1867,6 +1920,10 @@ class _ScoreEntryRowState extends State<_ScoreEntryRow> {
               ],
             );
 
+            final activeFieldBorder = theme.colorScheme.primary.withValues(
+              alpha: theme.brightness == Brightness.dark ? 0.56 : 0.44,
+            );
+
             final input = SizedBox(
               width: narrow ? double.infinity : 128,
               child: CallbackShortcuts(
@@ -1888,36 +1945,60 @@ class _ScoreEntryRowState extends State<_ScoreEntryRow> {
                   const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
                       _commitAndMove(-1),
                 },
-                child: TextField(
-                  controller: widget.controller,
-                  focusNode: widget.focusNode,
-                  textAlign: TextAlign.end,
-                  textInputAction: TextInputAction.next,
-                  decoration: _gradebookFieldDecoration(
-                    context,
-                    labelText: 'Score',
-                    suffixText: '/ ${_formatGradebookScore(max)}',
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                      RegExp(r'^\d*\.?\d*'),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  curve: Curves.easeOutCubic,
+                  padding: widget.isActive
+                      ? const EdgeInsets.symmetric(horizontal: 1, vertical: 1)
+                      : EdgeInsets.zero,
+                  decoration: widget.isActive
+                      ? BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: activeFieldBorder),
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: theme.brightness == Brightness.dark
+                                    ? 0.16
+                                    : 0.10,
+                              ),
+                              blurRadius: 8,
+                              spreadRadius: 0.5,
+                            ),
+                          ],
+                        )
+                      : null,
+                  child: TextField(
+                    controller: widget.controller,
+                    focusNode: widget.focusNode,
+                    textAlign: TextAlign.end,
+                    textInputAction: TextInputAction.next,
+                    decoration: _gradebookFieldDecoration(
+                      context,
+                      labelText: 'Score',
+                      suffixText: '/ ${_formatGradebookScore(max)}',
                     ),
-                  ],
-                  onTap: () {
-                    final text = widget.controller.text;
-                    if (text.isEmpty) return;
-                    widget.controller.selection = TextSelection(
-                      baseOffset: 0,
-                      extentOffset: text.length,
-                    );
-                  },
-                  onSubmitted: (_) {
-                    _commitAndMove(1);
-                  },
-                  onTapOutside: (_) => widget.onCommit(
-                    showValidationMessage: true,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d*'),
+                      ),
+                    ],
+                    onTap: () {
+                      final text = widget.controller.text;
+                      if (text.isEmpty) return;
+                      widget.controller.selection = TextSelection(
+                        baseOffset: 0,
+                        extentOffset: text.length,
+                      );
+                    },
+                    onSubmitted: (_) {
+                      _commitAndMove(1);
+                    },
+                    onTapOutside: (_) => widget.onCommit(
+                      showValidationMessage: true,
+                    ),
                   ),
                 ),
               ),
