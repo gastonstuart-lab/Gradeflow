@@ -19,7 +19,8 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Professional workflow operating system for teachers.">
-  <meta name="theme-color" content="#071019">
+  <meta name="theme-color" content="#050912">
+  <meta name="color-scheme" content="dark">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -39,7 +40,7 @@
   <style>
     :root {
       color-scheme: dark;
-      --gf-bg: #071019;
+      --gf-bg: #050912;
       --gf-bg-soft: #101a28;
       --gf-border: rgba(255, 255, 255, 0.1);
       --gf-text: #f5f7fb;
@@ -54,9 +55,9 @@
       height: 100%;
       margin: 0;
       background:
-        radial-gradient(circle at top right, rgba(92, 136, 255, 0.22), transparent 34%),
-        radial-gradient(circle at bottom left, rgba(70, 198, 233, 0.16), transparent 36%),
-        linear-gradient(140deg, #050912 0%, var(--gf-bg) 48%, var(--gf-bg-soft) 100%);
+        radial-gradient(circle at top right, rgba(92, 136, 255, 0.18), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(70, 198, 233, 0.12), transparent 36%),
+        linear-gradient(140deg, #050912 0%, #071019 54%, var(--gf-bg-soft) 100%);
       color: var(--gf-text);
     }
 
@@ -76,9 +77,9 @@
       place-items: center;
       padding: 24px;
       background:
-        radial-gradient(circle at top right, rgba(92, 136, 255, 0.26), transparent 34%),
-        radial-gradient(circle at bottom left, rgba(70, 198, 233, 0.18), transparent 40%),
-        linear-gradient(140deg, #050912 0%, var(--gf-bg) 50%, var(--gf-bg-soft) 100%);
+        radial-gradient(circle at top right, rgba(92, 136, 255, 0.20), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(70, 198, 233, 0.14), transparent 40%),
+        linear-gradient(140deg, #050912 0%, #071019 52%, var(--gf-bg-soft) 100%);
       opacity: 1;
       visibility: visible;
       transition: opacity 360ms ease, visibility 360ms ease;
@@ -93,7 +94,7 @@
 
     .gf-loader-shell {
       position: relative;
-      width: min(100%, 540px);
+      width: min(100%, 500px);
       padding: 28px;
       border-radius: 28px;
       border: 1px solid var(--gf-border);
@@ -277,19 +278,19 @@
           <p class="gf-loader-kicker">Teacher Operating System</p>
           <h1 class="gf-loader-title">GradeFlow</h1>
           <p class="gf-loader-copy">
-            Bringing the dashboard, classes, and live classroom tools online.
+            Opening the workspace for today’s classes.
           </p>
         </div>
       </div>
       <div class="gf-loader-row">
-        <div class="gf-loader-pill">Dashboard</div>
-        <div class="gf-loader-pill">Class tools</div>
-        <div class="gf-loader-pill">Live context</div>
+        <div class="gf-loader-pill">Secure session</div>
+        <div class="gf-loader-pill">Classroom tools</div>
+        <div class="gf-loader-pill">Workspace ready</div>
       </div>
       <div class="gf-loader-progress"></div>
       <div class="gf-loader-status">
         <span class="gf-loader-status-dot"></span>
-        Loading workspace shell
+        Preparing GradeFlow
       </div>
     </div>
   </div>
@@ -327,7 +328,7 @@
 
       window.setTimeout(() => {
         if (!removed && status) {
-          status.lastChild.textContent = ' Still loading workspace shell';
+          status.lastChild.textContent = ' Still preparing GradeFlow';
         }
       }, 45000);
     })();

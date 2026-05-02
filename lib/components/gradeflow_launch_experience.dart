@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
+import 'package:gradeflow/components/gradeflow_entry_motion.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/services/auth_service.dart';
 
@@ -86,28 +87,33 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
 
   String _statusTitle() {
     if (!auth.isInitialized && auth.isLoading) {
-      return 'Opening GradeFlow';
+      return 'Restoring session';
     }
     if (!auth.isInitialized) {
-      return 'Starting GradeFlow';
+      return 'Preparing workspace';
     }
     if (auth.isAuthenticated) {
-      return 'Opening your workspace';
+      return 'Workspace ready';
     }
-    return 'Ready for sign in';
+    return 'Ready to enter';
   }
 
   String _statusDetail() {
     if (!auth.isInitialized && auth.isLoading) {
-      return 'Restoring your session.';
+      return 'Checking your secure GradeFlow session.';
     }
     if (!auth.isInitialized) {
-      return 'Preparing classroom tools.';
+      return 'Bringing classroom tools online.';
     }
     if (auth.isAuthenticated) {
-      return 'Classes and teaching tools are ready.';
+      return 'Your teaching OS is ready.';
     }
-    return 'Secure sign-in is ready.';
+    return 'Secure access is ready.';
+  }
+
+  double _progressValue() {
+    if (!auth.isInitialized) return auth.isLoading ? 0.42 : 0.28;
+    return auth.isAuthenticated ? 1.0 : 0.86;
   }
 
   @override
@@ -115,15 +121,15 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final primary = theme.colorScheme.primary;
-    final secondary =
-        isDark ? const Color(0xFF7DD3FC) : const Color(0xFF1D4ED8);
 
     return Scaffold(
+      backgroundColor: const Color(0xFF050912),
       body: AnimatedPageBackground(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final edgePadding = constraints.maxWidth < 640 ? 16.0 : 24.0;
-            final panelPadding = constraints.maxWidth < 640 ? 22.0 : 28.0;
+            final compact = constraints.maxWidth < 640;
+            final edgePadding = compact ? 18.0 : 28.0;
+            final panelPadding = compact ? 24.0 : 34.0;
 
             return SingleChildScrollView(
               padding: EdgeInsets.all(edgePadding),
@@ -136,34 +142,34 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                 ),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 760),
+                    constraints: const BoxConstraints(maxWidth: 720),
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(32),
+                        borderRadius: BorderRadius.circular(compact ? 28 : 34),
                         border: Border.all(
                           color: Colors.white
-                              .withValues(alpha: isDark ? 0.12 : 0.24),
+                              .withValues(alpha: isDark ? 0.11 : 0.20),
                         ),
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
                             theme.colorScheme.surface.withValues(
-                              alpha: isDark ? 0.86 : 0.92,
+                              alpha: isDark ? 0.78 : 0.94,
                             ),
                             theme.colorScheme.surfaceContainerHighest
                                 .withValues(
-                              alpha: isDark ? 0.82 : 0.88,
+                              alpha: isDark ? 0.60 : 0.80,
                             ),
                           ],
                         ),
                         boxShadow: [
                           BoxShadow(
                             color: theme.shadowColor.withValues(
-                              alpha: isDark ? 0.36 : 0.12,
+                              alpha: isDark ? 0.42 : 0.13,
                             ),
-                            blurRadius: 40,
-                            offset: const Offset(0, 20),
+                            blurRadius: 52,
+                            offset: const Offset(0, 26),
                           ),
                         ],
                       ),
@@ -171,166 +177,89 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                         padding: EdgeInsets.all(panelPadding),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 82,
-                                  height: 82,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(26),
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        primary.withValues(alpha: 0.95),
-                                        secondary.withValues(alpha: 0.86),
-                                      ],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: primary.withValues(alpha: 0.34),
-                                        blurRadius: 28,
-                                        offset: const Offset(0, 16),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(14),
-                                    child: Image.asset(
-                                      'assets/images/school_logo2.png',
-                                      fit: BoxFit.contain,
-                                      filterQuality: FilterQuality.high,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 20),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Teacher Operating System',
-                                        style: theme.textTheme.labelLarge
-                                            ?.copyWith(
-                                          color: theme
-                                              .colorScheme.onSurfaceVariant,
-                                          letterSpacing: 0.9,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        GradeFlowProductConfig.appName,
-                                        style: theme.textTheme.headlineMedium
-                                            ?.copyWith(
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.8,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Your classroom workspace is loading.',
-                                        style:
-                                            theme.textTheme.bodyLarge?.copyWith(
-                                          color: theme
-                                              .colorScheme.onSurfaceVariant,
-                                          height: 1.45,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                            const GradeFlowEntryMotion(size: 178),
+                            const SizedBox(height: 18),
+                            Text(
+                              'Teacher Operating System'.toUpperCase(),
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: theme.colorScheme.primary,
+                                letterSpacing: 1.2,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 10),
+                            Text(
+                              GradeFlowProductConfig.appName,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 430),
+                              child: Text(
+                                'Opening the workspace for today\'s classes.',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  height: 1.45,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 26),
                             Container(
-                              padding: const EdgeInsets.all(20),
+                              padding: EdgeInsets.all(compact ? 16 : 18),
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(22),
                                 color: Colors.white.withValues(
-                                  alpha: isDark ? 0.05 : 0.54,
+                                  alpha: isDark ? 0.045 : 0.56,
                                 ),
                                 border: Border.all(
                                   color: Colors.white.withValues(
-                                    alpha: isDark ? 0.08 : 0.22,
+                                    alpha: isDark ? 0.08 : 0.20,
                                   ),
                                 ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
+                                  Row(
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 7,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                          color: primary.withValues(
-                                            alpha: isDark ? 0.16 : 0.12,
-                                          ),
-                                          border: Border.all(
-                                            color: primary.withValues(
-                                              alpha: isDark ? 0.24 : 0.18,
-                                            ),
-                                          ),
-                                        ),
+                                      Expanded(
                                         child: Text(
-                                          'Opening',
-                                          style: theme.textTheme.labelMedium
+                                          _statusTitle(),
+                                          style: theme.textTheme.titleLarge
                                               ?.copyWith(
-                                            color: primary,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 0.35,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0,
                                           ),
                                         ),
                                       ),
                                       _LaunchStageChip(
-                                        label: auth.isAuthenticated
-                                            ? 'Session restored'
-                                            : auth.isInitialized
-                                                ? 'Ready for sign in'
-                                                : 'Bringing systems online',
+                                        label: auth.isInitialized
+                                            ? 'Online'
+                                            : 'Starting',
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 6),
                                   Text(
-                                    _statusTitle(),
-                                    style: theme.textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  ConstrainedBox(
-                                    constraints:
-                                        const BoxConstraints(maxWidth: 520),
-                                    child: Text(
-                                      _statusDetail(),
-                                      style:
-                                          theme.textTheme.bodyMedium?.copyWith(
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant,
-                                        height: 1.55,
-                                      ),
+                                    _statusDetail(),
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                      height: 1.5,
                                     ),
                                   ),
                                   const SizedBox(height: 18),
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(999),
                                     child: LinearProgressIndicator(
+                                      value: _progressValue(),
                                       minHeight: 6,
                                       backgroundColor:
                                           Colors.white.withValues(alpha: 0.08),
@@ -338,6 +267,25 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                                         primary.withValues(alpha: 0.95),
                                       ),
                                     ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      const _LaunchChecklistItem(
+                                        label: 'Secure session',
+                                        active: true,
+                                      ),
+                                      const _LaunchChecklistItem(
+                                        label: 'Classroom tools',
+                                        active: true,
+                                      ),
+                                      _LaunchChecklistItem(
+                                        label: 'Workspace ready',
+                                        active: auth.isInitialized,
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -380,6 +328,51 @@ class _LaunchStageChip extends StatelessWidget {
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w700,
             ),
+      ),
+    );
+  }
+}
+
+class _LaunchChecklistItem extends StatelessWidget {
+  const _LaunchChecklistItem({
+    required this.label,
+    required this.active,
+  });
+
+  final String label;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = active
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.78);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: color.withValues(alpha: active ? 0.12 : 0.06),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            active ? Icons.check_circle_outline : Icons.radio_button_unchecked,
+            size: 15,
+            color: color,
+          ),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
       ),
     );
   }
