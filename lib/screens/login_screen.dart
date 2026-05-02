@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
+import 'package:gradeflow/components/gradeflow_entry_motion.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/services/auth_service.dart';
@@ -198,63 +199,22 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              color: theme.colorScheme.primary.withValues(alpha: 0.12),
-              border: Border.all(
-                color: theme.colorScheme.primary.withValues(alpha: 0.22),
-              ),
-            ),
-            child: Text(
-              'Teacher Operating System',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: compact ? 74 : 88,
-                height: compact ? 74 : 88,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      theme.colorScheme.primary.withValues(alpha: 0.94),
-                      const Color(0xFF38BDF8).withValues(alpha: 0.88),
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.28),
-                      blurRadius: 24,
-                      offset: const Offset(0, 14),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Image.asset(
-                    'assets/images/school_logo2.png',
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.high,
-                  ),
-                ),
+              GradeFlowEntryMotion(
+                size: compact ? 118 : 152,
+                compact: compact,
               ),
-              const SizedBox(width: 18),
+              SizedBox(width: compact ? 14 : 20),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _LoginSectionTag(
+                      label: 'Teacher Operating System',
+                    ),
+                    const SizedBox(height: 14),
                     Text(
                       GradeFlowProductConfig.appName,
                       style: (compact
@@ -262,12 +222,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               : theme.textTheme.headlineMedium)
                           ?.copyWith(
                         fontWeight: FontWeight.w800,
-                        letterSpacing: -0.7,
+                        letterSpacing: 0,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      GradeFlowProductConfig.marketingTagline,
+                      'A calm command center for today\'s teaching.',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         height: 1.5,
@@ -275,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Class health, live context, and classroom tools stay close.',
+                      'Classes, seating, grades, and live tools stay one motion away.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         height: 1.55,
@@ -292,16 +252,16 @@ class _LoginScreenState extends State<LoginScreen> {
             runSpacing: 10,
             children: const [
               _LoginSignalChip(
-                icon: Icons.dashboard_customize_outlined,
-                label: 'Premium dashboard',
+                icon: Icons.verified_user_outlined,
+                label: 'Secure workspace',
               ),
               _LoginSignalChip(
-                icon: Icons.draw_rounded,
-                label: 'Quick whiteboard',
+                icon: Icons.meeting_room_outlined,
+                label: 'Classroom tools',
               ),
               _LoginSignalChip(
-                icon: Icons.schedule_rounded,
-                label: 'Live system widgets',
+                icon: Icons.auto_graph_rounded,
+                label: 'Live context',
               ),
             ],
           ),
@@ -323,22 +283,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 SizedBox(height: 14),
                 _LoginFeatureTile(
-                  icon: Icons.flash_on_outlined,
-                  title: 'Launch ready',
-                  detail: 'The workspace opens with a controlled dark launch.',
+                  icon: Icons.bolt_outlined,
+                  title: 'Start cleanly',
+                  detail: 'Open into a focused workspace without visual noise.',
                 ),
                 SizedBox(height: 14),
                 _LoginFeatureTile(
                   icon: Icons.meeting_room_outlined,
-                  title: 'Classroom ready',
-                  detail: 'Jump into class tools and the whiteboard quickly.',
+                  title: 'Teach live',
+                  detail:
+                      'Move from class context to seating and tools quickly.',
                 ),
                 SizedBox(height: 14),
                 _LoginFeatureTile(
-                  icon: Icons.public_outlined,
-                  title: 'Live context',
-                  detail:
-                      'Time, messages, weather, and class signals stay visible.',
+                  icon: Icons.insights_outlined,
+                  title: 'Stay aware',
+                  detail: 'Class signals and daily work remain close at hand.',
                 ),
               ],
             ),
@@ -406,12 +366,12 @@ class _LoginScreenState extends State<LoginScreen> {
             'Enter GradeFlow',
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
+              letterSpacing: 0,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Sign in to open your workspace and live tools.',
+            'Sign in to open your teaching workspace.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               height: 1.5,
@@ -573,7 +533,7 @@ class _LoginScreenState extends State<LoginScreen> {
           OutlinedButton.icon(
             onPressed: _isLoading ? null : _handleDemoLogin,
             style: secondaryButtonStyle,
-            icon: const Icon(Icons.visibility_outlined),
+            icon: const Icon(Icons.preview_outlined),
             label: const Text('Try Demo Account'),
           ),
           const SizedBox(height: 14),
@@ -587,7 +547,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             child: Text(
-              'Demo mode opens a safe sample workspace for the dashboard, live rail, and class tools.',
+              'Preview workspace opens a safe sample OS with class tools, seating, and live context.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 height: 1.5,
