@@ -47,6 +47,8 @@ class _GradebookScreenState extends State<GradebookScreen> {
   String? selectedCategoryId;
   String? selectedGradeItemId;
   final Map<String, TextEditingController> _controllers = {};
+  final Map<String, FocusNode> _scoreFocusNodes = {};
+  final Map<String, GlobalKey> _scoreRowKeys = {};
   final Set<String> _autoEnsuredCategories = <String>{};
 
   Future<bool> _confirmLeaveIfSaving() async {
@@ -346,6 +348,9 @@ class _GradebookScreenState extends State<GradebookScreen> {
     for (var controller in _controllers.values) {
       controller.dispose();
     }
+    for (final node in _scoreFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -456,6 +461,25 @@ class _GradebookScreenState extends State<GradebookScreen> {
     );
   }
 
+  FocusNode _scoreFocusNodeFor({
+    required String studentId,
+    required String gradeItemId,
+  }) {
+    final key = _scoreControllerKey(studentId, gradeItemId);
+    return _scoreFocusNodes.putIfAbsent(
+      key,
+      () => FocusNode(debugLabel: 'Gradebook score $key'),
+    );
+  }
+
+  GlobalKey _scoreRowKeyFor({
+    required String studentId,
+    required String gradeItemId,
+  }) {
+    final key = _scoreControllerKey(studentId, gradeItemId);
+    return _scoreRowKeys.putIfAbsent(key, GlobalKey.new);
+  }
+
   void _setScoreControllerText(
     String studentId,
     GradeItem item,
@@ -505,6 +529,50 @@ class _GradebookScreenState extends State<GradebookScreen> {
 
     await _updateScore(studentId, item.gradeItemId, value);
     _setScoreControllerText(studentId, item, value);
+  }
+
+  Future<bool> _moveRapidScoreFocus({
+    required List<Student> students,
+    required int currentIndex,
+    required GradeItem item,
+    required int direction,
+  }) async {
+    if (students.isEmpty || direction == 0) return false;
+
+    final nextIndex = (currentIndex + direction)
+        .clamp(
+          0,
+          students.length - 1,
+        )
+        .toInt();
+    if (nextIndex == currentIndex) return false;
+
+    final nextStudent = students[nextIndex];
+    final focusNode = _scoreFocusNodeFor(
+      studentId: nextStudent.studentId,
+      gradeItemId: item.gradeItemId,
+    );
+    final rowKey = _scoreRowKeyFor(
+      studentId: nextStudent.studentId,
+      gradeItemId: item.gradeItemId,
+    );
+
+    focusNode.requestFocus();
+    await Future<void>.delayed(Duration.zero);
+
+    final rowContext = rowKey.currentContext;
+    if (rowContext != null && mounted) {
+      await Scrollable.ensureVisible(
+        rowContext,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        alignment: direction > 0 ? 0.72 : 0.28,
+        alignmentPolicy: direction > 0
+            ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd
+            : ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+      );
+    }
+    return true;
   }
 
   void _openQuickGradeSheet(int startIndex) {
@@ -926,7 +994,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
                   WorkspaceSectionHeader(
                     title: 'Student scores',
                     subtitle:
-                        'Type scores directly for this assessment, or open a student sheet to enter every item for one student.',
+                        'Rapid entry: Enter moves to next student. Arrow keys move through score fields.',
                     subtitleMaxLines: 1,
                     action: FilledButton.tonalIcon(
                       onPressed: studentService.students.isEmpty
@@ -956,16 +1024,23 @@ class _GradebookScreenState extends State<GradebookScreen> {
                           gradeItemId: selectedGradeItem.gradeItemId,
                           score: current?.score,
                         );
+                        final focusNode = _scoreFocusNodeFor(
+                          studentId: student.studentId,
+                          gradeItemId: selectedGradeItem.gradeItemId,
+                        );
+                        final rowKey = _scoreRowKeyFor(
+                          studentId: student.studentId,
+                          gradeItemId: selectedGradeItem.gradeItemId,
+                        );
                         return _ScoreEntryRow(
-                          key: ValueKey(
-                            '${student.studentId}_${selectedGradeItem.gradeItemId}',
-                          ),
+                          key: rowKey,
                           studentName:
                               '${student.chineseName} • ${student.englishFullName}',
                           studentId: student.studentId,
                           seatNo: student.seatNo,
                           photoBase64: student.photoBase64,
                           controller: controller,
+                          focusNode: focusNode,
                           gradeItemId: selectedGradeItem.gradeItemId,
                           maxScore: selectedGradeItem.maxScore,
                           initialScore: current?.score,
@@ -984,6 +1059,12 @@ class _GradebookScreenState extends State<GradebookScreen> {
                             );
                           },
                           onOpen: () => _openQuickGradeSheet(index),
+                          onMoveFocus: (direction) => _moveRapidScoreFocus(
+                            students: studentService.students,
+                            currentIndex: index,
+                            item: selectedGradeItem,
+                            direction: direction,
+                          ),
                         );
                       },
                     ),
@@ -1626,12 +1707,14 @@ class _ScoreEntryRow extends StatefulWidget {
   final String? seatNo;
   final String? photoBase64;
   final TextEditingController controller;
+  final FocusNode focusNode;
   final String gradeItemId;
   final double maxScore;
   final double? initialScore;
   final _ScoreCommitCallback onCommit;
   final Future<void> Function() onClear;
   final VoidCallback onOpen;
+  final Future<bool> Function(int direction) onMoveFocus;
 
   const _ScoreEntryRow({
     super.key,
@@ -1640,12 +1723,14 @@ class _ScoreEntryRow extends StatefulWidget {
     this.seatNo,
     this.photoBase64,
     required this.controller,
+    required this.focusNode,
     required this.gradeItemId,
     required this.maxScore,
     required this.initialScore,
     required this.onCommit,
     required this.onClear,
     required this.onOpen,
+    required this.onMoveFocus,
   });
 
   @override
@@ -1653,17 +1738,22 @@ class _ScoreEntryRow extends StatefulWidget {
 }
 
 class _ScoreEntryRowState extends State<_ScoreEntryRow> {
-  late final FocusNode _focusNode = FocusNode();
+  bool _skipNextBlurCommit = false;
 
   @override
   void initState() {
     super.initState();
+    widget.focusNode.addListener(_handleScoreFocusChange);
     _syncController(force: true);
   }
 
   @override
   void didUpdateWidget(covariant _ScoreEntryRow oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusNode != widget.focusNode) {
+      oldWidget.focusNode.removeListener(_handleScoreFocusChange);
+      widget.focusNode.addListener(_handleScoreFocusChange);
+    }
     if (oldWidget.initialScore != widget.initialScore ||
         oldWidget.gradeItemId != widget.gradeItemId ||
         oldWidget.controller != widget.controller) {
@@ -1673,18 +1763,35 @@ class _ScoreEntryRowState extends State<_ScoreEntryRow> {
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    widget.focusNode.removeListener(_handleScoreFocusChange);
     super.dispose();
   }
 
+  void _handleScoreFocusChange() {
+    if (widget.focusNode.hasFocus) return;
+    if (_skipNextBlurCommit) {
+      _skipNextBlurCommit = false;
+      return;
+    }
+    widget.onCommit(showValidationMessage: true);
+  }
+
   void _syncController({bool force = false}) {
-    if (!force && _focusNode.hasFocus) return;
+    if (!force && widget.focusNode.hasFocus) return;
     final next = _scoreFieldText(widget.initialScore);
     if (widget.controller.text == next) return;
     widget.controller.value = TextEditingValue(
       text: next,
       selection: TextSelection.collapsed(offset: next.length),
     );
+  }
+
+  Future<void> _commitAndMove(int direction) async {
+    await widget.onCommit(showValidationMessage: true);
+    if (!mounted) return;
+    _skipNextBlurCommit = true;
+    final moved = await widget.onMoveFocus(direction);
+    if (!moved) _skipNextBlurCommit = false;
   }
 
   double _sliderValue(double max) {
@@ -1762,15 +1869,28 @@ class _ScoreEntryRowState extends State<_ScoreEntryRow> {
 
             final input = SizedBox(
               width: narrow ? double.infinity : 128,
-              child: Focus(
-                focusNode: _focusNode,
-                onFocusChange: (hasFocus) {
-                  if (!hasFocus) {
-                    widget.onCommit(showValidationMessage: true);
-                  }
+              child: CallbackShortcuts(
+                bindings: {
+                  const SingleActivator(LogicalKeyboardKey.enter): () =>
+                      _commitAndMove(1),
+                  const SingleActivator(LogicalKeyboardKey.numpadEnter): () =>
+                      _commitAndMove(1),
+                  const SingleActivator(
+                    LogicalKeyboardKey.enter,
+                    shift: true,
+                  ): () => _commitAndMove(-1),
+                  const SingleActivator(
+                    LogicalKeyboardKey.numpadEnter,
+                    shift: true,
+                  ): () => _commitAndMove(-1),
+                  const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
+                      _commitAndMove(1),
+                  const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
+                      _commitAndMove(-1),
                 },
                 child: TextField(
                   controller: widget.controller,
+                  focusNode: widget.focusNode,
                   textAlign: TextAlign.end,
                   textInputAction: TextInputAction.next,
                   decoration: _gradebookFieldDecoration(
@@ -1794,8 +1914,7 @@ class _ScoreEntryRowState extends State<_ScoreEntryRow> {
                     );
                   },
                   onSubmitted: (_) {
-                    widget.onCommit(showValidationMessage: true);
-                    FocusScope.of(context).nextFocus();
+                    _commitAndMove(1);
                   },
                   onTapOutside: (_) => widget.onCommit(
                     showValidationMessage: true,
