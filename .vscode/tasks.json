@@ -1,819 +1,192 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "Git: Check Two-Machine Status",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/git-sync-status.ps1"
-			],
-			"presentation": {
-				"echo": true,
-				"reveal": "always",
-				"focus": true,
-				"panel": "shared",
-				"showReuseMessage": false,
-				"clear": true
-			},
-			"problemMatcher": []
-		},
-		{
-			"label": "Git: Arrive On This Machine",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/git-sync-safe.ps1"
-			],
-			"presentation": {
-				"echo": true,
-				"reveal": "always",
-				"focus": true,
-				"panel": "shared",
-				"showReuseMessage": false,
-				"clear": true
-			},
-			"problemMatcher": []
-		},
-		{
-			"label": "Git: Hand Off To Other Machine",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/git-sync-safe.ps1",
-				"-PushIfAhead"
-			],
-			"presentation": {
-				"echo": true,
-				"reveal": "always",
-				"focus": true,
-				"panel": "shared",
-				"showReuseMessage": false,
-				"clear": true
-			},
-			"problemMatcher": []
-		},
-		{
-			"label": "Remote Workspace: Show Host Info",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/show-remote-workspace-host-info.ps1"
-			],
-			"presentation": {
-				"echo": true,
-				"reveal": "always",
-				"focus": true,
-				"panel": "shared",
-				"showReuseMessage": false,
-				"clear": true
-			},
-			"problemMatcher": []
-		},
-		{
-			"label": "Load .env",
-			"type": "shell",
-			"command": "pwsh",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/load-env.ps1"
-			],
-			"presentation": {
-				"echo": true,
-				"reveal": "silent",
-				"focus": false,
-				"panel": "shared",
-				"showReuseMessage": false,
-				"clear": false
-			},
-			"problemMatcher": []
-		},
-		{
-			"label": "Playwright: Run Stable (Verified)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1"
-			],
-			"presentation": {
-				"echo": true,
-				"reveal": "always",
-				"focus": true,
-				"panel": "shared",
-				"showReuseMessage": false,
-				"clear": true
-			},
-			"problemMatcher": []
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Playwright Stable Verified (One-off)",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"${workspaceFolder}/scripts/run-playwright-verified.ps1",
-				"features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"Export: PDF preview exposes download action"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium",
-				"--workers",
-				"1"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Targeted Playwright Fresh Run",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Playwright Targeted Chromium",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Playwright Targeted Chromium Retry",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Playwright Targeted Chromium Final Retry",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Playwright Targeted Chromium Narrowed Retry",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/features.spec.ts",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Playwright Remaining Failures",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"e2e/features.spec.ts",
-				"--project",
-				"chromium",
-				"--grep",
-				"core loop: edit score persists; undo reverts|Export: PDF preview close and reopen keeps download action available|Seating: toolbar actions and room setup save flow work"
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Playwright Final 2 Specs",
-			"type": "shell",
-			"command": "powershell",
-			"args": [
-				"-NoProfile",
-				"-ExecutionPolicy",
-				"Bypass",
-				"-File",
-				"scripts/run-playwright-verified.ps1",
-				"e2e/core_flow.spec.ts",
-				"e2e/seating_room_setup.spec.ts",
-				"--project",
-				"chromium"
-			],
-			"isBackground": false
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Flutter: Analyze",
+      "type": "shell",
+      "command": "flutter",
+      "args": [
+        "analyze"
+      ],
+      "group": "test",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Flutter: Test",
+      "type": "shell",
+      "command": "flutter",
+      "args": [
+        "test"
+      ],
+      "group": "test",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "Flutter: Build Web",
+      "type": "shell",
+      "command": "flutter",
+      "args": [
+        "build",
+        "web"
+      ],
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "GradeFlow: Verify Local",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Flutter: Analyze",
+        "Flutter: Test"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Playwright: Run Stable (Verified)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/run-playwright-verified.ps1"
+      ],
+      "group": "test",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "Git: Check Two-Machine Status",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/git-sync-status.ps1"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "Git: Arrive On This Machine",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/git-sync-safe.ps1"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "Git: Hand Off To Other Machine",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/git-sync-safe.ps1",
+        "-PushIfAhead"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "Remote Workspace: Show Host Info",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/show-remote-workspace-host-info.ps1"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "Load .env",
+      "type": "shell",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/load-env.ps1"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      }
+    }
+  ]
 }

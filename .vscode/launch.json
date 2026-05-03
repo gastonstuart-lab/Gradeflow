@@ -2,26 +2,20 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Flutter (Chrome)",
+      "name": "GradeFlow Web: Chrome Debug",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "args": [
-        "-d",
-        "chrome"
-      ]
+      "deviceId": "chrome",
+      "flutterMode": "debug"
     },
     {
-      "name": "Flutter (Chrome) + AI 🤖",
+      "name": "GradeFlow Web: Chrome Profile",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "args": [
-        "-d",
-        "chrome",
-        "--dart-define=OPENAI_PROXY_API_KEY=${env:OPENAI_API_KEY}",
-        "--dart-define=OPENAI_PROXY_ENDPOINT=https://api.openai.com/v1"
-      ]
+      "deviceId": "chrome",
+      "flutterMode": "profile"
     }
   ]
 }

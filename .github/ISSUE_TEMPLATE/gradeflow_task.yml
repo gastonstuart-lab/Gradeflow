@@ -1,0 +1,77 @@
+name: GradeFlow Task
+description: Plan one bounded GradeFlow change before an agent or developer starts.
+title: "GF-___ - "
+labels:
+  - gradeflow-task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use one issue, one branch, one result. Keep the scope small enough to verify locally.
+  - type: input
+    id: result
+    attributes:
+      label: One result
+      description: What should be true when this issue is done?
+      placeholder: "Example: Teachers can verify imports before saving them."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List the observable checks that define done.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: allowed_scope
+    attributes:
+      label: Allowed scope
+      description: Files, folders, or behavior the work may change.
+      placeholder: |
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: forbidden_scope
+    attributes:
+      label: Forbidden scope
+      description: Files, folders, or behavior agents must not touch.
+      placeholder: |
+        - Firebase logic unless explicitly scoped
+        - Routing unless explicitly scoped
+        - Unrelated UI polish
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification commands
+      description: Commands Stuart or an agent should run before handing off.
+      value: |
+        - flutter analyze
+        - flutter test
+    validations:
+      required: true
+  - type: dropdown
+    id: visual_change
+    attributes:
+      label: Visual change?
+      description: Visual work requires before and after screenshots.
+      options:
+        - "No"
+        - "Yes - include before/after screenshots"
+    validations:
+      required: true
+  - type: textarea
+    id: agent_prompt
+    attributes:
+      label: Start prompt for Codex/Copilot
+      description: Paste the exact implementation prompt for the next agent session.
+      placeholder: |
+        Read the GradeFlow repository and implement only...
+    validations:
+      required: true
