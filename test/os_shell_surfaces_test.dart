@@ -16,6 +16,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   testWidgets('HomeSurface renders native OS home sections', (tester) async {
     SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
       _harness(
@@ -25,7 +29,13 @@ void main() {
 
     expect(find.text('COMMAND CENTER'), findsOneWidget);
     expect(find.text('PINNED APPS'), findsOneWidget);
-    expect(find.text('WORKSPACES'), findsOneWidget);
+    expect(find.text('Today'), findsWidgets);
+    expect(find.text('Classes'), findsWidgets);
+    expect(find.text('Tasks'), findsWidgets);
+    expect(find.text('Messages'), findsWidgets);
+    expect(find.text('Insights'), findsWidgets);
+    expect(find.text('Create a class to begin staging teaching tools.'),
+        findsNothing);
   });
 
   testWidgets('PlannerSurface exposes planning upload entry points',
