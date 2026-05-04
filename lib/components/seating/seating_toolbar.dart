@@ -82,12 +82,28 @@ class SeatingToolbar extends StatelessWidget {
               child: DropdownButtonFormField<String>(
                 key: ValueKey(active.layoutId),
                 initialValue: active.layoutId.isEmpty ? null : active.layoutId,
+                isExpanded: true,
                 decoration: _seatingToolbarFieldDecoration(context),
                 items: [
                   for (final layout in layouts)
                     DropdownMenuItem(
                       value: layout.layoutId,
-                      child: Text(layout.name),
+                      child: Text(
+                        layout.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                selectedItemBuilder: (context) => [
+                  for (final layout in layouts)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        layout.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                 ],
                 onChanged: (value) {
