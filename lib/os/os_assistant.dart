@@ -199,7 +199,7 @@ class _AssistantHeader extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Text(
-            'GradeFlow Assistant',
+            'InstructOS Assistant',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,

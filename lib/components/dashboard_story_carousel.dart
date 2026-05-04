@@ -799,7 +799,7 @@ class _StoryArtCard extends StatelessWidget {
               right: 18,
               top: 18,
               child: Image.asset(
-                'assets/images/school_logo2.png',
+                'assets/branding/schools/school_logo2.png',
                 width: 48,
                 height: 48,
                 opacity: const AlwaysStoppedAnimation(0.92),

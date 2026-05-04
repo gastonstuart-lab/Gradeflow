@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="I/OS">
+  <defs>
+    <linearGradient id="favBg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="favAccent" x1="25" y1="46" x2="36" y2="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="favOS" x1="35" y1="24" x2="56" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#favBg)"/>
+  <text x="13" y="42" fill="#FFFFFF" font-family="Inter, Arial, Helvetica, sans-serif" font-size="28" font-weight="840">I</text>
+  <path d="M27 45L38 19" stroke="url(#favAccent)" stroke-width="5" stroke-linecap="round"/>
+  <text x="39" y="42" fill="url(#favOS)" font-family="Inter, Arial, Helvetica, sans-serif" font-size="20" font-weight="840" letter-spacing="-1.8">OS</text>
+</svg>

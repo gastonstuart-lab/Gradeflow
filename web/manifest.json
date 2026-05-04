@@ -1,11 +1,11 @@
 {
-    "name": "GradeFlow",
-    "short_name": "GradeFlow",
+    "name": "InstructOS",
+    "short_name": "InstructOS",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#050912",
     "theme_color": "#050912",
-    "description": "Professional workflow operating system for teachers.",
+    "description": "One system. Every classroom workflow.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

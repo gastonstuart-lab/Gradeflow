@@ -1,9 +1,9 @@
+import 'package:gradeflow/config/instructos_branding.dart';
+
 class GradeFlowProductConfig {
-  static const String appName = 'GradeFlow';
-  static const String marketingTagline =
-      'Professional workflow operating system for teachers';
-  static const String defaultSchoolName =
-      'The Affiliated High School of Tunghai University';
+  static const String appName = InstructOSBranding.productName;
+  static const String marketingTagline = InstructOSBranding.productTagline;
+  static const String defaultSchoolName = InstructOSBranding.defaultSchoolName;
   static const String defaultAttendancePortalUrl =
       'https://fsis.hn.thu.edu.tw/csn1t/permain.asp';
 

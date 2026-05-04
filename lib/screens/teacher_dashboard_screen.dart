@@ -45,6 +45,7 @@ import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 import 'package:gradeflow/components/time_slot_timetable.dart';
 import 'package:gradeflow/platform/dashboard_audio_player.dart';
+import 'package:gradeflow/widgets/branding/instructos_brand_widgets.dart';
 
 part 'teacher_dashboard/dashboard_class_tools.dart';
 part 'teacher_dashboard/dashboard_imports.dart';

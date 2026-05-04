@@ -18,31 +18,31 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Professional workflow operating system for teachers.">
+  <meta name="description" content="One system. Every classroom workflow.">
   <meta name="theme-color" content="#050912">
   <meta name="color-scheme" content="dark">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="GradeFlow">
+  <meta name="apple-mobile-web-app-title" content="InstructOS">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/svg+xml" href="assets/assets/branding/instructos/instructos_favicon.svg"/>
+  <link rel="alternate icon" type="image/png" href="favicon.png"/>
 
   <!-- Google Sign-In (optional but recommended for Flutter web) -->
   <!-- Set this to your OAuth Web client ID from Google Cloud Console -->
   <meta name="google-signin-client_id" content="851087972500-06hut292tqfb86o9jmfo55tc441de78.apps.googleusercontent.com">
 
-  <title>GradeFlow</title>
+  <title>InstructOS</title>
   <link rel="manifest" href="manifest.json">
   <style>
     :root {
       color-scheme: dark;
       --gf-bg: #050912;
       --gf-bg-soft: #101a28;
-      --gf-border: rgba(255, 255, 255, 0.1);
       --gf-text: #f5f7fb;
       --gf-muted: rgba(245, 247, 251, 0.72);
       --gf-accent: #5c88ff;
@@ -93,106 +93,42 @@
     }
 
     .gf-loader-shell {
-      position: relative;
-      width: min(100%, 500px);
-      padding: 28px;
-      border-radius: 28px;
-      border: 1px solid var(--gf-border);
-      background:
-        linear-gradient(145deg, rgba(17, 27, 40, 0.92), rgba(11, 18, 28, 0.82));
-      box-shadow:
-        0 24px 64px rgba(0, 0, 0, 0.38),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
-      overflow: hidden;
-    }
-
-    .gf-loader-shell::before {
-      content: "";
-      position: absolute;
-      inset: auto -64px -96px auto;
-      width: 220px;
-      height: 220px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(92, 136, 255, 0.2), transparent 68%);
-      pointer-events: none;
-    }
-
-    .gf-loader-head {
+      width: min(100%, 460px);
       display: flex;
-      align-items: flex-start;
-      gap: 16px;
-    }
-
-    .gf-loader-mark {
-      position: relative;
-      width: 72px;
-      height: 72px;
-      border-radius: 22px;
-      background: linear-gradient(145deg, var(--gf-accent), var(--gf-cyan));
-      box-shadow: 0 16px 34px rgba(92, 136, 255, 0.3);
-      flex: 0 0 auto;
-    }
-
-    .gf-loader-mark::before,
-    .gf-loader-mark::after {
-      content: "";
-      position: absolute;
-      inset: 14px;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.24);
-    }
-
-    .gf-loader-mark::after {
-      inset: 24px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.14);
-      border: 0;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 14px;
     }
 
     .gf-loader-title {
       margin: 0;
-      font-size: clamp(1.8rem, 3vw, 2.4rem);
-      font-weight: 800;
-      letter-spacing: -0.04em;
-    }
-
-    .gf-loader-kicker {
-      margin: 0 0 10px;
-      color: var(--gf-muted);
-      font-size: 0.86rem;
+      font-size: clamp(2rem, 4.2vw, 2.8rem);
       font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
     }
 
-    .gf-loader-copy {
-      margin: 8px 0 0;
+    .gf-loader-title-accent {
+      color: transparent;
+      background-image: linear-gradient(90deg, var(--gf-accent), var(--gf-cyan));
+      background-clip: text;
+      -webkit-background-clip: text;
+    }
+
+    .gf-loader-tagline {
+      margin: 0;
       color: var(--gf-muted);
-      line-height: 1.55;
-      max-width: 34rem;
-    }
-
-    .gf-loader-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 24px;
-    }
-
-    .gf-loader-pill {
-      padding: 9px 12px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--gf-text);
-      font-size: 0.88rem;
-      font-weight: 700;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
     }
 
     .gf-loader-progress {
       position: relative;
-      height: 6px;
-      margin-top: 24px;
+      width: min(100%, 280px);
+      height: 2px;
+      margin-top: 6px;
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.08);
       overflow: hidden;
@@ -202,7 +138,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      width: 42%;
+      width: 44%;
       border-radius: inherit;
       background: linear-gradient(90deg, var(--gf-accent), var(--gf-cyan));
       box-shadow: 0 0 18px rgba(92, 136, 255, 0.28);
@@ -213,7 +149,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-top: 18px;
+      margin-top: 2px;
       color: var(--gf-muted);
       font-size: 0.9rem;
       font-weight: 600;
@@ -254,17 +190,7 @@
 
     @media (max-width: 640px) {
       .gf-loader-shell {
-        padding: 22px;
-        border-radius: 24px;
-      }
-
-      .gf-loader-head {
-        flex-direction: column;
-      }
-
-      .gf-loader-mark {
-        width: 64px;
-        height: 64px;
+        gap: 12px;
       }
     }
   </style>
@@ -272,25 +198,12 @@
 <body>
   <div id="gradeflow-loader" aria-hidden="true">
     <div class="gf-loader-shell">
-      <div class="gf-loader-head">
-        <div class="gf-loader-mark"></div>
-        <div>
-          <p class="gf-loader-kicker">Teacher Operating System</p>
-          <h1 class="gf-loader-title">GradeFlow</h1>
-          <p class="gf-loader-copy">
-            Opening the workspace for today’s classes.
-          </p>
-        </div>
-      </div>
-      <div class="gf-loader-row">
-        <div class="gf-loader-pill">Secure session</div>
-        <div class="gf-loader-pill">Classroom tools</div>
-        <div class="gf-loader-pill">Workspace ready</div>
-      </div>
+      <h1 class="gf-loader-title">I/<span class="gf-loader-title-accent">OS</span> InstructOS</h1>
+      <p class="gf-loader-tagline">One system. Every classroom workflow.</p>
       <div class="gf-loader-progress"></div>
       <div class="gf-loader-status">
         <span class="gf-loader-status-dot"></span>
-        Preparing GradeFlow
+        Preparing your classroom workspace...
       </div>
     </div>
   </div>
@@ -328,7 +241,7 @@
 
       window.setTimeout(() => {
         if (!removed && status) {
-          status.lastChild.textContent = ' Still preparing GradeFlow';
+          status.lastChild.textContent = ' Still preparing your classroom workspace...';
         }
       }, 45000);
     })();

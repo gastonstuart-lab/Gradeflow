@@ -18,8 +18,8 @@ class SchoolIdentityPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String primaryLogo = 'assets/images/school_logo2.png';
-    final String fallbackLogo = 'assets/images/school_logo2.png';
+    final String primaryLogo = 'assets/branding/schools/school_logo2.png';
+    final String fallbackLogo = 'assets/branding/schools/school_logo2.png';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final pillHeight = compact ? 40.0 : 46.0;
     final logoSize = compact ? 28.0 : 40.0;
@@ -297,7 +297,8 @@ class SchoolIdentityHeaderMark extends StatelessWidget {
                   ),
                   child: Padding(
                     padding: EdgeInsets.all(compact ? 7 : 8),
-                    child: Image.asset('assets/images/school_logo2.png'),
+                    child:
+                        Image.asset('assets/branding/schools/school_logo2.png'),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -404,7 +405,7 @@ class SchoolHeroMasthead extends StatelessWidget {
             ),
             child: Padding(
               padding: EdgeInsets.all(compact ? 10 : 12),
-              child: Image.asset('assets/images/school_logo2.png'),
+              child: Image.asset('assets/branding/schools/school_logo2.png'),
             ),
           ),
           SizedBox(height: compact ? 8 : 10),

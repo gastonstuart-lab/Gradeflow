@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 72" role="img" aria-label="InstructOS">
+  <defs>
+    <linearGradient id="wordOSLight" x1="246" y1="18" x2="336" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <text x="8" y="51" fill="#111827" font-family="Inter, Arial, Helvetica, sans-serif" font-size="42" font-weight="760" letter-spacing="-1">Instruct</text>
+  <text x="250" y="51" fill="url(#wordOSLight)" font-family="Inter, Arial, Helvetica, sans-serif" font-size="42" font-weight="820" letter-spacing="-1">OS</text>
+</svg>

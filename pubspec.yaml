@@ -1,5 +1,5 @@
 name: gradeflow
-description: "GradeFlow is a web-first teacher operating system for class workflows, rosters, grading, classroom tools, seating plans, and exports."
+description: "InstructOS is a web-first teacher operating system for class workflows, rosters, grading, classroom tools, seating plans, and exports."
 publish_to: "none"
 version: 1.0.0
 
@@ -38,6 +38,7 @@ dependencies:
   firebase_auth: ^5.5.1
   responsive_framework: ^1.5.1
   icalendar_parser: ^2.1.0
+  flutter_svg: ^2.0.17
 
 dev_dependencies:
   flutter_test:
@@ -50,6 +51,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/branding/instructos/
+    - assets/branding/schools/
 
 flutter_launcher_icons:
   android: true

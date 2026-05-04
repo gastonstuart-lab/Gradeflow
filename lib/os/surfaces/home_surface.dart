@@ -1,4 +1,4 @@
-// GradeFlow OS — Home Surface
+﻿// GradeFlow OS — Home Surface
 //
 // The teacher's primary landing surface should read like an actual OS home:
 // a desktop stage, pinned apps, glanceable live signals, and secondary
@@ -27,6 +27,7 @@ import 'package:gradeflow/services/dashboard_preferences_service.dart';
 import 'package:gradeflow/services/dashboard_weather_service.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
+import 'package:gradeflow/widgets/branding/instructos_brand_widgets.dart';
 
 class HomeSurface extends StatefulWidget {
   const HomeSurface({super.key});
@@ -276,10 +277,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
           builder: (context, constraints) {
             final isDesktop =
                 constraints.maxWidth >= 1220 && constraints.maxHeight >= 760;
-            final horizontalPadding = constraints.maxWidth < 760 ? 14.0 : 20.0;
+            final horizontalPadding = constraints.maxWidth < 760 ? 14.0 : 22.0;
             final contentPadding = EdgeInsets.fromLTRB(
               horizontalPadding,
-              10,
+              isDesktop ? 16 : 10,
               horizontalPadding,
               24,
             );
@@ -409,44 +410,40 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          width: 248,
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _HomeSchoolIdentity(
-                  teacherName: widget.teacherName,
-                  schoolName: widget.schoolName,
+          width: 258,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _HomeSchoolIdentity(
+                teacherName: widget.teacherName,
+                schoolName: widget.schoolName,
+                unread: widget.unread,
+                themeMode: widget.themeMode,
+                onAssistantTap: widget.onAssistantTap,
+                onShadeTap: widget.onShadeTap,
+                onThemeTap: widget.onThemeTap,
+                onWallpaperTap: widget.onWallpaperTap,
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _HomeNavigationRail(
+                  selectedFolder: _selectedFolder,
                   unread: widget.unread,
-                  themeMode: widget.themeMode,
-                  onAssistantTap: widget.onAssistantTap,
-                  onShadeTap: widget.onShadeTap,
-                  onThemeTap: widget.onThemeTap,
-                  onWallpaperTap: widget.onWallpaperTap,
+                  primaryClass: widget.primaryClass,
+                  onFolderSelected: (folder) => setState(() {
+                    _selectedFolder = _selectedFolder == folder ? null : folder;
+                  }),
                 ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 202,
-                  child: _HomeShortcutShelf(
-                    unread: widget.unread,
-                    themeMode: widget.themeMode,
-                    onAssistantTap: widget.onAssistantTap,
-                    onLauncherTap: widget.onLauncherTap,
-                    onThemeTap: widget.onThemeTap,
-                    compact: true,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 18),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
               final stageHeight =
-                  (constraints.maxHeight * 0.31).clamp(232.0, 286.0);
+                  (constraints.maxHeight * 0.335).clamp(248.0, 306.0);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -467,7 +464,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                       onLauncherTap: widget.onLauncherTap,
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   _HomeWorkspaceFolderStrip(
                     selected: _selectedFolder,
                     classCount: widget.classes.length,
@@ -478,50 +475,58 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                           _selectedFolder == folder ? null : folder;
                     }),
                   ),
-                  const SizedBox(height: 14),
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 760),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 240),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        child: _selectedFolder == null
-                            ? const _HomeCalmWorkspaceFloor(
-                                key: ValueKey('workspace-closed'),
-                              )
-                            : _HomeWorkspaceFolderPanel(
-                                key: ValueKey(_selectedFolder),
-                                folder: _selectedFolder!,
-                                primaryClass: widget.primaryClass,
-                                classes: widget.classes,
-                                reminders: widget.reminders,
-                                unread: widget.unread,
-                                totalStudents: widget.totalStudents,
-                                now: widget.now,
-                              ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: _selectedFolder == null
+                          ? null
+                          : () => setState(() => _selectedFolder = null),
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 820),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 240),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            child: _selectedFolder == null
+                                ? const _HomeCalmWorkspaceFloor(
+                                    key: ValueKey('workspace-closed'),
+                                  )
+                                : GestureDetector(
+                                    onTap: () {},
+                                    child: _HomeWorkspaceFolderPanel(
+                                      key: ValueKey(_selectedFolder),
+                                      folder: _selectedFolder!,
+                                      primaryClass: widget.primaryClass,
+                                      classes: widget.classes,
+                                      reminders: widget.reminders,
+                                      unread: widget.unread,
+                                      totalStudents: widget.totalStudents,
+                                      now: widget.now,
+                                    ),
+                                  ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  const Spacer(),
                 ],
               );
             },
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 18),
         SizedBox(
-          width: 296,
+          width: 318,
           child: _HomeUtilityRail(
             unread: widget.unread,
             reminderCount: widget.reminders.length,
             children: [
               const _HomeWeatherPanel(embedded: true),
-              _HomeAudioPanel(
-                embedded: true,
-                onTap: () => context.go(AppRoutes.dashboard),
-              ),
+              const _HomeAudioPanel(embedded: true),
+              _HomeMessagesRailPanel(unread: widget.unread),
               _HomeAgendaPanel(
                 reminders: widget.reminders,
                 scrollable: true,
@@ -651,37 +656,49 @@ class _HomeWorkspaceFolderStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: context.isDark
-                ? Colors.white.withValues(alpha: 0.018)
-                : Colors.white.withValues(alpha: 0.24),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: context.isDark
-                  ? Colors.white.withValues(alpha: 0.035)
-                  : Colors.white.withValues(alpha: 0.36),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(3),
-            child: Row(
-              children: [
-                for (final folder in _HomeWorkspaceFolder.values) ...[
-                  _HomeWorkspaceFolderChip(
-                    folder: folder,
-                    selected: selected == folder,
-                    detail: _folderDetail(folder),
-                    onTap: () => onSelected(folder),
-                  ),
-                  if (folder != _HomeWorkspaceFolder.values.last)
-                    const SizedBox(width: 8),
-                ],
+    final dark = context.isDark;
+
+    return Align(
+      alignment: Alignment.center,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.030)
+                  : Colors.white.withValues(alpha: 0.34),
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.060)
+                    : Colors.white.withValues(alpha: 0.54),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: dark ? 0.22 : 0.055),
+                  blurRadius: 22,
+                  offset: const Offset(0, 12),
+                ),
               ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  for (final folder in _HomeWorkspaceFolder.values) ...[
+                    _HomeWorkspaceFolderChip(
+                      folder: folder,
+                      selected: selected == folder,
+                      detail: _folderDetail(folder),
+                      onTap: () => onSelected(folder),
+                    ),
+                    if (folder != _HomeWorkspaceFolder.values.last)
+                      const SizedBox(width: 7),
+                  ],
+                ],
+              ),
             ),
           ),
         ),
@@ -723,28 +740,28 @@ class _HomeWorkspaceFolderChip extends StatelessWidget {
     final chip = AnimatedContainer(
       duration: const Duration(milliseconds: 190),
       curve: Curves.easeOutCubic,
-      width: 134,
-      padding: EdgeInsets.fromLTRB(12, selected ? 9 : 10, 12, 10),
+      width: 132,
+      padding: EdgeInsets.fromLTRB(12, selected ? 10 : 11, 12, 11),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: selected
               ? [
-                  accent.withValues(alpha: dark ? 0.18 : 0.12),
+                  accent.withValues(alpha: dark ? 0.20 : 0.14),
                   (dark ? Colors.white : Colors.white)
-                      .withValues(alpha: dark ? 0.065 : 0.72),
+                      .withValues(alpha: dark ? 0.078 : 0.80),
                 ]
               : [
                   (dark ? Colors.white : Colors.white)
-                      .withValues(alpha: dark ? 0.045 : 0.58),
+                      .withValues(alpha: dark ? 0.052 : 0.62),
                   (dark ? Colors.white : Colors.white)
-                      .withValues(alpha: dark ? 0.026 : 0.40),
+                      .withValues(alpha: dark ? 0.030 : 0.45),
                 ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.vertical(
-          top: const Radius.circular(18),
-          bottom: Radius.circular(selected ? 12 : 18),
+          top: const Radius.circular(19),
+          bottom: Radius.circular(selected ? 13 : 19),
         ),
         border: Border.all(
           color: selected
@@ -757,8 +774,8 @@ class _HomeWorkspaceFolderChip extends StatelessWidget {
             ? [
                 BoxShadow(
                   color: accent.withValues(alpha: dark ? 0.16 : 0.10),
-                  blurRadius: 22,
-                  offset: const Offset(0, 10),
+                  blurRadius: 24,
+                  offset: const Offset(0, 11),
                 ),
                 BoxShadow(
                   color: Colors.black.withValues(alpha: dark ? 0.22 : 0.08),
@@ -836,11 +853,11 @@ class _HomeWorkspaceFolderChip extends StatelessWidget {
     );
 
     return Transform.translate(
-      offset: Offset(0, selected ? -3 : 0),
+      offset: Offset(0, selected ? -4 : 0),
       child: OSTouchFeedback(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        minSize: const Size(126, 58),
+        borderRadius: BorderRadius.circular(19),
+        minSize: const Size(126, 60),
         child: chip,
       ),
     );
@@ -854,74 +871,153 @@ class _HomeCalmWorkspaceFloor extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
 
-    return SizedBox(
-      height: 214,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          Positioned(
-            left: 18,
-            right: 18,
-            top: 18,
-            bottom: 28,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.045)
-                      : Colors.white.withValues(alpha: 0.42),
-                ),
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withValues(alpha: dark ? 0.028 : 0.32),
-                    Colors.white.withValues(alpha: dark ? 0.010 : 0.10),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 34,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: dark
-                    ? Colors.white.withValues(alpha: 0.040)
-                    : Colors.white.withValues(alpha: 0.56),
-                borderRadius: OSRadius.pillBr,
-                border: Border.all(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.065)
-                      : Colors.white.withValues(alpha: 0.70),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 16,
-                    color: OSColors.textMuted(dark),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final height = constraints.maxHeight.isFinite
+            ? constraints.maxHeight.clamp(224.0, 318.0).toDouble()
+            : 258.0;
+
+        return SizedBox(
+          height: height,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Positioned(
+                left: 10,
+                right: 10,
+                top: 8,
+                bottom: 22,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(
+                      color: dark
+                          ? Colors.white.withValues(alpha: 0.060)
+                          : Colors.white.withValues(alpha: 0.52),
+                    ),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: dark ? 0.038 : 0.38),
+                        Colors.white.withValues(alpha: dark ? 0.018 : 0.18),
+                        Colors.white.withValues(alpha: dark ? 0.010 : 0.06),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            Colors.black.withValues(alpha: dark ? 0.20 : 0.05),
+                        blurRadius: 30,
+                        offset: const Offset(0, 18),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Choose a folder when you need more',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: OSColors.textMuted(dark),
+                ),
+              ),
+              Positioned(
+                left: 36,
+                right: 36,
+                top: 32,
+                child: Container(
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        Colors.white.withValues(alpha: dark ? 0.16 : 0.58),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+              Positioned(
+                left: 74,
+                right: 74,
+                top: 112,
+                child: Container(
+                  height: 92,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.white.withValues(alpha: dark ? 0.080 : 0.36),
+                        Colors.white.withValues(alpha: dark ? 0.018 : 0.05),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _WorkspaceFloorTexturePainter(dark: dark),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 52,
+                right: 52,
+                bottom: 30,
+                child: Container(
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        Colors.white.withValues(alpha: dark ? 0.12 : 0.42),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
+  }
+}
+
+class _WorkspaceFloorTexturePainter extends CustomPainter {
+  const _WorkspaceFloorTexturePainter({required this.dark});
+
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: dark ? 0.020 : 0.060)
+      ..strokeWidth = 1;
+    for (var y = size.height * 0.24; y < size.height - 28; y += 34) {
+      canvas.drawLine(
+        Offset(42, y),
+        Offset(size.width - 42, y + 8),
+        paint,
+      );
+    }
+
+    final glow = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          OSColors.blue.withValues(alpha: dark ? 0.075 : 0.070),
+          Colors.transparent,
+        ],
+      ).createShader(
+        Rect.fromCircle(
+          center: Offset(size.width * 0.50, size.height * 0.54),
+          radius: size.width * 0.38,
+        ),
+      );
+    canvas.drawRect(Offset.zero & size, glow);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WorkspaceFloorTexturePainter oldDelegate) {
+    return oldDelegate.dark != dark;
   }
 }
 
@@ -947,14 +1043,57 @@ class _HomeWorkspaceFolderPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassPanel(
-      tone: _HomePanelTone.whisper,
-      radius: 28,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 176, maxHeight: 276),
-        child: SingleChildScrollView(child: _buildFolderContent(context)),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final height = constraints.maxHeight.isFinite
+            ? constraints.maxHeight.clamp(248.0, 354.0).toDouble()
+            : 318.0;
+
+        return SizedBox(
+          height: height,
+          child: _GlassPanel(
+            tone: _HomePanelTone.whisper,
+            radius: 28,
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+            child: SingleChildScrollView(
+              child: _folderBackground(
+                context,
+                _buildFolderContent(context),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Color get _accent => folder.accent;
+
+  Widget _folderBackground(BuildContext context, Widget child) {
+    final dark = context.isDark;
+    return Stack(
+      children: [
+        Positioned(
+          right: -44,
+          top: -48,
+          child: IgnorePointer(
+            child: Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    _accent.withValues(alpha: dark ? 0.13 : 0.10),
+                    _accent.withValues(alpha: 0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        child,
+      ],
     );
   }
 
@@ -1141,29 +1280,11 @@ class _MessagesFolderContent extends StatelessWidget {
       title: unread == 0
           ? 'Inbox quiet'
           : '$unread unread update${unread == 1 ? '' : 's'}',
-      subtitle: 'A calm preview for school communication, not a full inbox.',
+      subtitle: 'A familiar conversation preview without opening the inbox.',
       actionLabel: 'Open Messages',
       actionIcon: Icons.forum_rounded,
       onAction: () => context.go(AppRoutes.communication),
-      child: Column(
-        children: [
-          _FolderInfoRow(
-            icon: Icons.mark_email_read_outlined,
-            accent: OSColors.cyan,
-            label: 'Inbox',
-            value: unread == 0
-                ? 'No unread conversations'
-                : 'Unread conversations are waiting',
-          ),
-          const SizedBox(height: 10),
-          _FolderInfoRow(
-            icon: Icons.shield_moon_outlined,
-            accent: OSColors.blue,
-            label: 'Focus mode',
-            value: 'Messages stay nearby without taking over the desktop',
-          ),
-        ],
-      ),
+      child: _MessagePreviewList(unread: unread, compact: false),
     );
   }
 }
@@ -1570,11 +1691,8 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
         ),
         const SizedBox(height: 16),
         _HomeShortcutShelf(
-          unread: widget.unread,
-          themeMode: widget.themeMode,
           onAssistantTap: widget.onAssistantTap,
           onLauncherTap: widget.onLauncherTap,
-          onThemeTap: widget.onThemeTap,
         ),
         const SizedBox(height: 16),
         _HomeUtilityRail(
@@ -1622,7 +1740,7 @@ extension _HomeWallpaperStyleX on _HomeWallpaperStyle {
   String get label {
     switch (this) {
       case _HomeWallpaperStyle.defaultStyle:
-        return 'GradeFlow';
+        return 'InstructOS';
       case _HomeWallpaperStyle.sky:
         return 'Sky';
       case _HomeWallpaperStyle.meadow:
@@ -1962,7 +2080,7 @@ class _HomeSystemStrip extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'GradeFlow OS',
+                        'InstructOS',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -2086,7 +2204,7 @@ class _HomeSystemStrip extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'GradeFlow OS',
+                        'InstructOS',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -2228,13 +2346,9 @@ class _HomeSchoolIdentity extends StatelessWidget {
                         : Colors.white.withValues(alpha: 0.84),
                   ),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Image.asset(
-                    'assets/images/school_logo2.png',
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.high,
-                  ),
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: InstructOSMark(height: 34),
                 ),
               ),
               const SizedBox(width: 12),
@@ -2243,7 +2357,7 @@ class _HomeSchoolIdentity extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'GradeFlow OS',
+                      'InstructOS',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -2456,16 +2570,10 @@ class _HomeStagePanel extends StatelessWidget {
         onTap: () => context.go(AppRoutes.osPlanner),
       ),
       _StageActionData(
-        label: 'Classes',
-        icon: Icons.class_rounded,
+        label: 'Whiteboard',
+        icon: Icons.draw_rounded,
         accent: OSColors.green,
-        onTap: () => context.go(AppRoutes.classes),
-      ),
-      _StageActionData(
-        label: unread == 0 ? 'Messages' : 'Messages $unread',
-        icon: Icons.forum_rounded,
-        accent: OSColors.cyan,
-        onTap: () => context.go(AppRoutes.communication),
+        onTap: () => context.push(AppRoutes.whiteboard),
       ),
       _StageActionData(
         label: 'Assistant',
@@ -2996,20 +3104,12 @@ class _StageActionButton extends StatelessWidget {
 
 class _HomeShortcutShelf extends StatelessWidget {
   const _HomeShortcutShelf({
-    required this.unread,
-    required this.themeMode,
     required this.onAssistantTap,
     required this.onLauncherTap,
-    required this.onThemeTap,
-    this.compact = false,
   });
 
-  final int unread;
-  final ThemeMode themeMode;
   final VoidCallback onAssistantTap;
   final VoidCallback onLauncherTap;
-  final VoidCallback onThemeTap;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -3018,16 +3118,9 @@ class _HomeShortcutShelf extends StatelessWidget {
           onTap: () => context.go(AppRoutes.osTeach)),
       _shortcutFromApp(OSAppId.planner,
           onTap: () => context.go(AppRoutes.osPlanner)),
-      _shortcutFromApp(OSAppId.classes,
-          onTap: () => context.go(AppRoutes.classes)),
       _shortcutFromApp(
         OSAppId.whiteboard,
         onTap: () => context.push(AppRoutes.whiteboard),
-      ),
-      _shortcutFromApp(
-        OSAppId.messages,
-        onTap: () => context.go(AppRoutes.communication),
-        badge: unread > 0 ? '$unread' : null,
       ),
       _HomeShortcutData(
         label: 'Assistant',
@@ -3041,81 +3134,55 @@ class _HomeShortcutShelf extends StatelessWidget {
         accent: OSColors.amber,
         onTap: onLauncherTap,
       ),
-      _HomeShortcutData(
-        label: themeMode == ThemeMode.light ? 'Dark mode' : 'Light mode',
-        icon: themeMode == ThemeMode.light
-            ? Icons.dark_mode_rounded
-            : Icons.light_mode_rounded,
-        accent: OSColors.blue,
-        onTap: onThemeTap,
-      ),
     ];
 
     return _GlassPanel(
       tone: _HomePanelTone.whisper,
-      radius: compact ? 24 : 28,
-      padding: EdgeInsets.all(compact ? 13 : 16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final tileWidth = compact ? 72.0 : 82.0;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      radius: 28,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PanelEyebrow(label: 'Pinned Apps'),
+          const SizedBox(height: 8),
+          Text(
+            'Launch tools',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: OSColors.text(context.isDark),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Folders below are for context. These are direct tools.',
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.38,
+              color: OSColors.textSecondary(context.isDark),
+            ),
+          ),
+          const SizedBox(height: 14),
+          GridView.count(
+            padding: EdgeInsets.zero,
+            crossAxisCount: 2,
+            childAspectRatio: 0.96,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             children: [
-              const _PanelEyebrow(label: 'Pinned Apps'),
-              SizedBox(height: compact ? 6 : 8),
-              Text(
-                'Quick launch',
-                style: TextStyle(
-                  fontSize: compact ? 15.5 : 17,
-                  fontWeight: FontWeight.w800,
-                  color: OSColors.text(context.isDark),
+              for (final shortcut in shortcuts)
+                _HomeShortcutIcon(
+                  data: shortcut,
+                  width: double.infinity,
+                  iconBoxSize: 52,
                 ),
-              ),
-              if (!compact) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Teach, message, and open the tools you use most.',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    height: 1.4,
-                    color: OSColors.textSecondary(context.isDark),
-                  ),
-                ),
-              ],
-              SizedBox(height: compact ? 11 : 14),
-              SizedBox(
-                height: compact ? 86 : 96,
-                child: ShaderMask(
-                  shaderCallback: (rect) {
-                    return LinearGradient(
-                      colors: [
-                        Colors.black,
-                        Colors.black,
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.88, 1.0],
-                    ).createShader(rect);
-                  },
-                  blendMode: BlendMode.dstIn,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: shortcuts.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemBuilder: (context, index) {
-                      return _HomeShortcutIcon(
-                        data: shortcuts[index],
-                        width: tileWidth,
-                        iconBoxSize: compact ? 50 : 58,
-                      );
-                    },
-                  ),
-                ),
-              ),
             ],
-          );
-        },
+          ),
+          const SizedBox(height: 12),
+          const _PinnedAppsFooter(),
+        ],
       ),
     );
   }
@@ -3132,6 +3199,313 @@ class _HomeShortcutShelf extends StatelessWidget {
       accent: app.color ?? OSColors.blue,
       badge: badge,
       onTap: onTap,
+    );
+  }
+}
+
+class _HomeNavigationRail extends StatelessWidget {
+  const _HomeNavigationRail({
+    required this.selectedFolder,
+    required this.unread,
+    required this.primaryClass,
+    required this.onFolderSelected,
+  });
+
+  final _HomeWorkspaceFolder? selectedFolder;
+  final int unread;
+  final Class? primaryClass;
+  final ValueChanged<_HomeWorkspaceFolder> onFolderSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final classId = primaryClass?.classId;
+
+    return _GlassPanel(
+      tone: _HomePanelTone.whisper,
+      radius: 24,
+      padding: const EdgeInsets.fromLTRB(13, 14, 13, 14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final railContent = SingleChildScrollView(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _PanelEyebrow(label: 'Command'),
+                const SizedBox(height: 12),
+                _SidebarFolderItem(
+                  label: 'Home',
+                  icon: Icons.home_rounded,
+                  selected: selectedFolder == null,
+                  onTap: () {
+                    if (selectedFolder != null) {
+                      onFolderSelected(selectedFolder!);
+                    }
+                  },
+                ),
+                for (final folder in _HomeWorkspaceFolder.values) ...[
+                  const SizedBox(height: 8),
+                  _SidebarFolderItem(
+                    label: folder.label,
+                    icon: folder.icon,
+                    accent: folder.accent,
+                    selected: selectedFolder == folder,
+                    badge: folder == _HomeWorkspaceFolder.messages && unread > 0
+                        ? '$unread'
+                        : null,
+                    onTap: () => onFolderSelected(folder),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                const _SidebarDivider(),
+                const SizedBox(height: 16),
+                const _PanelEyebrow(label: 'Pinned Apps'),
+                const SizedBox(height: 12),
+                _SidebarAppItem(
+                  label: 'Gradebook',
+                  icon: Icons.menu_book_rounded,
+                  accent: OSColors.coral,
+                  onTap: () => context.go(
+                    classId == null
+                        ? AppRoutes.classes
+                        : AppRoutes.osClassGradebook(classId),
+                  ),
+                ),
+                const SizedBox(height: 9),
+                _SidebarAppItem(
+                  label: 'Seating',
+                  icon: Icons.event_seat_rounded,
+                  accent: OSColors.cyan,
+                  onTap: () => context.go(
+                    classId == null
+                        ? AppRoutes.classes
+                        : AppRoutes.osClassSeating(classId),
+                  ),
+                ),
+                const SizedBox(height: 9),
+                _SidebarAppItem(
+                  label: 'Reports',
+                  icon: Icons.analytics_rounded,
+                  accent: OSColors.indigo,
+                  onTap: () => context.go(
+                    classId == null
+                        ? AppRoutes.classes
+                        : AppRoutes.osClassResults(classId),
+                  ),
+                ),
+              ],
+            ),
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (constraints.hasBoundedHeight)
+                Expanded(child: railContent)
+              else
+                railContent,
+              const SizedBox(height: 12),
+              _SidebarUserFooter(),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SidebarFolderItem extends StatelessWidget {
+  const _SidebarFolderItem({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+    this.accent = OSColors.blue,
+    this.badge,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color accent;
+  final String? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+
+    return OSTouchFeedback(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(120, 48),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          gradient: selected
+              ? LinearGradient(
+                  colors: [
+                    accent.withValues(alpha: dark ? 0.28 : 0.18),
+                    accent.withValues(alpha: dark ? 0.13 : 0.09),
+                  ],
+                )
+              : null,
+          color: selected
+              ? null
+              : (dark
+                  ? Colors.white.withValues(alpha: 0.018)
+                  : Colors.white.withValues(alpha: 0.28)),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? accent.withValues(alpha: 0.30)
+                : Colors.white.withValues(alpha: dark ? 0.035 : 0.36),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: selected ? 0.18 : 0.10),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon,
+                  size: 17,
+                  color: selected ? accent : OSColors.textMuted(dark)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                  color: selected
+                      ? OSColors.text(dark)
+                      : OSColors.textSecondary(dark),
+                ),
+              ),
+            ),
+            if (badge != null) _MessageBadge(label: badge!),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SidebarAppItem extends StatelessWidget {
+  const _SidebarAppItem({
+    required this.label,
+    required this.icon,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return OSTouchFeedback(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      minSize: const Size(120, 44),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: accent.withValues(alpha: 0.18)),
+            ),
+            child: Icon(icon, size: 17, color: accent),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: OSColors.textSecondary(dark),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SidebarDivider extends StatelessWidget {
+  const _SidebarDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 1,
+      color: Colors.white.withValues(alpha: context.isDark ? 0.06 : 0.40),
+    );
+  }
+}
+
+class _SidebarUserFooter extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [
+                OSColors.blue.withValues(alpha: 0.70),
+                OSColors.cyan.withValues(alpha: 0.74),
+              ],
+            ),
+          ),
+          child: const Center(
+            child: Text(
+              'S',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Stuart',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: OSColors.text(dark),
+            ),
+          ),
+        ),
+        Icon(Icons.settings_outlined,
+            size: 18, color: OSColors.textMuted(dark)),
+      ],
     );
   }
 }
@@ -3170,9 +3544,9 @@ class _HomeShortcutIcon extends StatelessWidget {
     return OSTouchFeedback(
       onTap: data.onTap,
       borderRadius: OSRadius.lgBr,
-      minSize: Size(width, width),
+      minSize: const Size(72, 72),
       child: SizedBox(
-        width: width,
+        width: width.isFinite ? width : null,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3246,6 +3620,42 @@ class _HomeShortcutIcon extends StatelessWidget {
   }
 }
 
+class _PinnedAppsFooter extends StatelessWidget {
+  const _PinnedAppsFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.026)
+            : Colors.white.withValues(alpha: 0.38),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.045)
+              : Colors.white.withValues(alpha: 0.52),
+        ),
+      ),
+      child: Text(
+        'Use folders for Today, Classes, Tasks, Messages, and Insights.',
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11,
+          height: 1.35,
+          fontWeight: FontWeight.w600,
+          color: OSColors.textMuted(dark),
+        ),
+      ),
+    );
+  }
+}
+
 class _HomeWeatherPanel extends StatefulWidget {
   const _HomeWeatherPanel({this.embedded = false});
 
@@ -3272,66 +3682,125 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
         final hasError = snapshot.hasError && data == null;
         final forecast =
             data?.forecast.take(2).toList() ?? const <DashboardForecastDay>[];
+        final weatherCode = data?.weatherCode;
+        final accent = weatherCode == null
+            ? OSColors.blue
+            : _weatherAccent(weatherCode, dark);
 
-        final content = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        final content = Stack(
+          clipBehavior: Clip.none,
           children: [
-            Row(
+            Positioned(
+              right: -34,
+              top: -40,
+              child: IgnorePointer(
+                child: Container(
+                  width: 132,
+                  height: 132,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        accent.withValues(alpha: dark ? 0.26 : 0.18),
+                        accent.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: -24,
+              right: 28,
+              bottom: forecast.isEmpty ? -20 : 64,
+              child: IgnorePointer(
+                child: Container(
+                  height: 34,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        accent.withValues(alpha: dark ? 0.10 : 0.12),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Expanded(
-                  child: _PanelEyebrow(label: 'Local Conditions'),
-                ),
-                Icon(
-                  data == null
-                      ? Icons.cloud_queue_rounded
-                      : _weatherIcon(data.weatherCode),
-                  color: OSColors.blue,
-                  size: 20,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              hasError
-                  ? 'Forecast unavailable'
-                  : loading
-                      ? 'Checking forecast'
-                      : '${data!.temperatureC.round()} C ${_weatherLabel(data.weatherCode)}',
-              style: TextStyle(
-                fontSize: 18,
-                height: 1.1,
-                fontWeight: FontWeight.w800,
-                color: OSColors.text(dark),
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              hasError
-                  ? 'Weather will return when the network responds.'
-                  : loading
-                      ? 'Taichung City'
-                      : '${data!.locationName} - feels like ${data.apparentTempC.round()} C',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.4,
-                color: OSColors.textSecondary(dark),
-              ),
-            ),
-            if (forecast.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  for (int index = 0; index < forecast.length; index++) ...[
-                    if (index > 0) const SizedBox(width: 8),
-                    Expanded(
-                      child: _WeatherForecastTile(day: forecast[index]),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: _PanelEyebrow(label: 'Local Conditions'),
+                    ),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: dark ? 0.16 : 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.20),
+                        ),
+                      ),
+                      child: Icon(
+                        data == null
+                            ? Icons.cloud_queue_rounded
+                            : _weatherIcon(data.weatherCode),
+                        color: accent,
+                        size: 19,
+                      ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  hasError
+                      ? 'Forecast unavailable'
+                      : loading
+                          ? 'Checking forecast'
+                          : '${data!.temperatureC.round()} C ${_weatherLabel(data.weatherCode)}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    height: 1.1,
+                    fontWeight: FontWeight.w800,
+                    color: OSColors.text(dark),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  hasError
+                      ? 'Weather will return when the network responds.'
+                      : loading
+                          ? 'Taichung City'
+                          : '${data!.locationName} - feels like ${data.apparentTempC.round()} C',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: OSColors.textSecondary(dark),
+                  ),
+                ),
+                if (forecast.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      for (int index = 0; index < forecast.length; index++) ...[
+                        if (index > 0) const SizedBox(width: 8),
+                        Expanded(
+                          child: _WeatherForecastTile(day: forecast[index]),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
-              ),
-            ],
+              ],
+            ),
           ],
         );
         return widget.embedded
@@ -3344,6 +3813,17 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
               );
       },
     );
+  }
+
+  Color _weatherAccent(int code, bool dark) {
+    if (code == 0) return dark ? const Color(0xFFFFD166) : OSColors.amber;
+    if (code <= 3) return OSColors.cyan;
+    if (code == 45 || code == 48) return const Color(0xFF9CA3AF);
+    if (code >= 51 && code <= 67) return OSColors.blue;
+    if (code >= 71 && code <= 77) return const Color(0xFFB7E4FF);
+    if (code >= 80 && code <= 82) return OSColors.blue;
+    if (code >= 95) return OSColors.indigo;
+    return OSColors.blue;
   }
 }
 
@@ -3401,86 +3881,518 @@ class _WeatherForecastTile extends StatelessWidget {
 
 class _HomeAudioPanel extends StatelessWidget {
   const _HomeAudioPanel({
-    required this.onTap,
     this.embedded = false,
   });
 
-  final VoidCallback onTap;
   final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    final content = Row(
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: OSColors.indigo.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: OSColors.indigo.withValues(alpha: 0.22),
+        Row(
+          children: [
+            const Expanded(child: _PanelEyebrow(label: 'Focus Radio')),
+            Icon(Icons.equalizer_rounded, size: 18, color: OSColors.blue),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Container(
+              width: 74,
+              height: 74,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    OSColors.indigo.withValues(alpha: 0.82),
+                    OSColors.blue.withValues(alpha: 0.62),
+                    OSColors.cyan.withValues(alpha: 0.46),
+                  ],
+                ),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: dark ? 0.10 : 0.24),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: OSColors.indigo.withValues(alpha: 0.18),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 18,
+                    child: Container(
+                      height: 18,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withValues(alpha: 0.08),
+                            Colors.white.withValues(alpha: 0.36),
+                            Colors.white.withValues(alpha: 0.05),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Icon(
+                      Icons.nights_stay_rounded,
+                      color: Colors.white.withValues(alpha: 0.88),
+                      size: 24,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          child: const Icon(
-            Icons.graphic_eq_rounded,
-            color: OSColors.indigo,
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Lo-Fi Classroom',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: OSColors.text(dark),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Not connected',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: OSColors.textSecondary(dark),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _RadioControlButton(
+                        icon: Icons.play_arrow_rounded,
+                        enabled: false,
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: dark
+                              ? Colors.white.withValues(alpha: 0.038)
+                              : Colors.white.withValues(alpha: 0.50),
+                          borderRadius: OSRadius.pillBr,
+                          border: Border.all(
+                            color: dark
+                                ? Colors.white.withValues(alpha: 0.052)
+                                : Colors.white.withValues(alpha: 0.56),
+                          ),
+                        ),
+                        child: Text(
+                          'Preview',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: OSColors.textMuted(dark),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _PanelEyebrow(label: 'Focus Audio'),
-              const SizedBox(height: 6),
-              Text(
-                'Classroom sound',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: OSColors.text(dark),
+        const SizedBox(height: 13),
+        Row(
+          children: [
+            Icon(Icons.volume_mute_rounded,
+                size: 16, color: OSColors.textMuted(dark)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: SizedBox(
+                height: 30,
+                child: CustomPaint(
+                  painter: _RadioWaveformPainter(dark: dark),
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                'Open stations and quiet focus audio.',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.35,
-                  color: OSColors.textSecondary(dark),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Icon(
-          Icons.chevron_right_rounded,
-          size: 20,
-          color: OSColors.textMuted(dark),
+            ),
+          ],
         ),
       ],
     );
 
-    return OSTouchFeedback(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(28),
-      minSize: const Size(180, 104),
-      child: embedded
-          ? _RailSection(child: content)
-          : _GlassPanel(
-              tone: _HomePanelTone.whisper,
-              radius: 28,
-              padding: const EdgeInsets.all(16),
-              child: content,
-            ),
+    return embedded
+        ? _RailSection(child: content)
+        : _GlassPanel(
+            tone: _HomePanelTone.whisper,
+            radius: 28,
+            padding: const EdgeInsets.all(16),
+            child: content,
+          );
+  }
+}
+
+class _RadioControlButton extends StatelessWidget {
+  const _RadioControlButton({
+    required this.icon,
+    required this.enabled,
+  });
+
+  final IconData icon;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: enabled
+              ? [OSColors.blue, OSColors.indigo]
+              : [
+                  OSColors.blue.withValues(alpha: 0.30),
+                  OSColors.indigo.withValues(alpha: 0.24),
+                ],
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: Colors.white.withValues(alpha: enabled ? 1.0 : 0.58),
+        size: 24,
+      ),
     );
   }
+}
+
+class _RadioWaveformPainter extends CustomPainter {
+  const _RadioWaveformPainter({required this.dark});
+
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final baseline = size.height * 0.58;
+    final railPaint = Paint()
+      ..color = Colors.white.withValues(alpha: dark ? 0.08 : 0.30)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(0, baseline),
+      Offset(size.width, baseline),
+      railPaint,
+    );
+
+    final wavePaint = Paint()
+      ..color = OSColors.blue.withValues(alpha: dark ? 0.62 : 0.72)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    const bars = 28;
+    final gap = size.width / bars;
+    for (var i = 0; i < bars; i++) {
+      final phase = (i % 7) / 7;
+      final height = 4 + (phase * 16);
+      final x = i * gap;
+      canvas.drawLine(
+        Offset(x, baseline - height / 2),
+        Offset(x, baseline + height / 2),
+        wavePaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RadioWaveformPainter oldDelegate) {
+    return oldDelegate.dark != dark;
+  }
+}
+
+class _HomeMessagesRailPanel extends StatelessWidget {
+  const _HomeMessagesRailPanel({required this.unread});
+
+  final int unread;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(child: _PanelEyebrow(label: 'Messages')),
+            if (unread > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: OSColors.blue.withValues(alpha: 0.13),
+                  borderRadius: OSRadius.pillBr,
+                  border: Border.all(
+                    color: OSColors.blue.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Text(
+                  '$unread unread',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: OSColors.textSecondary(dark),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _MessagePreviewList(unread: unread, compact: true),
+      ],
+    );
+
+    return _RailSection(child: content);
+  }
+}
+
+class _MessagePreviewList extends StatelessWidget {
+  const _MessagePreviewList({
+    required this.unread,
+    required this.compact,
+  });
+
+  final int unread;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = _messagePreviewRows(unread);
+    return Column(
+      children: [
+        for (int index = 0; index < rows.length; index++) ...[
+          _MessagePreviewRow(row: rows[index], compact: compact),
+          if (index != rows.length - 1) const SizedBox(height: 9),
+        ],
+      ],
+    );
+  }
+}
+
+class _MessagePreviewRow extends StatelessWidget {
+  const _MessagePreviewRow({
+    required this.row,
+    required this.compact,
+  });
+
+  final _MessagePreviewData row;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Container(
+      padding: EdgeInsets.all(compact ? 9 : 11),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white
+                .withValues(alpha: row.unreadCount > 0 ? 0.050 : 0.026)
+            : Colors.white.withValues(alpha: row.unreadCount > 0 ? 0.58 : 0.42),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.055)
+              : Colors.white.withValues(alpha: 0.58),
+        ),
+      ),
+      child: Row(
+        children: [
+          _MessageAvatar(label: row.initials, accent: row.accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        row.sender,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: compact ? 12.5 : 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      row.time,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: OSColors.textMuted(dark),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  row.preview,
+                  maxLines: compact ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 11.5 : 12,
+                    height: 1.28,
+                    color: OSColors.textSecondary(dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (row.unreadCount > 0) ...[
+            const SizedBox(width: 8),
+            _MessageBadge(label: '${row.unreadCount}'),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MessageAvatar extends StatelessWidget {
+  const _MessageAvatar({
+    required this.label,
+    required this.accent,
+  });
+
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accent.withValues(alpha: 0.72),
+            accent.withValues(alpha: 0.46),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageBadge extends StatelessWidget {
+  const _MessageBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 21,
+      constraints: const BoxConstraints(minWidth: 21),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: OSColors.blue,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MessagePreviewData {
+  const _MessagePreviewData({
+    required this.initials,
+    required this.sender,
+    required this.preview,
+    required this.time,
+    required this.accent,
+    required this.unreadCount,
+  });
+
+  final String initials;
+  final String sender;
+  final String preview;
+  final String time;
+  final Color accent;
+  final int unreadCount;
+}
+
+List<_MessagePreviewData> _messagePreviewRows(int unread) {
+  final firstUnread = unread.clamp(0, 2);
+  final thirdUnread = unread > 2 ? unread - 2 : 0;
+  return [
+    _MessagePreviewData(
+      initials: 'MP',
+      sender: 'Ms. Patel',
+      preview: unread == 0
+          ? 'No new messages from staff right now.'
+          : 'Can you send the rubric for the essay?',
+      time: '9:40 PM',
+      accent: OSColors.coral,
+      unreadCount: firstUnread,
+    ),
+    const _MessagePreviewData(
+      initials: 'JL',
+      sender: 'Jason Lee',
+      preview: 'Thanks! See you tomorrow.',
+      time: '9:28 PM',
+      accent: OSColors.green,
+      unreadCount: 0,
+    ),
+    _MessagePreviewData(
+      initials: '10',
+      sender: 'Group: Grade 10A',
+      preview: 'Alex: Don’t forget about the field trip...',
+      time: '9:15 PM',
+      accent: OSColors.indigo,
+      unreadCount: thirdUnread,
+    ),
+  ];
 }
 
 class _HomeAgendaPanel extends StatelessWidget {
@@ -4083,3 +4995,6 @@ String _trimLine(String value, int maxLength) {
   }
   return '${normalized.substring(0, maxLength - 1)}...';
 }
+
+
+

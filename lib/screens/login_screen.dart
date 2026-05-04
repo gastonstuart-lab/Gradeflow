@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
-import 'package:gradeflow/components/gradeflow_entry_motion.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/config/instructos_branding.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
@@ -16,6 +16,7 @@ import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/theme.dart';
+import 'package:gradeflow/widgets/branding/instructos_brand_widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -171,15 +172,15 @@ class _LoginScreenState extends State<LoginScreen> {
     required bool compact,
   }) {
     final theme = Theme.of(context);
-    final panelColor = theme.colorScheme.surface.withValues(alpha: 0.82);
+    final panelColor = theme.colorScheme.surface.withValues(alpha: 0.74);
     final secondaryPanel =
-        theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.26);
+        theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.16);
 
     return Container(
-      padding: EdgeInsets.all(compact ? 22 : 28),
+      padding: EdgeInsets.all(compact ? 22 : 30),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(compact ? 28 : 34),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        borderRadius: BorderRadius.circular(compact ? 26 : 32),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -190,89 +191,61 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            color: theme.shadowColor.withValues(alpha: 0.13),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GradeFlowEntryMotion(
-                size: compact ? 118 : 152,
-                compact: compact,
-              ),
-              SizedBox(width: compact ? 14 : 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _LoginSectionTag(
-                      label: 'Teacher Operating System',
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      GradeFlowProductConfig.appName,
-                      style: (compact
-                              ? theme.textTheme.headlineSmall
-                              : theme.textTheme.headlineMedium)
-                          ?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'A calm command center for today\'s teaching.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Classes, seating, grades, and live tools stay one motion away.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.55,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          InstructOSTextLockup(
+            markSize: compact ? 34 : 38,
+            wordmarkSize: compact ? 34 : 38,
+            spacing: compact ? 12 : 14,
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 16),
+          Text(
+            InstructOSBranding.productTagline,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Classes, seating, grades, and live tools stay one motion away.',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 20),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: const [
               _LoginSignalChip(
-                icon: Icons.verified_user_outlined,
                 label: 'Secure workspace',
               ),
               _LoginSignalChip(
-                icon: Icons.meeting_room_outlined,
                 label: 'Classroom tools',
               ),
               _LoginSignalChip(
-                icon: Icons.auto_graph_rounded,
                 label: 'Live context',
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 24),
           Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              color: Colors.white.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.white.withValues(alpha: 0.02),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.06),
+                color: Colors.white.withValues(alpha: 0.05),
               ),
             ),
             child: Column(
@@ -281,22 +254,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 _LoginSectionTag(
                   label: 'What opens next',
                 ),
-                SizedBox(height: 14),
+                SizedBox(height: 12),
                 _LoginFeatureTile(
-                  icon: Icons.bolt_outlined,
                   title: 'Start cleanly',
                   detail: 'Open into a focused workspace without visual noise.',
                 ),
-                SizedBox(height: 14),
+                SizedBox(height: 10),
                 _LoginFeatureTile(
-                  icon: Icons.meeting_room_outlined,
                   title: 'Teach live',
                   detail:
                       'Move from class context to seating and tools quickly.',
                 ),
-                SizedBox(height: 14),
+                SizedBox(height: 10),
                 _LoginFeatureTile(
-                  icon: Icons.insights_outlined,
                   title: 'Stay aware',
                   detail: 'Class signals and daily work remain close at hand.',
                 ),
@@ -332,8 +302,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       padding: EdgeInsets.all(compact ? 22 : 26),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(compact ? 28 : 32),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        borderRadius: BorderRadius.circular(compact ? 26 : 30),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -344,28 +314,19 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            color: theme.shadowColor.withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: const [
-              _LoginSectionTag(label: 'Secure sign in'),
-              _LoginSectionTag(label: 'Demo-safe preview'),
-            ],
-          ),
-          const SizedBox(height: 14),
           Text(
-            'Enter GradeFlow',
+            'Enter InstructOS',
             style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               letterSpacing: 0,
             ),
           ),
@@ -377,34 +338,25 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: theme.colorScheme.primary.withValues(alpha: 0.08),
-              border: Border.all(
-                color: theme.colorScheme.primary.withValues(alpha: 0.16),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.apartment_rounded,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    GradeFlowProductConfig.defaultSchoolName,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const SchoolBrandBlock(compact: true),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  GradeFlowProductConfig.defaultSchoolName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant
+                        .withValues(alpha: 0.8),
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           if (_shouldUseLocalhostForGoogleSignIn) ...[
             const SizedBox(height: 16),
@@ -624,11 +576,9 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 class _LoginSignalChip extends StatelessWidget {
-  final IconData icon;
   final String label;
 
   const _LoginSignalChip({
-    required this.icon,
     required this.label,
   });
 
@@ -636,24 +586,18 @@ class _LoginSignalChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withValues(alpha: 0.05),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.035),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: theme.textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -670,34 +614,22 @@ class _LoginSectionTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: theme.colorScheme.primary.withValues(alpha: 0.10),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.18),
-        ),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
-        ),
+    return Text(
+      label,
+      style: theme.textTheme.labelMedium?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.35,
       ),
     );
   }
 }
 
 class _LoginFeatureTile extends StatelessWidget {
-  final IconData icon;
   final String title;
   final String detail;
 
   const _LoginFeatureTile({
-    required this.icon,
     required this.title,
     required this.detail,
   });
@@ -709,18 +641,15 @@ class _LoginFeatureTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 42,
-          height: 42,
+          width: 7,
+          height: 7,
+          margin: const EdgeInsets.only(top: 7),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            color: theme.colorScheme.primary.withValues(alpha: 0.14),
-            border: Border.all(
-              color: theme.colorScheme.primary.withValues(alpha: 0.22),
-            ),
+            borderRadius: BorderRadius.circular(999),
+            color: const Color(0xFF2A6BFF).withValues(alpha: 0.9),
           ),
-          child: Icon(icon, size: 20, color: theme.colorScheme.primary),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -728,7 +657,7 @@ class _LoginFeatureTile extends StatelessWidget {
               Text(
                 title,
                 style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 4),

@@ -931,6 +931,10 @@ class SidebarNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const cardPadding = EdgeInsets.fromLTRB(12, 16, 12, 16);
+    final auth = Provider.of<AuthService?>(context, listen: true);
+    final schoolName = GradeFlowProductConfig.resolvedSchoolName(
+      auth?.currentUser?.schoolName,
+    );
     final navigationItems = Column(
       crossAxisAlignment:
           compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
@@ -975,11 +979,9 @@ class SidebarNavigation extends StatelessWidget {
                 double.infinity,
               )
             : null;
-        final navigationBody = hasBoundedHeight
-            ? SingleChildScrollView(child: navigationItems)
-            : navigationItems;
+        final navigationBody = navigationItems;
         final content = Column(
-          mainAxisSize: hasBoundedHeight ? MainAxisSize.max : MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment:
               compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
           children: [
@@ -996,67 +998,24 @@ class SidebarNavigation extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.02),
               ),
               child: compact
-                  ? Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: _DashboardPalette.accent.withValues(alpha: 0.16),
-                      ),
-                      child: Icon(
-                        Icons.grading_rounded,
-                        color: _DashboardPalette.accentSoft,
-                      ),
+                  ? const SizedBox(
+                      width: 46,
+                      height: 32,
+                      child: InstructOSMark(height: 28),
                     )
                   : Row(
                       children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            color: _DashboardPalette.accent.withValues(
-                              alpha: 0.16,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.grading_rounded,
-                            color: _DashboardPalette.accentSoft,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                GradeFlowProductConfig.appName,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Teacher OS',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelMedium
-                                    ?.copyWith(
-                                      color: _DashboardPalette.textSecondary,
-                                    ),
-                              ),
-                            ],
+                          child: InstructOSLogoLockup(
+                            height: 38,
+                            showTagline: true,
                           ),
                         ),
                       ],
                     ),
             ),
             const SizedBox(height: 18),
-            if (hasBoundedHeight)
-              Expanded(child: navigationBody)
-            else
-              navigationBody,
+            navigationBody,
             if (!compact)
               Container(
                 padding: const EdgeInsets.all(12),
@@ -1070,21 +1029,17 @@ class SidebarNavigation extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Connected surfaces',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                    SchoolBrandBlock(
+                      schoolName: schoolName,
+                      compact: compact,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Admin and Messages stay nearby without crowding the planning hub.',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    if (!compact) ...[
+                      const SizedBox(height: 8),
+                      CoBrandingLockup(
+                        schoolName: schoolName,
+                        officialLine: true,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1098,7 +1053,10 @@ class SidebarNavigation extends StatelessWidget {
             _DashboardPalette.sidebarAlt,
           ],
           child: hasBoundedHeight
-              ? SizedBox(height: availableHeight, child: content)
+              ? SizedBox(
+                  height: availableHeight,
+                  child: SingleChildScrollView(child: content),
+                )
               : content,
         );
       },

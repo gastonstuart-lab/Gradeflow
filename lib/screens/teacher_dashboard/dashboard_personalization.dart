@@ -152,7 +152,7 @@ extension TeacherDashboardPersonalization on _TeacherDashboardScreenState {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Choose a built-in hero style and optionally add a custom background image. GradeFlow keeps readability protected with a dark cinematic overlay.',
+                    'Choose a built-in hero style and optionally add a custom background image. InstructOS keeps readability protected with a dark cinematic overlay.',
                     style: Theme.of(sheetContext).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 18),

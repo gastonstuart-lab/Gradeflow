@@ -40,7 +40,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Enter GradeFlow'), findsOneWidget);
+    expect(find.text('Enter InstructOS'), findsOneWidget);
     expect(find.text('Try Demo Account'), findsOneWidget);
   });
 }

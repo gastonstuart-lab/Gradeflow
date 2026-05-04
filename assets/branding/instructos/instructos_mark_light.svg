@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 72" role="img" aria-label="I/OS">
+  <defs>
+    <linearGradient id="iosSlashLight" x1="56" y1="58" x2="86" y2="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="iosTextLight" x1="92" y1="18" x2="164" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <text x="10" y="51" fill="#111827" font-family="Inter, Arial, Helvetica, sans-serif" font-size="43" font-weight="800" letter-spacing="0">I</text>
+  <path d="M68 58L88 14" stroke="url(#iosSlashLight)" stroke-width="8" stroke-linecap="round"/>
+  <text x="95" y="51" fill="url(#iosTextLight)" font-family="Inter, Arial, Helvetica, sans-serif" font-size="43" font-weight="800" letter-spacing="-1">OS</text>
+</svg>
