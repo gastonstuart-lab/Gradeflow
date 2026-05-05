@@ -361,6 +361,27 @@ class _HomeSurfaceState extends State<HomeSurface> {
   }
 }
 
+Widget _homeFolderTransition(Widget child, Animation<double> animation) {
+  final curved = CurvedAnimation(
+    parent: animation,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInOut,
+  );
+  return FadeTransition(
+    opacity: curved,
+    child: SlideTransition(
+      position: Tween<Offset>(
+        begin: const Offset(0, -0.035),
+        end: Offset.zero,
+      ).animate(curved),
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
+        child: child,
+      ),
+    ),
+  );
+}
+
 class _HomeDesktopLayout extends StatefulWidget {
   const _HomeDesktopLayout({
     required this.teacherName,
@@ -417,32 +438,31 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
       children: [
         SizedBox(
           width: 248,
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _HomeSchoolIdentity(
-                  teacherName: widget.teacherName,
-                  schoolName: widget.schoolName,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _HomeSchoolIdentity(
+                teacherName: widget.teacherName,
+                schoolName: widget.schoolName,
+                unread: widget.unread,
+                themeMode: widget.themeMode,
+                onAssistantTap: widget.onAssistantTap,
+                onShadeTap: widget.onShadeTap,
+                onThemeTap: widget.onThemeTap,
+                onWallpaperTap: widget.onWallpaperTap,
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 202,
+                child: _HomeShortcutShelf(
                   unread: widget.unread,
-                  themeMode: widget.themeMode,
-                  onAssistantTap: widget.onAssistantTap,
-                  onShadeTap: widget.onShadeTap,
-                  onThemeTap: widget.onThemeTap,
-                  onWallpaperTap: widget.onWallpaperTap,
+                  onLauncherTap: widget.onLauncherTap,
+                  compact: true,
                 ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 202,
-                  child: _HomeShortcutShelf(
-                    unread: widget.unread,
-                    onLauncherTap: widget.onLauncherTap,
-                    compact: true,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const Spacer(),
+              _HomeQuickClassesStrip(classes: widget.classes),
+            ],
           ),
         ),
         const SizedBox(width: 16),
@@ -474,14 +494,14 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                     groupId: _folderTapRegionGroup,
                     onTapOutside: (_) => _closeSelectedFolder(),
                     child: _HomeWorkspaceFolderStrip(
-                    selected: _selectedFolder,
-                    classCount: widget.classes.length,
-                    reminderCount: widget.reminders.length,
-                    unread: widget.unread,
-                    onSelected: (folder) => setState(() {
-                      _selectedFolder =
-                          _selectedFolder == folder ? null : folder;
-                    }),
+                      selected: _selectedFolder,
+                      classCount: widget.classes.length,
+                      reminderCount: widget.reminders.length,
+                      unread: widget.unread,
+                      onSelected: (folder) => setState(() {
+                        _selectedFolder =
+                            _selectedFolder == folder ? null : folder;
+                      }),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -492,7 +512,8 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 240),
                         switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
+                        switchOutCurve: Curves.easeInOut,
+                        transitionBuilder: _homeFolderTransition,
                         child: _selectedFolder == null
                             ? const _HomeCalmWorkspaceFloor(
                                 key: ValueKey('workspace-closed'),
@@ -501,14 +522,14 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                                 groupId: _folderTapRegionGroup,
                                 onTapOutside: (_) => _closeSelectedFolder(),
                                 child: _HomeWorkspaceFolderPanel(
-                                key: ValueKey(_selectedFolder),
-                                folder: _selectedFolder!,
-                                primaryClass: widget.primaryClass,
-                                classes: widget.classes,
-                                reminders: widget.reminders,
-                                unread: widget.unread,
-                                totalStudents: widget.totalStudents,
-                                now: widget.now,
+                                  key: ValueKey(_selectedFolder),
+                                  folder: _selectedFolder!,
+                                  primaryClass: widget.primaryClass,
+                                  classes: widget.classes,
+                                  reminders: widget.reminders,
+                                  unread: widget.unread,
+                                  totalStudents: widget.totalStudents,
+                                  now: widget.now,
                                 ),
                               ),
                       ),
@@ -625,6 +646,155 @@ class _HomeUtilityRail extends StatelessWidget {
   }
 }
 
+class _HomeQuickClassesStrip extends StatelessWidget {
+  const _HomeQuickClassesStrip({required this.classes});
+
+  final List<Class> classes;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final visible = classes.take(4).toList();
+
+    return _GlassPanel(
+      tone: _HomePanelTone.rail,
+      radius: 24,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.grid_view_rounded,
+                size: 15,
+                color: OSColors.textMuted(dark),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'Quick Classes',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: OSColors.textSecondary(dark),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (visible.isEmpty)
+            _HomeQuickClassTile(
+              label: 'Open classes',
+              detail: 'Set up the first workspace',
+              accent: OSColors.green,
+              onTap: () => context.go(AppRoutes.classes),
+            )
+          else
+            for (int index = 0; index < visible.length; index++) ...[
+              _HomeQuickClassTile(
+                label: visible[index].className,
+                detail: visible[index].subject,
+                accent: _classAccent(index),
+                onTap: () => context.go(
+                  AppRoutes.osClassWorkspace(visible[index].classId),
+                ),
+              ),
+              if (index != visible.length - 1) const SizedBox(height: 8),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeQuickClassTile extends StatelessWidget {
+  const _HomeQuickClassTile({
+    required this.label,
+    required this.detail,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String label;
+  final String detail;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+
+    return OSTouchFeedback(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      minSize: const Size(180, 48),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+        decoration: BoxDecoration(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.036)
+              : Colors.white.withValues(alpha: 0.62),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: accent.withValues(alpha: dark ? 0.18 : 0.16),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 28,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: dark ? 0.70 : 0.82),
+                borderRadius: OSRadius.pillBr,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: OSColors.text(dark),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    detail,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: OSColors.textMuted(dark),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 17,
+              color: OSColors.textMuted(dark),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 enum _HomeWorkspaceFolder {
   today(label: 'Today', icon: Icons.today_rounded, accent: OSColors.blue),
   classes(label: 'Classes', icon: Icons.class_rounded, accent: OSColors.green),
@@ -701,13 +871,13 @@ class _HomeWorkspaceFolderStrip extends StatelessWidget {
 
   String _folderDetail(_HomeWorkspaceFolder folder) {
     return switch (folder) {
-      _HomeWorkspaceFolder.today => 'Open space',
+      _HomeWorkspaceFolder.today => 'Next up',
       _HomeWorkspaceFolder.classes =>
         classCount == 0 ? 'No classes' : '$classCount active',
       _HomeWorkspaceFolder.tasks =>
         reminderCount == 0 ? 'Clear' : '$reminderCount queued',
       _HomeWorkspaceFolder.messages => unread == 0 ? 'Quiet' : '$unread unread',
-      _HomeWorkspaceFolder.insights => 'Overview',
+      _HomeWorkspaceFolder.insights => 'Signals',
     };
   }
 }
@@ -894,38 +1064,22 @@ class _HomeCalmWorkspaceFloor extends StatelessWidget {
             ),
           ),
           Positioned(
-            top: 34,
+            left: 44,
+            right: 44,
+            top: 42,
+            bottom: 52,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: dark
-                    ? Colors.white.withValues(alpha: 0.040)
-                    : Colors.white.withValues(alpha: 0.56),
-                borderRadius: OSRadius.pillBr,
-                border: Border.all(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.065)
-                      : Colors.white.withValues(alpha: 0.70),
+                borderRadius: BorderRadius.circular(28),
+                gradient: RadialGradient(
+                  center: const Alignment(-0.35, -0.45),
+                  radius: 1.0,
+                  colors: [
+                    OSColors.blue.withValues(alpha: dark ? 0.075 : 0.12),
+                    OSColors.cyan.withValues(alpha: dark ? 0.025 : 0.06),
+                    Colors.transparent,
+                  ],
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 16,
-                    color: OSColors.textMuted(dark),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Choose a folder when you need more',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: OSColors.textMuted(dark),
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
@@ -972,7 +1126,7 @@ class _HomeWorkspaceFolderPanel extends StatelessWidget {
     return switch (folder) {
       _HomeWorkspaceFolder.today => _TodayFolderContent(
           primaryClass: primaryClass,
-          primaryReminder: reminders.isEmpty ? null : reminders.first,
+          reminders: reminders,
           unread: unread,
           now: now,
         ),
@@ -995,31 +1149,34 @@ class _HomeWorkspaceFolderPanel extends StatelessWidget {
 class _TodayFolderContent extends StatelessWidget {
   const _TodayFolderContent({
     required this.primaryClass,
-    required this.primaryReminder,
+    required this.reminders,
     required this.unread,
     required this.now,
   });
 
   final Class? primaryClass;
-  final TeacherWorkspaceReminderSnapshot? primaryReminder;
+  final List<TeacherWorkspaceReminderSnapshot> reminders;
   final int unread;
   final DateTime now;
 
   @override
   Widget build(BuildContext context) {
+    final visibleReminders = reminders.take(2).toList();
     return _FolderPanelScaffold(
       eyebrow: 'Today',
       title: _formatLongDate(now),
-      subtitle: unread == 0
-          ? 'The workspace is quiet. Pull down what you need when you need it.'
-          : '$unread unread message${unread == 1 ? '' : 's'} waiting quietly.',
-      actionLabel: primaryClass == null ? 'Open Classes' : 'Open next class',
+      subtitle: primaryClass == null
+          ? 'Start from the class list or check the planning lane.'
+          : 'Your next workspace and near tasks are ready.',
+      actionLabel: primaryClass == null ? 'View Schedule' : 'Open Class',
       actionIcon: Icons.arrow_forward_rounded,
       onAction: () => context.go(
         primaryClass == null
-            ? AppRoutes.classes
+            ? AppRoutes.osPlanner
             : AppRoutes.osClassWorkspace(primaryClass!.classId),
       ),
+      secondaryLabel: 'View Schedule',
+      onSecondary: () => context.go(AppRoutes.osPlanner),
       child: Column(
         children: [
           _FolderInfoRow(
@@ -1029,25 +1186,32 @@ class _TodayFolderContent extends StatelessWidget {
             value: primaryClass == null
                 ? 'No class pinned yet'
                 : '${primaryClass!.className} / ${primaryClass!.subject}',
+            onTap: () => context.go(
+              primaryClass == null
+                  ? AppRoutes.classes
+                  : AppRoutes.osClassWorkspace(primaryClass!.classId),
+            ),
           ),
-          const SizedBox(height: 10),
-          _FolderInfoRow(
-            icon: Icons.event_note_outlined,
-            accent: OSColors.amber,
-            label: 'Focus item',
-            value: primaryReminder == null
-                ? 'No pending reminders'
-                : _trimLine(primaryReminder!.text, 82),
-          ),
-          const SizedBox(height: 10),
-          _FolderInfoRow(
-            icon: Icons.check_circle_outline_rounded,
-            accent: OSColors.blue,
-            label: 'Day status',
-            value: primaryReminder == null && unread == 0
-                ? 'Ready and uncluttered'
-                : 'Signals are staged without crowding the desktop',
-          ),
+          if (visibleReminders.isEmpty) ...[
+            const SizedBox(height: 10),
+            _FolderInfoRow(
+              icon: Icons.calendar_month_rounded,
+              accent: OSColors.blue,
+              label: 'Schedule',
+              value: 'Open the planning lane',
+              onTap: () => context.go(AppRoutes.osPlanner),
+            ),
+          ] else
+            for (int index = 0; index < visibleReminders.length; index++) ...[
+              const SizedBox(height: 10),
+              _FolderInfoRow(
+                icon: Icons.event_note_outlined,
+                accent: OSColors.amber,
+                label: _relativeReminderLabel(visibleReminders[index], now),
+                value: _trimLine(visibleReminders[index].text, 82),
+                onTap: () => context.go(AppRoutes.osPlanner),
+              ),
+            ],
         ],
       ),
     );
@@ -1089,6 +1253,9 @@ class _ClassesFolderContent extends StatelessWidget {
                 accent: OSColors.green,
                 label: visible[index].className,
                 value: '${visible[index].subject} / ${visible[index].term}',
+                onTap: () => context.go(
+                  AppRoutes.osClassWorkspace(visible[index].classId),
+                ),
               ),
               if (index != visible.length - 1) const SizedBox(height: 10),
             ],
@@ -1130,6 +1297,7 @@ class _TasksFolderContent extends StatelessWidget {
                 accent: OSColors.amber,
                 label: _relativeReminderLabel(visible[index], now),
                 value: _trimLine(visible[index].text, 90),
+                onTap: () => context.go(AppRoutes.osPlanner),
               ),
               if (index != visible.length - 1) const SizedBox(height: 10),
             ],
@@ -1158,19 +1326,31 @@ class _MessagesFolderContent extends StatelessWidget {
       child: Column(
         children: [
           _FolderInfoRow(
-            icon: Icons.mark_email_read_outlined,
+            icon: unread == 0
+                ? Icons.mark_email_read_outlined
+                : Icons.mark_chat_unread_outlined,
             accent: OSColors.cyan,
-            label: 'Inbox',
+            label: unread == 0 ? 'Staff room' : 'Unread',
             value: unread == 0
-                ? 'No unread conversations'
-                : 'Unread conversations are waiting',
+                ? 'Open recent channels'
+                : '$unread conversation${unread == 1 ? '' : 's'} need review',
+            onTap: () => context.go(AppRoutes.communication),
           ),
           const SizedBox(height: 10),
           _FolderInfoRow(
-            icon: Icons.shield_moon_outlined,
+            icon: Icons.groups_2_outlined,
             accent: OSColors.blue,
-            label: 'Focus mode',
-            value: 'Messages stay nearby without taking over the desktop',
+            label: 'Class channels',
+            value: 'Families, students, and staff threads',
+            onTap: () => context.go(AppRoutes.communication),
+          ),
+          const SizedBox(height: 10),
+          _FolderInfoRow(
+            icon: Icons.campaign_outlined,
+            accent: OSColors.indigo,
+            label: 'Announcements',
+            value: 'Review school-wide updates',
+            onTap: () => context.go(AppRoutes.communication),
           ),
         ],
       ),
@@ -1205,19 +1385,29 @@ class _InsightsFolderContent extends StatelessWidget {
         runSpacing: 10,
         children: [
           _FolderMetric(
-              label: 'Classes', value: '$classCount', accent: OSColors.green),
+            label: 'Classes',
+            value: '$classCount',
+            accent: OSColors.green,
+            onTap: () => context.go(AppRoutes.classes),
+          ),
           _FolderMetric(
-              label: 'Students',
-              value: '$totalStudents',
-              accent: OSColors.cyan),
+            label: 'Students',
+            value: '$totalStudents',
+            accent: OSColors.cyan,
+            onTap: () => context.go(AppRoutes.classes),
+          ),
           _FolderMetric(
-              label: 'Messages',
-              value: unread == 0 ? 'Quiet' : '$unread',
-              accent: OSColors.blue),
+            label: 'Messages',
+            value: unread == 0 ? 'Quiet' : '$unread',
+            accent: OSColors.blue,
+            onTap: () => context.go(AppRoutes.communication),
+          ),
           _FolderMetric(
-              label: 'Tasks',
-              value: reminderCount == 0 ? 'Clear' : '$reminderCount',
-              accent: OSColors.amber),
+            label: 'Tasks',
+            value: reminderCount == 0 ? 'Clear' : '$reminderCount',
+            accent: OSColors.amber,
+            onTap: () => context.go(AppRoutes.osPlanner),
+          ),
         ],
       ),
     );
@@ -1344,17 +1534,19 @@ class _FolderInfoRow extends StatelessWidget {
     required this.accent,
     required this.label,
     required this.value,
+    this.onTap,
   });
 
   final IconData icon;
   final Color accent;
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    return Container(
+    final row = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: dark
@@ -1396,8 +1588,25 @@ class _FolderInfoRow extends StatelessWidget {
               ),
             ),
           ),
+          if (onTap != null) ...[
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: OSColors.textMuted(dark),
+            ),
+          ],
         ],
       ),
+    );
+
+    if (onTap == null) return row;
+
+    return OSTouchFeedback(
+      onTap: onTap!,
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(220, 46),
+      child: row,
     );
   }
 }
@@ -1407,16 +1616,18 @@ class _FolderMetric extends StatelessWidget {
     required this.label,
     required this.value,
     required this.accent,
+    this.onTap,
   });
 
   final String label;
   final String value;
   final Color accent;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    return Container(
+    final metric = Container(
       width: 132,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1448,6 +1659,15 @@ class _FolderMetric extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (onTap == null) return metric;
+
+    return OSTouchFeedback(
+      onTap: onTap!,
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(132, 72),
+      child: metric,
     );
   }
 }
@@ -1558,19 +1778,20 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
           groupId: _folderTapRegionGroup,
           onTapOutside: (_) => _closeSelectedFolder(),
           child: _HomeWorkspaceFolderStrip(
-          selected: _selectedFolder,
-          classCount: widget.classes.length,
-          reminderCount: widget.reminders.length,
-          unread: widget.unread,
-          onSelected: (folder) => setState(() {
-            _selectedFolder = _selectedFolder == folder ? null : folder;
-          }),
+            selected: _selectedFolder,
+            classCount: widget.classes.length,
+            reminderCount: widget.reminders.length,
+            unread: widget.unread,
+            onSelected: (folder) => setState(() {
+              _selectedFolder = _selectedFolder == folder ? null : folder;
+            }),
           ),
         ),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 240),
           switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
+          switchOutCurve: Curves.easeInOut,
+          transitionBuilder: _homeFolderTransition,
           child: _selectedFolder == null
               ? const Padding(
                   key: ValueKey('workspace-closed'),
@@ -1584,13 +1805,13 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
                     key: ValueKey(_selectedFolder),
                     padding: const EdgeInsets.only(top: 14),
                     child: _HomeWorkspaceFolderPanel(
-                    folder: _selectedFolder!,
-                    primaryClass: widget.primaryClass,
-                    classes: widget.classes,
-                    reminders: widget.reminders,
-                    unread: widget.unread,
-                    totalStudents: widget.totalStudents,
-                    now: widget.now,
+                      folder: _selectedFolder!,
+                      primaryClass: widget.primaryClass,
+                      classes: widget.classes,
+                      reminders: widget.reminders,
+                      unread: widget.unread,
+                      totalStudents: widget.totalStudents,
+                      now: widget.now,
                     ),
                   ),
                 ),
@@ -1606,6 +1827,10 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
           reminderCount: widget.reminders.length,
           children: [
             const _HomeWeatherPanel(embedded: true),
+            _HomeAudioPanel(
+              embedded: true,
+              onTap: () => context.go(AppRoutes.dashboard),
+            ),
             _HomeAgendaPanel(
               reminders: widget.reminders,
               scrollable: false,
@@ -3092,6 +3317,10 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
         final hasError = snapshot.hasError && data == null;
         final forecast =
             data?.forecast.take(2).toList() ?? const <DashboardForecastDay>[];
+        final mood = _weatherMood(data?.weatherCode, DateTime.now(), dark);
+        final textOnWeather = _weatherTextColor(mood, dark);
+        final mutedOnWeather = _weatherMutedTextColor(mood, dark);
+        final iconOnWeather = _weatherAccentColor(mood, dark);
 
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3105,7 +3334,7 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
                   data == null
                       ? Icons.cloud_queue_rounded
                       : _weatherIcon(data.weatherCode),
-                  color: OSColors.blue,
+                  color: iconOnWeather,
                   size: 20,
                 ),
               ],
@@ -3121,7 +3350,7 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
                 fontSize: 18,
                 height: 1.1,
                 fontWeight: FontWeight.w800,
-                color: OSColors.text(dark),
+                color: textOnWeather,
               ),
             ),
             const SizedBox(height: 5),
@@ -3136,7 +3365,7 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
               style: TextStyle(
                 fontSize: 12,
                 height: 1.4,
-                color: OSColors.textSecondary(dark),
+                color: mutedOnWeather,
               ),
             ),
             if (forecast.isNotEmpty) ...[
@@ -3154,16 +3383,140 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
             ],
           ],
         );
-        return widget.embedded
-            ? _RailSection(child: content)
-            : _GlassPanel(
-                tone: _HomePanelTone.whisper,
-                radius: 28,
-                padding: const EdgeInsets.all(16),
-                child: content,
-              );
+        return _WeatherWidgetFrame(
+          mood: mood,
+          embedded: widget.embedded,
+          child: content,
+        );
       },
     );
+  }
+}
+
+enum _WeatherMood { rain, cloudy, sunny, night }
+
+class _WeatherWidgetFrame extends StatelessWidget {
+  const _WeatherWidgetFrame({
+    required this.mood,
+    required this.embedded,
+    required this.child,
+  });
+
+  final _WeatherMood mood;
+  final bool embedded;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final radius = BorderRadius.circular(embedded ? 24 : 28);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        gradient: LinearGradient(
+          colors: _weatherGradient(mood, dark),
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: dark ? 0.10 : 0.48),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _weatherAccentColor(mood, dark).withValues(
+              alpha: dark ? 0.12 : 0.10,
+            ),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _WeatherAtmospherePainter(
+                  mood: mood,
+                  dark: dark,
+                ),
+              ),
+            ),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WeatherAtmospherePainter extends CustomPainter {
+  const _WeatherAtmospherePainter({
+    required this.mood,
+    required this.dark,
+  });
+
+  final _WeatherMood mood;
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.stroke;
+    if (mood == _WeatherMood.rain) {
+      paint
+        ..color = Colors.white.withValues(alpha: dark ? 0.12 : 0.22)
+        ..strokeWidth = 1.1
+        ..strokeCap = StrokeCap.round;
+      for (double x = 8; x < size.width; x += 22) {
+        canvas.drawLine(
+          Offset(x, 8),
+          Offset(x - 12, size.height - 10),
+          paint,
+        );
+      }
+      return;
+    }
+
+    if (mood == _WeatherMood.cloudy) {
+      final fill = Paint()
+        ..style = PaintingStyle.fill
+        ..color = Colors.white.withValues(alpha: dark ? 0.065 : 0.24);
+      canvas.drawOval(
+        Rect.fromLTWH(size.width * .48, 8, size.width * .62, 64),
+        fill,
+      );
+      canvas.drawOval(
+        Rect.fromLTWH(size.width * .36, 32, size.width * .58, 74),
+        fill,
+      );
+      return;
+    }
+
+    final glowPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          Colors.white.withValues(alpha: dark ? 0.14 : 0.30),
+          Colors.transparent,
+        ],
+      ).createShader(
+        Rect.fromCircle(
+          center: Offset(size.width * .84, size.height * .10),
+          radius: 90,
+        ),
+      );
+    canvas.drawCircle(
+      Offset(size.width * .84, size.height * .10),
+      90,
+      glowPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _WeatherAtmospherePainter oldDelegate) {
+    return mood != oldDelegate.mood || dark != oldDelegate.dark;
   }
 }
 
@@ -3231,60 +3584,92 @@ class _HomeAudioPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    final content = Row(
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: OSColors.indigo.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: OSColors.indigo.withValues(alpha: 0.22),
-            ),
-          ),
-          child: const Icon(
-            Icons.graphic_eq_rounded,
-            color: OSColors.indigo,
-          ),
+    final content = Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          colors: dark
+              ? const [Color(0xFF151B2D), Color(0xFF0F172A)]
+              : const [Color(0xFFFFFFFF), Color(0xFFEFF5FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.075)
+              : Colors.white.withValues(alpha: 0.80),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              const _PanelEyebrow(label: 'Focus Audio'),
-              const SizedBox(height: 6),
-              Text(
-                'Classroom sound',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: OSColors.text(dark),
+              const _AudioArtwork(),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _PanelEyebrow(label: 'Focus Audio'),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Classroom sound',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: OSColors.text(dark),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Stations for quiet work and transitions.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: OSColors.textSecondary(dark),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                'Open stations and quiet focus audio.',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.35,
-                  color: OSColors.textSecondary(dark),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: OSColors.indigo.withValues(alpha: dark ? 0.22 : 0.14),
+                  border: Border.all(
+                    color: OSColors.indigo.withValues(alpha: 0.20),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  size: 21,
+                  color: OSColors.indigo,
                 ),
               ),
             ],
           ),
-        ),
-        Icon(
-          Icons.chevron_right_rounded,
-          size: 20,
-          color: OSColors.textMuted(dark),
-        ),
-      ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Expanded(child: _MiniEqualizer()),
+              const SizedBox(width: 12),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: OSColors.textMuted(dark),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
 
     return OSTouchFeedback(
@@ -3299,6 +3684,93 @@ class _HomeAudioPanel extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: content,
             ),
+    );
+  }
+}
+
+class _AudioArtwork extends StatelessWidget {
+  const _AudioArtwork();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 54,
+      height: 54,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: OSColors.indigo.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -12,
+            top: -10,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.18),
+              ),
+            ),
+          ),
+          const Center(
+            child: Icon(
+              Icons.graphic_eq_rounded,
+              color: Colors.white,
+              size: 27,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniEqualizer extends StatelessWidget {
+  const _MiniEqualizer();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final bars = [0.32, 0.74, 0.48, 0.88, 0.42, 0.68, 0.36, 0.58];
+
+    return SizedBox(
+      height: 22,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (int index = 0; index < bars.length; index++) ...[
+            Expanded(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: FractionallySizedBox(
+                  heightFactor: bars[index],
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: OSRadius.pillBr,
+                      color: (index.isEven ? OSColors.indigo : OSColors.cyan)
+                          .withValues(alpha: dark ? 0.58 : 0.68),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (index != bars.length - 1) const SizedBox(width: 4),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -3821,6 +4293,16 @@ String _formatLongDate(DateTime now) {
   return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
 }
 
+Color _classAccent(int index) {
+  const accents = [
+    OSColors.green,
+    OSColors.blue,
+    OSColors.cyan,
+    OSColors.indigo,
+  ];
+  return accents[index % accents.length];
+}
+
 IconData _weatherIcon(int code) {
   if (code == 0) return Icons.wb_sunny_outlined;
   if (code <= 3) return Icons.cloud_queue_rounded;
@@ -3830,6 +4312,58 @@ IconData _weatherIcon(int code) {
   if (code >= 80 && code <= 82) return Icons.water_drop_outlined;
   if (code >= 95) return Icons.thunderstorm_outlined;
   return Icons.cloud_outlined;
+}
+
+_WeatherMood _weatherMood(int? code, DateTime now, bool dark) {
+  if (code == null) return dark ? _WeatherMood.night : _WeatherMood.cloudy;
+  final isNight = dark || now.hour < 6 || now.hour >= 18;
+  if (isNight && code <= 3) return _WeatherMood.night;
+  if (code == 0) return _WeatherMood.sunny;
+  if (code <= 3 || code == 45 || code == 48) return _WeatherMood.cloudy;
+  if (code >= 51 && code <= 99) return _WeatherMood.rain;
+  return isNight ? _WeatherMood.night : _WeatherMood.cloudy;
+}
+
+List<Color> _weatherGradient(_WeatherMood mood, bool dark) {
+  return switch (mood) {
+    _WeatherMood.rain => dark
+        ? const [Color(0xFF07111D), Color(0xFF0E2A44), Color(0xFF0F172A)]
+        : const [Color(0xFFDDEBFA), Color(0xFFBBD7F0), Color(0xFFEAF5FF)],
+    _WeatherMood.cloudy => dark
+        ? const [Color(0xFF111827), Color(0xFF1E293B), Color(0xFF0F172A)]
+        : const [Color(0xFFE8EEF7), Color(0xFFD7E2EE), Color(0xFFF7FAFC)],
+    _WeatherMood.sunny => dark
+        ? const [Color(0xFF172033), Color(0xFF23466F), Color(0xFF0F172A)]
+        : const [Color(0xFFFFF7D6), Color(0xFFDBF3FF), Color(0xFFF8FAFC)],
+    _WeatherMood.night => const [
+        Color(0xFF020617),
+        Color(0xFF0B1F3A),
+        Color(0xFF111827),
+      ],
+  };
+}
+
+Color _weatherTextColor(_WeatherMood mood, bool dark) {
+  if (dark || mood == _WeatherMood.night || mood == _WeatherMood.rain) {
+    return const Color(0xFFF8FAFC);
+  }
+  return const Color(0xFF111827);
+}
+
+Color _weatherMutedTextColor(_WeatherMood mood, bool dark) {
+  if (dark || mood == _WeatherMood.night || mood == _WeatherMood.rain) {
+    return const Color(0xFFE2E8F0).withValues(alpha: 0.82);
+  }
+  return const Color(0xFF334155).withValues(alpha: 0.82);
+}
+
+Color _weatherAccentColor(_WeatherMood mood, bool dark) {
+  return switch (mood) {
+    _WeatherMood.rain => dark ? const Color(0xFF7DD3FC) : OSColors.blue,
+    _WeatherMood.cloudy => dark ? const Color(0xFFCBD5E1) : OSColors.blue,
+    _WeatherMood.sunny => dark ? const Color(0xFFFDE68A) : OSColors.amber,
+    _WeatherMood.night => const Color(0xFF93C5FD),
+  };
 }
 
 String _weatherLabel(int code) {
@@ -3903,4 +4437,3 @@ String _trimLine(String value, int maxLength) {
   }
   return '${normalized.substring(0, maxLength - 1)}...';
 }
-
