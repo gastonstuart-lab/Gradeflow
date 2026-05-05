@@ -132,7 +132,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     // Reserve dock space so routed content is not obscured.
     final dockReserve = widget.teachMode
         ? 0.0
-        : OSSpacing.dockHeight + OSSpacing.dockBottomMargin + 8;
+        : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
 
     final adjustedMQ = mq.copyWith(
       padding: mq.padding.copyWith(
@@ -167,17 +167,14 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: OSSpacing.dockBottomMargin,
-                  left: isPhone ? 12 : 24,
-                  right: isPhone ? 12 : 24,
-                ),
-                child: Center(
-                  child: OSDock(teachMode: widget.teachMode),
-                ),
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: mq.padding.bottom + OSSpacing.dockBottomMargin,
+                left: isPhone ? 12 : 24,
+                right: isPhone ? 12 : 24,
+              ),
+              child: Center(
+                child: OSDock(teachMode: widget.teachMode),
               ),
             ),
           ),
