@@ -1,4 +1,4 @@
-// GradeFlow OS — Home Surface
+﻿// GradeFlow OS — Home Surface
 //
 // The teacher's primary landing surface should read like an actual OS home:
 // a desktop stage, pinned apps, glanceable live signals, and secondary
@@ -1962,7 +1962,7 @@ class _HomeSystemStrip extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'GradeFlow OS',
+                        'InstructOS',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -2086,7 +2086,7 @@ class _HomeSystemStrip extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'GradeFlow OS',
+                        'InstructOS',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -2243,7 +2243,7 @@ class _HomeSchoolIdentity extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'GradeFlow OS',
+                      'InstructOS',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
