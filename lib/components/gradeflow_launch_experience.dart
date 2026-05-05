@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
-import 'package:gradeflow/components/gradeflow_entry_motion.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/services/auth_service.dart';
 
@@ -85,28 +84,15 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
     required this.auth,
   });
 
-  String _statusTitle() {
+  String _statusLine() {
     if (!auth.isInitialized && auth.isLoading) {
-      return 'Restoring session';
+      return 'Restoring your secure classroom workspace...';
     }
     if (!auth.isInitialized) {
-      return 'Preparing workspace';
+      return 'Preparing your classroom workspace...';
     }
     if (auth.isAuthenticated) {
-      return 'Workspace ready';
-    }
-    return 'Ready to enter';
-  }
-
-  String _statusDetail() {
-    if (!auth.isInitialized && auth.isLoading) {
-      return 'Checking your secure GradeFlow session.';
-    }
-    if (!auth.isInitialized) {
-      return 'Bringing classroom tools online.';
-    }
-    if (auth.isAuthenticated) {
-      return 'Your teaching OS is ready.';
+      return 'Workspace ready. Opening ${GradeFlowProductConfig.appName}...';
     }
     return 'Secure access is ready.';
   }
@@ -119,8 +105,7 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final primary = theme.colorScheme.primary;
+    final progress = _progressValue();
 
     return Scaffold(
       backgroundColor: const Color(0xFF050912),
@@ -128,8 +113,7 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 640;
-            final edgePadding = compact ? 18.0 : 28.0;
-            final panelPadding = compact ? 24.0 : 34.0;
+            final edgePadding = compact ? 20.0 : 32.0;
 
             return SingleChildScrollView(
               padding: EdgeInsets.all(edgePadding),
@@ -142,157 +126,41 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                 ),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(compact ? 28 : 34),
-                        border: Border.all(
-                          color: Colors.white
-                              .withValues(alpha: isDark ? 0.11 : 0.20),
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            theme.colorScheme.surface.withValues(
-                              alpha: isDark ? 0.78 : 0.94,
+                    constraints: const BoxConstraints(maxWidth: 620),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _LaunchTextLockup(compact: compact),
+                        const SizedBox(height: 16),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 460),
+                          child: Text(
+                            GradeFlowProductConfig.marketingTagline,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              height: 1.4,
+                              fontWeight: FontWeight.w500,
                             ),
-                            theme.colorScheme.surfaceContainerHighest
-                                .withValues(
-                              alpha: isDark ? 0.60 : 0.80,
-                            ),
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.shadowColor.withValues(
-                              alpha: isDark ? 0.42 : 0.13,
-                            ),
-                            blurRadius: 52,
-                            offset: const Offset(0, 26),
                           ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(panelPadding),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const GradeFlowEntryMotion(size: 178),
-                            const SizedBox(height: 18),
-                            Text(
-                              'Teacher Operating System'.toUpperCase(),
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: theme.colorScheme.primary,
-                                letterSpacing: 1.2,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              GradeFlowProductConfig.appName,
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 430),
-                              child: Text(
-                                'Opening the workspace for today\'s classes.',
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  height: 1.45,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 26),
-                            Container(
-                              padding: EdgeInsets.all(compact ? 16 : 18),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(22),
-                                color: Colors.white.withValues(
-                                  alpha: isDark ? 0.045 : 0.56,
-                                ),
-                                border: Border.all(
-                                  color: Colors.white.withValues(
-                                    alpha: isDark ? 0.08 : 0.20,
-                                  ),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          _statusTitle(),
-                                          style: theme.textTheme.titleLarge
-                                              ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: 0,
-                                          ),
-                                        ),
-                                      ),
-                                      _LaunchStageChip(
-                                        label: auth.isInitialized
-                                            ? 'Online'
-                                            : 'Starting',
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    _statusDetail(),
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                      height: 1.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 18),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(999),
-                                    child: LinearProgressIndicator(
-                                      value: _progressValue(),
-                                      minHeight: 6,
-                                      backgroundColor:
-                                          Colors.white.withValues(alpha: 0.08),
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        primary.withValues(alpha: 0.95),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      const _LaunchChecklistItem(
-                                        label: 'Secure session',
-                                        active: true,
-                                      ),
-                                      const _LaunchChecklistItem(
-                                        label: 'Classroom tools',
-                                        active: true,
-                                      ),
-                                      _LaunchChecklistItem(
-                                        label: 'Workspace ready',
-                                        active: auth.isInitialized,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
                         ),
-                      ),
+                        const SizedBox(height: 26),
+                        _LaunchProgressLine(value: progress),
+                        const SizedBox(height: 14),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 460),
+                          child: Text(
+                            _statusLine(),
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.92),
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -305,74 +173,118 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
   }
 }
 
-class _LaunchStageChip extends StatelessWidget {
-  final String label;
+class _LaunchTextLockup extends StatelessWidget {
+  const _LaunchTextLockup({required this.compact});
 
-  const _LaunchStageChip({
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: Colors.white.withValues(alpha: 0.05),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.10),
-        ),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-    );
-  }
-}
-
-class _LaunchChecklistItem extends StatelessWidget {
-  const _LaunchChecklistItem({
-    required this.label,
-    required this.active,
-  });
-
-  final String label;
-  final bool active;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = active
-        ? theme.colorScheme.primary
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.78);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: color.withValues(alpha: active ? 0.12 : 0.06),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            active ? Icons.check_circle_outline : Icons.radio_button_unchecked,
-            size: 15,
-            color: color,
-          ),
-          const SizedBox(width: 7),
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0,
+    final symbolSize = compact ? 34.0 : 42.0;
+    final nameSize = compact ? 34.0 : 44.0;
+    final symbolStyle = theme.textTheme.headlineMedium?.copyWith(
+          fontSize: symbolSize,
+          fontWeight: FontWeight.w700,
+          height: 1.0,
+          letterSpacing: -0.3,
+          color: theme.colorScheme.onSurface,
+        ) ??
+        TextStyle(
+          fontSize: symbolSize,
+          fontWeight: FontWeight.w700,
+          height: 1.0,
+          letterSpacing: -0.3,
+          color: theme.colorScheme.onSurface,
+        );
+
+    final nameStyle = theme.textTheme.displaySmall?.copyWith(
+          fontSize: nameSize,
+          fontWeight: FontWeight.w700,
+          height: 1.0,
+          letterSpacing: -0.4,
+          color: theme.colorScheme.onSurface,
+        ) ??
+        TextStyle(
+          fontSize: nameSize,
+          fontWeight: FontWeight.w700,
+          height: 1.0,
+          letterSpacing: -0.4,
+          color: theme.colorScheme.onSurface,
+        );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('I', style: symbolStyle),
+            Text(
+              '/',
+              style: symbolStyle.copyWith(
+                color: const Color(0xFF2A6BFF),
+              ),
             ),
-          ),
-        ],
+            Text(
+              'OS',
+              style: symbolStyle.copyWith(
+                color: const Color(0xFF22D3EE),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          GradeFlowProductConfig.appName,
+          style: nameStyle,
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+}
+
+class _LaunchProgressLine extends StatelessWidget {
+  const _LaunchProgressLine({required this.value});
+
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    final trackColor = Colors.white.withValues(alpha: 0.12);
+    final clamped = value.clamp(0.0, 1.0);
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 280),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          return Stack(
+            children: [
+              Container(
+                height: 3,
+                width: width,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color: trackColor,
+                ),
+              ),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                height: 3,
+                width: width * clamped,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF5C88FF), Color(0xFF22D3EE)],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
