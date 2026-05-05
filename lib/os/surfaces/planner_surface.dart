@@ -995,7 +995,7 @@ class _PlannerSidebar extends StatelessWidget {
           ),
           const Spacer(),
           Text(
-            'GradeFlow OS',
+            'InstructOS',
             style: TextStyle(
               fontWeight: FontWeight.w900,
               fontSize: 20,
