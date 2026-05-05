@@ -1,4 +1,4 @@
-﻿// GradeFlow OS — Home Surface
+// GradeFlow OS — Home Surface
 //
 // The teacher's primary landing surface should read like an actual OS home:
 // a desktop stage, pinned apps, glanceable live signals, and secondary
@@ -401,7 +401,14 @@ class _HomeDesktopLayout extends StatefulWidget {
 }
 
 class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
+  static const String _folderTapRegionGroup = 'home-folder-workspace-desktop';
   _HomeWorkspaceFolder? _selectedFolder;
+
+  void _closeSelectedFolder() {
+    if (_selectedFolder != null) {
+      setState(() => _selectedFolder = null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -430,10 +437,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                   height: 202,
                   child: _HomeShortcutShelf(
                     unread: widget.unread,
-                    themeMode: widget.themeMode,
-                    onAssistantTap: widget.onAssistantTap,
                     onLauncherTap: widget.onLauncherTap,
-                    onThemeTap: widget.onThemeTap,
                     compact: true,
                   ),
                 ),
@@ -463,12 +467,13 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                       reminderCount: widget.reminders.length,
                       now: widget.now,
                       compact: false,
-                      onAssistantTap: widget.onAssistantTap,
-                      onLauncherTap: widget.onLauncherTap,
                     ),
                   ),
                   const SizedBox(height: 14),
-                  _HomeWorkspaceFolderStrip(
+                  TapRegion(
+                    groupId: _folderTapRegionGroup,
+                    onTapOutside: (_) => _closeSelectedFolder(),
+                    child: _HomeWorkspaceFolderStrip(
                     selected: _selectedFolder,
                     classCount: widget.classes.length,
                     reminderCount: widget.reminders.length,
@@ -477,6 +482,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                       _selectedFolder =
                           _selectedFolder == folder ? null : folder;
                     }),
+                    ),
                   ),
                   const SizedBox(height: 14),
                   Align(
@@ -491,7 +497,10 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                             ? const _HomeCalmWorkspaceFloor(
                                 key: ValueKey('workspace-closed'),
                               )
-                            : _HomeWorkspaceFolderPanel(
+                            : TapRegion(
+                                groupId: _folderTapRegionGroup,
+                                onTapOutside: (_) => _closeSelectedFolder(),
+                                child: _HomeWorkspaceFolderPanel(
                                 key: ValueKey(_selectedFolder),
                                 folder: _selectedFolder!,
                                 primaryClass: widget.primaryClass,
@@ -500,6 +509,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                                 unread: widget.unread,
                                 totalStudents: widget.totalStudents,
                                 now: widget.now,
+                                ),
                               ),
                       ),
                     ),
@@ -1500,7 +1510,14 @@ class _HomeStackedLayout extends StatefulWidget {
 }
 
 class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
+  static const String _folderTapRegionGroup = 'home-folder-workspace-stacked';
   _HomeWorkspaceFolder? _selectedFolder;
+
+  void _closeSelectedFolder() {
+    if (_selectedFolder != null) {
+      setState(() => _selectedFolder = null);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1534,12 +1551,13 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
             reminderCount: widget.reminders.length,
             now: widget.now,
             compact: true,
-            onAssistantTap: widget.onAssistantTap,
-            onLauncherTap: widget.onLauncherTap,
           ),
         ),
         const SizedBox(height: 14),
-        _HomeWorkspaceFolderStrip(
+        TapRegion(
+          groupId: _folderTapRegionGroup,
+          onTapOutside: (_) => _closeSelectedFolder(),
+          child: _HomeWorkspaceFolderStrip(
           selected: _selectedFolder,
           classCount: widget.classes.length,
           reminderCount: widget.reminders.length,
@@ -1547,17 +1565,25 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
           onSelected: (folder) => setState(() {
             _selectedFolder = _selectedFolder == folder ? null : folder;
           }),
+          ),
         ),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 240),
           switchInCurve: Curves.easeOutCubic,
           switchOutCurve: Curves.easeInCubic,
           child: _selectedFolder == null
-              ? const SizedBox.shrink(key: ValueKey('workspace-closed'))
-              : Padding(
-                  key: ValueKey(_selectedFolder),
-                  padding: const EdgeInsets.only(top: 14),
-                  child: _HomeWorkspaceFolderPanel(
+              ? const Padding(
+                  key: ValueKey('workspace-closed'),
+                  padding: EdgeInsets.only(top: 14),
+                  child: _HomeCalmWorkspaceFloor(),
+                )
+              : TapRegion(
+                  groupId: _folderTapRegionGroup,
+                  onTapOutside: (_) => _closeSelectedFolder(),
+                  child: Padding(
+                    key: ValueKey(_selectedFolder),
+                    padding: const EdgeInsets.only(top: 14),
+                    child: _HomeWorkspaceFolderPanel(
                     folder: _selectedFolder!,
                     primaryClass: widget.primaryClass,
                     classes: widget.classes,
@@ -1565,16 +1591,14 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
                     unread: widget.unread,
                     totalStudents: widget.totalStudents,
                     now: widget.now,
+                    ),
                   ),
                 ),
         ),
         const SizedBox(height: 16),
         _HomeShortcutShelf(
           unread: widget.unread,
-          themeMode: widget.themeMode,
-          onAssistantTap: widget.onAssistantTap,
           onLauncherTap: widget.onLauncherTap,
-          onThemeTap: widget.onThemeTap,
         ),
         const SizedBox(height: 16),
         _HomeUtilityRail(
@@ -2098,7 +2122,7 @@ class _HomeSystemStrip extends StatelessWidget {
                       Text(
                         teacherName.isEmpty
                             ? schoolName
-                            : '$teacherName · $schoolName',
+                            : '$teacherName Ãƒâ€šÃ‚Â· $schoolName',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -2406,8 +2430,6 @@ class _HomeStagePanel extends StatelessWidget {
     required this.reminderCount,
     required this.now,
     required this.compact,
-    required this.onAssistantTap,
-    required this.onLauncherTap,
   });
 
   final String teacherName;
@@ -2420,8 +2442,6 @@ class _HomeStagePanel extends StatelessWidget {
   final int reminderCount;
   final DateTime now;
   final bool compact;
-  final VoidCallback onAssistantTap;
-  final VoidCallback onLauncherTap;
 
   @override
   Widget build(BuildContext context) {
@@ -2441,46 +2461,6 @@ class _HomeStagePanel extends StatelessWidget {
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
-    final actions = [
-      _StageActionData(
-        label: 'Teach',
-        icon: Icons.cast_for_education_rounded,
-        accent: OSColors.blue,
-        filled: true,
-        onTap: () => context.go(AppRoutes.osTeach),
-      ),
-      _StageActionData(
-        label: 'Planner',
-        icon: Icons.calendar_month_rounded,
-        accent: OSColors.amber,
-        onTap: () => context.go(AppRoutes.osPlanner),
-      ),
-      _StageActionData(
-        label: 'Classes',
-        icon: Icons.class_rounded,
-        accent: OSColors.green,
-        onTap: () => context.go(AppRoutes.classes),
-      ),
-      _StageActionData(
-        label: unread == 0 ? 'Messages' : 'Messages $unread',
-        icon: Icons.forum_rounded,
-        accent: OSColors.cyan,
-        onTap: () => context.go(AppRoutes.communication),
-      ),
-      _StageActionData(
-        label: 'Assistant',
-        icon: Icons.auto_awesome_rounded,
-        accent: OSColors.indigo,
-        onTap: onAssistantTap,
-      ),
-      _StageActionData(
-        label: 'Launcher',
-        icon: Icons.grid_view_rounded,
-        accent: OSColors.amber,
-        onTap: onLauncherTap,
-      ),
-    ];
-
     return _GlassPanel(
       tone: _HomePanelTone.stage,
       radius: compact ? WorkspaceRadius.shellCompact : WorkspaceRadius.shell,
@@ -2581,8 +2561,6 @@ class _HomeStagePanel extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  _StageActionCarousel(actions: actions),
                 ],
               ),
             )
@@ -2594,7 +2572,6 @@ class _HomeStagePanel extends StatelessWidget {
               classCount: classCount,
               unread: unread,
               now: now,
-              actions: actions,
             ),
     );
   }
@@ -2609,7 +2586,6 @@ class _DesktopStageShell extends StatelessWidget {
     required this.classCount,
     required this.unread,
     required this.now,
-    required this.actions,
   });
 
   final String teacherName;
@@ -2619,7 +2595,6 @@ class _DesktopStageShell extends StatelessWidget {
   final int classCount;
   final int unread;
   final DateTime now;
-  final List<_StageActionData> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -2718,8 +2693,6 @@ class _DesktopStageShell extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 10),
-        _StageActionCarousel(actions: actions),
       ],
     );
   }
@@ -2753,66 +2726,6 @@ class _StageStatusChip extends StatelessWidget {
           context,
           color: OSColors.textSecondary(dark),
         )?.copyWith(fontSize: 11),
-      ),
-    );
-  }
-}
-
-class _StageActionData {
-  const _StageActionData({
-    required this.label,
-    required this.icon,
-    required this.accent,
-    required this.onTap,
-    this.filled = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color accent;
-  final VoidCallback onTap;
-  final bool filled;
-}
-
-class _StageActionCarousel extends StatelessWidget {
-  const _StageActionCarousel({required this.actions});
-
-  final List<_StageActionData> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (rect) {
-        return LinearGradient(
-          colors: [
-            Colors.transparent,
-            Colors.black,
-            Colors.black,
-            Colors.transparent,
-          ],
-          stops: const [0.0, 0.04, 0.92, 1.0],
-        ).createShader(rect);
-      },
-      blendMode: BlendMode.dstIn,
-      child: SizedBox(
-        height: 44,
-        child: ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: actions.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 9),
-          itemBuilder: (context, index) {
-            final action = actions[index];
-            return _StageActionButton(
-              label: action.label,
-              icon: action.icon,
-              accent: action.accent,
-              filled: action.filled,
-              onTap: action.onTap,
-            );
-          },
-        ),
       ),
     );
   }
@@ -2923,103 +2836,23 @@ class _StageSpotlightTile extends StatelessWidget {
   }
 }
 
-class _StageActionButton extends StatelessWidget {
-  const _StageActionButton({
-    required this.label,
-    required this.icon,
-    required this.accent,
-    required this.onTap,
-    this.filled = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color accent;
-  final VoidCallback onTap;
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-
-    return OSTouchFeedback(
-      onTap: onTap,
-      borderRadius: OSRadius.pillBr,
-      minSize: const Size(104, 36),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-        decoration: BoxDecoration(
-          gradient: filled
-              ? LinearGradient(
-                  colors: [accent, accent.withValues(alpha: 0.72)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: filled
-              ? null
-              : (dark
-                  ? Colors.white.withValues(alpha: 0.04)
-                  : Colors.white.withValues(alpha: 0.50)),
-          borderRadius: OSRadius.pillBr,
-          border: Border.all(
-            color: filled
-                ? Colors.white.withValues(alpha: 0.08)
-                : (dark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : Colors.white.withValues(alpha: 0.56)),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: filled ? Colors.white : accent,
-            ),
-            const SizedBox(width: 7),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: filled ? Colors.white : OSColors.text(dark),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _HomeShortcutShelf extends StatelessWidget {
   const _HomeShortcutShelf({
     required this.unread,
-    required this.themeMode,
-    required this.onAssistantTap,
     required this.onLauncherTap,
-    required this.onThemeTap,
     this.compact = false,
   });
 
   final int unread;
-  final ThemeMode themeMode;
-  final VoidCallback onAssistantTap;
   final VoidCallback onLauncherTap;
-  final VoidCallback onThemeTap;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final showLauncher = MediaQuery.sizeOf(context).width < 560;
     final shortcuts = <_HomeShortcutData>[
       _shortcutFromApp(OSAppId.teach,
           onTap: () => context.go(AppRoutes.osTeach)),
-      _shortcutFromApp(OSAppId.planner,
-          onTap: () => context.go(AppRoutes.osPlanner)),
-      _shortcutFromApp(OSAppId.classes,
-          onTap: () => context.go(AppRoutes.classes)),
       _shortcutFromApp(
         OSAppId.whiteboard,
         onTap: () => context.push(AppRoutes.whiteboard),
@@ -3029,26 +2862,13 @@ class _HomeShortcutShelf extends StatelessWidget {
         onTap: () => context.go(AppRoutes.communication),
         badge: unread > 0 ? '$unread' : null,
       ),
-      _HomeShortcutData(
-        label: 'Assistant',
-        icon: Icons.auto_awesome_rounded,
-        accent: OSColors.indigo,
-        onTap: onAssistantTap,
-      ),
-      _HomeShortcutData(
-        label: 'Launcher',
-        icon: Icons.grid_view_rounded,
-        accent: OSColors.amber,
-        onTap: onLauncherTap,
-      ),
-      _HomeShortcutData(
-        label: themeMode == ThemeMode.light ? 'Dark mode' : 'Light mode',
-        icon: themeMode == ThemeMode.light
-            ? Icons.dark_mode_rounded
-            : Icons.light_mode_rounded,
-        accent: OSColors.blue,
-        onTap: onThemeTap,
-      ),
+      if (showLauncher)
+        _HomeShortcutData(
+          label: 'Launcher',
+          icon: Icons.grid_view_rounded,
+          accent: OSColors.amber,
+          onTap: onLauncherTap,
+        ),
     ];
 
     return _GlassPanel(
@@ -4083,3 +3903,4 @@ String _trimLine(String value, int maxLength) {
   }
   return '${normalized.substring(0, maxLength - 1)}...';
 }
+
