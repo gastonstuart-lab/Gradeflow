@@ -520,38 +520,39 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 760),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 240),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInOut,
-                        transitionBuilder: _homeFolderTransition,
-                        child: _selectedMiniApp == null
-                            ? const _HomeCalmWorkspaceFloor(
-                                key: ValueKey('workspace-closed'),
-                              )
-                            : TapRegion(
-                                groupId: _miniAppTapRegionGroup,
-                                onTapOutside: (_) => _closeMiniApp(),
-                                child: _HomeMiniAppWindow(
-                                  key: ValueKey(_selectedMiniApp),
-                                  app: _selectedMiniApp!,
-                                  primaryClass: widget.primaryClass,
-                                  classes: widget.classes,
-                                  reminders: widget.reminders,
-                                  unread: widget.unread,
-                                  totalStudents: widget.totalStudents,
-                                  now: widget.now,
-                                  onClose: _closeMiniApp,
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 980),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 240),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInOut,
+                          transitionBuilder: _homeFolderTransition,
+                          child: _selectedMiniApp == null
+                              ? const _HomeCalmWorkspaceFloor(
+                                  key: ValueKey('workspace-closed'),
+                                )
+                              : TapRegion(
+                                  groupId: _miniAppTapRegionGroup,
+                                  onTapOutside: (_) => _closeMiniApp(),
+                                  child: _HomeMiniAppWindow(
+                                    key: ValueKey(_selectedMiniApp),
+                                    app: _selectedMiniApp!,
+                                    primaryClass: widget.primaryClass,
+                                    classes: widget.classes,
+                                    reminders: widget.reminders,
+                                    unread: widget.unread,
+                                    totalStudents: widget.totalStudents,
+                                    now: widget.now,
+                                    onClose: _closeMiniApp,
+                                  ),
                                 ),
-                              ),
+                        ),
                       ),
                     ),
                   ),
-                  const Spacer(),
                 ],
               );
             },
@@ -567,6 +568,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
             onAudioTap: () => _openMiniApp(_HomeMiniApp.audio),
             onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
             onAgendaTap: () => _openMiniApp(_HomeMiniApp.agenda),
+            onWeatherTap: () => _openMiniApp(_HomeMiniApp.weather),
           ),
         ),
       ],
@@ -575,6 +577,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
 }
 
 enum _HomeMiniApp {
+  weather,
   today,
   classes,
   tasks,
@@ -601,7 +604,11 @@ _HomeWorkspaceFolder? _folderForMiniApp(_HomeMiniApp? app) {
     _HomeMiniApp.tasks => _HomeWorkspaceFolder.tasks,
     _HomeMiniApp.messages => _HomeWorkspaceFolder.messages,
     _HomeMiniApp.insights => _HomeWorkspaceFolder.insights,
-    _HomeMiniApp.agenda || _HomeMiniApp.audio || null => null,
+    _HomeMiniApp.weather ||
+    _HomeMiniApp.agenda ||
+    _HomeMiniApp.audio ||
+    null =>
+      null,
   };
 }
 
@@ -613,6 +620,7 @@ class _HomeUtilityRail extends StatelessWidget {
     required this.onAudioTap,
     required this.onMessagesTap,
     required this.onAgendaTap,
+    required this.onWeatherTap,
   });
 
   final int unread;
@@ -621,6 +629,7 @@ class _HomeUtilityRail extends StatelessWidget {
   final VoidCallback onAudioTap;
   final VoidCallback onMessagesTap;
   final VoidCallback onAgendaTap;
+  final VoidCallback onWeatherTap;
 
   @override
   Widget build(BuildContext context) {
@@ -633,7 +642,7 @@ class _HomeUtilityRail extends StatelessWidget {
     return _GlassPanel(
       tone: _HomePanelTone.rail,
       radius: 30,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -680,15 +689,15 @@ class _HomeUtilityRail extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          const _HomeWeatherPanel(embedded: true),
           const SizedBox(height: 10),
+          _HomeWeatherPanel(embedded: true, onTap: onWeatherTap),
+          const SizedBox(height: 8),
           _HomeAudioPanel(
             embedded: true,
             compact: true,
             onTap: onAudioTap,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _RailSection(
             child: _HomeMessagesWidget(
               unread: unread,
@@ -696,7 +705,7 @@ class _HomeUtilityRail extends StatelessWidget {
               compact: true,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _HomeAgendaPanel(
             reminders: reminders,
             scrollable: false,
@@ -1579,72 +1588,83 @@ class _HomeMiniAppWindow extends StatelessWidget {
       tone: _HomePanelTone.whisper,
       radius: 28,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 286, maxHeight: 520),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight
+              : MediaQuery.sizeOf(context).height * 0.62;
+          final preferredHeight = maxHeight.clamp(420.0, 660.0);
+          final windowHeight = maxHeight < 420 ? maxHeight : preferredHeight;
+
+          return SizedBox(
+            height: windowHeight,
+            child: Column(
               children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: dark ? 0.16 : 0.11),
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: accent.withValues(alpha: 0.22)),
-                  ),
-                  child: Icon(_miniAppIcon(app), size: 18, color: accent),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _PanelEyebrow(label: 'Mini Desktop'),
-                      const SizedBox(height: 2),
-                      Text(
-                        _miniAppTitle(app),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                          color: OSColors.text(dark),
-                        ),
+                Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: dark ? 0.16 : 0.11),
+                        borderRadius: BorderRadius.circular(13),
+                        border:
+                            Border.all(color: accent.withValues(alpha: 0.22)),
                       ),
+                      child: Icon(_miniAppIcon(app), size: 18, color: accent),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _PanelEyebrow(label: 'Mini Desktop'),
+                          const SizedBox(height: 2),
+                          Text(
+                            _miniAppTitle(app),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              color: OSColors.text(dark),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_miniAppFullRoute(app) != null) ...[
+                      _MiniWindowIconButton(
+                        icon: Icons.open_in_new_rounded,
+                        tooltip: 'Open full page',
+                        onTap: () => context.go(_miniAppFullRoute(app)!),
+                      ),
+                      const SizedBox(width: 6),
                     ],
-                  ),
+                    _MiniWindowIconButton(
+                      icon: Icons.close_rounded,
+                      tooltip: 'Close',
+                      onTap: onClose,
+                    ),
+                  ],
                 ),
-                if (_miniAppFullRoute(app) != null) ...[
-                  _MiniWindowIconButton(
-                    icon: Icons.open_in_new_rounded,
-                    tooltip: 'Open full page',
-                    onTap: () => context.go(_miniAppFullRoute(app)!),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: _miniAppBody(context),
                   ),
-                  const SizedBox(width: 6),
-                ],
-                _MiniWindowIconButton(
-                  icon: Icons.close_rounded,
-                  tooltip: 'Close',
-                  onTap: onClose,
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Flexible(
-              child: SingleChildScrollView(
-                child: _miniAppBody(context),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
   Widget _miniAppBody(BuildContext context) {
     return switch (app) {
+      _HomeMiniApp.weather => const _WeatherMiniAppContent(),
       _HomeMiniApp.messages => _MessagesMiniAppContent(unread: unread),
       _HomeMiniApp.agenda => _AgendaMiniAppContent(
           title: 'Review today\'s plan',
@@ -1715,6 +1735,7 @@ class _MiniWindowIconButton extends StatelessWidget {
 
 String _miniAppTitle(_HomeMiniApp app) {
   return switch (app) {
+    _HomeMiniApp.weather => 'Weather',
     _HomeMiniApp.messages => 'Messages',
     _HomeMiniApp.agenda => 'Agenda / Today\'s Plan',
     _HomeMiniApp.audio => 'Focus Audio',
@@ -1727,6 +1748,7 @@ String _miniAppTitle(_HomeMiniApp app) {
 
 IconData _miniAppIcon(_HomeMiniApp app) {
   return switch (app) {
+    _HomeMiniApp.weather => Icons.wb_cloudy_rounded,
     _HomeMiniApp.messages => Icons.forum_rounded,
     _HomeMiniApp.agenda => Icons.event_available_rounded,
     _HomeMiniApp.audio => Icons.graphic_eq_rounded,
@@ -1739,6 +1761,7 @@ IconData _miniAppIcon(_HomeMiniApp app) {
 
 Color _miniAppAccent(_HomeMiniApp app) {
   return switch (app) {
+    _HomeMiniApp.weather => OSColors.blue,
     _HomeMiniApp.messages => OSColors.cyan,
     _HomeMiniApp.agenda => OSColors.amber,
     _HomeMiniApp.audio => OSColors.indigo,
@@ -1757,8 +1780,214 @@ String? _miniAppFullRoute(_HomeMiniApp app) {
     _HomeMiniApp.tasks =>
       AppRoutes.osPlanner,
     _HomeMiniApp.classes || _HomeMiniApp.insights => AppRoutes.classes,
-    _HomeMiniApp.audio => null,
+    _HomeMiniApp.weather || _HomeMiniApp.audio => null,
   };
+}
+
+class _WeatherMiniAppContent extends StatefulWidget {
+  const _WeatherMiniAppContent();
+
+  @override
+  State<_WeatherMiniAppContent> createState() => _WeatherMiniAppContentState();
+}
+
+class _WeatherMiniAppContentState extends State<_WeatherMiniAppContent> {
+  late final DashboardWeatherService _service = DashboardWeatherService();
+  late final Future<DashboardWeatherSnapshot> _weather =
+      _service.fetchForecast();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return FutureBuilder<DashboardWeatherSnapshot>(
+      future: _weather,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        final loading = snapshot.connectionState == ConnectionState.waiting;
+        final hasError = snapshot.hasError && data == null;
+        final mood = _weatherMood(data?.weatherCode, DateTime.now(), dark);
+        final textColor = _weatherTextColor(mood, dark);
+        final mutedColor = _weatherMutedTextColor(mood, dark);
+        final accent = _weatherAccentColor(mood, dark);
+        final forecast =
+            data?.forecast.take(5).toList() ?? const <DashboardForecastDay>[];
+        final temp =
+            hasError || loading ? '--' : '${data!.temperatureC.round()}Â°';
+        final condition = hasError
+            ? 'Forecast unavailable'
+            : loading
+                ? 'Checking forecast'
+                : _weatherLabel(data!.weatherCode);
+        final location = hasError
+            ? 'Weather will return when the network responds.'
+            : loading
+                ? 'Taichung City'
+                : data!.locationName;
+        final feelsLike = data == null
+            ? 'Feels-like unavailable'
+            : 'Feels like ${data.apparentTempC.round()}Â°';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _WeatherWidgetFrame(
+              mood: mood,
+              embedded: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          location,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: WorkspaceTypography.eyebrow(context)?.copyWith(
+                              color: textColor.withValues(alpha: .74)),
+                        ),
+                      ),
+                      Icon(
+                        data == null
+                            ? Icons.cloud_queue_rounded
+                            : _weatherIcon(data.weatherCode),
+                        color: accent,
+                        size: 30,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        temp,
+                        style: TextStyle(
+                          fontSize: 72,
+                          height: .88,
+                          fontWeight: FontWeight.w900,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                condition,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                feelsLike,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: mutedColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _WeatherTeacherNote(mood: mood),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (forecast.isNotEmpty) ...[
+              SizedBox(
+                height: 88,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: forecast.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    return SizedBox(
+                      width: 128,
+                      child: _WeatherForecastTile(
+                        day: forecast[index],
+                        textColor: OSColors.text(dark),
+                        mutedColor: OSColors.textSecondary(dark),
+                        iconColor: accent,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            _WeatherDetailGrid(
+              condition: condition,
+              feelsLike: feelsLike,
+              accent: accent,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _WeatherTeacherNote extends StatelessWidget {
+  const _WeatherTeacherNote({required this.mood});
+
+  final _WeatherMood mood;
+
+  @override
+  Widget build(BuildContext context) {
+    final note = switch (mood) {
+      _WeatherMood.rain => 'Rain signal - indoor transitions may be easier.',
+      _WeatherMood.cloudy =>
+        'Cloud cover - keep transitions calm and flexible.',
+      _WeatherMood.sunny => 'Warm afternoon - keep water nearby.',
+      _WeatherMood.night => 'Evening conditions - keep dismissal paths clear.',
+    };
+    return _StatusPill(
+        label: note, accent: _weatherAccentColor(mood, context.isDark));
+  }
+}
+
+class _WeatherDetailGrid extends StatelessWidget {
+  const _WeatherDetailGrid({
+    required this.condition,
+    required this.feelsLike,
+    required this.accent,
+  });
+
+  final String condition;
+  final String feelsLike;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        _FolderMetric(label: 'Condition', value: condition, accent: accent),
+        _FolderMetric(
+            label: 'Comfort', value: feelsLike, accent: OSColors.cyan),
+        _FolderMetric(
+          label: 'Transitions',
+          value: 'Check',
+          accent: OSColors.amber,
+        ),
+      ],
+    );
+  }
 }
 
 class _MessagesMiniAppContent extends StatelessWidget {
@@ -1861,9 +2090,19 @@ class _MessagesMiniAppContent extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const _MessageBubble(
+                text: 'Class channels are ready for a quick scan from Home.',
+                incoming: true,
+              ),
+              const SizedBox(height: 8),
+              const _MessageBubble(
                 text:
                     'Open full messages when you need to reply or manage channels.',
                 incoming: false,
+              ),
+              const SizedBox(height: 8),
+              const _MessageBubble(
+                text: 'This quick view keeps the lesson surface open.',
+                incoming: true,
               ),
               const SizedBox(height: 12),
               _MiniInputBar(label: 'Reply from full Messages'),
@@ -2026,37 +2265,50 @@ class _FocusAudioMiniAppContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _StationList(stations: stations)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final signal = Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.030)
+                    : Colors.white.withValues(alpha: 0.56),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
                   color: dark
-                      ? Colors.white.withValues(alpha: 0.030)
-                      : Colors.white.withValues(alpha: 0.56),
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: dark
-                        ? Colors.white.withValues(alpha: 0.055)
-                        : Colors.white.withValues(alpha: 0.68),
-                  ),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _PanelEyebrow(label: 'Signal'),
-                    SizedBox(height: 12),
-                    _MiniEqualizer(),
-                    SizedBox(height: 14),
-                    _MiniInputBar(label: 'Add station'),
-                  ],
+                      ? Colors.white.withValues(alpha: 0.055)
+                      : Colors.white.withValues(alpha: 0.68),
                 ),
               ),
-            ),
-          ],
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _PanelEyebrow(label: 'Signal'),
+                  SizedBox(height: 12),
+                  _MiniEqualizer(),
+                  SizedBox(height: 14),
+                  _MiniInputBar(label: 'Add station'),
+                ],
+              ),
+            );
+            if (constraints.maxWidth < 560) {
+              return Column(
+                children: [
+                  _StationList(stations: stations),
+                  const SizedBox(height: 12),
+                  signal,
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _StationList(stations: stations)),
+                const SizedBox(width: 12),
+                Expanded(child: signal),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -2147,6 +2399,8 @@ class _StatusPill extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 10.5,
           fontWeight: FontWeight.w900,
@@ -2169,7 +2423,7 @@ class _MessageBubble extends StatelessWidget {
     return Align(
       alignment: incoming ? Alignment.centerLeft : Alignment.centerRight,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
+        constraints: const BoxConstraints(maxWidth: 420),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           color: incoming
@@ -3147,6 +3401,7 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
           onAudioTap: () => _openMiniApp(_HomeMiniApp.audio),
           onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
           onAgendaTap: () => _openMiniApp(_HomeMiniApp.agenda),
+          onWeatherTap: () => _openMiniApp(_HomeMiniApp.weather),
         ),
         const SizedBox(height: 112),
       ],
@@ -4652,9 +4907,10 @@ class _HomeShortcutIcon extends StatelessWidget {
 }
 
 class _HomeWeatherPanel extends StatefulWidget {
-  const _HomeWeatherPanel({this.embedded = false});
+  const _HomeWeatherPanel({this.embedded = false, this.onTap});
 
   final bool embedded;
+  final VoidCallback? onTap;
 
   @override
   State<_HomeWeatherPanel> createState() => _HomeWeatherPanelState();
@@ -4698,6 +4954,8 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
                 ? 'Taichung City'
                 : '${data!.locationName} / feels like ${data.apparentTempC.round()}°';
 
+        final gap = widget.embedded ? 10.0 : 18.0;
+        final tempSize = widget.embedded ? 38.0 : 46.0;
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -4722,14 +4980,14 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            SizedBox(height: gap),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   tempLabel,
                   style: TextStyle(
-                    fontSize: 46,
+                    fontSize: tempSize,
                     height: 0.92,
                     fontWeight: FontWeight.w900,
                     color: textOnWeather,
@@ -4772,7 +5030,7 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
               ],
             ),
             if (forecast.isNotEmpty) ...[
-              const SizedBox(height: 18),
+              SizedBox(height: widget.embedded ? 12 : 18),
               Row(
                 children: [
                   for (int index = 0; index < forecast.length; index++) ...[
@@ -4791,10 +5049,17 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
             ],
           ],
         );
-        return _WeatherWidgetFrame(
+        final frame = _WeatherWidgetFrame(
           mood: mood,
           embedded: widget.embedded,
           child: content,
+        );
+        if (widget.onTap == null) return frame;
+        return OSTouchFeedback(
+          onTap: widget.onTap!,
+          borderRadius: BorderRadius.circular(widget.embedded ? 24 : 28),
+          minSize: Size(180, widget.embedded ? 166 : 220),
+          child: frame,
         );
       },
     );
@@ -4820,9 +5085,9 @@ class _WeatherWidgetFrame extends StatelessWidget {
     final radius = BorderRadius.circular(embedded ? 24 : 28);
 
     return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: embedded ? 214 : 220),
+      constraints: BoxConstraints(minHeight: embedded ? 164 : 220),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(embedded ? 12 : 16),
         decoration: BoxDecoration(
           borderRadius: radius,
           gradient: LinearGradient(
@@ -5442,7 +5707,7 @@ class _AgendaEmptyState extends StatelessWidget {
     final dark = context.isDark;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -5654,7 +5919,7 @@ class _RailSection extends StatelessWidget {
         color: dark
             ? Colors.white.withValues(alpha: 0.035)
             : Colors.white.withValues(alpha: 0.48),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: dark
               ? Colors.white.withValues(alpha: 0.055)
