@@ -726,7 +726,7 @@ class _HomeQuickClassCard extends StatelessWidget {
     return OSTouchFeedback(
       onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
       borderRadius: BorderRadius.circular(18),
-      minSize: const Size(204, 68),
+      minSize: const Size(204, 112),
       child: Container(
         padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
         decoration: BoxDecoration(
@@ -740,48 +740,134 @@ class _HomeQuickClassCard extends StatelessWidget {
                 : Colors.white.withValues(alpha: 0.64),
           ),
         ),
-        child: Row(
+        child: Column(
           children: [
-            const _HomeQuickClassIcon(),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    classItem.className,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.05,
-                      fontWeight: FontWeight.w900,
-                      color: OSColors.text(dark),
-                    ),
+            Row(
+              children: [
+                const _HomeQuickClassIcon(),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        classItem.className,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.05,
+                          fontWeight: FontWeight.w900,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        classItem.subject,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.05,
+                          fontWeight: FontWeight.w600,
+                          color: OSColors.textSecondary(dark),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    classItem.subject,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.05,
-                      fontWeight: FontWeight.w600,
-                      color: OSColors.textSecondary(dark),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: OSColors.textMuted(dark),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: OSColors.textMuted(dark),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _HomeQuickClassMiniAction(
+                  icon: Icons.grid_view_rounded,
+                  accent: OSColors.green,
+                  onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
+                ),
+                _HomeQuickClassMiniAction(
+                  icon: Icons.people_alt_outlined,
+                  accent: OSColors.cyan,
+                  onTap: () => context.go(AppRoutes.osClassStudents(classId)),
+                ),
+                _HomeQuickClassMiniAction(
+                  icon: Icons.event_seat_rounded,
+                  accent: OSColors.amber,
+                  onTap: () => context.go(AppRoutes.osClassSeating(classId)),
+                ),
+                _HomeQuickClassMiniAction(
+                  icon: Icons.menu_book_rounded,
+                  accent: OSColors.coral,
+                  onTap: () => context.go(AppRoutes.osClassGradebook(classId)),
+                ),
+                _HomeQuickClassMiniAction(
+                  icon: Icons.calendar_month_outlined,
+                  accent: OSColors.blue,
+                  onTap: () => context.go(AppRoutes.osClassSchedule(classId)),
+                ),
+                _HomeQuickClassMiniAction(
+                  icon: Icons.cast_for_education_rounded,
+                  accent: OSColors.indigo,
+                  onTap: () {
+                    context
+                        .read<GradeFlowOSController>()
+                        .setSurface(OSSurface.teach, classId: classId);
+                    context.go(AppRoutes.osTeach);
+                  },
+                ),
+              ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeQuickClassMiniAction extends StatelessWidget {
+  const _HomeQuickClassMiniAction({
+    required this.icon,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: OSTouchFeedback(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          minSize: const Size(26, 28),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accent.withValues(alpha: dark ? 0.10 : 0.075),
+                border: Border.all(
+                  color: accent.withValues(alpha: dark ? 0.26 : 0.18),
+                  width: 1.2,
+                ),
+              ),
+              child: Icon(icon, size: 14, color: accent),
+            ),
+          ),
         ),
       ),
     );
@@ -878,7 +964,7 @@ class _HomeQuickClassEmptyCard extends StatelessWidget {
                       color: OSColors.text(dark),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
                     'Set up the first workspace',
                     maxLines: 2,
@@ -3610,60 +3696,108 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
         final mutedOnWeather = _weatherMutedTextColor(mood, dark);
         final iconOnWeather = _weatherAccentColor(mood, dark);
 
+        final tempLabel = hasError
+            ? '--'
+            : loading
+                ? '--'
+                : '${data!.temperatureC.round()}°';
+        final conditionLabel = hasError
+            ? 'Forecast unavailable'
+            : loading
+                ? 'Checking forecast'
+                : _weatherLabel(data!.weatherCode);
+        final locationLabel = hasError
+            ? 'Weather will return when the network responds.'
+            : loading
+                ? 'Taichung City'
+                : '${data!.locationName} / feels like ${data.apparentTempC.round()}°';
+
         final content = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                const Expanded(
-                  child: _PanelEyebrow(label: 'Local Conditions'),
+                Expanded(
+                  child: Text(
+                    'Local conditions'.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: WorkspaceTypography.eyebrow(context)?.copyWith(
+                      color: textOnWeather.withValues(alpha: 0.72),
+                    ),
+                  ),
                 ),
                 Icon(
                   data == null
                       ? Icons.cloud_queue_rounded
                       : _weatherIcon(data.weatherCode),
-                  color: iconOnWeather,
-                  size: 20,
+                  color: iconOnWeather.withValues(alpha: 0.96),
+                  size: 24,
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              hasError
-                  ? 'Forecast unavailable'
-                  : loading
-                      ? 'Checking forecast'
-                      : '${data!.temperatureC.round()} C ${_weatherLabel(data.weatherCode)}',
-              style: TextStyle(
-                fontSize: 18,
-                height: 1.1,
-                fontWeight: FontWeight.w800,
-                color: textOnWeather,
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              hasError
-                  ? 'Weather will return when the network responds.'
-                  : loading
-                      ? 'Taichung City'
-                      : '${data!.locationName} - feels like ${data.apparentTempC.round()} C',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.4,
-                color: mutedOnWeather,
-              ),
+            const SizedBox(height: 18),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  tempLabel,
+                  style: TextStyle(
+                    fontSize: 46,
+                    height: 0.92,
+                    fontWeight: FontWeight.w900,
+                    color: textOnWeather,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          conditionLabel,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 17,
+                            height: 1.08,
+                            fontWeight: FontWeight.w900,
+                            color: textOnWeather,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          locationLabel,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            height: 1.25,
+                            fontWeight: FontWeight.w600,
+                            color: mutedOnWeather,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (forecast.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 18),
               Row(
                 children: [
                   for (int index = 0; index < forecast.length; index++) ...[
                     if (index > 0) const SizedBox(width: 8),
                     Expanded(
-                      child: _WeatherForecastTile(day: forecast[index]),
+                      child: _WeatherForecastTile(
+                        day: forecast[index],
+                        textColor: textOnWeather,
+                        mutedColor: mutedOnWeather,
+                        iconColor: iconOnWeather,
+                      ),
                     ),
                   ],
                 ],
@@ -3699,42 +3833,45 @@ class _WeatherWidgetFrame extends StatelessWidget {
     final dark = context.isDark;
     final radius = BorderRadius.circular(embedded ? 24 : 28);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        gradient: LinearGradient(
-          colors: _weatherGradient(mood, dark),
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: dark ? 0.10 : 0.48),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _weatherAccentColor(mood, dark).withValues(
-              alpha: dark ? 0.12 : 0.10,
-            ),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: embedded ? 214 : 220),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: LinearGradient(
+            colors: _weatherGradient(mood, dark),
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: radius,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _WeatherAtmospherePainter(
-                  mood: mood,
-                  dark: dark,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: dark ? 0.12 : 0.54),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _weatherAccentColor(mood, dark).withValues(
+                alpha: dark ? 0.18 : 0.16,
+              ),
+              blurRadius: 30,
+              offset: const Offset(0, 15),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _WeatherAtmospherePainter(
+                    mood: mood,
+                    dark: dark,
+                  ),
                 ),
               ),
-            ),
-            child,
-          ],
+              child,
+            ],
+          ),
         ),
       ),
     );
@@ -3816,6 +3953,30 @@ class _WeatherAtmospherePainter extends CustomPainter {
       return;
     }
 
+    if (mood == _WeatherMood.night) {
+      final moon = Paint()
+        ..color = Colors.white.withValues(alpha: dark ? 0.26 : 0.22);
+      canvas.drawCircle(Offset(size.width * .84, size.height * .14), 22, moon);
+      final cutout = Paint()
+        ..color = const Color(0xFF0B1F3A).withValues(alpha: 0.76);
+      canvas.drawCircle(
+        Offset(size.width * .91, size.height * .10),
+        20,
+        cutout,
+      );
+      final star = Paint()
+        ..style = PaintingStyle.fill
+        ..color = Colors.white.withValues(alpha: 0.32);
+      for (final offset in [
+        Offset(size.width * .18, size.height * .16),
+        Offset(size.width * .34, size.height * .30),
+        Offset(size.width * .72, size.height * .40),
+      ]) {
+        canvas.drawCircle(offset, 1.4, star);
+      }
+      return;
+    }
+
     final sun = Paint()
       ..color = Colors.white.withValues(
         alpha: mood == _WeatherMood.night ? 0.16 : 0.34,
@@ -3840,9 +4001,17 @@ class _WeatherAtmospherePainter extends CustomPainter {
 }
 
 class _WeatherForecastTile extends StatelessWidget {
-  const _WeatherForecastTile({required this.day});
+  const _WeatherForecastTile({
+    required this.day,
+    required this.textColor,
+    required this.mutedColor,
+    required this.iconColor,
+  });
 
   final DashboardForecastDay day;
+  final Color textColor;
+  final Color mutedColor;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -3852,19 +4021,17 @@ class _WeatherForecastTile extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: dark
-            ? Colors.white.withValues(alpha: 0.04)
-            : Colors.white.withValues(alpha: 0.64),
+            ? Colors.white.withValues(alpha: 0.075)
+            : Colors.white.withValues(alpha: 0.30),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: dark
-              ? Colors.white.withValues(alpha: 0.06)
-              : Colors.white.withValues(alpha: 0.70),
+          color: Colors.white.withValues(alpha: dark ? 0.10 : 0.40),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(_weatherIcon(day.weatherCode), size: 16, color: OSColors.blue),
+          Icon(_weatherIcon(day.weatherCode), size: 16, color: iconColor),
           const SizedBox(height: 8),
           Text(
             _formatDateLine(day.date),
@@ -3873,7 +4040,7 @@ class _WeatherForecastTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: OSColors.textMuted(dark),
+              color: mutedColor,
             ),
           ),
           const SizedBox(height: 2),
@@ -3882,7 +4049,7 @@ class _WeatherForecastTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: OSColors.text(dark),
+              color: textColor,
             ),
           ),
         ],
@@ -3904,13 +4071,13 @@ class _HomeAudioPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final content = Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
         gradient: LinearGradient(
           colors: dark
-              ? const [Color(0xFF151B2D), Color(0xFF0F172A)]
-              : const [Color(0xFFFFFFFF), Color(0xFFEFF5FF)],
+              ? const [Color(0xFF1B2137), Color(0xFF101827)]
+              : const [Color(0xFFFFFFFF), Color(0xFFEAF4FF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -3924,6 +4091,7 @@ class _HomeAudioPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const _AudioArtwork(),
               const SizedBox(width: 12),
@@ -3958,19 +4126,25 @@ class _HomeAudioPanel extends StatelessWidget {
                 ),
               ),
               Container(
-                width: 32,
-                height: 32,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: OSColors.indigo.withValues(alpha: dark ? 0.22 : 0.14),
-                  border: Border.all(
-                    color: OSColors.indigo.withValues(alpha: 0.20),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6D5DFB), Color(0xFF22D3EE)],
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: OSColors.indigo.withValues(alpha: 0.18),
+                      blurRadius: 14,
+                      offset: const Offset(0, 7),
+                    ),
+                  ],
                 ),
                 child: const Icon(
                   Icons.play_arrow_rounded,
-                  size: 21,
-                  color: OSColors.indigo,
+                  size: 22,
+                  color: Colors.white,
                 ),
               ),
             ],
@@ -3993,10 +4167,18 @@ class _HomeAudioPanel extends StatelessWidget {
             children: [
               const Expanded(child: _MiniEqualizer()),
               const SizedBox(width: 12),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: OSColors.textMuted(dark),
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: dark ? 0.055 : 0.58),
+                ),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: OSColors.textMuted(dark),
+                ),
               ),
             ],
           ),
@@ -4026,12 +4208,12 @@ class _AudioArtwork extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 48,
-      height: 48,
+      width: 50,
+      height: 50,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(17),
         gradient: const LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
+          colors: [Color(0xFF1D4ED8), Color(0xFF06B6D4), Color(0xFF67E8F9)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -4124,26 +4306,73 @@ class _HomeAgendaPanel extends StatelessWidget {
         scrollable ? reminders : reminders.take(4).toList();
     final dark = context.isDark;
     final headerChildren = <Widget>[
-      const _PanelEyebrow(label: 'Agenda Queue'),
-      const SizedBox(height: 8),
-      Text(
-        reminders.isEmpty ? 'Clear for now' : 'Next reminders',
-        style: TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0,
-          color: OSColors.text(dark),
-        ),
+      Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: OSColors.amber.withValues(alpha: dark ? 0.13 : 0.10),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(
+                color: OSColors.amber.withValues(alpha: 0.18),
+              ),
+            ),
+            child: const Icon(
+              Icons.event_available_rounded,
+              size: 17,
+              color: OSColors.amber,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _PanelEyebrow(label: 'Agenda Queue'),
+                const SizedBox(height: 3),
+                Text(
+                  reminders.isEmpty ? 'Clear for now' : 'Next reminders',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                    color: OSColors.text(dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      const SizedBox(height: 4),
-      Text(
-        reminders.isEmpty
-            ? 'The planning lane is calm.'
-            : 'Priority items stay visible without crowding the workspace.',
-        style: TextStyle(
-          fontSize: 12,
-          height: 1.45,
-          color: OSColors.textSecondary(dark),
+      const SizedBox(height: 10),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.030)
+              : Colors.white.withValues(alpha: 0.46),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: dark
+                ? Colors.white.withValues(alpha: 0.045)
+                : Colors.white.withValues(alpha: 0.58),
+          ),
+        ),
+        child: Text(
+          reminders.isEmpty
+              ? 'The planning lane is calm.'
+              : 'Priority items stay visible without crowding the workspace.',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 11.5,
+            height: 1.34,
+            color: OSColors.textSecondary(dark),
+          ),
         ),
       ),
       const SizedBox(height: 10),
@@ -4312,7 +4541,7 @@ class _ReminderTile extends StatelessWidget {
     final dueLabel = _relativeReminderLabel(reminder, now);
     final accent = _reminderAccent(reminder, now);
 
-    return Container(
+    final tile = Container(
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: dark
@@ -4392,6 +4621,13 @@ class _ReminderTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    return OSTouchFeedback(
+      onTap: () => context.go(AppRoutes.osPlanner),
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(190, 78),
+      child: tile,
     );
   }
 
@@ -4696,14 +4932,14 @@ _WeatherMood _weatherMood(int? code, DateTime now, bool dark) {
 List<Color> _weatherGradient(_WeatherMood mood, bool dark) {
   return switch (mood) {
     _WeatherMood.rain => dark
-        ? const [Color(0xFF07111D), Color(0xFF0E2A44), Color(0xFF0F172A)]
-        : const [Color(0xFFDDEBFA), Color(0xFFBBD7F0), Color(0xFFEAF5FF)],
+        ? const [Color(0xFF06101F), Color(0xFF12324F), Color(0xFF0B1726)]
+        : const [Color(0xFF7FA9C7), Color(0xFFBCD2E5), Color(0xFFE7F1FA)],
     _WeatherMood.cloudy => dark
-        ? const [Color(0xFF111827), Color(0xFF1E293B), Color(0xFF0F172A)]
-        : const [Color(0xFFE8EEF7), Color(0xFFD7E2EE), Color(0xFFF7FAFC)],
+        ? const [Color(0xFF0F172A), Color(0xFF27364A), Color(0xFF111827)]
+        : const [Color(0xFFAFC4D8), Color(0xFFD8E3ED), Color(0xFFF6FAFC)],
     _WeatherMood.sunny => dark
         ? const [Color(0xFF172033), Color(0xFF23466F), Color(0xFF0F172A)]
-        : const [Color(0xFFFFF7D6), Color(0xFFDBF3FF), Color(0xFFF8FAFC)],
+        : const [Color(0xFF57A7EA), Color(0xFFB7E4FF), Color(0xFFFFE8A3)],
     _WeatherMood.night => const [
         Color(0xFF020617),
         Color(0xFF0B1F3A),
