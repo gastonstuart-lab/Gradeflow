@@ -433,11 +433,13 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
 
   @override
   Widget build(BuildContext context) {
+    const sideRailWidth = 260.0;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          width: 248,
+          width: sideRailWidth,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -460,8 +462,10 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                   compact: true,
                 ),
               ),
-              const Spacer(),
-              _HomeQuickClassesStrip(classes: widget.classes),
+              const SizedBox(height: 14),
+              Expanded(
+                child: _HomeQuickClassesStrip(classes: widget.classes),
+              ),
             ],
           ),
         ),
@@ -543,7 +547,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
         ),
         const SizedBox(width: 16),
         SizedBox(
-          width: 296,
+          width: sideRailWidth,
           child: _HomeUtilityRail(
             unread: widget.unread,
             reminderCount: widget.reminders.length,
@@ -654,75 +658,183 @@ class _HomeQuickClassesStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    final visible = classes.take(4).toList();
+    final visible = classes;
 
     return _GlassPanel(
       tone: _HomePanelTone.rail,
-      radius: 24,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+      radius: 26,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.grid_view_rounded,
-                size: 15,
-                color: OSColors.textMuted(dark),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  'Quick Classes',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: OSColors.textSecondary(dark),
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            'Open the next class workspace directly.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+              color: OSColors.textSecondary(dark),
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           if (visible.isEmpty)
-            _HomeQuickClassTile(
-              label: 'Open classes',
-              detail: 'Set up the first workspace',
-              accent: OSColors.green,
+            _HomeQuickClassEmptyCard(
               onTap: () => context.go(AppRoutes.classes),
             )
           else
-            for (int index = 0; index < visible.length; index++) ...[
-              _HomeQuickClassTile(
-                label: visible[index].className,
-                detail: visible[index].subject,
-                accent: _classAccent(index),
-                onTap: () => context.go(
-                  AppRoutes.osClassWorkspace(visible[index].classId),
+            Expanded(
+              child: Scrollbar(
+                thumbVisibility: visible.length > 2,
+                child: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  itemCount: visible.length,
+                  itemBuilder: (context, index) {
+                    return _HomeQuickClassCard(classItem: visible[index]);
+                  },
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
                 ),
               ),
-              if (index != visible.length - 1) const SizedBox(height: 8),
-            ],
+            ),
+          const SizedBox(height: 12),
+          Divider(
+            height: 1,
+            indent: 28,
+            endIndent: 28,
+            color: dark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.black.withValues(alpha: 0.08),
+          ),
         ],
       ),
     );
   }
 }
 
-class _HomeQuickClassTile extends StatelessWidget {
-  const _HomeQuickClassTile({
-    required this.label,
-    required this.detail,
-    required this.accent,
-    required this.onTap,
-  });
+class _HomeQuickClassCard extends StatelessWidget {
+  const _HomeQuickClassCard({required this.classItem});
 
-  final String label;
-  final String detail;
-  final Color accent;
+  final Class classItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final classId = classItem.classId;
+
+    return OSTouchFeedback(
+      onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(204, 68),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+        decoration: BoxDecoration(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.034)
+              : Colors.white.withValues(alpha: 0.58),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: dark
+                ? Colors.white.withValues(alpha: 0.052)
+                : Colors.white.withValues(alpha: 0.64),
+          ),
+        ),
+        child: Row(
+          children: [
+            const _HomeQuickClassIcon(),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    classItem.className,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.05,
+                      fontWeight: FontWeight.w900,
+                      color: OSColors.text(dark),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    classItem.subject,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.05,
+                      fontWeight: FontWeight.w600,
+                      color: OSColors.textSecondary(dark),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: OSColors.textMuted(dark),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeQuickClassIcon extends StatelessWidget {
+  const _HomeQuickClassIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            OSColors.green.withValues(alpha: 0.92),
+            OSColors.cyan.withValues(alpha: 0.74),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Center(
+        child: Container(
+          width: 18,
+          height: 22,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Icon(
+                Icons.bookmark_rounded,
+                size: 8,
+                color: OSColors.green.withValues(alpha: 0.86),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeQuickClassEmptyCard extends StatelessWidget {
+  const _HomeQuickClassEmptyCard({required this.onTap});
+
   final VoidCallback onTap;
 
   @override
@@ -731,61 +843,60 @@ class _HomeQuickClassTile extends StatelessWidget {
 
     return OSTouchFeedback(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      minSize: const Size(180, 48),
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(204, 72),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: dark
-              ? Colors.white.withValues(alpha: 0.036)
-              : Colors.white.withValues(alpha: 0.62),
-          borderRadius: BorderRadius.circular(16),
+              ? Colors.white.withValues(alpha: 0.045)
+              : Colors.white.withValues(alpha: 0.68),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: accent.withValues(alpha: dark ? 0.18 : 0.16),
+            color: dark
+                ? Colors.white.withValues(alpha: 0.075)
+                : Colors.white.withValues(alpha: 0.72),
           ),
         ),
         child: Row(
           children: [
-            Container(
-              width: 8,
-              height: 28,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: dark ? 0.70 : 0.82),
-                borderRadius: OSRadius.pillBr,
-              ),
-            ),
-            const SizedBox(width: 10),
+            const _HomeQuickClassIcon(),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    label,
+                    'Open classes',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                      height: 1.05,
+                      fontWeight: FontWeight.w900,
                       color: OSColors.text(dark),
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 6),
                   Text(
-                    detail,
-                    maxLines: 1,
+                    'Set up the first workspace',
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 10.5,
-                      color: OSColors.textMuted(dark),
+                      fontSize: 12,
+                      height: 1.1,
+                      fontWeight: FontWeight.w500,
+                      color: OSColors.textSecondary(dark),
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 6),
             Icon(
               Icons.chevron_right_rounded,
-              size: 17,
+              size: 24,
               color: OSColors.textMuted(dark),
             ),
           ],
@@ -1035,27 +1146,48 @@ class _HomeCalmWorkspaceFloor extends StatelessWidget {
     final dark = context.isDark;
 
     return SizedBox(
-      height: 214,
+      height: 224,
       child: Stack(
         alignment: Alignment.topCenter,
         children: [
           Positioned(
-            left: 18,
-            right: 18,
-            top: 18,
-            bottom: 28,
-            child: DecoratedBox(
+            top: 0,
+            left: 64,
+            right: 64,
+            child: Container(
+              height: 18,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.045)
-                      : Colors.white.withValues(alpha: 0.42),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(18),
                 ),
                 gradient: LinearGradient(
                   colors: [
-                    Colors.white.withValues(alpha: dark ? 0.028 : 0.32),
-                    Colors.white.withValues(alpha: dark ? 0.010 : 0.10),
+                    OSColors.blue.withValues(alpha: dark ? 0.10 : 0.14),
+                    Colors.white.withValues(alpha: dark ? 0.018 : 0.18),
+                    OSColors.cyan.withValues(alpha: dark ? 0.06 : 0.10),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 12,
+            bottom: 24,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: dark
+                      ? Colors.white.withValues(alpha: 0.040)
+                      : Colors.white.withValues(alpha: 0.38),
+                ),
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withValues(alpha: dark ? 0.026 : 0.30),
+                    OSColors.blue.withValues(alpha: dark ? 0.012 : 0.045),
+                    Colors.white.withValues(alpha: dark ? 0.008 : 0.09),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -1066,8 +1198,8 @@ class _HomeCalmWorkspaceFloor extends StatelessWidget {
           Positioned(
             left: 44,
             right: 44,
-            top: 42,
-            bottom: 52,
+            top: 34,
+            bottom: 48,
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(28),
@@ -1113,7 +1245,7 @@ class _HomeWorkspaceFolderPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return _GlassPanel(
       tone: _HomePanelTone.whisper,
-      radius: 28,
+      radius: 26,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 176, maxHeight: 276),
@@ -1325,31 +1457,30 @@ class _MessagesFolderContent extends StatelessWidget {
       onAction: () => context.go(AppRoutes.communication),
       child: Column(
         children: [
-          _FolderInfoRow(
-            icon: unread == 0
-                ? Icons.mark_email_read_outlined
-                : Icons.mark_chat_unread_outlined,
+          _FolderMessagePreview(
+            sender: unread == 0 ? 'Staff room' : 'Unread channels',
+            snippet: unread == 0
+                ? 'Recent class and staff threads are ready.'
+                : '$unread conversation${unread == 1 ? '' : 's'} waiting for review.',
+            status: unread == 0 ? 'quiet' : 'now',
+            unread: unread > 0,
             accent: OSColors.cyan,
-            label: unread == 0 ? 'Staff room' : 'Unread',
-            value: unread == 0
-                ? 'Open recent channels'
-                : '$unread conversation${unread == 1 ? '' : 's'} need review',
             onTap: () => context.go(AppRoutes.communication),
           ),
           const SizedBox(height: 10),
-          _FolderInfoRow(
-            icon: Icons.groups_2_outlined,
+          _FolderMessagePreview(
+            sender: 'Class channels',
+            snippet: 'Families, students, and staff threads.',
+            status: 'live',
             accent: OSColors.blue,
-            label: 'Class channels',
-            value: 'Families, students, and staff threads',
             onTap: () => context.go(AppRoutes.communication),
           ),
           const SizedBox(height: 10),
-          _FolderInfoRow(
-            icon: Icons.campaign_outlined,
+          _FolderMessagePreview(
+            sender: 'Announcements',
+            snippet: 'School-wide updates and broadcast notes.',
+            status: 'school',
             accent: OSColors.indigo,
-            label: 'Announcements',
-            value: 'Review school-wide updates',
             onTap: () => context.go(AppRoutes.communication),
           ),
         ],
@@ -1547,7 +1678,7 @@ class _FolderInfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final row = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         color: dark
             ? Colors.white.withValues(alpha: 0.035)
@@ -1561,31 +1692,44 @@ class _FolderInfoRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 17, color: accent),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 98,
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: OSColors.text(dark),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: dark ? 0.14 : 0.10),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: accent.withValues(alpha: dark ? 0.22 : 0.16),
               ),
             ),
+            child: Icon(icon, size: 16, color: accent),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                color: OSColors.textSecondary(dark),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: OSColors.text(dark),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: OSColors.textSecondary(dark),
+                  ),
+                ),
+              ],
             ),
           ),
           if (onTap != null) ...[
@@ -1607,6 +1751,150 @@ class _FolderInfoRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       minSize: const Size(220, 46),
       child: row,
+    );
+  }
+}
+
+class _FolderMessagePreview extends StatelessWidget {
+  const _FolderMessagePreview({
+    required this.sender,
+    required this.snippet,
+    required this.status,
+    required this.accent,
+    required this.onTap,
+    this.unread = false,
+  });
+
+  final String sender;
+  final String snippet;
+  final String status;
+  final Color accent;
+  final VoidCallback onTap;
+  final bool unread;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final preview = Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.035)
+            : Colors.white.withValues(alpha: 0.58),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: unread
+              ? accent.withValues(alpha: 0.28)
+              : (dark
+                  ? Colors.white.withValues(alpha: 0.055)
+                  : Colors.white.withValues(alpha: 0.68)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      accent.withValues(alpha: dark ? 0.42 : 0.30),
+                      accent.withValues(alpha: dark ? 0.16 : 0.12),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Text(
+                  sender.trim().isEmpty ? '?' : sender.trim()[0],
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: dark ? Colors.white : accent,
+                  ),
+                ),
+              ),
+              if (unread)
+                Positioned(
+                  right: -1,
+                  top: -1,
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: OSColors.urgent,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: dark ? const Color(0xFF0F172A) : Colors.white,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        sender,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: unread ? accent : OSColors.textMuted(dark),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  snippet,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: OSColors.textSecondary(dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: OSColors.textMuted(dark),
+          ),
+        ],
+      ),
+    );
+
+    return OSTouchFeedback(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(220, 54),
+      child: preview,
     );
   }
 }
@@ -3412,7 +3700,7 @@ class _WeatherWidgetFrame extends StatelessWidget {
     final radius = BorderRadius.circular(embedded ? 24 : 28);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: radius,
         gradient: LinearGradient(
@@ -3428,8 +3716,8 @@ class _WeatherWidgetFrame extends StatelessWidget {
             color: _weatherAccentColor(mood, dark).withValues(
               alpha: dark ? 0.12 : 0.10,
             ),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -3464,16 +3752,51 @@ class _WeatherAtmospherePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final softGlow = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          _weatherAccentColor(mood, dark).withValues(alpha: dark ? 0.20 : 0.26),
+          Colors.transparent,
+        ],
+      ).createShader(
+        Rect.fromCircle(
+          center: Offset(size.width * .82, size.height * .10),
+          radius: size.width * .62,
+        ),
+      );
+    canvas.drawCircle(
+      Offset(size.width * .82, size.height * .10),
+      size.width * .62,
+      softGlow,
+    );
+
     final paint = Paint()..style = PaintingStyle.stroke;
     if (mood == _WeatherMood.rain) {
+      final mist = Paint()
+        ..shader = LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: dark ? 0.02 : 0.10),
+            Colors.white.withValues(alpha: dark ? 0.10 : 0.22),
+            Colors.transparent,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ).createShader(Offset.zero & size);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(size.width * .42, 6, size.width * .65, size.height),
+          const Radius.circular(28),
+        ),
+        mist,
+      );
       paint
-        ..color = Colors.white.withValues(alpha: dark ? 0.12 : 0.22)
-        ..strokeWidth = 1.1
+        ..color = Colors.white.withValues(alpha: dark ? 0.15 : 0.26)
+        ..strokeWidth = 1.2
         ..strokeCap = StrokeCap.round;
-      for (double x = 8; x < size.width; x += 22) {
+      for (double x = 4; x < size.width + 24; x += 18) {
         canvas.drawLine(
-          Offset(x, 8),
-          Offset(x - 12, size.height - 10),
+          Offset(x, 2),
+          Offset(x - 16, size.height - 4),
           paint,
         );
       }
@@ -3483,34 +3806,30 @@ class _WeatherAtmospherePainter extends CustomPainter {
     if (mood == _WeatherMood.cloudy) {
       final fill = Paint()
         ..style = PaintingStyle.fill
-        ..color = Colors.white.withValues(alpha: dark ? 0.065 : 0.24);
+        ..color = Colors.white.withValues(alpha: dark ? 0.075 : 0.26);
       canvas.drawOval(
-        Rect.fromLTWH(size.width * .48, 8, size.width * .62, 64),
-        fill,
-      );
+          Rect.fromLTWH(size.width * .46, 4, size.width * .70, 64), fill);
       canvas.drawOval(
-        Rect.fromLTWH(size.width * .36, 32, size.width * .58, 74),
-        fill,
-      );
+          Rect.fromLTWH(size.width * .30, 28, size.width * .72, 82), fill);
+      canvas.drawOval(
+          Rect.fromLTWH(size.width * .64, 54, size.width * .48, 58), fill);
       return;
     }
 
-    final glowPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          Colors.white.withValues(alpha: dark ? 0.14 : 0.30),
-          Colors.transparent,
-        ],
-      ).createShader(
-        Rect.fromCircle(
-          center: Offset(size.width * .84, size.height * .10),
-          radius: 90,
-        ),
+    final sun = Paint()
+      ..color = Colors.white.withValues(
+        alpha: mood == _WeatherMood.night ? 0.16 : 0.34,
       );
-    canvas.drawCircle(
-      Offset(size.width * .84, size.height * .10),
-      90,
-      glowPaint,
+    canvas.drawCircle(Offset(size.width * .86, size.height * .14), 28, sun);
+    paint
+      ..color = Colors.white.withValues(alpha: dark ? 0.07 : 0.18)
+      ..strokeWidth = 1;
+    canvas.drawArc(
+      Rect.fromLTWH(size.width * .52, size.height * .52, size.width * .64, 80),
+      3.35,
+      1.7,
+      false,
+      paint,
     );
   }
 
@@ -3585,9 +3904,9 @@ class _HomeAudioPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final content = Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         gradient: LinearGradient(
           colors: dark
               ? const [Color(0xFF151B2D), Color(0xFF0F172A)]
@@ -3613,13 +3932,13 @@ class _HomeAudioPanel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const _PanelEyebrow(label: 'Focus Audio'),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     Text(
                       'Classroom sound',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: OSColors.text(dark),
                       ),
@@ -3627,10 +3946,10 @@ class _HomeAudioPanel extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       'Stations for quiet work and transitions.',
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         height: 1.35,
                         color: OSColors.textSecondary(dark),
                       ),
@@ -3639,8 +3958,8 @@ class _HomeAudioPanel extends StatelessWidget {
                 ),
               ),
               Container(
-                width: 34,
-                height: 34,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: OSColors.indigo.withValues(alpha: dark ? 0.22 : 0.14),
@@ -3657,6 +3976,19 @@ class _HomeAudioPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: OSRadius.pillBr,
+            child: LinearProgressIndicator(
+              minHeight: 4,
+              value: 0.58,
+              backgroundColor:
+                  Colors.white.withValues(alpha: dark ? 0.08 : 0.46),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                OSColors.cyan.withValues(alpha: dark ? 0.92 : 0.82),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           Row(
             children: [
               const Expanded(child: _MiniEqualizer()),
@@ -3675,7 +4007,7 @@ class _HomeAudioPanel extends StatelessWidget {
     return OSTouchFeedback(
       onTap: onTap,
       borderRadius: BorderRadius.circular(28),
-      minSize: const Size(180, 104),
+      minSize: const Size(180, 118),
       child: embedded
           ? _RailSection(child: content)
           : _GlassPanel(
@@ -3694,10 +4026,10 @@ class _AudioArtwork extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 54,
-      height: 54,
+      width: 48,
+      height: 48,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         gradient: const LinearGradient(
           colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
           begin: Alignment.topLeft,
@@ -3806,7 +4138,7 @@ class _HomeAgendaPanel extends StatelessWidget {
       const SizedBox(height: 4),
       Text(
         reminders.isEmpty
-            ? 'Nothing is queued right now.'
+            ? 'The planning lane is calm.'
             : 'Priority items stay visible without crowding the workspace.',
         style: TextStyle(
           fontSize: 12,
@@ -3823,29 +4155,7 @@ class _HomeAgendaPanel extends StatelessWidget {
             children: [
               ...headerChildren,
               if (reminders.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: dark
-                        ? Colors.white.withValues(alpha: 0.04)
-                        : Colors.white.withValues(alpha: 0.66),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: dark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : Colors.white.withValues(alpha: 0.72),
-                    ),
-                  ),
-                  child: Text(
-                    'Your day is currently clear. New reminders from the planning hub will surface here automatically.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.45,
-                      color: OSColors.textSecondary(dark),
-                    ),
-                  ),
-                )
+                const _AgendaEmptyState()
               else
                 for (int index = 0;
                     index < visibleReminders.length;
@@ -3864,29 +4174,7 @@ class _HomeAgendaPanel extends StatelessWidget {
             children: [
               ...headerChildren,
               if (reminders.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: dark
-                        ? Colors.white.withValues(alpha: 0.04)
-                        : Colors.white.withValues(alpha: 0.66),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: dark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : Colors.white.withValues(alpha: 0.72),
-                    ),
-                  ),
-                  child: Text(
-                    'Your day is currently clear. New reminders from the planning hub will surface here automatically.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.45,
-                      color: OSColors.textSecondary(dark),
-                    ),
-                  ),
-                )
+                const _AgendaEmptyState()
               else
                 Column(
                   children: [
@@ -3933,6 +4221,82 @@ class _HomeAgendaPanel extends StatelessWidget {
   }
 }
 
+class _AgendaEmptyState extends StatelessWidget {
+  const _AgendaEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            OSColors.blue.withValues(alpha: dark ? 0.11 : 0.07),
+            Colors.white.withValues(alpha: dark ? 0.035 : 0.64),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.065)
+              : Colors.white.withValues(alpha: 0.72),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: OSColors.green.withValues(alpha: dark ? 0.14 : 0.10),
+              border: Border.all(
+                color: OSColors.green.withValues(alpha: 0.18),
+              ),
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 18,
+              color: OSColors.green,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'No queued reminders',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w900,
+                    color: OSColors.text(dark),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'New planner items will appear as a quiet timeline.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.35,
+                    color: OSColors.textSecondary(dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ReminderTile extends StatelessWidget {
   const _ReminderTile({
     required this.reminder,
@@ -3949,11 +4313,11 @@ class _ReminderTile extends StatelessWidget {
     final accent = _reminderAccent(reminder, now);
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: dark
-            ? Colors.white.withValues(alpha: 0.04)
-            : Colors.white.withValues(alpha: 0.66),
+            ? Colors.white.withValues(alpha: 0.035)
+            : Colors.white.withValues(alpha: 0.62),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: dark
@@ -3964,16 +4328,31 @@ class _ReminderTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(
-              color: accent,
-              shape: BoxShape.circle,
-            ),
+          Column(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: dark ? 0.18 : 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: accent.withValues(alpha: 0.26)),
+                ),
+                child: Icon(Icons.schedule_rounded, size: 13, color: accent),
+              ),
+              Container(
+                width: 2,
+                height: 42,
+                margin: const EdgeInsets.only(top: 6),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: dark ? 0.24 : 0.16),
+                  borderRadius: OSRadius.pillBr,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -4291,16 +4670,6 @@ String _formatLongDate(DateTime now) {
     'December',
   ];
   return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
-}
-
-Color _classAccent(int index) {
-  const accents = [
-    OSColors.green,
-    OSColors.blue,
-    OSColors.cyan,
-    OSColors.indigo,
-  ];
-  return accents[index % accents.length];
 }
 
 IconData _weatherIcon(int code) {
