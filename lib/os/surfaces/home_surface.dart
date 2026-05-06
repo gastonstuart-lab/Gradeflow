@@ -38,10 +38,12 @@ class HomeSurface extends StatefulWidget {
 class _HomeSurfaceState extends State<HomeSurface> {
   static const String _wallpaperStyleBaseKey = 'os_home_wallpaper_style_v1';
   static const String _wallpaperImageBaseKey = 'os_home_wallpaper_image_v1';
+  static const String _readabilityBaseKey = 'os_home_readability_v1';
 
   final DashboardPreferencesService _preferences =
       const DashboardPreferencesService();
   _HomeWallpaperStyle _wallpaperStyle = _HomeWallpaperStyle.defaultStyle;
+  _HomeReadabilityPreset _readabilityPreset = _HomeReadabilityPreset.balanced;
   Uint8List? _wallpaperImageBytes;
   String? _wallpaperImageBase64;
   String? _loadedUserId;
@@ -75,9 +77,16 @@ class _HomeSurfaceState extends State<HomeSurface> {
           userId: userId,
         ),
       );
+      final readability = await _preferences.readScopedString(
+        scopedKey: _preferences.scopedKey(
+          baseKey: _readabilityBaseKey,
+          userId: userId,
+        ),
+      );
       if (!mounted || _loadedUserId != userId) return;
       setState(() {
         _wallpaperStyle = _HomeWallpaperStyleX.fromId(style);
+        _readabilityPreset = _HomeReadabilityPresetX.fromId(readability);
         _wallpaperImageBase64 = image;
         _wallpaperImageBytes = _decodeWallpaperImage(image);
         _loadingWallpaper = false;
@@ -133,6 +142,19 @@ class _HomeSurfaceState extends State<HomeSurface> {
     }
   }
 
+  Future<void> _saveReadabilityPreset(
+    _HomeReadabilityPreset preset,
+  ) async {
+    setState(() => _readabilityPreset = preset);
+    await _preferences.writeString(
+      key: _preferences.scopedKey(
+        baseKey: _readabilityBaseKey,
+        userId: _wallpaperUserId,
+      ),
+      value: preset.id,
+    );
+  }
+
   Future<void> _pickWallpaperImage() async {
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -162,78 +184,109 @@ class _HomeSurfaceState extends State<HomeSurface> {
       showDragHandle: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Home background',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Choose a built-in wallpaper or add your own image. Dark mode stays available from the moon button.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final style in _HomeWallpaperStyle.values)
-                      if (style != _HomeWallpaperStyle.customImage ||
-                          _wallpaperImageBytes != null)
-                        _WallpaperChoiceChip(
-                          label: style.label,
-                          selected: _wallpaperStyle == style,
-                          accent: style.accent,
-                          onTap: () {
-                            Navigator.of(sheetContext).pop();
-                            _saveWallpaper(style: style);
-                          },
-                        ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.of(sheetContext).pop();
-                          _pickWallpaperImage();
-                        },
-                        icon: const Icon(Icons.add_photo_alternate_outlined),
-                        label: Text(
-                          _wallpaperImageBytes == null
-                              ? 'Add image'
-                              : 'Change image',
-                        ),
-                      ),
+                    Text(
+                      'Home background',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
-                    if (_wallpaperImageBytes != null) ...[
-                      const SizedBox(width: 10),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.of(sheetContext).pop();
-                          _clearWallpaperImage();
-                        },
-                        icon: const Icon(Icons.wallpaper_outlined),
-                        label: const Text('Reset'),
-                      ),
-                    ],
+                    const SizedBox(height: 6),
+                    Text(
+                      'Choose a built-in wallpaper or add your own image. Dark mode stays available from the moon button.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 18),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        for (final style in _HomeWallpaperStyle.values)
+                          if (style != _HomeWallpaperStyle.customImage ||
+                              _wallpaperImageBytes != null)
+                            _WallpaperChoiceChip(
+                              label: style.label,
+                              selected: _wallpaperStyle == style,
+                              accent: style.accent,
+                              onTap: () {
+                                Navigator.of(sheetContext).pop();
+                                _saveWallpaper(style: style);
+                              },
+                            ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              Navigator.of(sheetContext).pop();
+                              _pickWallpaperImage();
+                            },
+                            icon:
+                                const Icon(Icons.add_photo_alternate_outlined),
+                            label: Text(
+                              _wallpaperImageBytes == null
+                                  ? 'Add image'
+                                  : 'Change image',
+                            ),
+                          ),
+                        ),
+                        if (_wallpaperImageBytes != null) ...[
+                          const SizedBox(width: 10),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(sheetContext).pop();
+                              _clearWallpaperImage();
+                            },
+                            icon: const Icon(Icons.wallpaper_outlined),
+                            label: const Text('Reset'),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                    Text(
+                      'Readability',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        for (final preset in _HomeReadabilityPreset.values)
+                          _ReadabilityPresetChip(
+                            preset: preset,
+                            selected: _readabilityPreset == preset,
+                            onTap: () {
+                              setSheetState(() {
+                                _readabilityPreset = preset;
+                              });
+                              _saveReadabilityPreset(preset);
+                            },
+                          ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -268,83 +321,88 @@ class _HomeSurfaceState extends State<HomeSurface> {
     final themeMode = context.watch<ThemeModeNotifier>().themeMode;
     final toggleTheme = context.read<ThemeModeNotifier>().toggleTheme;
 
-    return Scaffold(
-      backgroundColor: OSColors.bg(context.isDark),
-      body: SafeArea(
-        bottom: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isDesktop =
-                constraints.maxWidth >= 1220 && constraints.maxHeight >= 760;
-            final horizontalPadding = constraints.maxWidth < 760 ? 14.0 : 20.0;
-            final contentPadding = EdgeInsets.fromLTRB(
-              horizontalPadding,
-              10,
-              horizontalPadding,
-              24,
-            );
+    return _HomeReadabilityScope(
+      preset: _readabilityPreset,
+      child: Scaffold(
+        backgroundColor: OSColors.bg(context.isDark),
+        body: SafeArea(
+          bottom: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop =
+                  constraints.maxWidth >= 1220 && constraints.maxHeight >= 760;
+              final horizontalPadding =
+                  constraints.maxWidth < 760 ? 14.0 : 20.0;
+              final contentPadding = EdgeInsets.fromLTRB(
+                horizontalPadding,
+                10,
+                horizontalPadding,
+                24,
+              );
 
-            return Stack(
-              children: [
-                Positioned.fill(
-                  child: _HomeBackdrop(
-                    style: _wallpaperStyle,
-                    imageBytes: _wallpaperImageBytes,
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: _HomeBackdrop(
+                      style: _wallpaperStyle,
+                      imageBytes: _wallpaperImageBytes,
+                      readability: _readabilityPreset,
+                    ),
                   ),
-                ),
-                if (_loadingWallpaper)
-                  const Positioned(
-                    width: 0,
-                    height: 0,
-                    child: SizedBox.shrink(),
+                  if (_loadingWallpaper)
+                    const Positioned(
+                      width: 0,
+                      height: 0,
+                      child: SizedBox.shrink(),
+                    ),
+                  Positioned.fill(
+                    child: isDesktop
+                        ? Padding(
+                            padding: contentPadding,
+                            child: _HomeDesktopLayout(
+                              teacherName: teacherName,
+                              schoolName: schoolName,
+                              primaryClass: primaryClass,
+                              classes: classes,
+                              reminders: reminders,
+                              primaryReminder: primaryReminder,
+                              totalStudents: totalStudents,
+                              unread: unread,
+                              now: now,
+                              themeMode: themeMode,
+                              onShadeTap: controller.openShade,
+                              onAssistantTap: controller.openAssistant,
+                              onLauncherTap: controller.openLauncher,
+                              onThemeTap: toggleTheme,
+                              onWallpaperTap: _showWallpaperSheet,
+                            ),
+                          )
+                        : SingleChildScrollView(
+                            padding: contentPadding,
+                            child: _HomeStackedLayout(
+                              width: constraints.maxWidth,
+                              teacherName: teacherName,
+                              schoolName: schoolName,
+                              primaryClass: primaryClass,
+                              classes: classes,
+                              reminders: reminders,
+                              primaryReminder: primaryReminder,
+                              totalStudents: totalStudents,
+                              unread: unread,
+                              now: now,
+                              themeMode: themeMode,
+                              onShadeTap: controller.openShade,
+                              onAssistantTap: controller.openAssistant,
+                              onLauncherTap: controller.openLauncher,
+                              onThemeTap: toggleTheme,
+                              onWallpaperTap: _showWallpaperSheet,
+                            ),
+                          ),
                   ),
-                Positioned.fill(
-                  child: isDesktop
-                      ? Padding(
-                          padding: contentPadding,
-                          child: _HomeDesktopLayout(
-                            teacherName: teacherName,
-                            schoolName: schoolName,
-                            primaryClass: primaryClass,
-                            classes: classes,
-                            reminders: reminders,
-                            primaryReminder: primaryReminder,
-                            totalStudents: totalStudents,
-                            unread: unread,
-                            now: now,
-                            themeMode: themeMode,
-                            onShadeTap: controller.openShade,
-                            onAssistantTap: controller.openAssistant,
-                            onLauncherTap: controller.openLauncher,
-                            onThemeTap: toggleTheme,
-                            onWallpaperTap: _showWallpaperSheet,
-                          ),
-                        )
-                      : SingleChildScrollView(
-                          padding: contentPadding,
-                          child: _HomeStackedLayout(
-                            width: constraints.maxWidth,
-                            teacherName: teacherName,
-                            schoolName: schoolName,
-                            primaryClass: primaryClass,
-                            classes: classes,
-                            reminders: reminders,
-                            primaryReminder: primaryReminder,
-                            totalStudents: totalStudents,
-                            unread: unread,
-                            now: now,
-                            themeMode: themeMode,
-                            onShadeTap: controller.openShade,
-                            onAssistantTap: controller.openAssistant,
-                            onLauncherTap: controller.openLauncher,
-                            onThemeTap: toggleTheme,
-                            onWallpaperTap: _showWallpaperSheet,
-                          ),
-                        ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -3757,6 +3815,159 @@ extension _HomeWallpaperStyleX on _HomeWallpaperStyle {
   }
 }
 
+enum _HomeReadabilityPreset {
+  clear,
+  balanced,
+  focus,
+  highContrast,
+}
+
+extension _HomeReadabilityPresetX on _HomeReadabilityPreset {
+  String get id {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 'clear';
+      case _HomeReadabilityPreset.balanced:
+        return 'balanced';
+      case _HomeReadabilityPreset.focus:
+        return 'focus';
+      case _HomeReadabilityPreset.highContrast:
+        return 'high_contrast';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 'Clear';
+      case _HomeReadabilityPreset.balanced:
+        return 'Balanced';
+      case _HomeReadabilityPreset.focus:
+        return 'Focus';
+      case _HomeReadabilityPreset.highContrast:
+        return 'High Contrast';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return Icons.visibility_outlined;
+      case _HomeReadabilityPreset.balanced:
+        return Icons.tonality_outlined;
+      case _HomeReadabilityPreset.focus:
+        return Icons.center_focus_strong_outlined;
+      case _HomeReadabilityPreset.highContrast:
+        return Icons.contrast_rounded;
+    }
+  }
+
+  double wallpaperScrimAlpha(bool dark, bool hasImage) {
+    if (hasImage) {
+      switch (this) {
+        case _HomeReadabilityPreset.clear:
+          return dark ? 0.26 : 0.12;
+        case _HomeReadabilityPreset.balanced:
+          return dark ? 0.42 : 0.28;
+        case _HomeReadabilityPreset.focus:
+          return dark ? 0.56 : 0.40;
+        case _HomeReadabilityPreset.highContrast:
+          return dark ? 0.70 : 0.56;
+      }
+    }
+
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return dark ? 0.00 : 0.00;
+      case _HomeReadabilityPreset.balanced:
+        return dark ? 0.03 : 0.02;
+      case _HomeReadabilityPreset.focus:
+        return dark ? 0.09 : 0.06;
+      case _HomeReadabilityPreset.highContrast:
+        return dark ? 0.16 : 0.12;
+    }
+  }
+
+  double get wallpaperBlurSigma {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 0;
+      case _HomeReadabilityPreset.balanced:
+        return 0;
+      case _HomeReadabilityPreset.focus:
+        return 1.2;
+      case _HomeReadabilityPreset.highContrast:
+        return 2.0;
+    }
+  }
+
+  double get glassBlend {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 0;
+      case _HomeReadabilityPreset.balanced:
+        return 0.02;
+      case _HomeReadabilityPreset.focus:
+        return 0.12;
+      case _HomeReadabilityPreset.highContrast:
+        return 0.24;
+    }
+  }
+
+  double get blurMultiplier {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 0.86;
+      case _HomeReadabilityPreset.balanced:
+        return 1.0;
+      case _HomeReadabilityPreset.focus:
+        return 1.14;
+      case _HomeReadabilityPreset.highContrast:
+        return 1.28;
+    }
+  }
+
+  double get borderBoost {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 0;
+      case _HomeReadabilityPreset.balanced:
+        return 0.02;
+      case _HomeReadabilityPreset.focus:
+        return 0.08;
+      case _HomeReadabilityPreset.highContrast:
+        return 0.15;
+    }
+  }
+
+  static _HomeReadabilityPreset fromId(String? id) {
+    for (final preset in _HomeReadabilityPreset.values) {
+      if (preset.id == id) return preset;
+    }
+    return _HomeReadabilityPreset.balanced;
+  }
+}
+
+class _HomeReadabilityScope extends InheritedWidget {
+  const _HomeReadabilityScope({
+    required this.preset,
+    required super.child,
+  });
+
+  final _HomeReadabilityPreset preset;
+
+  static _HomeReadabilityPreset of(BuildContext context) {
+    final scope =
+        context.dependOnInheritedWidgetOfExactType<_HomeReadabilityScope>();
+    return scope?.preset ?? _HomeReadabilityPreset.balanced;
+  }
+
+  @override
+  bool updateShouldNotify(covariant _HomeReadabilityScope oldWidget) {
+    return oldWidget.preset != preset;
+  }
+}
+
 class _WallpaperChoiceChip extends StatelessWidget {
   const _WallpaperChoiceChip({
     required this.label,
@@ -3794,14 +4005,58 @@ class _WallpaperChoiceChip extends StatelessWidget {
   }
 }
 
+class _ReadabilityPresetChip extends StatelessWidget {
+  const _ReadabilityPresetChip({
+    required this.preset,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _HomeReadabilityPreset preset;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = switch (preset) {
+      _HomeReadabilityPreset.clear => OSColors.cyan,
+      _HomeReadabilityPreset.balanced => OSColors.blue,
+      _HomeReadabilityPreset.focus => OSColors.indigo,
+      _HomeReadabilityPreset.highContrast => OSColors.amber,
+    };
+
+    return ChoiceChip(
+      label: Text(preset.label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      avatar: Icon(
+        selected ? Icons.check_rounded : preset.icon,
+        size: 17,
+        color: selected ? Colors.white : accent,
+      ),
+      selectedColor: accent,
+      labelStyle: TextStyle(
+        color:
+            selected ? Colors.white : Theme.of(context).colorScheme.onSurface,
+        fontWeight: FontWeight.w800,
+      ),
+      side: BorderSide(
+        color: selected ? accent : Theme.of(context).colorScheme.outlineVariant,
+      ),
+    );
+  }
+}
+
 class _HomeBackdrop extends StatelessWidget {
   const _HomeBackdrop({
     required this.style,
     required this.imageBytes,
+    required this.readability,
   });
 
   final _HomeWallpaperStyle style;
   final Uint8List? imageBytes;
+  final _HomeReadabilityPreset readability;
 
   @override
   Widget build(BuildContext context) {
@@ -3825,19 +4080,41 @@ class _HomeBackdrop extends StatelessWidget {
         ),
         if (useImage)
           Positioned.fill(
-            child: Image.memory(
-              imageBytes!,
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(
+                sigmaX: readability.wallpaperBlurSigma,
+                sigmaY: readability.wallpaperBlurSigma,
+              ),
+              child: Image.memory(
+                imageBytes!,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+              ),
             ),
           ),
-        if (useImage)
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: (dark ? Colors.black : Colors.white).withValues(
+                alpha: readability.wallpaperScrimAlpha(dark, useImage),
+              ),
+            ),
+          ),
+        ),
+        if (useImage && readability != _HomeReadabilityPreset.clear)
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: dark
-                    ? Colors.black.withValues(alpha: 0.42)
-                    : Colors.white.withValues(alpha: 0.28),
+                gradient: RadialGradient(
+                  center: const Alignment(-0.28, -0.74),
+                  radius: 1.05,
+                  colors: [
+                    (dark ? OSColors.blue : Colors.white).withValues(
+                      alpha: dark ? 0.12 : 0.24,
+                    ),
+                    Colors.transparent,
+                  ],
+                ),
               ),
             ),
           ),
@@ -6206,18 +6483,28 @@ class _RailSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final readability = _HomeReadabilityScope.of(context);
+    final solidColor = dark
+        ? const Color(0xFF111A27).withValues(alpha: 0.64)
+        : Colors.white.withValues(alpha: 0.92);
+    final baseFill = dark
+        ? Colors.white.withValues(alpha: 0.035)
+        : Colors.white.withValues(alpha: 0.48);
+    final borderFill = dark
+        ? Colors.white.withValues(alpha: 0.055)
+        : Colors.white.withValues(alpha: 0.58);
 
     final section = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: dark
-            ? Colors.white.withValues(alpha: 0.035)
-            : Colors.white.withValues(alpha: 0.48),
+        color: Color.lerp(baseFill, solidColor, readability.glassBlend),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: dark
-              ? Colors.white.withValues(alpha: 0.055)
-              : Colors.white.withValues(alpha: 0.58),
+          color: Color.lerp(
+            borderFill,
+            dark ? Colors.white : OSColors.blue,
+            readability.borderBoost,
+          )!,
         ),
       ),
       child: child,
@@ -6245,6 +6532,7 @@ class _GlassPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final readability = _HomeReadabilityScope.of(context);
     final (baseColor, secondaryColor, borderColor, shadowEmphasis, blurSigma) =
         switch (tone) {
       _HomePanelTone.stage => (
@@ -6300,21 +6588,34 @@ class _GlassPanel extends StatelessWidget {
           WorkspaceChrome.panelBlur * 0.92,
         ),
     };
+    final solidColor = dark
+        ? const Color(0xFF111A27).withValues(alpha: 0.72)
+        : Colors.white.withValues(alpha: 0.96);
+    final readableBaseColor =
+        Color.lerp(baseColor, solidColor, readability.glassBlend)!;
+    final readableSecondaryColor =
+        Color.lerp(secondaryColor, solidColor, readability.glassBlend)!;
+    final readableBorderColor = Color.lerp(
+      borderColor,
+      dark ? Colors.white : OSColors.blue,
+      readability.borderBoost,
+    )!;
+    final readableBlurSigma = blurSigma * readability.blurMultiplier;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(
-          sigmaX: blurSigma,
-          sigmaY: blurSigma,
+          sigmaX: readableBlurSigma,
+          sigmaY: readableBlurSigma,
         ),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: borderColor),
+            border: Border.all(color: readableBorderColor),
             boxShadow: WorkspaceChrome.panelShadow(
               context,
-              emphasis: shadowEmphasis,
+              emphasis: shadowEmphasis + readability.borderBoost,
             ),
           ),
           child: Stack(
@@ -6328,9 +6629,9 @@ class _GlassPanel extends StatelessWidget {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            baseColor,
-                            secondaryColor,
-                            baseColor,
+                            readableBaseColor,
+                            readableSecondaryColor,
+                            readableBaseColor,
                           ],
                         ),
                   ),
