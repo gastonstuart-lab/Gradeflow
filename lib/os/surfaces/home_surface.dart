@@ -424,21 +424,40 @@ class _HomeDesktopLayout extends StatefulWidget {
 class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
   static const String _miniAppTapRegionGroup = 'home-mini-app-desktop';
   _HomeMiniApp? _selectedMiniApp;
+  Class? _selectedClassPreview;
 
   void _closeMiniApp() {
     if (_selectedMiniApp != null) {
-      setState(() => _selectedMiniApp = null);
+      setState(() {
+        _selectedMiniApp = null;
+        _selectedClassPreview = null;
+      });
     }
   }
 
   void _openMiniApp(_HomeMiniApp app) {
-    setState(() => _selectedMiniApp = app);
+    setState(() {
+      _selectedMiniApp = app;
+      if (app != _HomeMiniApp.classes) {
+        _selectedClassPreview = null;
+      }
+    });
+  }
+
+  void _openDesktopClassPreview(Class classItem) {
+    setState(() {
+      _selectedMiniApp = _HomeMiniApp.classes;
+      _selectedClassPreview = classItem;
+    });
   }
 
   void _toggleFolder(_HomeWorkspaceFolder folder) {
     final app = _miniAppForFolder(folder);
     setState(() {
       _selectedMiniApp = _selectedMiniApp == app ? null : app;
+      if (app != _HomeMiniApp.classes || _selectedMiniApp == null) {
+        _selectedClassPreview = null;
+      }
     });
   }
 
@@ -476,7 +495,10 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
               ),
               const SizedBox(height: 14),
               Expanded(
-                child: _HomeQuickClassesStrip(classes: widget.classes),
+                child: _HomeQuickClassesStrip(
+                  classes: widget.classes,
+                  onClassPreview: _openDesktopClassPreview,
+                ),
               ),
             ],
           ),
@@ -546,6 +568,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                                     unread: widget.unread,
                                     totalStudents: widget.totalStudents,
                                     now: widget.now,
+                                    selectedClass: _selectedClassPreview,
                                     onClose: _closeMiniApp,
                                   ),
                                 ),
@@ -842,17 +865,19 @@ class _HomeMessagesWidget extends StatelessWidget {
             ),
           ),
         ),
-        SizedBox(height: compact ? 8 : 12),
-        _FolderMessagePreview(
-          sender: unread == 0 ? 'Staff room' : 'Unread channels',
-          snippet: unread == 0
-              ? 'Recent class and staff threads are ready.'
-              : '$unread conversation${unread == 1 ? '' : 's'} waiting for review.',
-          status: unread == 0 ? 'quiet' : 'now',
-          unread: unread > 0,
-          accent: OSColors.cyan,
-          onTap: onTap,
-        ),
+        if (!compact) ...[
+          const SizedBox(height: 12),
+          _FolderMessagePreview(
+            sender: unread == 0 ? 'Staff room' : 'Unread channels',
+            snippet: unread == 0
+                ? 'Recent class and staff threads are ready.'
+                : '$unread conversation${unread == 1 ? '' : 's'} waiting for review.',
+            status: unread == 0 ? 'quiet' : 'now',
+            unread: unread > 0,
+            accent: OSColors.cyan,
+            onTap: onTap,
+          ),
+        ],
         if (!compact) ...[
           const SizedBox(height: 8),
           _FolderMessagePreview(
@@ -869,9 +894,13 @@ class _HomeMessagesWidget extends StatelessWidget {
 }
 
 class _HomeQuickClassesStrip extends StatelessWidget {
-  const _HomeQuickClassesStrip({required this.classes});
+  const _HomeQuickClassesStrip({
+    required this.classes,
+    this.onClassPreview,
+  });
 
   final List<Class> classes;
+  final ValueChanged<Class>? onClassPreview;
 
   @override
   Widget build(BuildContext context) {
@@ -909,7 +938,12 @@ class _HomeQuickClassesStrip extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   itemCount: visible.length,
                   itemBuilder: (context, index) {
-                    return _HomeQuickClassCard(classItem: visible[index]);
+                    return _HomeQuickClassCard(
+                      classItem: visible[index],
+                      onOpenPreview: onClassPreview == null
+                          ? null
+                          : () => onClassPreview!(visible[index]),
+                    );
                   },
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 8),
@@ -935,10 +969,12 @@ class _HomeQuickClassCard extends StatelessWidget {
   const _HomeQuickClassCard({
     required this.classItem,
     this.dense = false,
+    this.onOpenPreview,
   });
 
   final Class classItem;
   final bool dense;
+  final VoidCallback? onOpenPreview;
 
   @override
   Widget build(BuildContext context) {
@@ -946,7 +982,8 @@ class _HomeQuickClassCard extends StatelessWidget {
     final classId = classItem.classId;
 
     return OSTouchFeedback(
-      onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
+      onTap: onOpenPreview ??
+          () => context.go(AppRoutes.osClassWorkspace(classId)),
       borderRadius: BorderRadius.circular(dense ? 16 : 18),
       minSize: Size(204, dense ? 92 : 112),
       child: Container(
@@ -1011,31 +1048,37 @@ class _HomeQuickClassCard extends StatelessWidget {
             Row(
               children: [
                 _HomeQuickClassMiniAction(
+                  tooltip: 'Workspace',
                   icon: Icons.grid_view_rounded,
                   accent: OSColors.green,
                   onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
                 ),
                 _HomeQuickClassMiniAction(
+                  tooltip: 'Students',
                   icon: Icons.people_alt_outlined,
                   accent: OSColors.cyan,
                   onTap: () => context.go(AppRoutes.osClassStudents(classId)),
                 ),
                 _HomeQuickClassMiniAction(
+                  tooltip: 'Seating',
                   icon: Icons.event_seat_rounded,
                   accent: OSColors.amber,
                   onTap: () => context.go(AppRoutes.osClassSeating(classId)),
                 ),
                 _HomeQuickClassMiniAction(
+                  tooltip: 'Gradebook',
                   icon: Icons.menu_book_rounded,
                   accent: OSColors.coral,
                   onTap: () => context.go(AppRoutes.osClassGradebook(classId)),
                 ),
                 _HomeQuickClassMiniAction(
+                  tooltip: 'Schedule',
                   icon: Icons.calendar_month_outlined,
                   accent: OSColors.blue,
                   onTap: () => context.go(AppRoutes.osClassSchedule(classId)),
                 ),
                 _HomeQuickClassMiniAction(
+                  tooltip: 'Teach',
                   icon: Icons.cast_for_education_rounded,
                   accent: OSColors.indigo,
                   onTap: () {
@@ -1056,11 +1099,13 @@ class _HomeQuickClassCard extends StatelessWidget {
 
 class _HomeQuickClassMiniAction extends StatelessWidget {
   const _HomeQuickClassMiniAction({
+    required this.tooltip,
     required this.icon,
     required this.accent,
     required this.onTap,
   });
 
+  final String tooltip;
   final IconData icon;
   final Color accent;
   final VoidCallback onTap;
@@ -1072,22 +1117,25 @@ class _HomeQuickClassMiniAction extends StatelessWidget {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: OSTouchFeedback(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
-          minSize: const Size(26, 28),
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accent.withValues(alpha: dark ? 0.10 : 0.075),
-                border: Border.all(
-                  color: accent.withValues(alpha: dark ? 0.26 : 0.18),
-                  width: 1.2,
+        child: Tooltip(
+          message: tooltip,
+          child: OSTouchFeedback(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(999),
+            minSize: const Size(26, 28),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accent.withValues(alpha: dark ? 0.10 : 0.075),
+                  border: Border.all(
+                    color: accent.withValues(alpha: dark ? 0.26 : 0.18),
+                    width: 1.2,
+                  ),
                 ),
+                child: Icon(icon, size: 14, color: accent),
               ),
-              child: Icon(icon, size: 14, color: accent),
             ),
           ),
         ),
@@ -1568,6 +1616,7 @@ class _HomeMiniAppWindow extends StatelessWidget {
     required this.unread,
     required this.totalStudents,
     required this.now,
+    required this.selectedClass,
     required this.onClose,
   });
 
@@ -1578,6 +1627,7 @@ class _HomeMiniAppWindow extends StatelessWidget {
   final int unread;
   final int totalStudents;
   final DateTime now;
+  final Class? selectedClass;
   final VoidCallback onClose;
 
   @override
@@ -1680,7 +1730,9 @@ class _HomeMiniAppWindow extends StatelessWidget {
           now: now,
           showClass: true,
         ),
-      _HomeMiniApp.classes => _ClassesFolderContent(classes: classes),
+      _HomeMiniApp.classes => selectedClass == null
+          ? _ClassesFolderContent(classes: classes)
+          : _ClassPreviewMiniAppContent(classItem: selectedClass!),
       _HomeMiniApp.tasks => _TasksFolderContent(reminders: reminders, now: now),
       _HomeMiniApp.insights => _InsightsFolderContent(
           classCount: classes.length,
@@ -2723,6 +2775,216 @@ class _ClassesFolderContent extends StatelessWidget {
   }
 }
 
+class _ClassPreviewMiniAppContent extends StatelessWidget {
+  const _ClassPreviewMiniAppContent({required this.classItem});
+
+  final Class classItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final classId = classItem.classId;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                OSColors.green.withValues(alpha: dark ? 0.16 : 0.10),
+                OSColors.cyan.withValues(alpha: dark ? 0.08 : 0.06),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: OSColors.green.withValues(alpha: dark ? 0.18 : 0.14),
+            ),
+          ),
+          child: Row(
+            children: [
+              const _HomeQuickClassIcon(size: 54),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _PanelEyebrow(label: 'Class Preview'),
+                    const SizedBox(height: 6),
+                    Text(
+                      classItem.className,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 24,
+                        height: 1.0,
+                        fontWeight: FontWeight.w900,
+                        color: OSColors.text(dark),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${classItem.subject} / ${classItem.term}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: OSColors.textSecondary(dark),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _FolderActionButton(
+                label: 'Open full workspace',
+                icon: Icons.open_in_new_rounded,
+                onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _ClassPreviewAction(
+              label: 'Workspace',
+              icon: Icons.grid_view_rounded,
+              accent: OSColors.green,
+              onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
+            ),
+            _ClassPreviewAction(
+              label: 'Students',
+              icon: Icons.people_alt_outlined,
+              accent: OSColors.cyan,
+              onTap: () => context.go(AppRoutes.osClassStudents(classId)),
+            ),
+            _ClassPreviewAction(
+              label: 'Seating',
+              icon: Icons.event_seat_rounded,
+              accent: OSColors.amber,
+              onTap: () => context.go(AppRoutes.osClassSeating(classId)),
+            ),
+            _ClassPreviewAction(
+              label: 'Gradebook',
+              icon: Icons.menu_book_rounded,
+              accent: OSColors.coral,
+              onTap: () => context.go(AppRoutes.osClassGradebook(classId)),
+            ),
+            _ClassPreviewAction(
+              label: 'Schedule',
+              icon: Icons.calendar_month_outlined,
+              accent: OSColors.blue,
+              onTap: () => context.go(AppRoutes.osClassSchedule(classId)),
+            ),
+            _ClassPreviewAction(
+              label: 'Teach',
+              icon: Icons.cast_for_education_rounded,
+              accent: OSColors.indigo,
+              onTap: () {
+                context
+                    .read<GradeFlowOSController>()
+                    .setSurface(OSSurface.teach, classId: classId);
+                context.go(AppRoutes.osTeach);
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cards = [
+              _FolderMetric(
+                label: 'Students',
+                value: 'Roster',
+                accent: OSColors.cyan,
+                onTap: () => context.go(AppRoutes.osClassStudents(classId)),
+              ),
+              _FolderMetric(
+                label: 'Seating',
+                value: 'Room',
+                accent: OSColors.amber,
+                onTap: () => context.go(AppRoutes.osClassSeating(classId)),
+              ),
+              _FolderMetric(
+                label: 'Gradebook',
+                value: 'Scores',
+                accent: OSColors.coral,
+                onTap: () => context.go(AppRoutes.osClassGradebook(classId)),
+              ),
+              _FolderMetric(
+                label: 'Schedule',
+                value: 'Plan',
+                accent: OSColors.blue,
+                onTap: () => context.go(AppRoutes.osClassSchedule(classId)),
+              ),
+            ];
+            return Wrap(spacing: 10, runSpacing: 10, children: cards);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ClassPreviewAction extends StatelessWidget {
+  const _ClassPreviewAction({
+    required this.label,
+    required this.icon,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return OSTouchFeedback(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(132, 54),
+      child: Container(
+        width: 142,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.035)
+              : Colors.white.withValues(alpha: 0.58),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: accent.withValues(alpha: 0.18)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: accent),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: OSColors.text(dark),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TasksFolderContent extends StatelessWidget {
   const _TasksFolderContent({
     required this.reminders,
@@ -3296,20 +3558,43 @@ class _HomeStackedLayout extends StatefulWidget {
 class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
   static const String _miniAppTapRegionGroup = 'home-mini-app-stacked';
   _HomeMiniApp? _selectedMiniApp;
+  Class? _selectedClassPreview;
 
   void _closeMiniApp() {
     if (_selectedMiniApp != null) {
-      setState(() => _selectedMiniApp = null);
+      setState(() {
+        _selectedMiniApp = null;
+        _selectedClassPreview = null;
+      });
     }
   }
 
   void _openMiniApp(_HomeMiniApp app) {
-    setState(() => _selectedMiniApp = app);
+    setState(() {
+      _selectedMiniApp = app;
+      if (app != _HomeMiniApp.classes) {
+        _selectedClassPreview = null;
+      }
+    });
+  }
+
+  // Reserved for stacked class previews if quick classes move into compact home.
+  // ignore: unused_element
+  void _openClassPreview(Class classItem) {
+    setState(() {
+      _selectedMiniApp = _HomeMiniApp.classes;
+      _selectedClassPreview = classItem;
+    });
   }
 
   void _toggleFolder(_HomeWorkspaceFolder folder) {
     final app = _miniAppForFolder(folder);
-    setState(() => _selectedMiniApp = _selectedMiniApp == app ? null : app);
+    setState(() {
+      _selectedMiniApp = _selectedMiniApp == app ? null : app;
+      if (app != _HomeMiniApp.classes || _selectedMiniApp == null) {
+        _selectedClassPreview = null;
+      }
+    });
   }
 
   @override
@@ -3382,6 +3667,7 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
                       unread: widget.unread,
                       totalStudents: widget.totalStudents,
                       now: widget.now,
+                      selectedClass: _selectedClassPreview,
                       onClose: _closeMiniApp,
                     ),
                   ),
@@ -5423,7 +5709,7 @@ class _HomeAudioPanel extends StatelessWidget {
     return OSTouchFeedback(
       onTap: onTap,
       borderRadius: BorderRadius.circular(28),
-      minSize: const Size(180, 118),
+      minSize: Size(180, compact ? 92 : 118),
       child: embedded
           ? _RailSection(child: content)
           : _GlassPanel(
@@ -5642,7 +5928,15 @@ class _HomeAgendaPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ...headerChildren,
-              if (reminders.isEmpty)
+              if (compact)
+                _StatusPill(
+                  label: reminders.isEmpty
+                      ? 'Planner clear'
+                      : _relativeReminderLabel(
+                          visibleReminders.first, DateTime.now()),
+                  accent: reminders.isEmpty ? OSColors.green : OSColors.amber,
+                )
+              else if (reminders.isEmpty)
                 const _AgendaEmptyState()
               else
                 Column(
