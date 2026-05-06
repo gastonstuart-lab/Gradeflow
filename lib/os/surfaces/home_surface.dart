@@ -455,7 +455,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
               ),
               const SizedBox(height: 14),
               SizedBox(
-                height: 202,
+                height: 174,
                 child: _HomeShortcutShelf(
                   unread: widget.unread,
                   onLauncherTap: widget.onLauncherTap,
@@ -497,15 +497,18 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                   TapRegion(
                     groupId: _folderTapRegionGroup,
                     onTapOutside: (_) => _closeSelectedFolder(),
-                    child: _HomeWorkspaceFolderStrip(
-                      selected: _selectedFolder,
-                      classCount: widget.classes.length,
-                      reminderCount: widget.reminders.length,
-                      unread: widget.unread,
-                      onSelected: (folder) => setState(() {
-                        _selectedFolder =
-                            _selectedFolder == folder ? null : folder;
-                      }),
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: _HomeWorkspaceFolderStrip(
+                        selected: _selectedFolder,
+                        classCount: widget.classes.length,
+                        reminderCount: widget.reminders.length,
+                        unread: widget.unread,
+                        onSelected: (folder) => setState(() {
+                          _selectedFolder =
+                              _selectedFolder == folder ? null : folder;
+                        }),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -724,6 +727,7 @@ class _HomeLiveStack extends StatelessWidget {
                   icon: Icons.forum_rounded,
                   selected: selected == _HomeLivePanel.messages,
                   accent: OSColors.cyan,
+                  badge: unread > 0 ? '$unread' : null,
                   onTap: () => onSelected(_HomeLivePanel.messages),
                 ),
                 _LiveStackTab(
@@ -786,50 +790,104 @@ class _HomeMessagesWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final hasUnread = unread > 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: OSColors.cyan.withValues(alpha: dark ? 0.15 : 0.10),
-                border: Border.all(
-                  color: OSColors.cyan.withValues(alpha: 0.20),
-                ),
-              ),
-              child: const Icon(
-                Icons.chat_bubble_outline_rounded,
-                size: 17,
-                color: OSColors.cyan,
-              ),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                OSColors.cyan.withValues(alpha: dark ? 0.18 : 0.13),
+                OSColors.blue.withValues(alpha: dark ? 0.08 : 0.07),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: OSColors.cyan.withValues(alpha: hasUnread ? 0.28 : 0.14),
+            ),
+          ),
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  const _PanelEyebrow(label: 'Messages'),
-                  const SizedBox(height: 3),
-                  Text(
-                    unread == 0
-                        ? 'Inbox quiet'
-                        : '$unread unread update${unread == 1 ? '' : 's'}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: OSColors.text(dark),
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color:
+                          OSColors.cyan.withValues(alpha: dark ? 0.18 : 0.13),
+                      border: Border.all(
+                        color: OSColors.cyan.withValues(alpha: 0.24),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 19,
+                      color: OSColors.cyan,
                     ),
                   ),
+                  if (hasUnread)
+                    Positioned(
+                      right: -1,
+                      top: -1,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: OSColors.urgent,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color:
+                                dark ? const Color(0xFF0F172A) : Colors.white,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _PanelEyebrow(label: 'Messages'),
+                    const SizedBox(height: 3),
+                    Text(
+                      hasUnread
+                          ? '$unread unread update${unread == 1 ? '' : 's'}'
+                          : 'Inbox quiet',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: OSColors.text(dark),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      hasUnread
+                          ? 'Review conversations before the next handoff.'
+                          : 'Class and staff threads are standing by.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: OSColors.textSecondary(dark),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         _FolderMessagePreview(
@@ -862,6 +920,7 @@ class _LiveStackTab extends StatelessWidget {
     required this.selected,
     required this.accent,
     required this.onTap,
+    this.badge,
   });
 
   final String label;
@@ -869,6 +928,7 @@ class _LiveStackTab extends StatelessWidget {
   final bool selected;
   final Color accent;
   final VoidCallback onTap;
+  final String? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -890,10 +950,34 @@ class _LiveStackTab extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 14,
-                color: selected ? accent : OSColors.textMuted(dark),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    icon,
+                    size: 14,
+                    color: selected ? accent : OSColors.textMuted(dark),
+                  ),
+                  if (badge != null)
+                    Positioned(
+                      right: -5,
+                      top: -5,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: OSColors.urgent,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: dark
+                                ? const Color(0xFF172033)
+                                : Colors.white.withValues(alpha: 0.9),
+                            width: 1.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 4),
               Flexible(
@@ -982,9 +1066,13 @@ class _HomeQuickClassesStrip extends StatelessWidget {
 }
 
 class _HomeQuickClassCard extends StatelessWidget {
-  const _HomeQuickClassCard({required this.classItem});
+  const _HomeQuickClassCard({
+    required this.classItem,
+    this.dense = false,
+  });
 
   final Class classItem;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -993,15 +1081,15 @@ class _HomeQuickClassCard extends StatelessWidget {
 
     return OSTouchFeedback(
       onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
-      borderRadius: BorderRadius.circular(18),
-      minSize: const Size(204, 112),
+      borderRadius: BorderRadius.circular(dense ? 16 : 18),
+      minSize: Size(204, dense ? 92 : 112),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+        padding: EdgeInsets.fromLTRB(10, dense ? 8 : 10, 10, dense ? 8 : 10),
         decoration: BoxDecoration(
           color: dark
               ? Colors.white.withValues(alpha: 0.034)
               : Colors.white.withValues(alpha: 0.58),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(dense ? 16 : 18),
           border: Border.all(
             color: dark
                 ? Colors.white.withValues(alpha: 0.052)
@@ -1012,7 +1100,7 @@ class _HomeQuickClassCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const _HomeQuickClassIcon(),
+                _HomeQuickClassIcon(size: dense ? 38 : 40),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -1053,7 +1141,7 @@ class _HomeQuickClassCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: dense ? 8 : 10),
             Row(
               children: [
                 _HomeQuickClassMiniAction(
@@ -1143,13 +1231,15 @@ class _HomeQuickClassMiniAction extends StatelessWidget {
 }
 
 class _HomeQuickClassIcon extends StatelessWidget {
-  const _HomeQuickClassIcon();
+  const _HomeQuickClassIcon({this.size = 40});
+
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 40,
-      height: 40,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -1159,15 +1249,15 @@ class _HomeQuickClassIcon extends StatelessWidget {
             OSColors.cyan.withValues(alpha: 0.74),
           ],
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(size * 0.35),
       ),
       child: Center(
         child: Container(
-          width: 18,
-          height: 22,
+          width: size * 0.45,
+          height: size * 0.55,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(size * 0.10),
           ),
           child: Align(
             alignment: Alignment.topCenter,
@@ -1175,7 +1265,7 @@ class _HomeQuickClassIcon extends StatelessWidget {
               padding: const EdgeInsets.only(top: 5),
               child: Icon(
                 Icons.bookmark_rounded,
-                size: 8,
+                size: size * 0.20,
                 color: OSColors.green.withValues(alpha: 0.86),
               ),
             ),
@@ -1296,41 +1386,51 @@ class _HomeWorkspaceFolderStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: context.isDark
-                ? Colors.white.withValues(alpha: 0.018)
-                : Colors.white.withValues(alpha: 0.24),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: context.isDark
-                  ? Colors.white.withValues(alpha: 0.035)
-                  : Colors.white.withValues(alpha: 0.36),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(3),
-            child: Row(
-              children: [
-                for (final folder in _HomeWorkspaceFolder.values) ...[
-                  _HomeWorkspaceFolderChip(
-                    folder: folder,
-                    selected: selected == folder,
-                    detail: _folderDetail(folder),
-                    onTap: () => onSelected(folder),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: context.isDark
+                        ? Colors.white.withValues(alpha: 0.018)
+                        : Colors.white.withValues(alpha: 0.24),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: context.isDark
+                          ? Colors.white.withValues(alpha: 0.035)
+                          : Colors.white.withValues(alpha: 0.36),
+                    ),
                   ),
-                  if (folder != _HomeWorkspaceFolder.values.last)
-                    const SizedBox(width: 8),
-                ],
-              ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(3),
+                    child: Row(
+                      children: [
+                        for (final folder in _HomeWorkspaceFolder.values) ...[
+                          _HomeWorkspaceFolderChip(
+                            folder: folder,
+                            selected: selected == folder,
+                            detail: _folderDetail(folder),
+                            onTap: () => onSelected(folder),
+                          ),
+                          if (folder != _HomeWorkspaceFolder.values.last)
+                            const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1505,66 +1605,83 @@ class _HomeCalmWorkspaceFloor extends StatelessWidget {
         alignment: Alignment.topCenter,
         children: [
           Positioned(
-            top: 0,
-            left: 64,
-            right: 64,
-            child: Container(
-              height: 18,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(18),
-                ),
-                gradient: LinearGradient(
-                  colors: [
-                    OSColors.blue.withValues(alpha: dark ? 0.10 : 0.14),
-                    Colors.white.withValues(alpha: dark ? 0.018 : 0.18),
-                    OSColors.cyan.withValues(alpha: dark ? 0.06 : 0.10),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 16,
-            right: 16,
-            top: 12,
-            bottom: 24,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.040)
-                      : Colors.white.withValues(alpha: 0.38),
-                ),
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withValues(alpha: dark ? 0.026 : 0.30),
-                    OSColors.blue.withValues(alpha: dark ? 0.012 : 0.045),
-                    Colors.white.withValues(alpha: dark ? 0.008 : 0.09),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+            top: 4,
+            left: 56,
+            right: 56,
+            child: IgnorePointer(
+              child: Container(
+                height: 42,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(40),
+                  ),
+                  gradient: LinearGradient(
+                    colors: [
+                      OSColors.blue.withValues(alpha: dark ? 0.12 : 0.16),
+                      Colors.white.withValues(alpha: dark ? 0.016 : 0.14),
+                      OSColors.cyan.withValues(alpha: dark ? 0.07 : 0.10),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
           Positioned(
-            left: 44,
-            right: 44,
-            top: 34,
-            bottom: 48,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                gradient: RadialGradient(
-                  center: const Alignment(-0.35, -0.45),
-                  radius: 1.0,
-                  colors: [
-                    OSColors.blue.withValues(alpha: dark ? 0.075 : 0.12),
-                    OSColors.cyan.withValues(alpha: dark ? 0.025 : 0.06),
-                    Colors.transparent,
-                  ],
+            left: -12,
+            right: -12,
+            top: 24,
+            bottom: 0,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(-0.20, -0.55),
+                    radius: 0.86,
+                    colors: [
+                      OSColors.blue.withValues(alpha: dark ? 0.10 : 0.13),
+                      OSColors.cyan.withValues(alpha: dark ? 0.036 : 0.060),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 52,
+            right: 52,
+            top: 72,
+            child: IgnorePointer(
+              child: Container(
+                height: 1,
+                decoration: BoxDecoration(
+                  borderRadius: OSRadius.pillBr,
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      Colors.white.withValues(alpha: dark ? 0.10 : 0.34),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 38,
+            top: 42,
+            child: IgnorePointer(
+              child: Container(
+                width: 112,
+                height: 112,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      OSColors.indigo.withValues(alpha: dark ? 0.07 : 0.09),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1652,9 +1769,9 @@ class _TodayFolderContent extends StatelessWidget {
       eyebrow: 'Today',
       title: _formatLongDate(now),
       subtitle: primaryClass == null
-          ? 'Start from the class list or check the planning lane.'
-          : 'Your next workspace and near tasks are ready.',
-      actionLabel: primaryClass == null ? 'View Schedule' : 'Open Class',
+          ? 'Check today\'s schedule before calling the next move.'
+          : 'Class tools are ready without assuming the timetable is final.',
+      actionLabel: primaryClass == null ? 'Check Planner' : 'Open Class',
       actionIcon: Icons.arrow_forward_rounded,
       onAction: () => context.go(
         primaryClass == null
@@ -1666,25 +1783,37 @@ class _TodayFolderContent extends StatelessWidget {
       child: Column(
         children: [
           _FolderInfoRow(
-            icon: Icons.class_rounded,
+            icon: primaryClass == null
+                ? Icons.calendar_month_rounded
+                : Icons.class_rounded,
             accent: OSColors.green,
-            label: 'Next class',
+            label: primaryClass == null ? 'Now / Next' : 'Class workspace',
             value: primaryClass == null
-                ? 'No class pinned yet'
+                ? 'Review schedule'
                 : '${primaryClass!.className} / ${primaryClass!.subject}',
             onTap: () => context.go(
               primaryClass == null
-                  ? AppRoutes.classes
+                  ? AppRoutes.osPlanner
                   : AppRoutes.osClassWorkspace(primaryClass!.classId),
             ),
           ),
+          if (unread > 0) ...[
+            const SizedBox(height: 10),
+            _FolderInfoRow(
+              icon: Icons.mark_chat_unread_rounded,
+              accent: OSColors.cyan,
+              label: 'Attention',
+              value: '$unread unread message${unread == 1 ? '' : 's'}',
+              onTap: () => context.go(AppRoutes.communication),
+            ),
+          ],
           if (visibleReminders.isEmpty) ...[
             const SizedBox(height: 10),
             _FolderInfoRow(
               icon: Icons.calendar_month_rounded,
               accent: OSColors.blue,
-              label: 'Schedule',
-              value: 'Open the planning lane',
+              label: 'Planner',
+              value: 'Check today\'s schedule',
               onTap: () => context.go(AppRoutes.osPlanner),
             ),
           ] else
@@ -1717,7 +1846,7 @@ class _ClassesFolderContent extends StatelessWidget {
       title: classes.isEmpty ? 'No active classes' : 'Active class spaces',
       subtitle: classes.isEmpty
           ? 'Create a class to begin staging teaching tools.'
-          : 'Open the class workspace when you are ready to work.',
+          : 'Tap a class, or jump straight to a teaching tool.',
       actionLabel: classes.isEmpty ? 'Open Classes' : 'Open first class',
       actionIcon: Icons.class_rounded,
       onAction: () => context.go(
@@ -1734,15 +1863,7 @@ class _ClassesFolderContent extends StatelessWidget {
             const _FolderEmptyLine('Class workspaces will appear here.')
           else
             for (int index = 0; index < visible.length; index++) ...[
-              _FolderInfoRow(
-                icon: Icons.dashboard_customize_rounded,
-                accent: OSColors.green,
-                label: visible[index].className,
-                value: '${visible[index].subject} / ${visible[index].term}',
-                onTap: () => context.go(
-                  AppRoutes.osClassWorkspace(visible[index].classId),
-                ),
-              ),
+              _HomeQuickClassCard(classItem: visible[index], dense: true),
               if (index != visible.length - 1) const SizedBox(height: 10),
             ],
         ],
@@ -1767,7 +1888,7 @@ class _TasksFolderContent extends StatelessWidget {
       eyebrow: 'Tasks',
       title: reminders.isEmpty ? 'Clear for now' : 'Priority queue',
       subtitle: reminders.isEmpty
-          ? 'No reminders are waiting in the workspace.'
+          ? 'No dated reminders are asking for attention.'
           : '${reminders.length} item${reminders.length == 1 ? '' : 's'} staged from planning.',
       actionLabel: 'Open Planner',
       actionIcon: Icons.calendar_month_rounded,
@@ -1775,7 +1896,7 @@ class _TasksFolderContent extends StatelessWidget {
       child: Column(
         children: [
           if (visible.isEmpty)
-            const _FolderEmptyLine('New planning reminders will appear here.')
+            const _FolderEmptyLine('Planning lane is calm.')
           else
             for (int index = 0; index < visible.length; index++) ...[
               _FolderInfoRow(
@@ -1805,7 +1926,9 @@ class _MessagesFolderContent extends StatelessWidget {
       title: unread == 0
           ? 'Inbox quiet'
           : '$unread unread update${unread == 1 ? '' : 's'}',
-      subtitle: 'A calm preview for school communication, not a full inbox.',
+      subtitle: unread == 0
+          ? 'Conversation previews stay ready here.'
+          : 'Review active threads before they interrupt class flow.',
       actionLabel: 'Open Messages',
       actionIcon: Icons.forum_rounded,
       onAction: () => context.go(AppRoutes.communication),
@@ -1860,8 +1983,8 @@ class _InsightsFolderContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return _FolderPanelScaffold(
       eyebrow: 'Insights',
-      title: 'Teaching load overview',
-      subtitle: 'Lightweight signals only. Detailed analytics can wait.',
+      title: 'Teaching signals',
+      subtitle: 'Compact load, attention, and class health indicators.',
       actionLabel: 'Open Classes',
       actionIcon: Icons.class_rounded,
       onAction: () => context.go(AppRoutes.classes),
@@ -3461,21 +3584,38 @@ class _DesktopStageShell extends StatelessWidget {
         : unread > 0
             ? '$unread unread'
             : 'Quiet';
-    final primaryActionLabel = primaryClass != null
-        ? 'Open Class'
-        : unread > 0
-            ? 'Messages'
+    final needsAttention = primaryReminder != null || unread > 0;
+    final primaryActionLabel = unread > 0
+        ? 'Messages'
+        : primaryClass != null
+            ? 'Open Class'
             : 'Planner';
-    final primaryActionIcon = primaryClass != null
-        ? Icons.arrow_forward_rounded
-        : unread > 0
-            ? Icons.forum_rounded
+    final primaryActionIcon = unread > 0
+        ? Icons.forum_rounded
+        : primaryClass != null
+            ? Icons.arrow_forward_rounded
             : Icons.calendar_month_rounded;
-    final primaryAction = primaryClass != null
-        ? () => context.go(AppRoutes.osClassWorkspace(primaryClass!.classId))
-        : unread > 0
-            ? () => context.go(AppRoutes.communication)
+    final primaryAction = unread > 0
+        ? () => context.go(AppRoutes.communication)
+        : primaryClass != null
+            ? () =>
+                context.go(AppRoutes.osClassWorkspace(primaryClass!.classId))
             : () => context.go(AppRoutes.osPlanner);
+    // TODO: Reconnect Now/Next state after timetable import reliability is fixed.
+    final commandTitle = primaryReminder != null
+        ? 'Planner needs review'
+        : unread > 0
+            ? 'Messages need review'
+            : primaryClass == null
+                ? 'Check today\'s schedule'
+                : 'Class workspace ready';
+    final commandDetail = primaryReminder != null
+        ? _trimLine(primaryReminder!.text, 84)
+        : unread > 0
+            ? 'Open conversations before the next handoff.'
+            : primaryClass == null
+                ? 'Review schedule in Planner.'
+                : '${primaryClass!.className} / ${primaryClass!.subject}';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -3531,13 +3671,15 @@ class _DesktopStageShell extends StatelessWidget {
                         ? 'No active classes'
                         : '$classCount classes',
                   ),
+                  if (needsAttention) ...[
+                    const SizedBox(width: 8),
+                    const _StageStatusChip(text: 'Attention'),
+                  ],
                 ],
               ),
               const SizedBox(height: 9),
               Text(
-                primaryClass == null
-                    ? 'Planner ready'
-                    : 'Next: ${primaryClass!.className}',
+                commandTitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -3550,11 +3692,7 @@ class _DesktopStageShell extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                primaryReminder != null
-                    ? _trimLine(primaryReminder!.text, 84)
-                    : primaryClass == null
-                        ? 'Open the planner or create the next class space.'
-                        : '${primaryClass!.subject} / ${classCount == 0 ? 'no classes' : '$classCount active class${classCount == 1 ? '' : 'es'}'}',
+                commandDetail,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -3753,20 +3891,20 @@ class _HomeShortcutShelf extends StatelessWidget {
     return _GlassPanel(
       tone: _HomePanelTone.whisper,
       radius: compact ? 24 : 28,
-      padding: EdgeInsets.all(compact ? 13 : 16),
+      padding: EdgeInsets.all(compact ? 12 : 16),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final tileWidth = compact ? 72.0 : 82.0;
+          final tileWidth = compact ? 64.0 : 82.0;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const _PanelEyebrow(label: 'Pinned Apps'),
-              SizedBox(height: compact ? 6 : 8),
+              SizedBox(height: compact ? 5 : 8),
               Text(
                 'Quick launch',
                 style: TextStyle(
-                  fontSize: compact ? 15.5 : 17,
+                  fontSize: compact ? 14.5 : 17,
                   fontWeight: FontWeight.w800,
                   color: OSColors.text(context.isDark),
                 ),
@@ -3782,9 +3920,9 @@ class _HomeShortcutShelf extends StatelessWidget {
                   ),
                 ),
               ],
-              SizedBox(height: compact ? 11 : 14),
+              SizedBox(height: compact ? 9 : 14),
               SizedBox(
-                height: compact ? 86 : 96,
+                height: compact ? 72 : 96,
                 child: ShaderMask(
                   shaderCallback: (rect) {
                     return LinearGradient(
@@ -3806,7 +3944,7 @@ class _HomeShortcutShelf extends StatelessWidget {
                       return _HomeShortcutIcon(
                         data: shortcuts[index],
                         width: tileWidth,
-                        iconBoxSize: compact ? 50 : 58,
+                        iconBoxSize: compact ? 44 : 58,
                       );
                     },
                   ),
@@ -3865,6 +4003,7 @@ class _HomeShortcutIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final compact = iconBoxSize <= 44;
 
     return OSTouchFeedback(
       onTap: data.onTap,
@@ -3925,14 +4064,14 @@ class _HomeShortcutIcon extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 7),
+            SizedBox(height: compact ? 5 : 7),
             Text(
               data.label,
               textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: compact ? 1 : 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: compact ? 10.5 : 11,
                 height: 1.2,
                 fontWeight: FontWeight.w600,
                 color: OSColors.textSecondary(dark),
