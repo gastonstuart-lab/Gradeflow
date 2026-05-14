@@ -164,6 +164,8 @@ class _ClassSurfaceState extends State<ClassSurface>
                     classId: widget.classId,
                     className: className,
                     subject: subject,
+                    schoolYear: classModel.schoolYear,
+                    term: classModel.term,
                     compact: isCompact,
                     onBack: _goBackHome,
                     onOpenFullView: () {
@@ -356,6 +358,8 @@ class _ClassWorkspaceHero extends StatelessWidget {
     required this.classId,
     required this.className,
     required this.subject,
+    required this.schoolYear,
+    required this.term,
     required this.compact,
     required this.onBack,
     required this.onOpenFullView,
@@ -364,6 +368,8 @@ class _ClassWorkspaceHero extends StatelessWidget {
   final String classId;
   final String className;
   final String subject;
+  final String schoolYear;
+  final String term;
   final bool compact;
   final VoidCallback onBack;
   final VoidCallback onOpenFullView;
@@ -411,6 +417,7 @@ class _ClassWorkspaceHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               IconButton(
+                tooltip: 'Back to OS home',
                 onPressed: onBack,
                 icon: const Icon(Icons.arrow_back_ios_new_rounded),
                 iconSize: 18,
@@ -455,10 +462,11 @@ class _ClassWorkspaceHero extends StatelessWidget {
                       spacing: compact ? 10 : 14,
                       runSpacing: compact ? 4 : 6,
                       children: [
-                        const _MetaItem(label: 'Term 2'),
-                        const _MetaItem(
-                            label: 'Live now', accent: OSColors.green),
-                        if (!compact) _MetaItem(label: 'Class OS workspace'),
+                        if (schoolYear.trim().isNotEmpty)
+                          _MetaItem(label: schoolYear.trim()),
+                        if (term.trim().isNotEmpty)
+                          _MetaItem(label: term.trim()),
+                        if (!compact) const _MetaItem(label: 'Class workspace'),
                       ],
                     ),
                   ],
@@ -478,24 +486,24 @@ class _ClassWorkspaceHero extends StatelessWidget {
                   accent: OSColors.blue,
                 ),
                 const SizedBox(width: 10),
-                const GradeFlowMetricPill(
-                  icon: Icons.check_circle_outline,
-                  label: 'Attendance',
-                  value: '92%',
+                GradeFlowMetricPill(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Year',
+                  value: schoolYear.trim().isEmpty ? '-' : schoolYear.trim(),
                   accent: OSColors.green,
                 ),
                 const SizedBox(width: 10),
-                const GradeFlowMetricPill(
-                  icon: Icons.insights_outlined,
-                  label: 'Class average',
-                  value: '84.3',
+                GradeFlowMetricPill(
+                  icon: Icons.schedule_outlined,
+                  label: 'Section',
+                  value: term.trim().isEmpty ? '-' : term.trim(),
                   accent: OSColors.cyan,
                 ),
                 const SizedBox(width: 10),
                 const GradeFlowMetricPill(
-                  icon: Icons.assignment_turned_in_outlined,
-                  label: 'Activities',
-                  value: '12',
+                  icon: Icons.widgets_outlined,
+                  label: 'Tools',
+                  value: '8',
                   accent: OSColors.indigo,
                 ),
               ],
@@ -508,15 +516,14 @@ class _ClassWorkspaceHero extends StatelessWidget {
 }
 
 class _MetaItem extends StatelessWidget {
-  const _MetaItem({required this.label, this.accent});
+  const _MetaItem({required this.label});
 
   final String label;
-  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    final color = accent ?? OSColors.textSubtle(dark);
+    final color = OSColors.textSubtle(dark);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
