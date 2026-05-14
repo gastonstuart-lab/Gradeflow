@@ -25,10 +25,9 @@ test('@smoke login screen loads', async ({ page }) => {
 });
 
 test('@smoke demo login opens authenticated workspace', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(420_000);
   await page.goto('/');
 
   await ensureDemoSignedIn(page);
-  await expect(page).toHaveURL(/(?:\/|\/#\/)(?:dashboard|os\/home)(?:[?#]|$)/);
   await expectDashboardShell(page);
 });

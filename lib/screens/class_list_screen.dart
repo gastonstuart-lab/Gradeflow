@@ -1581,9 +1581,22 @@ class _ClassListScreenState extends State<ClassListScreen> {
     await classService.loadClasses(user.userId);
     if (!mounted) return;
 
+    final carriedForward = <String>[
+      if (copyStudents) 'students',
+      if (copySeating) 'seating',
+      if (copyNotes) 'class notes',
+      if (copySchedule) 'schedule',
+    ];
+    final archiveMessage = archiveCurrent && !classItem.isArchived
+        ? 'Previous section archived.'
+        : 'Current section kept active.';
+    final carryMessage = carriedForward.isEmpty
+        ? 'Nothing was carried forward.'
+        : 'Carried forward: ${carriedForward.join(', ')}.';
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('New section started. Previous section archived.'),
+      SnackBar(
+        content: Text('New section started. $archiveMessage $carryMessage'),
       ),
     );
   }
