@@ -430,12 +430,12 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       return const WorkspaceScaffold(
         eyebrow: 'Class workspace',
         title: 'Class workspace unavailable',
-        subtitle: 'This class could not be opened in the class workspace.',
+        subtitle: 'This class is not available right now.',
         child: WorkspaceEmptyState(
           icon: Icons.class_outlined,
           title: 'Class not found',
           subtitle:
-              'Return to the OS home surface and open another class workspace to continue.',
+              'Open Classes and choose another class to continue working.',
         ),
       );
     }
@@ -508,9 +508,8 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
       ),
       child: studentService.isLoading || categoryService.isLoading
           ? const WorkspaceLoadingState(
-              title: 'Loading schedule',
-              subtitle:
-                  'Pulling schedule, notes, roster, and class context into view.',
+              title: 'Loading class workspace',
+              subtitle: 'Syncing roster, notes, and schedule for this class.',
             )
           : LayoutBuilder(
               builder: (context, constraints) {

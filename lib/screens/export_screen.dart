@@ -2055,7 +2055,22 @@ class _ExportScreenState extends State<ExportScreen> {
         _canExport(studentCount: studentCount, classCount: classCount);
 
     Widget workspace;
-    if (_isCalculating) {
+    if (classItem == null) {
+      workspace = WorkspaceEmptyState(
+        icon: Icons.download_outlined,
+        title: 'Class unavailable',
+        subtitle:
+            'This class is not available anymore. Open Classes and choose another class to export.',
+        actions: [
+          FilledButton.icon(
+            onPressed: () => context.go(AppRoutes.classes),
+            icon: const Icon(Icons.class_outlined),
+            label: const Text('Open classes'),
+            style: WorkspaceButtonStyles.filled(context),
+          ),
+        ],
+      );
+    } else if (_isCalculating) {
       workspace = const WorkspaceLoadingState(
         title: 'Checking report data',
         subtitle: 'Calculating grades and reviewing export readiness.',
@@ -2065,8 +2080,15 @@ class _ExportScreenState extends State<ExportScreen> {
         icon: Icons.group_outlined,
         title: 'No students in this class yet',
         subtitle:
-            'Add students to this roster before generating student or class reports.',
+            'Add students in this class workspace before generating reports.',
         actions: [
+          OutlinedButton.icon(
+            onPressed: () =>
+                context.push(AppRoutes.osClassStudents(widget.classId)),
+            icon: const Icon(Icons.people_alt_outlined),
+            label: const Text('Open roster'),
+            style: WorkspaceButtonStyles.outlined(context),
+          ),
           FilledButton.icon(
             onPressed: _goToClassWorkspace,
             icon: const Icon(Icons.arrow_back_rounded),
