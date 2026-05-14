@@ -234,7 +234,7 @@ class _ClassSurfaceState extends State<ClassSurface>
                           icon: Icons.event_seat_rounded,
                           title: 'Seating',
                           description:
-                              'Assign seats and configure room layout.',
+                              'Open the room layout, student placements, and substitute handout tools.',
                           action: 'Open Seating',
                           onTap: () => context.go(
                             AppRoutes.osClassSeating(widget.classId),
@@ -252,7 +252,8 @@ class _ClassSurfaceState extends State<ClassSurface>
                         _ClassToolTab(
                           icon: Icons.picture_as_pdf_rounded,
                           title: 'Export',
-                          description: 'Export grades as PDF or CSV.',
+                          description:
+                              'Preview and download class reports as CSV, XLSX, or PDF.',
                           action: 'Open Export',
                           onTap: () => context.go(
                             AppRoutes.osClassExport(widget.classId),
@@ -1313,24 +1314,22 @@ class _ClassToolTab extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  GestureDetector(
-                    onTap: onTap,
-                    child: Container(
+                  FilledButton(
+                    onPressed: onTap,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: OSColors.blue,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 22,
-                        vertical: 11,
+                        vertical: 12,
                       ),
-                      decoration: BoxDecoration(
-                        color: OSColors.blue,
-                        borderRadius: OSRadius.pillBr,
-                      ),
-                      child: Text(
-                        action,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                      shape: const StadiumBorder(),
+                    ),
+                    child: Text(
+                      action,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
