@@ -23,7 +23,7 @@ async function selectDropdownOption(
   await activateControl(page.getByRole('menuitem', { name: nextValue }).first());
 }
 
-test('Exam input: valid save persists into results and invalid score is rejected', async ({
+test('@regression Exam input: valid save persists into results and invalid score is rejected', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -66,25 +66,25 @@ test('Exam input: valid save persists into results and invalid score is rejected
   );
 });
 
-test('Final results: weighted results surface loads with roster context', async ({
+test('@core Final results: weighted results surface loads with roster context', async ({
   page,
 }) => {
   test.setTimeout(180_000);
 
   await gotoSignedInPath(page, '/class/demo-class-1/results');
 
-  await expect(
-    page.getByRole('group', {
-      name: /Final Results.*Grade 10A.*Mathematics \/ 2024-2025 \/ Fall \/ 5 students/i,
-    }),
-  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText('Final Results', { exact: true }).first()).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.locator('body')).toContainText('Grade 10A');
+  await expect(page.locator('body')).toContainText('Mathematics / 2024-2025 / Fall / 5 students');
   await expect(page.locator('body')).toContainText('Process 40%');
   await expect(page.locator('body')).toContainText('Exam 60%');
   await expect(page.locator('body')).toContainText('Final grade');
   await expect(page.locator('body')).toContainText('demo-class-1-student-1');
 });
 
-test('Student flows: roster search narrows results and detail view stays coherent', async ({
+test('@core Student flows: roster search narrows results and detail view stays coherent', async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -111,7 +111,9 @@ test('Student flows: roster search narrows results and detail view stays coheren
   await page.goto('/class/demo-class-1/student/demo-class-1-student-2');
   await ensureFlutterSemantics(page);
 
-  await expect(page).toHaveURL(/\/class\/demo-class-1\/student\/demo-class-1-student-2(?:\?|$)/);
+  await expect(page).toHaveURL(
+    /(?:\/|\/#\/)(?:os\/)?class\/demo-class-1\/student\/demo-class-1-student-2(?:[?#]|$)/,
+  );
   await expect(page.getByText('Grade breakdown', { exact: true }).first()).toBeVisible({
     timeout: 60_000,
   });
@@ -121,7 +123,7 @@ test('Student flows: roster search narrows results and detail view stays coheren
   await expect(page.locator('body')).toContainText('Final grade');
 });
 
-test('Export: per-student scope previews the selected student report', async ({
+test('@regression Export: per-student scope previews the selected student report', async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -143,7 +145,7 @@ test('Export: per-student scope previews the selected student report', async ({
   await expect(page.locator('body')).toContainText('demo-class-1-student-1');
 });
 
-test('Export: all-classes scope keeps trust messaging visible and previews combined CSV', async ({
+test('@regression Export: all-classes scope keeps trust messaging visible and previews combined CSV', async ({
   page,
 }) => {
   test.setTimeout(180_000);

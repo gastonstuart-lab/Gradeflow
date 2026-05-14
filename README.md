@@ -1,6 +1,6 @@
-# GradeFlow
+# InstructOS
 
-GradeFlow is a web-first Flutter app for teacher workflow management. It brings together class lists, student rosters, grading, exports, classroom tools, and seating plans in one project.
+InstructOS is a web-first Flutter app for teacher workflow management. It brings together class lists, student rosters, grading, exports, classroom tools, and seating plans in one project.
 
 Built for The Affiliated High School of Tunghai University.
 
@@ -17,7 +17,7 @@ Built for The Affiliated High School of Tunghai University.
 
 ## Direction
 
-GradeFlow is currently strongest as a web app.
+InstructOS is currently strongest as a web app.
 
 - Web is the primary supported target
 - Android and iOS codepaths exist, but they should be treated as needing local SDK and device verification
@@ -34,7 +34,7 @@ Some dashboard and utility data is still stored locally even when Firebase is en
 
 ## Demo Mode
 
-Use the `Try Demo Account` button on the login screen to create and sign in with a seeded demo workspace.
+Use the `Open demo` button on the login screen to create and sign in with a seeded demo workspace.
 
 The demo flow now includes:
 

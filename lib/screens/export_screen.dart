@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
@@ -18,7 +19,6 @@ import 'package:gradeflow/services/calculation_service.dart';
 import 'package:gradeflow/services/export_service.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
-import 'dart:typed_data';
 import 'package:gradeflow/platform/browser_file_actions.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/auth_service.dart';
@@ -27,6 +27,7 @@ import 'package:excel/excel.dart' hide Border;
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/components/pdf_web_viewer.dart';
+import 'package:printing/printing.dart';
 
 class ExportScreen extends StatefulWidget {
   final String classId;
@@ -1018,7 +1019,11 @@ class _ExportScreenState extends State<ExportScreen> {
   Future<void> _showPdfPreview(Uint8List bytes,
       {required String title, required String filename}) async {
     if (!kIsWeb) {
-      _showError('PDF preview is only supported on web.');
+      if (bytes.isEmpty) {
+        _showError('Unable to share an empty PDF.');
+        return;
+      }
+      await Printing.sharePdf(bytes: bytes, filename: filename);
       return;
     }
 
@@ -1112,7 +1117,7 @@ class _ExportScreenState extends State<ExportScreen> {
       final ok =
           await _downloadText(csv, 'grades_${widget.classId}.csv', 'text/csv');
       ok
-          ? _showSuccess('Class CSV downloaded')
+          ? _showSuccess(kIsWeb ? 'Class CSV downloaded' : 'Class CSV copied')
           : _showError(
               'Download blocked or failed. Please allow downloads and try again.');
     } else if (_format == _ExportFormat.xlsx) {
@@ -1181,7 +1186,8 @@ class _ExportScreenState extends State<ExportScreen> {
       final ok = await _downloadText(
           csv, 'report_${student.studentId}.csv', 'text/csv');
       ok
-          ? _showSuccess('Student CSV downloaded')
+          ? _showSuccess(
+              kIsWeb ? 'Student CSV downloaded' : 'Student CSV copied')
           : _showError(
               'Download blocked or failed. Please allow downloads and try again.');
     } else if (_format == _ExportFormat.xlsx) {
@@ -1207,7 +1213,8 @@ class _ExportScreenState extends State<ExportScreen> {
         final ok = await _downloadBytes(
             bytes, 'report_${student.studentId}.pdf', 'application/pdf');
         ok
-            ? _showSuccess('Student PDF downloaded')
+            ? _showSuccess(
+                kIsWeb ? 'Student PDF downloaded' : 'Student PDF shared')
             : _showError(
                 'Download blocked or failed. Please allow downloads and try again.');
       } catch (e) {
@@ -1263,8 +1270,9 @@ class _ExportScreenState extends State<ExportScreen> {
         final ok =
             await _downloadText(csv, 'grades_all_classes.csv', 'text/csv');
         ok
-            ? _showSuccess(
-                'All-classes CSV downloaded for ${dataset.classCount} classes')
+            ? _showSuccess(kIsWeb
+                ? 'All-classes CSV downloaded for ${dataset.classCount} classes'
+                : 'All-classes CSV copied for ${dataset.classCount} classes')
             : _showError(
                 'Download blocked or failed. Try "Open in New Tab" or copy CSV.');
       } else if (_format == _ExportFormat.xlsx) {
@@ -1380,8 +1388,15 @@ class _ExportScreenState extends State<ExportScreen> {
     String mime,
   ) async {
     if (!kIsWeb) {
-      _showError('Export is only supported on web');
-      return false;
+      try {
+        await Clipboard.setData(ClipboardData(text: text));
+        debugPrint('Copied $filename export text to clipboard on native.');
+        return true;
+      } catch (e) {
+        debugPrint('Native text export failed for $filename: $e');
+        _showError('Could not copy this export to the clipboard.');
+        return false;
+      }
     }
 
     return downloadBrowserText(text, filename, mime);
@@ -1393,7 +1408,17 @@ class _ExportScreenState extends State<ExportScreen> {
     String mime,
   ) async {
     if (!kIsWeb) {
-      _showError('Export is only supported on web');
+      if (mime == 'application/pdf') {
+        if (bytes.isEmpty) {
+          _showError('Unable to share an empty PDF.');
+          return false;
+        }
+        await Printing.sharePdf(bytes: bytes, filename: filename);
+        return true;
+      }
+      _showError(
+        'Spreadsheet downloads are web-only right now. Use CSV copy or PDF share on this device.',
+      );
       return false;
     }
     if (bytes.isEmpty) {

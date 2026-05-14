@@ -7,7 +7,12 @@
     "serve": "^14.2.5"
   },
   "scripts": {
-    "e2e": "playwright test",
+    "e2e": "npm run e2e:smoke && npm run e2e:core",
+    "e2e:smoke": "playwright test e2e/smoke.spec.ts --workers=1",
+    "e2e:routing": "playwright test --config=playwright.gated.config.ts --grep \"@routing\"",
+    "e2e:core": "playwright test --config=playwright.gated.config.ts --grep \"@(routing|core)\"",
+    "e2e:full": "playwright test --config=playwright.gated.config.ts",
+    "e2e:regression": "playwright test --config=playwright.gated.config.ts --grep \"@regression\"",
     "e2e:ui": "playwright test --ui",
     "e2e:report": "playwright show-report"
   }

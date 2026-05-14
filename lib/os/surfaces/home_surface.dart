@@ -1,4 +1,4 @@
-﻿// GradeFlow OS — Home Surface
+// GradeFlow OS — Home Surface
 //
 // The teacher's primary landing surface should read like an actual OS home:
 // a desktop stage, pinned apps, glanceable live signals, and secondary
@@ -38,10 +38,12 @@ class HomeSurface extends StatefulWidget {
 class _HomeSurfaceState extends State<HomeSurface> {
   static const String _wallpaperStyleBaseKey = 'os_home_wallpaper_style_v1';
   static const String _wallpaperImageBaseKey = 'os_home_wallpaper_image_v1';
+  static const String _readabilityBaseKey = 'os_home_readability_v1';
 
   final DashboardPreferencesService _preferences =
       const DashboardPreferencesService();
   _HomeWallpaperStyle _wallpaperStyle = _HomeWallpaperStyle.defaultStyle;
+  _HomeReadabilityPreset _readabilityPreset = _HomeReadabilityPreset.balanced;
   Uint8List? _wallpaperImageBytes;
   String? _wallpaperImageBase64;
   String? _loadedUserId;
@@ -75,9 +77,16 @@ class _HomeSurfaceState extends State<HomeSurface> {
           userId: userId,
         ),
       );
+      final readability = await _preferences.readScopedString(
+        scopedKey: _preferences.scopedKey(
+          baseKey: _readabilityBaseKey,
+          userId: userId,
+        ),
+      );
       if (!mounted || _loadedUserId != userId) return;
       setState(() {
         _wallpaperStyle = _HomeWallpaperStyleX.fromId(style);
+        _readabilityPreset = _HomeReadabilityPresetX.fromId(readability);
         _wallpaperImageBase64 = image;
         _wallpaperImageBytes = _decodeWallpaperImage(image);
         _loadingWallpaper = false;
@@ -133,6 +142,19 @@ class _HomeSurfaceState extends State<HomeSurface> {
     }
   }
 
+  Future<void> _saveReadabilityPreset(
+    _HomeReadabilityPreset preset,
+  ) async {
+    setState(() => _readabilityPreset = preset);
+    await _preferences.writeString(
+      key: _preferences.scopedKey(
+        baseKey: _readabilityBaseKey,
+        userId: _wallpaperUserId,
+      ),
+      value: preset.id,
+    );
+  }
+
   Future<void> _pickWallpaperImage() async {
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -162,78 +184,109 @@ class _HomeSurfaceState extends State<HomeSurface> {
       showDragHandle: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Home background',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Choose a built-in wallpaper or add your own image. Dark mode stays available from the moon button.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final style in _HomeWallpaperStyle.values)
-                      if (style != _HomeWallpaperStyle.customImage ||
-                          _wallpaperImageBytes != null)
-                        _WallpaperChoiceChip(
-                          label: style.label,
-                          selected: _wallpaperStyle == style,
-                          accent: style.accent,
-                          onTap: () {
-                            Navigator.of(sheetContext).pop();
-                            _saveWallpaper(style: style);
-                          },
-                        ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.of(sheetContext).pop();
-                          _pickWallpaperImage();
-                        },
-                        icon: const Icon(Icons.add_photo_alternate_outlined),
-                        label: Text(
-                          _wallpaperImageBytes == null
-                              ? 'Add image'
-                              : 'Change image',
-                        ),
-                      ),
+                    Text(
+                      'Home background',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                     ),
-                    if (_wallpaperImageBytes != null) ...[
-                      const SizedBox(width: 10),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.of(sheetContext).pop();
-                          _clearWallpaperImage();
-                        },
-                        icon: const Icon(Icons.wallpaper_outlined),
-                        label: const Text('Reset'),
-                      ),
-                    ],
+                    const SizedBox(height: 6),
+                    Text(
+                      'Choose a built-in wallpaper or add your own image. Dark mode stays available from the moon button.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 18),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        for (final style in _HomeWallpaperStyle.values)
+                          if (style != _HomeWallpaperStyle.customImage ||
+                              _wallpaperImageBytes != null)
+                            _WallpaperChoiceChip(
+                              label: style.label,
+                              selected: _wallpaperStyle == style,
+                              accent: style.accent,
+                              onTap: () {
+                                Navigator.of(sheetContext).pop();
+                                _saveWallpaper(style: style);
+                              },
+                            ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              Navigator.of(sheetContext).pop();
+                              _pickWallpaperImage();
+                            },
+                            icon:
+                                const Icon(Icons.add_photo_alternate_outlined),
+                            label: Text(
+                              _wallpaperImageBytes == null
+                                  ? 'Add image'
+                                  : 'Change image',
+                            ),
+                          ),
+                        ),
+                        if (_wallpaperImageBytes != null) ...[
+                          const SizedBox(width: 10),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(sheetContext).pop();
+                              _clearWallpaperImage();
+                            },
+                            icon: const Icon(Icons.wallpaper_outlined),
+                            label: const Text('Reset'),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                    Text(
+                      'Readability',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        for (final preset in _HomeReadabilityPreset.values)
+                          _ReadabilityPresetChip(
+                            preset: preset,
+                            selected: _readabilityPreset == preset,
+                            onTap: () {
+                              setSheetState(() {
+                                _readabilityPreset = preset;
+                              });
+                              _saveReadabilityPreset(preset);
+                            },
+                          ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -268,83 +321,88 @@ class _HomeSurfaceState extends State<HomeSurface> {
     final themeMode = context.watch<ThemeModeNotifier>().themeMode;
     final toggleTheme = context.read<ThemeModeNotifier>().toggleTheme;
 
-    return Scaffold(
-      backgroundColor: OSColors.bg(context.isDark),
-      body: SafeArea(
-        bottom: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isDesktop =
-                constraints.maxWidth >= 1220 && constraints.maxHeight >= 760;
-            final horizontalPadding = constraints.maxWidth < 760 ? 14.0 : 20.0;
-            final contentPadding = EdgeInsets.fromLTRB(
-              horizontalPadding,
-              10,
-              horizontalPadding,
-              24,
-            );
+    return _HomeReadabilityScope(
+      preset: _readabilityPreset,
+      child: Scaffold(
+        backgroundColor: OSColors.bg(context.isDark),
+        body: SafeArea(
+          bottom: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop =
+                  constraints.maxWidth >= 1220 && constraints.maxHeight >= 760;
+              final horizontalPadding =
+                  constraints.maxWidth < 760 ? 14.0 : 20.0;
+              final contentPadding = EdgeInsets.fromLTRB(
+                horizontalPadding,
+                10,
+                horizontalPadding,
+                24,
+              );
 
-            return Stack(
-              children: [
-                Positioned.fill(
-                  child: _HomeBackdrop(
-                    style: _wallpaperStyle,
-                    imageBytes: _wallpaperImageBytes,
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: _HomeBackdrop(
+                      style: _wallpaperStyle,
+                      imageBytes: _wallpaperImageBytes,
+                      readability: _readabilityPreset,
+                    ),
                   ),
-                ),
-                if (_loadingWallpaper)
-                  const Positioned(
-                    width: 0,
-                    height: 0,
-                    child: SizedBox.shrink(),
+                  if (_loadingWallpaper)
+                    const Positioned(
+                      width: 0,
+                      height: 0,
+                      child: SizedBox.shrink(),
+                    ),
+                  Positioned.fill(
+                    child: isDesktop
+                        ? Padding(
+                            padding: contentPadding,
+                            child: _HomeDesktopLayout(
+                              teacherName: teacherName,
+                              schoolName: schoolName,
+                              primaryClass: primaryClass,
+                              classes: classes,
+                              reminders: reminders,
+                              primaryReminder: primaryReminder,
+                              totalStudents: totalStudents,
+                              unread: unread,
+                              now: now,
+                              themeMode: themeMode,
+                              onShadeTap: controller.openShade,
+                              onAssistantTap: controller.openAssistant,
+                              onLauncherTap: controller.openLauncher,
+                              onThemeTap: toggleTheme,
+                              onWallpaperTap: _showWallpaperSheet,
+                            ),
+                          )
+                        : SingleChildScrollView(
+                            padding: contentPadding,
+                            child: _HomeStackedLayout(
+                              width: constraints.maxWidth,
+                              teacherName: teacherName,
+                              schoolName: schoolName,
+                              primaryClass: primaryClass,
+                              classes: classes,
+                              reminders: reminders,
+                              primaryReminder: primaryReminder,
+                              totalStudents: totalStudents,
+                              unread: unread,
+                              now: now,
+                              themeMode: themeMode,
+                              onShadeTap: controller.openShade,
+                              onAssistantTap: controller.openAssistant,
+                              onLauncherTap: controller.openLauncher,
+                              onThemeTap: toggleTheme,
+                              onWallpaperTap: _showWallpaperSheet,
+                            ),
+                          ),
                   ),
-                Positioned.fill(
-                  child: isDesktop
-                      ? Padding(
-                          padding: contentPadding,
-                          child: _HomeDesktopLayout(
-                            teacherName: teacherName,
-                            schoolName: schoolName,
-                            primaryClass: primaryClass,
-                            classes: classes,
-                            reminders: reminders,
-                            primaryReminder: primaryReminder,
-                            totalStudents: totalStudents,
-                            unread: unread,
-                            now: now,
-                            themeMode: themeMode,
-                            onShadeTap: controller.openShade,
-                            onAssistantTap: controller.openAssistant,
-                            onLauncherTap: controller.openLauncher,
-                            onThemeTap: toggleTheme,
-                            onWallpaperTap: _showWallpaperSheet,
-                          ),
-                        )
-                      : SingleChildScrollView(
-                          padding: contentPadding,
-                          child: _HomeStackedLayout(
-                            width: constraints.maxWidth,
-                            teacherName: teacherName,
-                            schoolName: schoolName,
-                            primaryClass: primaryClass,
-                            classes: classes,
-                            reminders: reminders,
-                            primaryReminder: primaryReminder,
-                            totalStudents: totalStudents,
-                            unread: unread,
-                            now: now,
-                            themeMode: themeMode,
-                            onShadeTap: controller.openShade,
-                            onAssistantTap: controller.openAssistant,
-                            onLauncherTap: controller.openLauncher,
-                            onThemeTap: toggleTheme,
-                            onWallpaperTap: _showWallpaperSheet,
-                          ),
-                        ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -359,6 +417,27 @@ class _HomeSurfaceState extends State<HomeSurface> {
         : serviceClasses;
     return candidates.isNotEmpty ? candidates.first : null;
   }
+}
+
+Widget _homeFolderTransition(Widget child, Animation<double> animation) {
+  final curved = CurvedAnimation(
+    parent: animation,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInOut,
+  );
+  return FadeTransition(
+    opacity: curved,
+    child: SlideTransition(
+      position: Tween<Offset>(
+        begin: const Offset(0, -0.035),
+        end: Offset.zero,
+      ).animate(curved),
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
+        child: child,
+      ),
+    ),
+  );
 }
 
 class _HomeDesktopLayout extends StatefulWidget {
@@ -401,44 +480,85 @@ class _HomeDesktopLayout extends StatefulWidget {
 }
 
 class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
-  _HomeWorkspaceFolder? _selectedFolder;
+  static const String _miniAppTapRegionGroup = 'home-mini-app-desktop';
+  _HomeMiniApp? _selectedMiniApp;
+  Class? _selectedClassPreview;
+
+  void _closeMiniApp() {
+    if (_selectedMiniApp != null) {
+      setState(() {
+        _selectedMiniApp = null;
+        _selectedClassPreview = null;
+      });
+    }
+  }
+
+  void _openMiniApp(_HomeMiniApp app) {
+    setState(() {
+      _selectedMiniApp = app;
+      if (app != _HomeMiniApp.classes) {
+        _selectedClassPreview = null;
+      }
+    });
+  }
+
+  void _openDesktopClassPreview(Class classItem) {
+    setState(() {
+      _selectedMiniApp = _HomeMiniApp.classes;
+      _selectedClassPreview = classItem;
+    });
+  }
+
+  void _toggleFolder(_HomeWorkspaceFolder folder) {
+    final app = _miniAppForFolder(folder);
+    setState(() {
+      _selectedMiniApp = _selectedMiniApp == app ? null : app;
+      if (app != _HomeMiniApp.classes || _selectedMiniApp == null) {
+        _selectedClassPreview = null;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    const sideRailWidth = 260.0;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          width: 248,
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _HomeSchoolIdentity(
-                  teacherName: widget.teacherName,
-                  schoolName: widget.schoolName,
+          width: sideRailWidth,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _HomeSchoolIdentity(
+                teacherName: widget.teacherName,
+                schoolName: widget.schoolName,
+                unread: widget.unread,
+                themeMode: widget.themeMode,
+                onAssistantTap: widget.onAssistantTap,
+                onShadeTap: widget.onShadeTap,
+                onThemeTap: widget.onThemeTap,
+                onWallpaperTap: widget.onWallpaperTap,
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 174,
+                child: _HomeShortcutShelf(
                   unread: widget.unread,
-                  themeMode: widget.themeMode,
-                  onAssistantTap: widget.onAssistantTap,
-                  onShadeTap: widget.onShadeTap,
-                  onThemeTap: widget.onThemeTap,
-                  onWallpaperTap: widget.onWallpaperTap,
+                  onLauncherTap: widget.onLauncherTap,
+                  onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+                  compact: true,
                 ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 202,
-                  child: _HomeShortcutShelf(
-                    unread: widget.unread,
-                    themeMode: widget.themeMode,
-                    onAssistantTap: widget.onAssistantTap,
-                    onLauncherTap: widget.onLauncherTap,
-                    onThemeTap: widget.onThemeTap,
-                    compact: true,
-                  ),
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: _HomeQuickClassesStrip(
+                  classes: widget.classes,
+                  onClassPreview: _openDesktopClassPreview,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 16),
@@ -446,7 +566,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final stageHeight =
-                  (constraints.maxHeight * 0.31).clamp(232.0, 286.0);
+                  (constraints.maxHeight * 0.18).clamp(142.0, 174.0);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -463,48 +583,57 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                       reminderCount: widget.reminders.length,
                       now: widget.now,
                       compact: false,
-                      onAssistantTap: widget.onAssistantTap,
-                      onLauncherTap: widget.onLauncherTap,
+                      onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+                      onPlannerTap: () => _openMiniApp(_HomeMiniApp.agenda),
+                      onClassesTap: () => _openMiniApp(_HomeMiniApp.classes),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  _HomeWorkspaceFolderStrip(
-                    selected: _selectedFolder,
-                    classCount: widget.classes.length,
-                    reminderCount: widget.reminders.length,
-                    unread: widget.unread,
-                    onSelected: (folder) => setState(() {
-                      _selectedFolder =
-                          _selectedFolder == folder ? null : folder;
-                    }),
                   ),
                   const SizedBox(height: 14),
                   Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 760),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 240),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        child: _selectedFolder == null
-                            ? const _HomeCalmWorkspaceFloor(
-                                key: ValueKey('workspace-closed'),
-                              )
-                            : _HomeWorkspaceFolderPanel(
-                                key: ValueKey(_selectedFolder),
-                                folder: _selectedFolder!,
-                                primaryClass: widget.primaryClass,
-                                classes: widget.classes,
-                                reminders: widget.reminders,
-                                unread: widget.unread,
-                                totalStudents: widget.totalStudents,
-                                now: widget.now,
-                              ),
+                    alignment: Alignment.center,
+                    child: _HomeWorkspaceFolderStrip(
+                      selected: _folderForMiniApp(_selectedMiniApp),
+                      classCount: widget.classes.length,
+                      reminderCount: widget.reminders.length,
+                      unread: widget.unread,
+                      onSelected: _toggleFolder,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 980),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 240),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInOut,
+                          transitionBuilder: _homeFolderTransition,
+                          child: _selectedMiniApp == null
+                              ? const _HomeCalmWorkspaceFloor(
+                                  key: ValueKey('workspace-closed'),
+                                )
+                              : TapRegion(
+                                  groupId: _miniAppTapRegionGroup,
+                                  onTapOutside: (_) => _closeMiniApp(),
+                                  child: _HomeMiniAppWindow(
+                                    key: ValueKey(_selectedMiniApp),
+                                    app: _selectedMiniApp!,
+                                    primaryClass: widget.primaryClass,
+                                    classes: widget.classes,
+                                    reminders: widget.reminders,
+                                    unread: widget.unread,
+                                    totalStudents: widget.totalStudents,
+                                    now: widget.now,
+                                    selectedClass: _selectedClassPreview,
+                                    onClose: _closeMiniApp,
+                                  ),
+                                ),
+                        ),
                       ),
                     ),
                   ),
-                  const Spacer(),
                 ],
               );
             },
@@ -512,22 +641,15 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
         ),
         const SizedBox(width: 16),
         SizedBox(
-          width: 296,
+          width: sideRailWidth,
           child: _HomeUtilityRail(
             unread: widget.unread,
+            reminders: widget.reminders,
             reminderCount: widget.reminders.length,
-            children: [
-              const _HomeWeatherPanel(embedded: true),
-              _HomeAudioPanel(
-                embedded: true,
-                onTap: () => context.go(AppRoutes.dashboard),
-              ),
-              _HomeAgendaPanel(
-                reminders: widget.reminders,
-                scrollable: true,
-                embedded: true,
-              ),
-            ],
+            onAudioTap: () => _openMiniApp(_HomeMiniApp.audio),
+            onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+            onAgendaTap: () => _openMiniApp(_HomeMiniApp.agenda),
+            onWeatherTap: () => _openMiniApp(_HomeMiniApp.weather),
           ),
         ),
       ],
@@ -535,16 +657,60 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
   }
 }
 
+enum _HomeMiniApp {
+  weather,
+  today,
+  classes,
+  tasks,
+  messages,
+  insights,
+  agenda,
+  audio,
+}
+
+_HomeMiniApp _miniAppForFolder(_HomeWorkspaceFolder folder) {
+  return switch (folder) {
+    _HomeWorkspaceFolder.today => _HomeMiniApp.today,
+    _HomeWorkspaceFolder.classes => _HomeMiniApp.classes,
+    _HomeWorkspaceFolder.tasks => _HomeMiniApp.tasks,
+    _HomeWorkspaceFolder.messages => _HomeMiniApp.messages,
+    _HomeWorkspaceFolder.insights => _HomeMiniApp.insights,
+  };
+}
+
+_HomeWorkspaceFolder? _folderForMiniApp(_HomeMiniApp? app) {
+  return switch (app) {
+    _HomeMiniApp.today => _HomeWorkspaceFolder.today,
+    _HomeMiniApp.classes => _HomeWorkspaceFolder.classes,
+    _HomeMiniApp.tasks => _HomeWorkspaceFolder.tasks,
+    _HomeMiniApp.messages => _HomeWorkspaceFolder.messages,
+    _HomeMiniApp.insights => _HomeWorkspaceFolder.insights,
+    _HomeMiniApp.weather ||
+    _HomeMiniApp.agenda ||
+    _HomeMiniApp.audio ||
+    null =>
+      null,
+  };
+}
+
 class _HomeUtilityRail extends StatelessWidget {
   const _HomeUtilityRail({
-    required this.children,
     required this.unread,
+    required this.reminders,
     required this.reminderCount,
+    required this.onAudioTap,
+    required this.onMessagesTap,
+    required this.onAgendaTap,
+    required this.onWeatherTap,
   });
 
-  final List<Widget> children;
   final int unread;
+  final List<TeacherWorkspaceReminderSnapshot> reminders;
   final int reminderCount;
+  final VoidCallback onAudioTap;
+  final VoidCallback onMessagesTap;
+  final VoidCallback onAgendaTap;
+  final VoidCallback onWeatherTap;
 
   @override
   Widget build(BuildContext context) {
@@ -557,7 +723,7 @@ class _HomeUtilityRail extends StatelessWidget {
     return _GlassPanel(
       tone: _HomePanelTone.rail,
       radius: 30,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -604,12 +770,553 @@ class _HomeUtilityRail extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          for (int index = 0; index < children.length; index++) ...[
-            children[index],
-            if (index != children.length - 1) const SizedBox(height: 12),
-          ],
+          const SizedBox(height: 10),
+          _HomeWeatherPanel(embedded: true, onTap: onWeatherTap),
+          const SizedBox(height: 8),
+          _HomeAudioPanel(
+            embedded: true,
+            compact: true,
+            onTap: onAudioTap,
+          ),
+          const SizedBox(height: 8),
+          _RailSection(
+            child: _HomeMessagesWidget(
+              unread: unread,
+              onTap: onMessagesTap,
+              compact: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _HomeAgendaPanel(
+            reminders: reminders,
+            scrollable: false,
+            embedded: true,
+            compact: true,
+            onTap: onAgendaTap,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _HomeMessagesWidget extends StatelessWidget {
+  const _HomeMessagesWidget({
+    required this.unread,
+    required this.onTap,
+    this.compact = false,
+  });
+
+  final int unread;
+  final VoidCallback onTap;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final hasUnread = unread > 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OSTouchFeedback(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(22),
+          minSize: Size(180, compact ? 74 : 92),
+          child: Container(
+            padding: EdgeInsets.all(compact ? 10 : 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  OSColors.cyan.withValues(alpha: dark ? 0.18 : 0.13),
+                  OSColors.blue.withValues(alpha: dark ? 0.08 : 0.07),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: OSColors.cyan.withValues(alpha: hasUnread ? 0.28 : 0.14),
+              ),
+            ),
+            child: Row(
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: compact ? 34 : 38,
+                      height: compact ? 34 : 38,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color:
+                            OSColors.cyan.withValues(alpha: dark ? 0.18 : 0.13),
+                        border: Border.all(
+                          color: OSColors.cyan.withValues(alpha: 0.24),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 19,
+                        color: OSColors.cyan,
+                      ),
+                    ),
+                    if (hasUnread)
+                      Positioned(
+                        right: -1,
+                        top: -1,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: OSColors.urgent,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  dark ? const Color(0xFF0F172A) : Colors.white,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const _PanelEyebrow(label: 'Messages'),
+                      const SizedBox(height: 3),
+                      Text(
+                        hasUnread
+                            ? '$unread unread update${unread == 1 ? '' : 's'}'
+                            : 'Inbox quiet',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: compact ? 14 : 16,
+                          fontWeight: FontWeight.w900,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        hasUnread
+                            ? 'Review conversations before handoff.'
+                            : 'Threads are standing by.',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: OSColors.textSecondary(dark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.open_in_new_rounded,
+                  size: 15,
+                  color: OSColors.textMuted(dark),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (!compact) ...[
+          const SizedBox(height: 12),
+          _FolderMessagePreview(
+            sender: unread == 0 ? 'Staff room' : 'Unread channels',
+            snippet: unread == 0
+                ? 'Recent class and staff threads are ready.'
+                : '$unread conversation${unread == 1 ? '' : 's'} waiting for review.',
+            status: unread == 0 ? 'quiet' : 'now',
+            unread: unread > 0,
+            accent: OSColors.cyan,
+            onTap: onTap,
+          ),
+        ],
+        if (!compact) ...[
+          const SizedBox(height: 8),
+          _FolderMessagePreview(
+            sender: 'Class channels',
+            snippet: 'Families, students, and staff threads.',
+            status: 'live',
+            accent: OSColors.blue,
+            onTap: onTap,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HomeQuickClassesStrip extends StatelessWidget {
+  const _HomeQuickClassesStrip({
+    required this.classes,
+    this.onClassPreview,
+  });
+
+  final List<Class> classes;
+  final ValueChanged<Class>? onClassPreview;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final visible = classes;
+
+    return _GlassPanel(
+      tone: _HomePanelTone.rail,
+      radius: 26,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Open the next class workspace directly.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.2,
+              fontWeight: FontWeight.w600,
+              color: OSColors.textSecondary(dark),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (visible.isEmpty)
+            _HomeQuickClassEmptyCard(
+              onTap: () => context.go(AppRoutes.classes),
+            )
+          else
+            Expanded(
+              child: Scrollbar(
+                thumbVisibility: visible.length > 2,
+                child: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  itemCount: visible.length,
+                  itemBuilder: (context, index) {
+                    return _HomeQuickClassCard(
+                      classItem: visible[index],
+                      onOpenPreview: onClassPreview == null
+                          ? null
+                          : () => onClassPreview!(visible[index]),
+                    );
+                  },
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
+                ),
+              ),
+            ),
+          const SizedBox(height: 12),
+          Divider(
+            height: 1,
+            indent: 28,
+            endIndent: 28,
+            color: dark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.black.withValues(alpha: 0.08),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeQuickClassCard extends StatelessWidget {
+  const _HomeQuickClassCard({
+    required this.classItem,
+    this.dense = false,
+    this.onOpenPreview,
+  });
+
+  final Class classItem;
+  final bool dense;
+  final VoidCallback? onOpenPreview;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final classId = classItem.classId;
+
+    return OSTouchFeedback(
+      onTap: onOpenPreview ??
+          () => context.go(AppRoutes.osClassWorkspace(classId)),
+      borderRadius: BorderRadius.circular(dense ? 16 : 18),
+      minSize: Size(204, dense ? 92 : 112),
+      child: Container(
+        padding: EdgeInsets.fromLTRB(10, dense ? 8 : 10, 10, dense ? 8 : 10),
+        decoration: BoxDecoration(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.034)
+              : Colors.white.withValues(alpha: 0.58),
+          borderRadius: BorderRadius.circular(dense ? 16 : 18),
+          border: Border.all(
+            color: dark
+                ? Colors.white.withValues(alpha: 0.052)
+                : Colors.white.withValues(alpha: 0.64),
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                _HomeQuickClassIcon(size: dense ? 38 : 40),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        classItem.className,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.05,
+                          fontWeight: FontWeight.w900,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        classItem.subject,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.05,
+                          fontWeight: FontWeight.w600,
+                          color: OSColors.textSecondary(dark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: OSColors.textMuted(dark),
+                ),
+              ],
+            ),
+            SizedBox(height: dense ? 8 : 10),
+            Row(
+              children: [
+                _HomeQuickClassMiniAction(
+                  tooltip: 'Workspace',
+                  icon: Icons.grid_view_rounded,
+                  accent: OSColors.green,
+                  onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
+                ),
+                _HomeQuickClassMiniAction(
+                  tooltip: 'Students',
+                  icon: Icons.people_alt_outlined,
+                  accent: OSColors.cyan,
+                  onTap: () => context.go(AppRoutes.osClassStudents(classId)),
+                ),
+                _HomeQuickClassMiniAction(
+                  tooltip: 'Seating',
+                  icon: Icons.event_seat_rounded,
+                  accent: OSColors.amber,
+                  onTap: () => context.go(AppRoutes.osClassSeating(classId)),
+                ),
+                _HomeQuickClassMiniAction(
+                  tooltip: 'Gradebook',
+                  icon: Icons.menu_book_rounded,
+                  accent: OSColors.coral,
+                  onTap: () => context.go(AppRoutes.osClassGradebook(classId)),
+                ),
+                _HomeQuickClassMiniAction(
+                  tooltip: 'Schedule',
+                  icon: Icons.calendar_month_outlined,
+                  accent: OSColors.blue,
+                  onTap: () => context.go(AppRoutes.osClassSchedule(classId)),
+                ),
+                _HomeQuickClassMiniAction(
+                  tooltip: 'Teach',
+                  icon: Icons.cast_for_education_rounded,
+                  accent: OSColors.indigo,
+                  onTap: () {
+                    context
+                        .read<GradeFlowOSController>()
+                        .setSurface(OSSurface.teach, classId: classId);
+                    context.go(AppRoutes.osTeach);
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeQuickClassMiniAction extends StatelessWidget {
+  const _HomeQuickClassMiniAction({
+    required this.tooltip,
+    required this.icon,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Tooltip(
+          message: tooltip,
+          child: OSTouchFeedback(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(999),
+            minSize: const Size(26, 28),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accent.withValues(alpha: dark ? 0.10 : 0.075),
+                  border: Border.all(
+                    color: accent.withValues(alpha: dark ? 0.26 : 0.18),
+                    width: 1.2,
+                  ),
+                ),
+                child: Icon(icon, size: 14, color: accent),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeQuickClassIcon extends StatelessWidget {
+  const _HomeQuickClassIcon({this.size = 40});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            OSColors.green.withValues(alpha: 0.92),
+            OSColors.cyan.withValues(alpha: 0.74),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(size * 0.35),
+      ),
+      child: Center(
+        child: Container(
+          width: size * 0.45,
+          height: size * 0.55,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(size * 0.10),
+          ),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Icon(
+                Icons.bookmark_rounded,
+                size: size * 0.20,
+                color: OSColors.green.withValues(alpha: 0.86),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeQuickClassEmptyCard extends StatelessWidget {
+  const _HomeQuickClassEmptyCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+
+    return OSTouchFeedback(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(204, 72),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.045)
+              : Colors.white.withValues(alpha: 0.68),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: dark
+                ? Colors.white.withValues(alpha: 0.075)
+                : Colors.white.withValues(alpha: 0.72),
+          ),
+        ),
+        child: Row(
+          children: [
+            const _HomeQuickClassIcon(),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Open classes',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 17,
+                      height: 1.05,
+                      fontWeight: FontWeight.w900,
+                      color: OSColors.text(dark),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Set up the first workspace',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.1,
+                      fontWeight: FontWeight.w500,
+                      color: OSColors.textSecondary(dark),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 24,
+              color: OSColors.textMuted(dark),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -651,53 +1358,63 @@ class _HomeWorkspaceFolderStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: context.isDark
-                ? Colors.white.withValues(alpha: 0.018)
-                : Colors.white.withValues(alpha: 0.24),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: context.isDark
-                  ? Colors.white.withValues(alpha: 0.035)
-                  : Colors.white.withValues(alpha: 0.36),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(3),
-            child: Row(
-              children: [
-                for (final folder in _HomeWorkspaceFolder.values) ...[
-                  _HomeWorkspaceFolderChip(
-                    folder: folder,
-                    selected: selected == folder,
-                    detail: _folderDetail(folder),
-                    onTap: () => onSelected(folder),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: context.isDark
+                        ? Colors.white.withValues(alpha: 0.018)
+                        : Colors.white.withValues(alpha: 0.24),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: context.isDark
+                          ? Colors.white.withValues(alpha: 0.035)
+                          : Colors.white.withValues(alpha: 0.36),
+                    ),
                   ),
-                  if (folder != _HomeWorkspaceFolder.values.last)
-                    const SizedBox(width: 8),
-                ],
-              ],
+                  child: Padding(
+                    padding: const EdgeInsets.all(3),
+                    child: Row(
+                      children: [
+                        for (final folder in _HomeWorkspaceFolder.values) ...[
+                          _HomeWorkspaceFolderChip(
+                            folder: folder,
+                            selected: selected == folder,
+                            detail: _folderDetail(folder),
+                            onTap: () => onSelected(folder),
+                          ),
+                          if (folder != _HomeWorkspaceFolder.values.last)
+                            const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   String _folderDetail(_HomeWorkspaceFolder folder) {
     return switch (folder) {
-      _HomeWorkspaceFolder.today => 'Open space',
+      _HomeWorkspaceFolder.today => 'Next up',
       _HomeWorkspaceFolder.classes =>
         classCount == 0 ? 'No classes' : '$classCount active',
       _HomeWorkspaceFolder.tasks =>
         reminderCount == 0 ? 'Clear' : '$reminderCount queued',
       _HomeWorkspaceFolder.messages => unread == 0 ? 'Quiet' : '$unread unread',
-      _HomeWorkspaceFolder.insights => 'Overview',
+      _HomeWorkspaceFolder.insights => 'Signals',
     };
   }
 }
@@ -855,67 +1572,89 @@ class _HomeCalmWorkspaceFloor extends StatelessWidget {
     final dark = context.isDark;
 
     return SizedBox(
-      height: 214,
+      height: 224,
       child: Stack(
         alignment: Alignment.topCenter,
         children: [
           Positioned(
-            left: 18,
-            right: 18,
-            top: 18,
-            bottom: 28,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.045)
-                      : Colors.white.withValues(alpha: 0.42),
-                ),
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.white.withValues(alpha: dark ? 0.028 : 0.32),
-                    Colors.white.withValues(alpha: dark ? 0.010 : 0.10),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+            top: 4,
+            left: 56,
+            right: 56,
+            child: IgnorePointer(
+              child: Container(
+                height: 42,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(40),
+                  ),
+                  gradient: LinearGradient(
+                    colors: [
+                      OSColors.blue.withValues(alpha: dark ? 0.12 : 0.16),
+                      Colors.white.withValues(alpha: dark ? 0.016 : 0.14),
+                      OSColors.cyan.withValues(alpha: dark ? 0.07 : 0.10),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
           Positioned(
-            top: 34,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: dark
-                    ? Colors.white.withValues(alpha: 0.040)
-                    : Colors.white.withValues(alpha: 0.56),
-                borderRadius: OSRadius.pillBr,
-                border: Border.all(
-                  color: dark
-                      ? Colors.white.withValues(alpha: 0.065)
-                      : Colors.white.withValues(alpha: 0.70),
+            left: -12,
+            right: -12,
+            top: 24,
+            bottom: 0,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(-0.20, -0.55),
+                    radius: 0.86,
+                    colors: [
+                      OSColors.blue.withValues(alpha: dark ? 0.10 : 0.13),
+                      OSColors.cyan.withValues(alpha: dark ? 0.036 : 0.060),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 16,
-                    color: OSColors.textMuted(dark),
+            ),
+          ),
+          Positioned(
+            left: 52,
+            right: 52,
+            top: 72,
+            child: IgnorePointer(
+              child: Container(
+                height: 1,
+                decoration: BoxDecoration(
+                  borderRadius: OSRadius.pillBr,
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      Colors.white.withValues(alpha: dark ? 0.10 : 0.34),
+                      Colors.transparent,
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Choose a folder when you need more',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: OSColors.textMuted(dark),
-                    ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 38,
+            top: 42,
+            child: IgnorePointer(
+              child: Container(
+                width: 112,
+                height: 112,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      OSColors.indigo.withValues(alpha: dark ? 0.07 : 0.09),
+                      Colors.transparent,
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -925,54 +1664,135 @@ class _HomeCalmWorkspaceFloor extends StatelessWidget {
   }
 }
 
-class _HomeWorkspaceFolderPanel extends StatelessWidget {
-  const _HomeWorkspaceFolderPanel({
+class _HomeMiniAppWindow extends StatelessWidget {
+  const _HomeMiniAppWindow({
     super.key,
-    required this.folder,
+    required this.app,
     required this.primaryClass,
     required this.classes,
     required this.reminders,
     required this.unread,
     required this.totalStudents,
     required this.now,
+    required this.selectedClass,
+    required this.onClose,
   });
 
-  final _HomeWorkspaceFolder folder;
+  final _HomeMiniApp app;
   final Class? primaryClass;
   final List<Class> classes;
   final List<TeacherWorkspaceReminderSnapshot> reminders;
   final int unread;
   final int totalStudents;
   final DateTime now;
+  final Class? selectedClass;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final accent = _miniAppAccent(app);
     return _GlassPanel(
       tone: _HomePanelTone.whisper,
       radius: 28,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 176, maxHeight: 276),
-        child: SingleChildScrollView(child: _buildFolderContent(context)),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight
+              : MediaQuery.sizeOf(context).height * 0.62;
+          final preferredHeight = maxHeight.clamp(420.0, 660.0);
+          final windowHeight = maxHeight < 420 ? maxHeight : preferredHeight;
+
+          return SizedBox(
+            height: windowHeight,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: dark ? 0.16 : 0.11),
+                        borderRadius: BorderRadius.circular(13),
+                        border:
+                            Border.all(color: accent.withValues(alpha: 0.22)),
+                      ),
+                      child: Icon(_miniAppIcon(app), size: 18, color: accent),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const _PanelEyebrow(label: 'Mini Desktop'),
+                          const SizedBox(height: 2),
+                          Text(
+                            _miniAppTitle(app),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              color: OSColors.text(dark),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_miniAppFullRoute(app) != null) ...[
+                      _MiniWindowIconButton(
+                        icon: Icons.open_in_new_rounded,
+                        tooltip: 'Open full page',
+                        onTap: () => context.go(_miniAppFullRoute(app)!),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    _MiniWindowIconButton(
+                      icon: Icons.close_rounded,
+                      tooltip: 'Close',
+                      onTap: onClose,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: _miniAppBody(context),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildFolderContent(BuildContext context) {
-    return switch (folder) {
-      _HomeWorkspaceFolder.today => _TodayFolderContent(
+  Widget _miniAppBody(BuildContext context) {
+    return switch (app) {
+      _HomeMiniApp.weather => const _WeatherMiniAppContent(),
+      _HomeMiniApp.messages => _MessagesMiniAppContent(unread: unread),
+      _HomeMiniApp.agenda => _AgendaMiniAppContent(
+          title: 'Review today\'s plan',
           primaryClass: primaryClass,
-          primaryReminder: reminders.isEmpty ? null : reminders.first,
-          unread: unread,
-          now: now,
-        ),
-      _HomeWorkspaceFolder.classes => _ClassesFolderContent(classes: classes),
-      _HomeWorkspaceFolder.tasks => _TasksFolderContent(
           reminders: reminders,
           now: now,
         ),
-      _HomeWorkspaceFolder.messages => _MessagesFolderContent(unread: unread),
-      _HomeWorkspaceFolder.insights => _InsightsFolderContent(
+      _HomeMiniApp.audio => const _FocusAudioMiniAppContent(),
+      _HomeMiniApp.today => _AgendaMiniAppContent(
+          title: _formatLongDate(now),
+          primaryClass: primaryClass,
+          reminders: reminders,
+          now: now,
+          showClass: true,
+        ),
+      _HomeMiniApp.classes => selectedClass == null
+          ? _ClassesFolderContent(classes: classes)
+          : _ClassPreviewMiniAppContent(classItem: selectedClass!),
+      _HomeMiniApp.tasks => _TasksFolderContent(reminders: reminders, now: now),
+      _HomeMiniApp.insights => _InsightsFolderContent(
           classCount: classes.length,
           totalStudents: totalStudents,
           unread: unread,
@@ -982,64 +1802,994 @@ class _HomeWorkspaceFolderPanel extends StatelessWidget {
   }
 }
 
-class _TodayFolderContent extends StatelessWidget {
-  const _TodayFolderContent({
-    required this.primaryClass,
-    required this.primaryReminder,
-    required this.unread,
-    required this.now,
+class _MiniWindowIconButton extends StatelessWidget {
+  const _MiniWindowIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
   });
 
-  final Class? primaryClass;
-  final TeacherWorkspaceReminderSnapshot? primaryReminder;
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Tooltip(
+      message: tooltip,
+      child: OSTouchFeedback(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        minSize: const Size(34, 34),
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: dark
+                ? Colors.white.withValues(alpha: 0.055)
+                : Colors.white.withValues(alpha: 0.60),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.070)
+                  : Colors.white.withValues(alpha: 0.70),
+            ),
+          ),
+          child: Icon(icon, size: 17, color: OSColors.textSecondary(dark)),
+        ),
+      ),
+    );
+  }
+}
+
+String _miniAppTitle(_HomeMiniApp app) {
+  return switch (app) {
+    _HomeMiniApp.weather => 'Weather',
+    _HomeMiniApp.messages => 'Messages',
+    _HomeMiniApp.agenda => 'Agenda / Today\'s Plan',
+    _HomeMiniApp.audio => 'Focus Audio',
+    _HomeMiniApp.today => 'Today',
+    _HomeMiniApp.classes => 'Classes',
+    _HomeMiniApp.tasks => 'Tasks',
+    _HomeMiniApp.insights => 'Insights',
+  };
+}
+
+IconData _miniAppIcon(_HomeMiniApp app) {
+  return switch (app) {
+    _HomeMiniApp.weather => Icons.wb_cloudy_rounded,
+    _HomeMiniApp.messages => Icons.forum_rounded,
+    _HomeMiniApp.agenda => Icons.event_available_rounded,
+    _HomeMiniApp.audio => Icons.graphic_eq_rounded,
+    _HomeMiniApp.today => Icons.today_rounded,
+    _HomeMiniApp.classes => Icons.class_rounded,
+    _HomeMiniApp.tasks => Icons.task_alt_rounded,
+    _HomeMiniApp.insights => Icons.insights_rounded,
+  };
+}
+
+Color _miniAppAccent(_HomeMiniApp app) {
+  return switch (app) {
+    _HomeMiniApp.weather => OSColors.blue,
+    _HomeMiniApp.messages => OSColors.cyan,
+    _HomeMiniApp.agenda => OSColors.amber,
+    _HomeMiniApp.audio => OSColors.indigo,
+    _HomeMiniApp.today => OSColors.blue,
+    _HomeMiniApp.classes => OSColors.green,
+    _HomeMiniApp.tasks => OSColors.amber,
+    _HomeMiniApp.insights => OSColors.indigo,
+  };
+}
+
+String? _miniAppFullRoute(_HomeMiniApp app) {
+  return switch (app) {
+    _HomeMiniApp.messages => AppRoutes.communication,
+    _HomeMiniApp.agenda ||
+    _HomeMiniApp.today ||
+    _HomeMiniApp.tasks =>
+      AppRoutes.osPlanner,
+    _HomeMiniApp.classes || _HomeMiniApp.insights => AppRoutes.classes,
+    _HomeMiniApp.weather || _HomeMiniApp.audio => null,
+  };
+}
+
+class _WeatherMiniAppContent extends StatefulWidget {
+  const _WeatherMiniAppContent();
+
+  @override
+  State<_WeatherMiniAppContent> createState() => _WeatherMiniAppContentState();
+}
+
+class _WeatherMiniAppContentState extends State<_WeatherMiniAppContent> {
+  late final DashboardWeatherService _service = DashboardWeatherService();
+  late final Future<DashboardWeatherSnapshot> _weather =
+      _service.fetchForecast();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return FutureBuilder<DashboardWeatherSnapshot>(
+      future: _weather,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        final loading = snapshot.connectionState == ConnectionState.waiting;
+        final hasError = snapshot.hasError && data == null;
+        final mood = _weatherMood(data?.weatherCode, DateTime.now(), dark);
+        final textColor = _weatherTextColor(mood, dark);
+        final mutedColor = _weatherMutedTextColor(mood, dark);
+        final accent = _weatherAccentColor(mood, dark);
+        final forecast =
+            data?.forecast.take(5).toList() ?? const <DashboardForecastDay>[];
+        final temp =
+            hasError || loading ? '--' : '${data!.temperatureC.round()}Â°';
+        final condition = hasError
+            ? 'Forecast unavailable'
+            : loading
+                ? 'Checking forecast'
+                : _weatherLabel(data!.weatherCode);
+        final location = hasError
+            ? 'Weather will return when the network responds.'
+            : loading
+                ? 'Taichung City'
+                : data!.locationName;
+        final feelsLike = data == null
+            ? 'Feels-like unavailable'
+            : 'Feels like ${data.apparentTempC.round()}Â°';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _WeatherWidgetFrame(
+              mood: mood,
+              embedded: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          location,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: WorkspaceTypography.eyebrow(context)?.copyWith(
+                              color: textColor.withValues(alpha: .74)),
+                        ),
+                      ),
+                      Icon(
+                        data == null
+                            ? Icons.cloud_queue_rounded
+                            : _weatherIcon(data.weatherCode),
+                        color: accent,
+                        size: 30,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        temp,
+                        style: TextStyle(
+                          fontSize: 72,
+                          height: .88,
+                          fontWeight: FontWeight.w900,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                condition,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  color: textColor,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                feelsLike,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: mutedColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _WeatherTeacherNote(mood: mood),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (forecast.isNotEmpty) ...[
+              SizedBox(
+                height: 88,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: forecast.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (context, index) {
+                    return SizedBox(
+                      width: 128,
+                      child: _WeatherForecastTile(
+                        day: forecast[index],
+                        textColor: OSColors.text(dark),
+                        mutedColor: OSColors.textSecondary(dark),
+                        iconColor: accent,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            _WeatherDetailGrid(
+              condition: condition,
+              feelsLike: feelsLike,
+              accent: accent,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _WeatherTeacherNote extends StatelessWidget {
+  const _WeatherTeacherNote({required this.mood});
+
+  final _WeatherMood mood;
+
+  @override
+  Widget build(BuildContext context) {
+    final note = switch (mood) {
+      _WeatherMood.rain => 'Rain signal - indoor transitions may be easier.',
+      _WeatherMood.cloudy =>
+        'Cloud cover - keep transitions calm and flexible.',
+      _WeatherMood.sunny => 'Warm afternoon - keep water nearby.',
+      _WeatherMood.night => 'Evening conditions - keep dismissal paths clear.',
+    };
+    return _StatusPill(
+        label: note, accent: _weatherAccentColor(mood, context.isDark));
+  }
+}
+
+class _WeatherDetailGrid extends StatelessWidget {
+  const _WeatherDetailGrid({
+    required this.condition,
+    required this.feelsLike,
+    required this.accent,
+  });
+
+  final String condition;
+  final String feelsLike;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        _FolderMetric(label: 'Condition', value: condition, accent: accent),
+        _FolderMetric(
+            label: 'Comfort', value: feelsLike, accent: OSColors.cyan),
+        _FolderMetric(
+          label: 'Transitions',
+          value: 'Check',
+          accent: OSColors.amber,
+        ),
+      ],
+    );
+  }
+}
+
+class _MessagesMiniAppContent extends StatelessWidget {
+  const _MessagesMiniAppContent({required this.unread});
+
   final int unread;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final conversations = [
+      (
+        sender: unread == 0 ? 'Staff room' : 'Unread channels',
+        snippet: unread == 0
+            ? 'Recent class and staff threads are ready.'
+            : '$unread conversation${unread == 1 ? '' : 's'} waiting for review.',
+        status: unread == 0 ? 'quiet' : 'now',
+        accent: OSColors.cyan,
+        unread: unread > 0,
+      ),
+      (
+        sender: 'Class channels',
+        snippet: 'Families, students, and staff threads.',
+        status: 'live',
+        accent: OSColors.blue,
+        unread: false,
+      ),
+      (
+        sender: 'Announcements',
+        snippet: 'School-wide updates and broadcast notes.',
+        status: 'school',
+        accent: OSColors.indigo,
+        unread: false,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth > 560;
+        final list = Column(
+          children: [
+            _MiniSearchField(label: 'Search conversations'),
+            const SizedBox(height: 10),
+            for (int index = 0; index < conversations.length; index++) ...[
+              _FolderMessagePreview(
+                sender: conversations[index].sender,
+                snippet: conversations[index].snippet,
+                status: conversations[index].status,
+                unread: conversations[index].unread,
+                accent: conversations[index].accent,
+                onTap: () {},
+              ),
+              if (index != conversations.length - 1) const SizedBox(height: 8),
+            ],
+          ],
+        );
+
+        final thread = Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: dark
+                ? Colors.white.withValues(alpha: 0.032)
+                : Colors.white.withValues(alpha: 0.58),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.055)
+                  : Colors.white.withValues(alpha: 0.68),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  _MiniAvatar(label: unread == 0 ? 'S' : 'U'),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      unread == 0 ? 'Staff room' : 'Unread channels',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: OSColors.text(dark),
+                      ),
+                    ),
+                  ),
+                  _StatusPill(
+                    label: unread == 0 ? 'quiet' : '$unread unread',
+                    accent: unread == 0 ? OSColors.green : OSColors.urgent,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _MessageBubble(
+                text: unread == 0
+                    ? 'No urgent messages are waiting right now.'
+                    : 'There are updates waiting for review before your next handoff.',
+                incoming: true,
+              ),
+              const SizedBox(height: 8),
+              const _MessageBubble(
+                text: 'Class channels are ready for a quick scan from Home.',
+                incoming: true,
+              ),
+              const SizedBox(height: 8),
+              const _MessageBubble(
+                text:
+                    'Open full messages when you need to reply or manage channels.',
+                incoming: false,
+              ),
+              const SizedBox(height: 8),
+              const _MessageBubble(
+                text: 'This quick view keeps the lesson surface open.',
+                incoming: true,
+              ),
+              const SizedBox(height: 12),
+              _MiniInputBar(label: 'Reply from full Messages'),
+            ],
+          ),
+        );
+
+        if (!wide) {
+          return Column(children: [list, const SizedBox(height: 12), thread]);
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 250, child: list),
+            const SizedBox(width: 12),
+            Expanded(child: thread),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AgendaMiniAppContent extends StatelessWidget {
+  const _AgendaMiniAppContent({
+    required this.title,
+    required this.primaryClass,
+    required this.reminders,
+    required this.now,
+    this.showClass = false,
+  });
+
+  final String title;
+  final Class? primaryClass;
+  final List<TeacherWorkspaceReminderSnapshot> reminders;
+  final DateTime now;
+  final bool showClass;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = reminders.take(4).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _PlannerDayCard(title: title, now: now),
+            ),
+            const SizedBox(width: 10),
+            const _MiniMonthPreview(),
+          ],
+        ),
+        if (showClass && primaryClass != null) ...[
+          const SizedBox(height: 10),
+          _FolderInfoRow(
+            icon: Icons.class_rounded,
+            accent: OSColors.green,
+            label: 'Class workspace',
+            value: '${primaryClass!.className} / ${primaryClass!.subject}',
+            onTap: () => context.go(
+              AppRoutes.osClassWorkspace(primaryClass!.classId),
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Text(
+          reminders.isEmpty ? 'Planner check' : 'Upcoming reminders',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+            color: OSColors.text(context.isDark),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (visible.isEmpty)
+          const _AgendaEmptyState()
+        else
+          for (int index = 0; index < visible.length; index++) ...[
+            _ReminderTile(reminder: visible[index], now: now),
+            if (index != visible.length - 1) const SizedBox(height: 8),
+          ],
+      ],
+    );
+  }
+}
+
+class _FocusAudioMiniAppContent extends StatelessWidget {
+  const _FocusAudioMiniAppContent();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final stations = [
+      ('Classroom sound', 'Quiet work and transitions', OSColors.cyan),
+      ('Deep focus', 'Low-distraction study bed', OSColors.indigo),
+      ('Bell reset', 'Short transition cue', OSColors.amber),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: dark
+                  ? const [Color(0xFF1B2137), Color(0xFF101827)]
+                  : const [Color(0xFFFFFFFF), Color(0xFFEAF4FF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.075)
+                  : Colors.white.withValues(alpha: 0.80),
+            ),
+          ),
+          child: Row(
+            children: [
+              const _AudioArtwork(),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _PanelEyebrow(label: 'Now Playing'),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Classroom sound',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: OSColors.text(dark),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Stations for quiet work and transitions.',
+                      style: TextStyle(color: OSColors.textSecondary(dark)),
+                    ),
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: OSRadius.pillBr,
+                      child: LinearProgressIndicator(
+                        minHeight: 5,
+                        value: 0.58,
+                        backgroundColor:
+                            Colors.white.withValues(alpha: dark ? 0.08 : 0.46),
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(OSColors.cyan),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              _RoundPlayButton(size: 46),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final signal = Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.030)
+                    : Colors.white.withValues(alpha: 0.56),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: dark
+                      ? Colors.white.withValues(alpha: 0.055)
+                      : Colors.white.withValues(alpha: 0.68),
+                ),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _PanelEyebrow(label: 'Signal'),
+                  SizedBox(height: 12),
+                  _MiniEqualizer(),
+                  SizedBox(height: 14),
+                  _MiniInputBar(label: 'Add station'),
+                ],
+              ),
+            );
+            if (constraints.maxWidth < 560) {
+              return Column(
+                children: [
+                  _StationList(stations: stations),
+                  const SizedBox(height: 12),
+                  signal,
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _StationList(stations: stations)),
+                const SizedBox(width: 12),
+                Expanded(child: signal),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniSearchField extends StatelessWidget {
+  const _MiniSearchField({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.035)
+            : Colors.white.withValues(alpha: 0.62),
+        borderRadius: OSRadius.pillBr,
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.055)
+              : Colors.white.withValues(alpha: 0.72),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search_rounded, size: 16, color: OSColors.textMuted(dark)),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12, color: OSColors.textMuted(dark)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniAvatar extends StatelessWidget {
+  const _MiniAvatar({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [
+            OSColors.cyan.withValues(alpha: 0.44),
+            OSColors.indigo.withValues(alpha: 0.24),
+          ],
+        ),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.label, required this.accent});
+
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: context.isDark ? 0.16 : 0.10),
+        borderRadius: OSRadius.pillBr,
+        border: Border.all(color: accent.withValues(alpha: 0.20)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w900,
+          color: accent,
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({required this.text, required this.incoming});
+
+  final String text;
+  final bool incoming;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Align(
+      alignment: incoming ? Alignment.centerLeft : Alignment.centerRight,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 420),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: incoming
+              ? (dark
+                  ? Colors.white.withValues(alpha: 0.050)
+                  : Colors.white.withValues(alpha: 0.72))
+              : OSColors.cyan.withValues(alpha: dark ? 0.18 : 0.12),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: incoming
+                ? (dark
+                    ? Colors.white.withValues(alpha: 0.060)
+                    : Colors.white.withValues(alpha: 0.80))
+                : OSColors.cyan.withValues(alpha: 0.20),
+          ),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 12.5,
+            height: 1.35,
+            color: OSColors.text(dark),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniInputBar extends StatelessWidget {
+  const _MiniInputBar({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.035)
+            : Colors.white.withValues(alpha: 0.62),
+        borderRadius: OSRadius.pillBr,
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.055)
+              : Colors.white.withValues(alpha: 0.72),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 12, color: OSColors.textMuted(dark)),
+            ),
+          ),
+          Icon(Icons.arrow_forward_rounded,
+              size: 16, color: OSColors.textMuted(dark)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlannerDayCard extends StatelessWidget {
+  const _PlannerDayCard({required this.title, required this.now});
+
+  final String title;
   final DateTime now;
 
   @override
   Widget build(BuildContext context) {
-    return _FolderPanelScaffold(
-      eyebrow: 'Today',
-      title: _formatLongDate(now),
-      subtitle: unread == 0
-          ? 'The workspace is quiet. Pull down what you need when you need it.'
-          : '$unread unread message${unread == 1 ? '' : 's'} waiting quietly.',
-      actionLabel: primaryClass == null ? 'Open Classes' : 'Open next class',
-      actionIcon: Icons.arrow_forward_rounded,
-      onAction: () => context.go(
-        primaryClass == null
-            ? AppRoutes.classes
-            : AppRoutes.osClassWorkspace(primaryClass!.classId),
+    final dark = context.isDark;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            OSColors.blue.withValues(alpha: dark ? 0.13 : 0.08),
+            Colors.white.withValues(alpha: dark ? 0.035 : 0.62),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.060)
+              : Colors.white.withValues(alpha: 0.72),
+        ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _FolderInfoRow(
-            icon: Icons.class_rounded,
-            accent: OSColors.green,
-            label: 'Next class',
-            value: primaryClass == null
-                ? 'No class pinned yet'
-                : '${primaryClass!.className} / ${primaryClass!.subject}',
+          const _PanelEyebrow(label: 'Plan'),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: OSColors.text(dark),
+            ),
           ),
-          const SizedBox(height: 10),
-          _FolderInfoRow(
-            icon: Icons.event_note_outlined,
-            accent: OSColors.amber,
-            label: 'Focus item',
-            value: primaryReminder == null
-                ? 'No pending reminders'
-                : _trimLine(primaryReminder!.text, 82),
-          ),
-          const SizedBox(height: 10),
-          _FolderInfoRow(
-            icon: Icons.check_circle_outline_rounded,
-            accent: OSColors.blue,
-            label: 'Day status',
-            value: primaryReminder == null && unread == 0
-                ? 'Ready and uncluttered'
-                : 'Signals are staged without crowding the desktop',
+          const SizedBox(height: 6),
+          Text(
+            'Check schedule before relying on imported timetable details.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              color: OSColors.textSecondary(dark),
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MiniMonthPreview extends StatelessWidget {
+  const _MiniMonthPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Container(
+      width: 132,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.032)
+            : Colors.white.withValues(alpha: 0.58),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.055)
+              : Colors.white.withValues(alpha: 0.68),
+        ),
+      ),
+      child: Column(
+        children: [
+          const _PanelEyebrow(label: 'Month'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 5,
+            runSpacing: 5,
+            children: [
+              for (int index = 0; index < 14; index++)
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: index == 5
+                        ? OSColors.amber
+                        : OSColors.textMuted(dark).withValues(alpha: 0.20),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoundPlayButton extends StatelessWidget {
+  const _RoundPlayButton({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6D5DFB), Color(0xFF22D3EE)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: OSColors.indigo.withValues(alpha: 0.18),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+    );
+  }
+}
+
+class _StationList extends StatelessWidget {
+  const _StationList({required this.stations});
+
+  final List<(String, String, Color)> stations;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Column(
+      children: [
+        for (int index = 0; index < stations.length; index++) ...[
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.032)
+                  : Colors.white.withValues(alpha: 0.58),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: stations[index].$3.withValues(alpha: 0.16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.radio_rounded, size: 18, color: stations[index].$3),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        stations[index].$1,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w900,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                      Text(
+                        stations[index].$2,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: OSColors.textSecondary(dark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (index != stations.length - 1) const SizedBox(height: 8),
+        ],
+      ],
     );
   }
 }
@@ -1057,7 +2807,7 @@ class _ClassesFolderContent extends StatelessWidget {
       title: classes.isEmpty ? 'No active classes' : 'Active class spaces',
       subtitle: classes.isEmpty
           ? 'Create a class to begin staging teaching tools.'
-          : 'Open the class workspace when you are ready to work.',
+          : 'Tap a class, or jump straight to a teaching tool.',
       actionLabel: classes.isEmpty ? 'Open Classes' : 'Open first class',
       actionIcon: Icons.class_rounded,
       onAction: () => context.go(
@@ -1074,15 +2824,220 @@ class _ClassesFolderContent extends StatelessWidget {
             const _FolderEmptyLine('Class workspaces will appear here.')
           else
             for (int index = 0; index < visible.length; index++) ...[
-              _FolderInfoRow(
-                icon: Icons.dashboard_customize_rounded,
-                accent: OSColors.green,
-                label: visible[index].className,
-                value: '${visible[index].subject} / ${visible[index].term}',
-              ),
+              _HomeQuickClassCard(classItem: visible[index], dense: true),
               if (index != visible.length - 1) const SizedBox(height: 10),
             ],
         ],
+      ),
+    );
+  }
+}
+
+class _ClassPreviewMiniAppContent extends StatelessWidget {
+  const _ClassPreviewMiniAppContent({required this.classItem});
+
+  final Class classItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final classId = classItem.classId;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                OSColors.green.withValues(alpha: dark ? 0.16 : 0.10),
+                OSColors.cyan.withValues(alpha: dark ? 0.08 : 0.06),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: OSColors.green.withValues(alpha: dark ? 0.18 : 0.14),
+            ),
+          ),
+          child: Row(
+            children: [
+              const _HomeQuickClassIcon(size: 54),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _PanelEyebrow(label: 'Class Preview'),
+                    const SizedBox(height: 6),
+                    Text(
+                      classItem.className,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 24,
+                        height: 1.0,
+                        fontWeight: FontWeight.w900,
+                        color: OSColors.text(dark),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${classItem.subject} / ${classItem.term}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: OSColors.textSecondary(dark),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _FolderActionButton(
+                label: 'Open full workspace',
+                icon: Icons.open_in_new_rounded,
+                onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _ClassPreviewAction(
+              label: 'Workspace',
+              icon: Icons.grid_view_rounded,
+              accent: OSColors.green,
+              onTap: () => context.go(AppRoutes.osClassWorkspace(classId)),
+            ),
+            _ClassPreviewAction(
+              label: 'Students',
+              icon: Icons.people_alt_outlined,
+              accent: OSColors.cyan,
+              onTap: () => context.go(AppRoutes.osClassStudents(classId)),
+            ),
+            _ClassPreviewAction(
+              label: 'Seating',
+              icon: Icons.event_seat_rounded,
+              accent: OSColors.amber,
+              onTap: () => context.go(AppRoutes.osClassSeating(classId)),
+            ),
+            _ClassPreviewAction(
+              label: 'Gradebook',
+              icon: Icons.menu_book_rounded,
+              accent: OSColors.coral,
+              onTap: () => context.go(AppRoutes.osClassGradebook(classId)),
+            ),
+            _ClassPreviewAction(
+              label: 'Schedule',
+              icon: Icons.calendar_month_outlined,
+              accent: OSColors.blue,
+              onTap: () => context.go(AppRoutes.osClassSchedule(classId)),
+            ),
+            _ClassPreviewAction(
+              label: 'Teach',
+              icon: Icons.cast_for_education_rounded,
+              accent: OSColors.indigo,
+              onTap: () {
+                context
+                    .read<GradeFlowOSController>()
+                    .setSurface(OSSurface.teach, classId: classId);
+                context.go(AppRoutes.osTeach);
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final cards = [
+              _FolderMetric(
+                label: 'Students',
+                value: 'Roster',
+                accent: OSColors.cyan,
+                onTap: () => context.go(AppRoutes.osClassStudents(classId)),
+              ),
+              _FolderMetric(
+                label: 'Seating',
+                value: 'Room',
+                accent: OSColors.amber,
+                onTap: () => context.go(AppRoutes.osClassSeating(classId)),
+              ),
+              _FolderMetric(
+                label: 'Gradebook',
+                value: 'Scores',
+                accent: OSColors.coral,
+                onTap: () => context.go(AppRoutes.osClassGradebook(classId)),
+              ),
+              _FolderMetric(
+                label: 'Schedule',
+                value: 'Plan',
+                accent: OSColors.blue,
+                onTap: () => context.go(AppRoutes.osClassSchedule(classId)),
+              ),
+            ];
+            return Wrap(spacing: 10, runSpacing: 10, children: cards);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ClassPreviewAction extends StatelessWidget {
+  const _ClassPreviewAction({
+    required this.label,
+    required this.icon,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return OSTouchFeedback(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(132, 54),
+      child: Container(
+        width: 142,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.035)
+              : Colors.white.withValues(alpha: 0.58),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: accent.withValues(alpha: 0.18)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: accent),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: OSColors.text(dark),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1104,7 +3059,7 @@ class _TasksFolderContent extends StatelessWidget {
       eyebrow: 'Tasks',
       title: reminders.isEmpty ? 'Clear for now' : 'Priority queue',
       subtitle: reminders.isEmpty
-          ? 'No reminders are waiting in the workspace.'
+          ? 'No dated reminders are asking for attention.'
           : '${reminders.length} item${reminders.length == 1 ? '' : 's'} staged from planning.',
       actionLabel: 'Open Planner',
       actionIcon: Icons.calendar_month_rounded,
@@ -1112,7 +3067,7 @@ class _TasksFolderContent extends StatelessWidget {
       child: Column(
         children: [
           if (visible.isEmpty)
-            const _FolderEmptyLine('New planning reminders will appear here.')
+            const _FolderEmptyLine('Planning lane is calm.')
           else
             for (int index = 0; index < visible.length; index++) ...[
               _FolderInfoRow(
@@ -1120,48 +3075,10 @@ class _TasksFolderContent extends StatelessWidget {
                 accent: OSColors.amber,
                 label: _relativeReminderLabel(visible[index], now),
                 value: _trimLine(visible[index].text, 90),
+                onTap: () => context.go(AppRoutes.osPlanner),
               ),
               if (index != visible.length - 1) const SizedBox(height: 10),
             ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MessagesFolderContent extends StatelessWidget {
-  const _MessagesFolderContent({required this.unread});
-
-  final int unread;
-
-  @override
-  Widget build(BuildContext context) {
-    return _FolderPanelScaffold(
-      eyebrow: 'Messages',
-      title: unread == 0
-          ? 'Inbox quiet'
-          : '$unread unread update${unread == 1 ? '' : 's'}',
-      subtitle: 'A calm preview for school communication, not a full inbox.',
-      actionLabel: 'Open Messages',
-      actionIcon: Icons.forum_rounded,
-      onAction: () => context.go(AppRoutes.communication),
-      child: Column(
-        children: [
-          _FolderInfoRow(
-            icon: Icons.mark_email_read_outlined,
-            accent: OSColors.cyan,
-            label: 'Inbox',
-            value: unread == 0
-                ? 'No unread conversations'
-                : 'Unread conversations are waiting',
-          ),
-          const SizedBox(height: 10),
-          _FolderInfoRow(
-            icon: Icons.shield_moon_outlined,
-            accent: OSColors.blue,
-            label: 'Focus mode',
-            value: 'Messages stay nearby without taking over the desktop',
-          ),
         ],
       ),
     );
@@ -1185,8 +3102,8 @@ class _InsightsFolderContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return _FolderPanelScaffold(
       eyebrow: 'Insights',
-      title: 'Teaching load overview',
-      subtitle: 'Lightweight signals only. Detailed analytics can wait.',
+      title: 'Teaching signals',
+      subtitle: 'Compact load, attention, and class health indicators.',
       actionLabel: 'Open Classes',
       actionIcon: Icons.class_rounded,
       onAction: () => context.go(AppRoutes.classes),
@@ -1195,19 +3112,29 @@ class _InsightsFolderContent extends StatelessWidget {
         runSpacing: 10,
         children: [
           _FolderMetric(
-              label: 'Classes', value: '$classCount', accent: OSColors.green),
+            label: 'Classes',
+            value: '$classCount',
+            accent: OSColors.green,
+            onTap: () => context.go(AppRoutes.classes),
+          ),
           _FolderMetric(
-              label: 'Students',
-              value: '$totalStudents',
-              accent: OSColors.cyan),
+            label: 'Students',
+            value: '$totalStudents',
+            accent: OSColors.cyan,
+            onTap: () => context.go(AppRoutes.classes),
+          ),
           _FolderMetric(
-              label: 'Messages',
-              value: unread == 0 ? 'Quiet' : '$unread',
-              accent: OSColors.blue),
+            label: 'Messages',
+            value: unread == 0 ? 'Quiet' : '$unread',
+            accent: OSColors.blue,
+            onTap: () => context.go(AppRoutes.communication),
+          ),
           _FolderMetric(
-              label: 'Tasks',
-              value: reminderCount == 0 ? 'Clear' : '$reminderCount',
-              accent: OSColors.amber),
+            label: 'Tasks',
+            value: reminderCount == 0 ? 'Clear' : '$reminderCount',
+            accent: OSColors.amber,
+            onTap: () => context.go(AppRoutes.osPlanner),
+          ),
         ],
       ),
     );
@@ -1334,18 +3261,20 @@ class _FolderInfoRow extends StatelessWidget {
     required this.accent,
     required this.label,
     required this.value,
+    this.onTap,
   });
 
   final IconData icon;
   final Color accent;
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    final row = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         color: dark
             ? Colors.white.withValues(alpha: 0.035)
@@ -1359,35 +3288,209 @@ class _FolderInfoRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 17, color: accent),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 98,
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: OSColors.text(dark),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: dark ? 0.14 : 0.10),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: accent.withValues(alpha: dark ? 0.22 : 0.16),
               ),
             ),
+            child: Icon(icon, size: 16, color: accent),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                color: OSColors.textSecondary(dark),
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: OSColors.text(dark),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: OSColors.textSecondary(dark),
+                  ),
+                ),
+              ],
             ),
+          ),
+          if (onTap != null) ...[
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: OSColors.textMuted(dark),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    if (onTap == null) return row;
+
+    return OSTouchFeedback(
+      onTap: onTap!,
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(220, 46),
+      child: row,
+    );
+  }
+}
+
+class _FolderMessagePreview extends StatelessWidget {
+  const _FolderMessagePreview({
+    required this.sender,
+    required this.snippet,
+    required this.status,
+    required this.accent,
+    required this.onTap,
+    this.unread = false,
+  });
+
+  final String sender;
+  final String snippet;
+  final String status;
+  final Color accent;
+  final VoidCallback onTap;
+  final bool unread;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final preview = Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.035)
+            : Colors.white.withValues(alpha: 0.58),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: unread
+              ? accent.withValues(alpha: 0.28)
+              : (dark
+                  ? Colors.white.withValues(alpha: 0.055)
+                  : Colors.white.withValues(alpha: 0.68)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      accent.withValues(alpha: dark ? 0.42 : 0.30),
+                      accent.withValues(alpha: dark ? 0.16 : 0.12),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Text(
+                  sender.trim().isEmpty ? '?' : sender.trim()[0],
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: dark ? Colors.white : accent,
+                  ),
+                ),
+              ),
+              if (unread)
+                Positioned(
+                  right: -1,
+                  top: -1,
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: OSColors.urgent,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: dark ? const Color(0xFF0F172A) : Colors.white,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        sender,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: unread ? accent : OSColors.textMuted(dark),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  snippet,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: OSColors.textSecondary(dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: OSColors.textMuted(dark),
           ),
         ],
       ),
+    );
+
+    return OSTouchFeedback(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(220, 54),
+      child: preview,
     );
   }
 }
@@ -1397,16 +3500,18 @@ class _FolderMetric extends StatelessWidget {
     required this.label,
     required this.value,
     required this.accent,
+    this.onTap,
   });
 
   final String label;
   final String value;
   final Color accent;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    return Container(
+    final metric = Container(
       width: 132,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1438,6 +3543,15 @@ class _FolderMetric extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (onTap == null) return metric;
+
+    return OSTouchFeedback(
+      onTap: onTap!,
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(132, 72),
+      child: metric,
     );
   }
 }
@@ -1500,7 +3614,46 @@ class _HomeStackedLayout extends StatefulWidget {
 }
 
 class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
-  _HomeWorkspaceFolder? _selectedFolder;
+  static const String _miniAppTapRegionGroup = 'home-mini-app-stacked';
+  _HomeMiniApp? _selectedMiniApp;
+  Class? _selectedClassPreview;
+
+  void _closeMiniApp() {
+    if (_selectedMiniApp != null) {
+      setState(() {
+        _selectedMiniApp = null;
+        _selectedClassPreview = null;
+      });
+    }
+  }
+
+  void _openMiniApp(_HomeMiniApp app) {
+    setState(() {
+      _selectedMiniApp = app;
+      if (app != _HomeMiniApp.classes) {
+        _selectedClassPreview = null;
+      }
+    });
+  }
+
+  // Reserved for stacked class previews if quick classes move into compact home.
+  // ignore: unused_element
+  void _openClassPreview(Class classItem) {
+    setState(() {
+      _selectedMiniApp = _HomeMiniApp.classes;
+      _selectedClassPreview = classItem;
+    });
+  }
+
+  void _toggleFolder(_HomeWorkspaceFolder folder) {
+    final app = _miniAppForFolder(folder);
+    setState(() {
+      _selectedMiniApp = _selectedMiniApp == app ? null : app;
+      if (app != _HomeMiniApp.classes || _selectedMiniApp == null) {
+        _selectedClassPreview = null;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1534,60 +3687,65 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
             reminderCount: widget.reminders.length,
             now: widget.now,
             compact: true,
-            onAssistantTap: widget.onAssistantTap,
-            onLauncherTap: widget.onLauncherTap,
+            onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+            onPlannerTap: () => _openMiniApp(_HomeMiniApp.agenda),
+            onClassesTap: () => _openMiniApp(_HomeMiniApp.classes),
           ),
         ),
         const SizedBox(height: 14),
         _HomeWorkspaceFolderStrip(
-          selected: _selectedFolder,
+          selected: _folderForMiniApp(_selectedMiniApp),
           classCount: widget.classes.length,
           reminderCount: widget.reminders.length,
           unread: widget.unread,
-          onSelected: (folder) => setState(() {
-            _selectedFolder = _selectedFolder == folder ? null : folder;
-          }),
+          onSelected: _toggleFolder,
         ),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 240),
           switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          child: _selectedFolder == null
-              ? const SizedBox.shrink(key: ValueKey('workspace-closed'))
-              : Padding(
-                  key: ValueKey(_selectedFolder),
-                  padding: const EdgeInsets.only(top: 14),
-                  child: _HomeWorkspaceFolderPanel(
-                    folder: _selectedFolder!,
-                    primaryClass: widget.primaryClass,
-                    classes: widget.classes,
-                    reminders: widget.reminders,
-                    unread: widget.unread,
-                    totalStudents: widget.totalStudents,
-                    now: widget.now,
+          switchOutCurve: Curves.easeInOut,
+          transitionBuilder: _homeFolderTransition,
+          child: _selectedMiniApp == null
+              ? const Padding(
+                  key: ValueKey('workspace-closed'),
+                  padding: EdgeInsets.only(top: 14),
+                  child: _HomeCalmWorkspaceFloor(),
+                )
+              : TapRegion(
+                  groupId: _miniAppTapRegionGroup,
+                  onTapOutside: (_) => _closeMiniApp(),
+                  child: Padding(
+                    key: ValueKey(_selectedMiniApp),
+                    padding: const EdgeInsets.only(top: 14),
+                    child: _HomeMiniAppWindow(
+                      app: _selectedMiniApp!,
+                      primaryClass: widget.primaryClass,
+                      classes: widget.classes,
+                      reminders: widget.reminders,
+                      unread: widget.unread,
+                      totalStudents: widget.totalStudents,
+                      now: widget.now,
+                      selectedClass: _selectedClassPreview,
+                      onClose: _closeMiniApp,
+                    ),
                   ),
                 ),
         ),
         const SizedBox(height: 16),
         _HomeShortcutShelf(
           unread: widget.unread,
-          themeMode: widget.themeMode,
-          onAssistantTap: widget.onAssistantTap,
           onLauncherTap: widget.onLauncherTap,
-          onThemeTap: widget.onThemeTap,
+          onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
         ),
         const SizedBox(height: 16),
         _HomeUtilityRail(
           unread: widget.unread,
+          reminders: widget.reminders,
           reminderCount: widget.reminders.length,
-          children: [
-            const _HomeWeatherPanel(embedded: true),
-            _HomeAgendaPanel(
-              reminders: widget.reminders,
-              scrollable: false,
-              embedded: true,
-            ),
-          ],
+          onAudioTap: () => _openMiniApp(_HomeMiniApp.audio),
+          onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+          onAgendaTap: () => _openMiniApp(_HomeMiniApp.agenda),
+          onWeatherTap: () => _openMiniApp(_HomeMiniApp.weather),
         ),
         const SizedBox(height: 112),
       ],
@@ -1657,6 +3815,159 @@ extension _HomeWallpaperStyleX on _HomeWallpaperStyle {
   }
 }
 
+enum _HomeReadabilityPreset {
+  clear,
+  balanced,
+  focus,
+  highContrast,
+}
+
+extension _HomeReadabilityPresetX on _HomeReadabilityPreset {
+  String get id {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 'clear';
+      case _HomeReadabilityPreset.balanced:
+        return 'balanced';
+      case _HomeReadabilityPreset.focus:
+        return 'focus';
+      case _HomeReadabilityPreset.highContrast:
+        return 'high_contrast';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 'Clear';
+      case _HomeReadabilityPreset.balanced:
+        return 'Balanced';
+      case _HomeReadabilityPreset.focus:
+        return 'Focus';
+      case _HomeReadabilityPreset.highContrast:
+        return 'High Contrast';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return Icons.visibility_outlined;
+      case _HomeReadabilityPreset.balanced:
+        return Icons.tonality_outlined;
+      case _HomeReadabilityPreset.focus:
+        return Icons.center_focus_strong_outlined;
+      case _HomeReadabilityPreset.highContrast:
+        return Icons.contrast_rounded;
+    }
+  }
+
+  double wallpaperScrimAlpha(bool dark, bool hasImage) {
+    if (hasImage) {
+      switch (this) {
+        case _HomeReadabilityPreset.clear:
+          return dark ? 0.26 : 0.12;
+        case _HomeReadabilityPreset.balanced:
+          return dark ? 0.42 : 0.28;
+        case _HomeReadabilityPreset.focus:
+          return dark ? 0.56 : 0.40;
+        case _HomeReadabilityPreset.highContrast:
+          return dark ? 0.70 : 0.56;
+      }
+    }
+
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return dark ? 0.00 : 0.00;
+      case _HomeReadabilityPreset.balanced:
+        return dark ? 0.03 : 0.02;
+      case _HomeReadabilityPreset.focus:
+        return dark ? 0.09 : 0.06;
+      case _HomeReadabilityPreset.highContrast:
+        return dark ? 0.16 : 0.12;
+    }
+  }
+
+  double get wallpaperBlurSigma {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 0;
+      case _HomeReadabilityPreset.balanced:
+        return 0;
+      case _HomeReadabilityPreset.focus:
+        return 1.2;
+      case _HomeReadabilityPreset.highContrast:
+        return 2.0;
+    }
+  }
+
+  double get glassBlend {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 0;
+      case _HomeReadabilityPreset.balanced:
+        return 0.02;
+      case _HomeReadabilityPreset.focus:
+        return 0.12;
+      case _HomeReadabilityPreset.highContrast:
+        return 0.24;
+    }
+  }
+
+  double get blurMultiplier {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 0.86;
+      case _HomeReadabilityPreset.balanced:
+        return 1.0;
+      case _HomeReadabilityPreset.focus:
+        return 1.14;
+      case _HomeReadabilityPreset.highContrast:
+        return 1.28;
+    }
+  }
+
+  double get borderBoost {
+    switch (this) {
+      case _HomeReadabilityPreset.clear:
+        return 0;
+      case _HomeReadabilityPreset.balanced:
+        return 0.02;
+      case _HomeReadabilityPreset.focus:
+        return 0.08;
+      case _HomeReadabilityPreset.highContrast:
+        return 0.15;
+    }
+  }
+
+  static _HomeReadabilityPreset fromId(String? id) {
+    for (final preset in _HomeReadabilityPreset.values) {
+      if (preset.id == id) return preset;
+    }
+    return _HomeReadabilityPreset.balanced;
+  }
+}
+
+class _HomeReadabilityScope extends InheritedWidget {
+  const _HomeReadabilityScope({
+    required this.preset,
+    required super.child,
+  });
+
+  final _HomeReadabilityPreset preset;
+
+  static _HomeReadabilityPreset of(BuildContext context) {
+    final scope =
+        context.dependOnInheritedWidgetOfExactType<_HomeReadabilityScope>();
+    return scope?.preset ?? _HomeReadabilityPreset.balanced;
+  }
+
+  @override
+  bool updateShouldNotify(covariant _HomeReadabilityScope oldWidget) {
+    return oldWidget.preset != preset;
+  }
+}
+
 class _WallpaperChoiceChip extends StatelessWidget {
   const _WallpaperChoiceChip({
     required this.label,
@@ -1694,14 +4005,58 @@ class _WallpaperChoiceChip extends StatelessWidget {
   }
 }
 
+class _ReadabilityPresetChip extends StatelessWidget {
+  const _ReadabilityPresetChip({
+    required this.preset,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _HomeReadabilityPreset preset;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = switch (preset) {
+      _HomeReadabilityPreset.clear => OSColors.cyan,
+      _HomeReadabilityPreset.balanced => OSColors.blue,
+      _HomeReadabilityPreset.focus => OSColors.indigo,
+      _HomeReadabilityPreset.highContrast => OSColors.amber,
+    };
+
+    return ChoiceChip(
+      label: Text(preset.label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      avatar: Icon(
+        selected ? Icons.check_rounded : preset.icon,
+        size: 17,
+        color: selected ? Colors.white : accent,
+      ),
+      selectedColor: accent,
+      labelStyle: TextStyle(
+        color:
+            selected ? Colors.white : Theme.of(context).colorScheme.onSurface,
+        fontWeight: FontWeight.w800,
+      ),
+      side: BorderSide(
+        color: selected ? accent : Theme.of(context).colorScheme.outlineVariant,
+      ),
+    );
+  }
+}
+
 class _HomeBackdrop extends StatelessWidget {
   const _HomeBackdrop({
     required this.style,
     required this.imageBytes,
+    required this.readability,
   });
 
   final _HomeWallpaperStyle style;
   final Uint8List? imageBytes;
+  final _HomeReadabilityPreset readability;
 
   @override
   Widget build(BuildContext context) {
@@ -1725,19 +4080,41 @@ class _HomeBackdrop extends StatelessWidget {
         ),
         if (useImage)
           Positioned.fill(
-            child: Image.memory(
-              imageBytes!,
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.high,
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(
+                sigmaX: readability.wallpaperBlurSigma,
+                sigmaY: readability.wallpaperBlurSigma,
+              ),
+              child: Image.memory(
+                imageBytes!,
+                fit: BoxFit.cover,
+                filterQuality: FilterQuality.high,
+              ),
             ),
           ),
-        if (useImage)
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: (dark ? Colors.black : Colors.white).withValues(
+                alpha: readability.wallpaperScrimAlpha(dark, useImage),
+              ),
+            ),
+          ),
+        ),
+        if (useImage && readability != _HomeReadabilityPreset.clear)
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: dark
-                    ? Colors.black.withValues(alpha: 0.42)
-                    : Colors.white.withValues(alpha: 0.28),
+                gradient: RadialGradient(
+                  center: const Alignment(-0.28, -0.74),
+                  radius: 1.05,
+                  colors: [
+                    (dark ? OSColors.blue : Colors.white).withValues(
+                      alpha: dark ? 0.12 : 0.24,
+                    ),
+                    Colors.transparent,
+                  ],
+                ),
               ),
             ),
           ),
@@ -2098,7 +4475,7 @@ class _HomeSystemStrip extends StatelessWidget {
                       Text(
                         teacherName.isEmpty
                             ? schoolName
-                            : '$teacherName · $schoolName',
+                            : '$teacherName Ãƒâ€šÃ‚Â· $schoolName',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -2406,8 +4783,9 @@ class _HomeStagePanel extends StatelessWidget {
     required this.reminderCount,
     required this.now,
     required this.compact,
-    required this.onAssistantTap,
-    required this.onLauncherTap,
+    required this.onMessagesTap,
+    required this.onPlannerTap,
+    required this.onClassesTap,
   });
 
   final String teacherName;
@@ -2420,8 +4798,9 @@ class _HomeStagePanel extends StatelessWidget {
   final int reminderCount;
   final DateTime now;
   final bool compact;
-  final VoidCallback onAssistantTap;
-  final VoidCallback onLauncherTap;
+  final VoidCallback onMessagesTap;
+  final VoidCallback onPlannerTap;
+  final VoidCallback onClassesTap;
 
   @override
   Widget build(BuildContext context) {
@@ -2441,50 +4820,10 @@ class _HomeStagePanel extends StatelessWidget {
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
-    final actions = [
-      _StageActionData(
-        label: 'Teach',
-        icon: Icons.cast_for_education_rounded,
-        accent: OSColors.blue,
-        filled: true,
-        onTap: () => context.go(AppRoutes.osTeach),
-      ),
-      _StageActionData(
-        label: 'Planner',
-        icon: Icons.calendar_month_rounded,
-        accent: OSColors.amber,
-        onTap: () => context.go(AppRoutes.osPlanner),
-      ),
-      _StageActionData(
-        label: 'Classes',
-        icon: Icons.class_rounded,
-        accent: OSColors.green,
-        onTap: () => context.go(AppRoutes.classes),
-      ),
-      _StageActionData(
-        label: unread == 0 ? 'Messages' : 'Messages $unread',
-        icon: Icons.forum_rounded,
-        accent: OSColors.cyan,
-        onTap: () => context.go(AppRoutes.communication),
-      ),
-      _StageActionData(
-        label: 'Assistant',
-        icon: Icons.auto_awesome_rounded,
-        accent: OSColors.indigo,
-        onTap: onAssistantTap,
-      ),
-      _StageActionData(
-        label: 'Launcher',
-        icon: Icons.grid_view_rounded,
-        accent: OSColors.amber,
-        onTap: onLauncherTap,
-      ),
-    ];
-
     return _GlassPanel(
       tone: _HomePanelTone.stage,
       radius: compact ? WorkspaceRadius.shellCompact : WorkspaceRadius.shell,
-      padding: EdgeInsets.all(compact ? 22 : 20),
+      padding: EdgeInsets.all(compact ? 22 : 16),
       gradient: stageGradient,
       child: compact
           ? SingleChildScrollView(
@@ -2560,11 +4899,7 @@ class _HomeStagePanel extends StatelessWidget {
                         detail: primaryClass == null
                             ? 'Open Classes to start your first workspace.'
                             : primaryClass!.subject,
-                        onTap: primaryClass == null
-                            ? null
-                            : () => context.go(
-                                  '${AppRoutes.osClass}/${primaryClass!.classId}',
-                                ),
+                        onTap: primaryClass == null ? onClassesTap : null,
                       ),
                       const SizedBox(height: 12),
                       _StageSpotlightTile(
@@ -2577,12 +4912,10 @@ class _HomeStagePanel extends StatelessWidget {
                         detail: primaryReminder == null
                             ? 'Your day is currently clear.'
                             : _trimLine(primaryReminder!.text, 88),
-                        onTap: () => context.go(AppRoutes.osPlanner),
+                        onTap: onPlannerTap,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  _StageActionCarousel(actions: actions),
                 ],
               ),
             )
@@ -2594,7 +4927,9 @@ class _HomeStagePanel extends StatelessWidget {
               classCount: classCount,
               unread: unread,
               now: now,
-              actions: actions,
+              onMessagesTap: onMessagesTap,
+              onPlannerTap: onPlannerTap,
+              onClassesTap: onClassesTap,
             ),
     );
   }
@@ -2609,7 +4944,9 @@ class _DesktopStageShell extends StatelessWidget {
     required this.classCount,
     required this.unread,
     required this.now,
-    required this.actions,
+    required this.onMessagesTap,
+    required this.onPlannerTap,
+    required this.onClassesTap,
   });
 
   final String teacherName;
@@ -2619,107 +4956,143 @@ class _DesktopStageShell extends StatelessWidget {
   final int classCount;
   final int unread;
   final DateTime now;
-  final List<_StageActionData> actions;
+  final VoidCallback onMessagesTap;
+  final VoidCallback onPlannerTap;
+  final VoidCallback onClassesTap;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final signal = primaryReminder != null
+        ? _relativeReminderLabel(primaryReminder!, now)
+        : unread > 0
+            ? '$unread unread'
+            : 'Quiet';
+    final needsAttention = primaryReminder != null || unread > 0;
+    final primaryActionLabel = unread > 0
+        ? 'Messages'
+        : primaryClass != null
+            ? 'Classes'
+            : 'Planner';
+    final primaryActionIcon = unread > 0
+        ? Icons.forum_rounded
+        : primaryClass != null
+            ? Icons.arrow_forward_rounded
+            : Icons.calendar_month_rounded;
+    final primaryAction = unread > 0
+        ? onMessagesTap
+        : primaryClass != null
+            ? onClassesTap
+            : onPlannerTap;
+    // TODO: Reconnect Now/Next state after timetable import reliability is fixed.
+    final commandTitle = primaryReminder != null
+        ? 'Planner needs review'
+        : unread > 0
+            ? 'Messages need review'
+            : primaryClass == null
+                ? 'Check today\'s schedule'
+                : 'Class workspace ready';
+    final commandDetail = primaryReminder != null
+        ? _trimLine(primaryReminder!.text, 84)
+        : unread > 0
+            ? 'Open conversations before the next handoff.'
+            : primaryClass == null
+                ? 'Review schedule in Planner.'
+                : '${primaryClass!.className} / ${primaryClass!.subject}';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          children: [
-            const _PanelEyebrow(label: 'Command Center'),
-            const Spacer(),
-            _StageStatusChip(
-              text: classCount == 0
-                  ? 'No active classes'
-                  : '$classCount active classes',
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+        SizedBox(
+          width: 152,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 245,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _formatClock(now),
-                        style: TextStyle(
-                          fontSize: 56,
-                          height: 0.88,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0,
-                          color: OSColors.text(dark),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _formatLongDate(now),
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: OSColors.textSecondary(dark),
-                      ),
-                    ),
-                  ],
+              const _PanelEyebrow(label: 'Command Center'),
+              const SizedBox(height: 7),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _formatClock(now),
+                  style: TextStyle(
+                    fontSize: 34,
+                    height: 0.9,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                    color: OSColors.text(dark),
+                  ),
                 ),
               ),
-              const SizedBox(width: 24),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _stageHeadline(teacherName, primaryClass),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 25,
-                        height: 1.05,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0,
-                        color: OSColors.text(dark),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _stageSupportLine(
-                        primaryClass: primaryClass,
-                        primaryReminder: primaryReminder,
-                        classCount: classCount,
-                        unread: unread,
-                        schoolName: schoolName,
-                        now: now,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.42,
-                        color: OSColors.textSecondary(dark),
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 5),
+              Text(
+                _formatDateLine(now),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: OSColors.textSecondary(dark),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 10),
-        _StageActionCarousel(actions: actions),
+        const SizedBox(width: 18),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _StageStatusChip(text: signal),
+                  const SizedBox(width: 8),
+                  _StageStatusChip(
+                    text: classCount == 0
+                        ? 'No active classes'
+                        : '$classCount classes',
+                  ),
+                  if (needsAttention) ...[
+                    const SizedBox(width: 8),
+                    const _StageStatusChip(text: 'Attention'),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 9),
+              Text(
+                commandTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 19,
+                  height: 1.05,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                  color: OSColors.text(dark),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                commandDetail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.35,
+                  color: OSColors.textSecondary(dark),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        _FolderActionButton(
+          label: primaryActionLabel,
+          icon: primaryActionIcon,
+          onTap: primaryAction,
+        ),
       ],
     );
   }
@@ -2753,66 +5126,6 @@ class _StageStatusChip extends StatelessWidget {
           context,
           color: OSColors.textSecondary(dark),
         )?.copyWith(fontSize: 11),
-      ),
-    );
-  }
-}
-
-class _StageActionData {
-  const _StageActionData({
-    required this.label,
-    required this.icon,
-    required this.accent,
-    required this.onTap,
-    this.filled = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color accent;
-  final VoidCallback onTap;
-  final bool filled;
-}
-
-class _StageActionCarousel extends StatelessWidget {
-  const _StageActionCarousel({required this.actions});
-
-  final List<_StageActionData> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (rect) {
-        return LinearGradient(
-          colors: [
-            Colors.transparent,
-            Colors.black,
-            Colors.black,
-            Colors.transparent,
-          ],
-          stops: const [0.0, 0.04, 0.92, 1.0],
-        ).createShader(rect);
-      },
-      blendMode: BlendMode.dstIn,
-      child: SizedBox(
-        height: 44,
-        child: ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: actions.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 9),
-          itemBuilder: (context, index) {
-            final action = actions[index];
-            return _StageActionButton(
-              label: action.label,
-              icon: action.icon,
-              accent: action.accent,
-              filled: action.filled,
-              onTap: action.onTap,
-            );
-          },
-        ),
       ),
     );
   }
@@ -2923,151 +5236,60 @@ class _StageSpotlightTile extends StatelessWidget {
   }
 }
 
-class _StageActionButton extends StatelessWidget {
-  const _StageActionButton({
-    required this.label,
-    required this.icon,
-    required this.accent,
-    required this.onTap,
-    this.filled = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color accent;
-  final VoidCallback onTap;
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-
-    return OSTouchFeedback(
-      onTap: onTap,
-      borderRadius: OSRadius.pillBr,
-      minSize: const Size(104, 36),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-        decoration: BoxDecoration(
-          gradient: filled
-              ? LinearGradient(
-                  colors: [accent, accent.withValues(alpha: 0.72)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: filled
-              ? null
-              : (dark
-                  ? Colors.white.withValues(alpha: 0.04)
-                  : Colors.white.withValues(alpha: 0.50)),
-          borderRadius: OSRadius.pillBr,
-          border: Border.all(
-            color: filled
-                ? Colors.white.withValues(alpha: 0.08)
-                : (dark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : Colors.white.withValues(alpha: 0.56)),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: filled ? Colors.white : accent,
-            ),
-            const SizedBox(width: 7),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: filled ? Colors.white : OSColors.text(dark),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _HomeShortcutShelf extends StatelessWidget {
   const _HomeShortcutShelf({
     required this.unread,
-    required this.themeMode,
-    required this.onAssistantTap,
     required this.onLauncherTap,
-    required this.onThemeTap,
+    required this.onMessagesTap,
     this.compact = false,
   });
 
   final int unread;
-  final ThemeMode themeMode;
-  final VoidCallback onAssistantTap;
   final VoidCallback onLauncherTap;
-  final VoidCallback onThemeTap;
+  final VoidCallback onMessagesTap;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final showLauncher = MediaQuery.sizeOf(context).width < 560;
     final shortcuts = <_HomeShortcutData>[
       _shortcutFromApp(OSAppId.teach,
           onTap: () => context.go(AppRoutes.osTeach)),
-      _shortcutFromApp(OSAppId.planner,
-          onTap: () => context.go(AppRoutes.osPlanner)),
-      _shortcutFromApp(OSAppId.classes,
-          onTap: () => context.go(AppRoutes.classes)),
       _shortcutFromApp(
         OSAppId.whiteboard,
         onTap: () => context.push(AppRoutes.whiteboard),
       ),
       _shortcutFromApp(
         OSAppId.messages,
-        onTap: () => context.go(AppRoutes.communication),
+        onTap: onMessagesTap,
         badge: unread > 0 ? '$unread' : null,
       ),
-      _HomeShortcutData(
-        label: 'Assistant',
-        icon: Icons.auto_awesome_rounded,
-        accent: OSColors.indigo,
-        onTap: onAssistantTap,
-      ),
-      _HomeShortcutData(
-        label: 'Launcher',
-        icon: Icons.grid_view_rounded,
-        accent: OSColors.amber,
-        onTap: onLauncherTap,
-      ),
-      _HomeShortcutData(
-        label: themeMode == ThemeMode.light ? 'Dark mode' : 'Light mode',
-        icon: themeMode == ThemeMode.light
-            ? Icons.dark_mode_rounded
-            : Icons.light_mode_rounded,
-        accent: OSColors.blue,
-        onTap: onThemeTap,
-      ),
+      if (showLauncher)
+        _HomeShortcutData(
+          label: 'Launcher',
+          icon: Icons.grid_view_rounded,
+          accent: OSColors.amber,
+          onTap: onLauncherTap,
+        ),
     ];
 
     return _GlassPanel(
       tone: _HomePanelTone.whisper,
       radius: compact ? 24 : 28,
-      padding: EdgeInsets.all(compact ? 13 : 16),
+      padding: EdgeInsets.all(compact ? 12 : 16),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final tileWidth = compact ? 72.0 : 82.0;
+          final tileWidth = compact ? 64.0 : 82.0;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const _PanelEyebrow(label: 'Pinned Apps'),
-              SizedBox(height: compact ? 6 : 8),
+              SizedBox(height: compact ? 5 : 8),
               Text(
                 'Quick launch',
                 style: TextStyle(
-                  fontSize: compact ? 15.5 : 17,
+                  fontSize: compact ? 14.5 : 17,
                   fontWeight: FontWeight.w800,
                   color: OSColors.text(context.isDark),
                 ),
@@ -3083,9 +5305,9 @@ class _HomeShortcutShelf extends StatelessWidget {
                   ),
                 ),
               ],
-              SizedBox(height: compact ? 11 : 14),
+              SizedBox(height: compact ? 9 : 14),
               SizedBox(
-                height: compact ? 86 : 96,
+                height: compact ? 72 : 96,
                 child: ShaderMask(
                   shaderCallback: (rect) {
                     return LinearGradient(
@@ -3107,7 +5329,7 @@ class _HomeShortcutShelf extends StatelessWidget {
                       return _HomeShortcutIcon(
                         data: shortcuts[index],
                         width: tileWidth,
-                        iconBoxSize: compact ? 50 : 58,
+                        iconBoxSize: compact ? 44 : 58,
                       );
                     },
                   ),
@@ -3166,6 +5388,7 @@ class _HomeShortcutIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final compact = iconBoxSize <= 44;
 
     return OSTouchFeedback(
       onTap: data.onTap,
@@ -3226,14 +5449,14 @@ class _HomeShortcutIcon extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 7),
+            SizedBox(height: compact ? 5 : 7),
             Text(
               data.label,
               textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: compact ? 1 : 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: compact ? 10.5 : 11,
                 height: 1.2,
                 fontWeight: FontWeight.w600,
                 color: OSColors.textSecondary(dark),
@@ -3247,9 +5470,10 @@ class _HomeShortcutIcon extends StatelessWidget {
 }
 
 class _HomeWeatherPanel extends StatefulWidget {
-  const _HomeWeatherPanel({this.embedded = false});
+  const _HomeWeatherPanel({this.embedded = false, this.onTap});
 
   final bool embedded;
+  final VoidCallback? onTap;
 
   @override
   State<_HomeWeatherPanel> createState() => _HomeWeatherPanelState();
@@ -3272,61 +5496,115 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
         final hasError = snapshot.hasError && data == null;
         final forecast =
             data?.forecast.take(2).toList() ?? const <DashboardForecastDay>[];
+        final mood = _weatherMood(data?.weatherCode, DateTime.now(), dark);
+        final textOnWeather = _weatherTextColor(mood, dark);
+        final mutedOnWeather = _weatherMutedTextColor(mood, dark);
+        final iconOnWeather = _weatherAccentColor(mood, dark);
 
+        final tempLabel = hasError
+            ? '--'
+            : loading
+                ? '--'
+                : '${data!.temperatureC.round()}°';
+        final conditionLabel = hasError
+            ? 'Forecast unavailable'
+            : loading
+                ? 'Checking forecast'
+                : _weatherLabel(data!.weatherCode);
+        final locationLabel = hasError
+            ? 'Weather will return when the network responds.'
+            : loading
+                ? 'Taichung City'
+                : '${data!.locationName} / feels like ${data.apparentTempC.round()}°';
+
+        final gap = widget.embedded ? 10.0 : 18.0;
+        final tempSize = widget.embedded ? 38.0 : 46.0;
         final content = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                const Expanded(
-                  child: _PanelEyebrow(label: 'Local Conditions'),
+                Expanded(
+                  child: Text(
+                    'Local conditions'.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: WorkspaceTypography.eyebrow(context)?.copyWith(
+                      color: textOnWeather.withValues(alpha: 0.72),
+                    ),
+                  ),
                 ),
                 Icon(
                   data == null
                       ? Icons.cloud_queue_rounded
                       : _weatherIcon(data.weatherCode),
-                  color: OSColors.blue,
-                  size: 20,
+                  color: iconOnWeather.withValues(alpha: 0.96),
+                  size: 24,
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              hasError
-                  ? 'Forecast unavailable'
-                  : loading
-                      ? 'Checking forecast'
-                      : '${data!.temperatureC.round()} C ${_weatherLabel(data.weatherCode)}',
-              style: TextStyle(
-                fontSize: 18,
-                height: 1.1,
-                fontWeight: FontWeight.w800,
-                color: OSColors.text(dark),
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              hasError
-                  ? 'Weather will return when the network responds.'
-                  : loading
-                      ? 'Taichung City'
-                      : '${data!.locationName} - feels like ${data.apparentTempC.round()} C',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.4,
-                color: OSColors.textSecondary(dark),
-              ),
+            SizedBox(height: gap),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  tempLabel,
+                  style: TextStyle(
+                    fontSize: tempSize,
+                    height: 0.92,
+                    fontWeight: FontWeight.w900,
+                    color: textOnWeather,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          conditionLabel,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 17,
+                            height: 1.08,
+                            fontWeight: FontWeight.w900,
+                            color: textOnWeather,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          locationLabel,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            height: 1.25,
+                            fontWeight: FontWeight.w600,
+                            color: mutedOnWeather,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (forecast.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: widget.embedded ? 12 : 18),
               Row(
                 children: [
                   for (int index = 0; index < forecast.length; index++) ...[
                     if (index > 0) const SizedBox(width: 8),
                     Expanded(
-                      child: _WeatherForecastTile(day: forecast[index]),
+                      child: _WeatherForecastTile(
+                        day: forecast[index],
+                        textColor: textOnWeather,
+                        mutedColor: mutedOnWeather,
+                        iconColor: iconOnWeather,
+                      ),
                     ),
                   ],
                 ],
@@ -3334,23 +5612,220 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
             ],
           ],
         );
-        return widget.embedded
-            ? _RailSection(child: content)
-            : _GlassPanel(
-                tone: _HomePanelTone.whisper,
-                radius: 28,
-                padding: const EdgeInsets.all(16),
-                child: content,
-              );
+        final frame = _WeatherWidgetFrame(
+          mood: mood,
+          embedded: widget.embedded,
+          child: content,
+        );
+        if (widget.onTap == null) return frame;
+        return OSTouchFeedback(
+          onTap: widget.onTap!,
+          borderRadius: BorderRadius.circular(widget.embedded ? 24 : 28),
+          minSize: Size(180, widget.embedded ? 166 : 220),
+          child: frame,
+        );
       },
     );
   }
 }
 
+enum _WeatherMood { rain, cloudy, sunny, night }
+
+class _WeatherWidgetFrame extends StatelessWidget {
+  const _WeatherWidgetFrame({
+    required this.mood,
+    required this.embedded,
+    required this.child,
+  });
+
+  final _WeatherMood mood;
+  final bool embedded;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final radius = BorderRadius.circular(embedded ? 24 : 28);
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: embedded ? 164 : 220),
+      child: Container(
+        padding: EdgeInsets.all(embedded ? 12 : 16),
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: LinearGradient(
+            colors: _weatherGradient(mood, dark),
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: dark ? 0.12 : 0.54),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _weatherAccentColor(mood, dark).withValues(
+                alpha: dark ? 0.18 : 0.16,
+              ),
+              blurRadius: 30,
+              offset: const Offset(0, 15),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _WeatherAtmospherePainter(
+                    mood: mood,
+                    dark: dark,
+                  ),
+                ),
+              ),
+              child,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WeatherAtmospherePainter extends CustomPainter {
+  const _WeatherAtmospherePainter({
+    required this.mood,
+    required this.dark,
+  });
+
+  final _WeatherMood mood;
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final softGlow = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          _weatherAccentColor(mood, dark).withValues(alpha: dark ? 0.20 : 0.26),
+          Colors.transparent,
+        ],
+      ).createShader(
+        Rect.fromCircle(
+          center: Offset(size.width * .82, size.height * .10),
+          radius: size.width * .62,
+        ),
+      );
+    canvas.drawCircle(
+      Offset(size.width * .82, size.height * .10),
+      size.width * .62,
+      softGlow,
+    );
+
+    final paint = Paint()..style = PaintingStyle.stroke;
+    if (mood == _WeatherMood.rain) {
+      final mist = Paint()
+        ..shader = LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: dark ? 0.02 : 0.10),
+            Colors.white.withValues(alpha: dark ? 0.10 : 0.22),
+            Colors.transparent,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ).createShader(Offset.zero & size);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(size.width * .42, 6, size.width * .65, size.height),
+          const Radius.circular(28),
+        ),
+        mist,
+      );
+      paint
+        ..color = Colors.white.withValues(alpha: dark ? 0.15 : 0.26)
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round;
+      for (double x = 4; x < size.width + 24; x += 18) {
+        canvas.drawLine(
+          Offset(x, 2),
+          Offset(x - 16, size.height - 4),
+          paint,
+        );
+      }
+      return;
+    }
+
+    if (mood == _WeatherMood.cloudy) {
+      final fill = Paint()
+        ..style = PaintingStyle.fill
+        ..color = Colors.white.withValues(alpha: dark ? 0.075 : 0.26);
+      canvas.drawOval(
+          Rect.fromLTWH(size.width * .46, 4, size.width * .70, 64), fill);
+      canvas.drawOval(
+          Rect.fromLTWH(size.width * .30, 28, size.width * .72, 82), fill);
+      canvas.drawOval(
+          Rect.fromLTWH(size.width * .64, 54, size.width * .48, 58), fill);
+      return;
+    }
+
+    if (mood == _WeatherMood.night) {
+      final moon = Paint()
+        ..color = Colors.white.withValues(alpha: dark ? 0.26 : 0.22);
+      canvas.drawCircle(Offset(size.width * .84, size.height * .14), 22, moon);
+      final cutout = Paint()
+        ..color = const Color(0xFF0B1F3A).withValues(alpha: 0.76);
+      canvas.drawCircle(
+        Offset(size.width * .91, size.height * .10),
+        20,
+        cutout,
+      );
+      final star = Paint()
+        ..style = PaintingStyle.fill
+        ..color = Colors.white.withValues(alpha: 0.32);
+      for (final offset in [
+        Offset(size.width * .18, size.height * .16),
+        Offset(size.width * .34, size.height * .30),
+        Offset(size.width * .72, size.height * .40),
+      ]) {
+        canvas.drawCircle(offset, 1.4, star);
+      }
+      return;
+    }
+
+    final sun = Paint()
+      ..color = Colors.white.withValues(
+        alpha: mood == _WeatherMood.night ? 0.16 : 0.34,
+      );
+    canvas.drawCircle(Offset(size.width * .86, size.height * .14), 28, sun);
+    paint
+      ..color = Colors.white.withValues(alpha: dark ? 0.07 : 0.18)
+      ..strokeWidth = 1;
+    canvas.drawArc(
+      Rect.fromLTWH(size.width * .52, size.height * .52, size.width * .64, 80),
+      3.35,
+      1.7,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _WeatherAtmospherePainter oldDelegate) {
+    return mood != oldDelegate.mood || dark != oldDelegate.dark;
+  }
+}
+
 class _WeatherForecastTile extends StatelessWidget {
-  const _WeatherForecastTile({required this.day});
+  const _WeatherForecastTile({
+    required this.day,
+    required this.textColor,
+    required this.mutedColor,
+    required this.iconColor,
+  });
 
   final DashboardForecastDay day;
+  final Color textColor;
+  final Color mutedColor;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -3360,19 +5835,17 @@ class _WeatherForecastTile extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: dark
-            ? Colors.white.withValues(alpha: 0.04)
-            : Colors.white.withValues(alpha: 0.64),
+            ? Colors.white.withValues(alpha: 0.075)
+            : Colors.white.withValues(alpha: 0.30),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: dark
-              ? Colors.white.withValues(alpha: 0.06)
-              : Colors.white.withValues(alpha: 0.70),
+          color: Colors.white.withValues(alpha: dark ? 0.10 : 0.40),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(_weatherIcon(day.weatherCode), size: 16, color: OSColors.blue),
+          Icon(_weatherIcon(day.weatherCode), size: 16, color: iconColor),
           const SizedBox(height: 8),
           Text(
             _formatDateLine(day.date),
@@ -3381,7 +5854,7 @@ class _WeatherForecastTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: OSColors.textMuted(dark),
+              color: mutedColor,
             ),
           ),
           const SizedBox(height: 2),
@@ -3390,7 +5863,7 @@ class _WeatherForecastTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: OSColors.text(dark),
+              color: textColor,
             ),
           ),
         ],
@@ -3403,74 +5876,117 @@ class _HomeAudioPanel extends StatelessWidget {
   const _HomeAudioPanel({
     required this.onTap,
     this.embedded = false,
+    this.compact = false,
   });
 
   final VoidCallback onTap;
   final bool embedded;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    final content = Row(
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: OSColors.indigo.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: OSColors.indigo.withValues(alpha: 0.22),
-            ),
-          ),
-          child: const Icon(
-            Icons.graphic_eq_rounded,
-            color: OSColors.indigo,
-          ),
+    final content = Container(
+      padding: EdgeInsets.all(compact ? 11 : 13),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          colors: dark
+              ? const [Color(0xFF1B2137), Color(0xFF101827)]
+              : const [Color(0xFFFFFFFF), Color(0xFFEAF4FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.075)
+              : Colors.white.withValues(alpha: 0.80),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const _PanelEyebrow(label: 'Focus Audio'),
-              const SizedBox(height: 6),
-              Text(
-                'Classroom sound',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: OSColors.text(dark),
+              if (!compact) ...[
+                const _AudioArtwork(),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _PanelEyebrow(label: 'Focus Audio'),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Classroom sound',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: OSColors.text(dark),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Stations for quiet work and transitions.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.35,
+                        color: OSColors.textSecondary(dark),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                'Open stations and quiet focus audio.',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.35,
-                  color: OSColors.textSecondary(dark),
+              _RoundPlayButton(size: compact ? 32 : 34),
+            ],
+          ),
+          SizedBox(height: compact ? 9 : 12),
+          ClipRRect(
+            borderRadius: OSRadius.pillBr,
+            child: LinearProgressIndicator(
+              minHeight: 4,
+              value: 0.58,
+              backgroundColor:
+                  Colors.white.withValues(alpha: dark ? 0.08 : 0.46),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                OSColors.cyan.withValues(alpha: dark ? 0.92 : 0.82),
+              ),
+            ),
+          ),
+          SizedBox(height: compact ? 8 : 10),
+          Row(
+            children: [
+              const Expanded(child: _MiniEqualizer()),
+              const SizedBox(width: 12),
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: dark ? 0.055 : 0.58),
+                ),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: OSColors.textMuted(dark),
                 ),
               ),
             ],
           ),
-        ),
-        Icon(
-          Icons.chevron_right_rounded,
-          size: 20,
-          color: OSColors.textMuted(dark),
-        ),
-      ],
+        ],
+      ),
     );
 
     return OSTouchFeedback(
       onTap: onTap,
       borderRadius: BorderRadius.circular(28),
-      minSize: const Size(180, 104),
+      minSize: Size(180, compact ? 92 : 118),
       child: embedded
           ? _RailSection(child: content)
           : _GlassPanel(
@@ -3483,46 +5999,186 @@ class _HomeAudioPanel extends StatelessWidget {
   }
 }
 
+class _AudioArtwork extends StatelessWidget {
+  const _AudioArtwork();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(17),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1D4ED8), Color(0xFF06B6D4), Color(0xFF67E8F9)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: OSColors.indigo.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -12,
+            top: -10,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.18),
+              ),
+            ),
+          ),
+          const Center(
+            child: Icon(
+              Icons.graphic_eq_rounded,
+              color: Colors.white,
+              size: 27,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniEqualizer extends StatelessWidget {
+  const _MiniEqualizer();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final bars = [0.32, 0.74, 0.48, 0.88, 0.42, 0.68, 0.36, 0.58];
+
+    return SizedBox(
+      height: 22,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (int index = 0; index < bars.length; index++) ...[
+            Expanded(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: FractionallySizedBox(
+                  heightFactor: bars[index],
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: OSRadius.pillBr,
+                      color: (index.isEven ? OSColors.indigo : OSColors.cyan)
+                          .withValues(alpha: dark ? 0.58 : 0.68),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (index != bars.length - 1) const SizedBox(width: 4),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _HomeAgendaPanel extends StatelessWidget {
   const _HomeAgendaPanel({
     required this.reminders,
     required this.scrollable,
     this.embedded = false,
+    this.compact = false,
+    this.onTap,
   });
 
   final List<TeacherWorkspaceReminderSnapshot> reminders;
   final bool scrollable;
   final bool embedded;
+  final bool compact;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final visibleReminders =
-        scrollable ? reminders : reminders.take(4).toList();
+        scrollable ? reminders : reminders.take(compact ? 1 : 4).toList();
     final dark = context.isDark;
     final headerChildren = <Widget>[
-      const _PanelEyebrow(label: 'Agenda Queue'),
-      const SizedBox(height: 8),
-      Text(
-        reminders.isEmpty ? 'Clear for now' : 'Next reminders',
-        style: TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0,
-          color: OSColors.text(dark),
-        ),
+      Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: OSColors.amber.withValues(alpha: dark ? 0.13 : 0.10),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(
+                color: OSColors.amber.withValues(alpha: 0.18),
+              ),
+            ),
+            child: const Icon(
+              Icons.event_available_rounded,
+              size: 17,
+              color: OSColors.amber,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _PanelEyebrow(label: 'Agenda Queue'),
+                const SizedBox(height: 3),
+                Text(
+                  reminders.isEmpty ? 'Clear for now' : 'Next reminders',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                    color: OSColors.text(dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      const SizedBox(height: 4),
-      Text(
-        reminders.isEmpty
-            ? 'Nothing is queued right now.'
-            : 'Priority items stay visible without crowding the workspace.',
-        style: TextStyle(
-          fontSize: 12,
-          height: 1.45,
-          color: OSColors.textSecondary(dark),
+      if (!compact) ...[
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: dark
+                ? Colors.white.withValues(alpha: 0.030)
+                : Colors.white.withValues(alpha: 0.46),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.045)
+                  : Colors.white.withValues(alpha: 0.58),
+            ),
+          ),
+          child: Text(
+            reminders.isEmpty
+                ? 'The planning lane is calm.'
+                : 'Priority items stay visible without crowding the workspace.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.34,
+              color: OSColors.textSecondary(dark),
+            ),
+          ),
         ),
-      ),
-      const SizedBox(height: 10),
+      ],
+      SizedBox(height: compact ? 8 : 10),
     ];
 
     final content = scrollable
@@ -3531,29 +6187,7 @@ class _HomeAgendaPanel extends StatelessWidget {
             children: [
               ...headerChildren,
               if (reminders.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: dark
-                        ? Colors.white.withValues(alpha: 0.04)
-                        : Colors.white.withValues(alpha: 0.66),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: dark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : Colors.white.withValues(alpha: 0.72),
-                    ),
-                  ),
-                  child: Text(
-                    'Your day is currently clear. New reminders from the planning hub will surface here automatically.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.45,
-                      color: OSColors.textSecondary(dark),
-                    ),
-                  ),
-                )
+                const _AgendaEmptyState()
               else
                 for (int index = 0;
                     index < visibleReminders.length;
@@ -3571,30 +6205,16 @@ class _HomeAgendaPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ...headerChildren,
-              if (reminders.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: dark
-                        ? Colors.white.withValues(alpha: 0.04)
-                        : Colors.white.withValues(alpha: 0.66),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: dark
-                          ? Colors.white.withValues(alpha: 0.06)
-                          : Colors.white.withValues(alpha: 0.72),
-                    ),
-                  ),
-                  child: Text(
-                    'Your day is currently clear. New reminders from the planning hub will surface here automatically.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.45,
-                      color: OSColors.textSecondary(dark),
-                    ),
-                  ),
+              if (compact)
+                _StatusPill(
+                  label: reminders.isEmpty
+                      ? 'Planner clear'
+                      : _relativeReminderLabel(
+                          visibleReminders.first, DateTime.now()),
+                  accent: reminders.isEmpty ? OSColors.green : OSColors.amber,
                 )
+              else if (reminders.isEmpty)
+                const _AgendaEmptyState()
               else
                 Column(
                   children: [
@@ -3627,17 +6247,102 @@ class _HomeAgendaPanel extends StatelessWidget {
             ],
           );
 
+    final tappableContent = onTap == null
+        ? content
+        : OSTouchFeedback(
+            onTap: onTap!,
+            borderRadius: BorderRadius.circular(22),
+            minSize: const Size(180, 108),
+            child: IgnorePointer(child: content),
+          );
+
     return embedded
         ? _RailSection(
             expand: scrollable,
-            child: content,
+            child: tappableContent,
           )
         : _GlassPanel(
             tone: _HomePanelTone.whisper,
             radius: 28,
             padding: const EdgeInsets.all(16),
-            child: content,
+            child: tappableContent,
           );
+  }
+}
+
+class _AgendaEmptyState extends StatelessWidget {
+  const _AgendaEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            OSColors.blue.withValues(alpha: dark ? 0.11 : 0.07),
+            Colors.white.withValues(alpha: dark ? 0.035 : 0.64),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.065)
+              : Colors.white.withValues(alpha: 0.72),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: OSColors.green.withValues(alpha: dark ? 0.14 : 0.10),
+              border: Border.all(
+                color: OSColors.green.withValues(alpha: 0.18),
+              ),
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 18,
+              color: OSColors.green,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'No queued reminders',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w900,
+                    color: OSColors.text(dark),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'New planner items will appear as a quiet timeline.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.35,
+                    color: OSColors.textSecondary(dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -3656,12 +6361,12 @@ class _ReminderTile extends StatelessWidget {
     final dueLabel = _relativeReminderLabel(reminder, now);
     final accent = _reminderAccent(reminder, now);
 
-    return Container(
-      padding: const EdgeInsets.all(12),
+    final tile = Container(
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: dark
-            ? Colors.white.withValues(alpha: 0.04)
-            : Colors.white.withValues(alpha: 0.66),
+            ? Colors.white.withValues(alpha: 0.035)
+            : Colors.white.withValues(alpha: 0.62),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: dark
@@ -3672,16 +6377,31 @@ class _ReminderTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(
-              color: accent,
-              shape: BoxShape.circle,
-            ),
+          Column(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: dark ? 0.18 : 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: accent.withValues(alpha: 0.26)),
+                ),
+                child: Icon(Icons.schedule_rounded, size: 13, color: accent),
+              ),
+              Container(
+                width: 2,
+                height: 42,
+                margin: const EdgeInsets.only(top: 6),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: dark ? 0.24 : 0.16),
+                  borderRadius: OSRadius.pillBr,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3722,6 +6442,13 @@ class _ReminderTile extends StatelessWidget {
         ],
       ),
     );
+
+    return OSTouchFeedback(
+      onTap: () => context.go(AppRoutes.osPlanner),
+      borderRadius: BorderRadius.circular(18),
+      minSize: const Size(190, 78),
+      child: tile,
+    );
   }
 
   Color _reminderAccent(
@@ -3756,18 +6483,28 @@ class _RailSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final readability = _HomeReadabilityScope.of(context);
+    final solidColor = dark
+        ? const Color(0xFF111A27).withValues(alpha: 0.64)
+        : Colors.white.withValues(alpha: 0.92);
+    final baseFill = dark
+        ? Colors.white.withValues(alpha: 0.035)
+        : Colors.white.withValues(alpha: 0.48);
+    final borderFill = dark
+        ? Colors.white.withValues(alpha: 0.055)
+        : Colors.white.withValues(alpha: 0.58);
 
     final section = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: dark
-            ? Colors.white.withValues(alpha: 0.035)
-            : Colors.white.withValues(alpha: 0.48),
-        borderRadius: BorderRadius.circular(24),
+        color: Color.lerp(baseFill, solidColor, readability.glassBlend),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: dark
-              ? Colors.white.withValues(alpha: 0.055)
-              : Colors.white.withValues(alpha: 0.58),
+          color: Color.lerp(
+            borderFill,
+            dark ? Colors.white : OSColors.blue,
+            readability.borderBoost,
+          )!,
         ),
       ),
       child: child,
@@ -3795,6 +6532,7 @@ class _GlassPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
+    final readability = _HomeReadabilityScope.of(context);
     final (baseColor, secondaryColor, borderColor, shadowEmphasis, blurSigma) =
         switch (tone) {
       _HomePanelTone.stage => (
@@ -3850,21 +6588,34 @@ class _GlassPanel extends StatelessWidget {
           WorkspaceChrome.panelBlur * 0.92,
         ),
     };
+    final solidColor = dark
+        ? const Color(0xFF111A27).withValues(alpha: 0.72)
+        : Colors.white.withValues(alpha: 0.96);
+    final readableBaseColor =
+        Color.lerp(baseColor, solidColor, readability.glassBlend)!;
+    final readableSecondaryColor =
+        Color.lerp(secondaryColor, solidColor, readability.glassBlend)!;
+    final readableBorderColor = Color.lerp(
+      borderColor,
+      dark ? Colors.white : OSColors.blue,
+      readability.borderBoost,
+    )!;
+    final readableBlurSigma = blurSigma * readability.blurMultiplier;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(
-          sigmaX: blurSigma,
-          sigmaY: blurSigma,
+          sigmaX: readableBlurSigma,
+          sigmaY: readableBlurSigma,
         ),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: borderColor),
+            border: Border.all(color: readableBorderColor),
             boxShadow: WorkspaceChrome.panelShadow(
               context,
-              emphasis: shadowEmphasis,
+              emphasis: shadowEmphasis + readability.borderBoost,
             ),
           ),
           child: Stack(
@@ -3878,9 +6629,9 @@ class _GlassPanel extends StatelessWidget {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            baseColor,
-                            secondaryColor,
-                            baseColor,
+                            readableBaseColor,
+                            readableSecondaryColor,
+                            readableBaseColor,
                           ],
                         ),
                   ),
@@ -4010,6 +6761,58 @@ IconData _weatherIcon(int code) {
   if (code >= 80 && code <= 82) return Icons.water_drop_outlined;
   if (code >= 95) return Icons.thunderstorm_outlined;
   return Icons.cloud_outlined;
+}
+
+_WeatherMood _weatherMood(int? code, DateTime now, bool dark) {
+  if (code == null) return dark ? _WeatherMood.night : _WeatherMood.cloudy;
+  final isNight = dark || now.hour < 6 || now.hour >= 18;
+  if (isNight && code <= 3) return _WeatherMood.night;
+  if (code == 0) return _WeatherMood.sunny;
+  if (code <= 3 || code == 45 || code == 48) return _WeatherMood.cloudy;
+  if (code >= 51 && code <= 99) return _WeatherMood.rain;
+  return isNight ? _WeatherMood.night : _WeatherMood.cloudy;
+}
+
+List<Color> _weatherGradient(_WeatherMood mood, bool dark) {
+  return switch (mood) {
+    _WeatherMood.rain => dark
+        ? const [Color(0xFF06101F), Color(0xFF12324F), Color(0xFF0B1726)]
+        : const [Color(0xFF7FA9C7), Color(0xFFBCD2E5), Color(0xFFE7F1FA)],
+    _WeatherMood.cloudy => dark
+        ? const [Color(0xFF0F172A), Color(0xFF27364A), Color(0xFF111827)]
+        : const [Color(0xFFAFC4D8), Color(0xFFD8E3ED), Color(0xFFF6FAFC)],
+    _WeatherMood.sunny => dark
+        ? const [Color(0xFF172033), Color(0xFF23466F), Color(0xFF0F172A)]
+        : const [Color(0xFF57A7EA), Color(0xFFB7E4FF), Color(0xFFFFE8A3)],
+    _WeatherMood.night => const [
+        Color(0xFF020617),
+        Color(0xFF0B1F3A),
+        Color(0xFF111827),
+      ],
+  };
+}
+
+Color _weatherTextColor(_WeatherMood mood, bool dark) {
+  if (dark || mood == _WeatherMood.night || mood == _WeatherMood.rain) {
+    return const Color(0xFFF8FAFC);
+  }
+  return const Color(0xFF111827);
+}
+
+Color _weatherMutedTextColor(_WeatherMood mood, bool dark) {
+  if (dark || mood == _WeatherMood.night || mood == _WeatherMood.rain) {
+    return const Color(0xFFE2E8F0).withValues(alpha: 0.82);
+  }
+  return const Color(0xFF334155).withValues(alpha: 0.82);
+}
+
+Color _weatherAccentColor(_WeatherMood mood, bool dark) {
+  return switch (mood) {
+    _WeatherMood.rain => dark ? const Color(0xFF7DD3FC) : OSColors.blue,
+    _WeatherMood.cloudy => dark ? const Color(0xFFCBD5E1) : OSColors.blue,
+    _WeatherMood.sunny => dark ? const Color(0xFFFDE68A) : OSColors.amber,
+    _WeatherMood.night => const Color(0xFF93C5FD),
+  };
 }
 
 String _weatherLabel(int code) {

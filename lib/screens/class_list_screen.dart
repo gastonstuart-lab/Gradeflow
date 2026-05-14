@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/services/class_note_service.dart';
+import 'package:gradeflow/services/class_schedule_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/demo_data_service.dart';
 import 'package:gradeflow/services/final_exam_service.dart';
@@ -32,6 +34,8 @@ import 'package:gradeflow/services/class_trash_service.dart';
 import 'package:gradeflow/services/ai_import_service.dart';
 import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
+import 'package:gradeflow/models/seating_layout.dart';
+import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum _ImportSource { local, driveLink, driveBrowse }
@@ -40,6 +44,35 @@ class _PickedBytes {
   final String filename;
   final Uint8List bytes;
   const _PickedBytes({required this.filename, required this.bytes});
+}
+
+class _SemesterSection {
+  const _SemesterSection(this.season, this.part);
+
+  final String season;
+  final int part;
+
+  String get label => '$season $part';
+}
+
+class _ParsedSemesterSection {
+  const _ParsedSemesterSection({
+    required this.season,
+    required this.part,
+  });
+
+  final String? season;
+  final int? part;
+}
+
+class _NextSection {
+  const _NextSection({
+    required this.term,
+    required this.schoolYear,
+  });
+
+  final String term;
+  final String schoolYear;
 }
 
 class ClassListScreen extends StatefulWidget {
@@ -1302,13 +1335,49 @@ class _ClassListScreenState extends State<ClassListScreen> {
     return trimmed;
   }
 
-  String _nextTerm(String term) {
+  _NextSection _nextSection(Class classItem) {
+    final parsed = _parseSection(classItem.term);
+    final next = switch ((parsed.season, parsed.part)) {
+      ('fall', 1) => const _SemesterSection('Fall', 2),
+      ('fall', 2) => const _SemesterSection('Spring', 1),
+      ('spring', 1) => const _SemesterSection('Spring', 2),
+      ('spring', 2) => const _SemesterSection('Fall', 1),
+      ('summer', 1) => const _SemesterSection('Summer', 2),
+      ('summer', 2) => const _SemesterSection('Fall', 1),
+      _ => _fallbackNextSection(classItem.term),
+    };
+
+    final advancesSchoolYear =
+        (parsed.season == 'spring' && parsed.part == 2) ||
+            (parsed.season == 'summer' && parsed.part == 2);
+    return _NextSection(
+      term: next.label,
+      schoolYear: advancesSchoolYear
+          ? _nextSchoolYear(classItem.schoolYear)
+          : classItem.schoolYear,
+    );
+  }
+
+  _SemesterSection _fallbackNextSection(String term) {
     final t = term.trim().toLowerCase();
-    if (t == 'fall' || t == 'autumn') return 'Spring';
-    if (t == 'spring') return 'Fall';
-    if (t == 'summer') return 'Fall';
-    if (t == 'winter') return 'Spring';
-    return term;
+    if (t == 'fall' || t == 'autumn') return const _SemesterSection('Fall', 2);
+    if (t == 'spring') return const _SemesterSection('Spring', 2);
+    if (t == 'summer') return const _SemesterSection('Summer', 2);
+    return const _SemesterSection('Fall', 1);
+  }
+
+  _ParsedSemesterSection _parseSection(String term) {
+    final normalized = term.trim().toLowerCase();
+    final seasonMatch =
+        RegExp(r'(fall|autumn|spring|summer)').firstMatch(normalized);
+    final partMatch = RegExp(r'(?:part|half)?\s*([12])\b')
+        .firstMatch(normalized.replaceAll('-', ' '));
+    final season =
+        seasonMatch?.group(1) == 'autumn' ? 'fall' : seasonMatch?.group(1);
+    return _ParsedSemesterSection(
+      season: season,
+      part: int.tryParse(partMatch?.group(1) ?? ''),
+    );
   }
 
   Future<void> _showStartNewSemesterDialog(Class classItem) async {
@@ -1316,18 +1385,20 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final subjectController = TextEditingController(text: classItem.subject);
     final groupController =
         TextEditingController(text: classItem.groupNumber ?? '');
-    final yearController =
-        TextEditingController(text: _nextSchoolYear(classItem.schoolYear));
-    final termController =
-        TextEditingController(text: _nextTerm(classItem.term));
+    final nextSection = _nextSection(classItem);
+    final yearController = TextEditingController(text: nextSection.schoolYear);
+    final termController = TextEditingController(text: nextSection.term);
     bool archiveCurrent = !classItem.isArchived;
     bool copyStudents = true;
+    bool copyNotes = true;
+    bool copySeating = true;
+    bool copySchedule = true;
 
     final proceed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Start New Semester'),
+          title: const Text('Start New Section'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1354,7 +1425,10 @@ class _ClassListScreenState extends State<ClassListScreen> {
                 const SizedBox(height: AppSpacing.md),
                 TextField(
                   controller: termController,
-                  decoration: const InputDecoration(labelText: 'Term'),
+                  decoration: const InputDecoration(
+                    labelText: 'Section',
+                    helperText: 'Fall 1, Fall 2, Spring 1, Spring 2',
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 CheckboxListTile(
@@ -1370,11 +1444,36 @@ class _ClassListScreenState extends State<ClassListScreen> {
                   value: copyStudents,
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Copy students into new semester class'),
+                  title: const Text('Carry students forward'),
                   subtitle: const Text(
-                      'Grades and assessments are not copied. You can edit roster after creation.'),
+                      'Assessment items, scores, and exams stay archived with the old section.'),
                   onChanged: (v) =>
                       setDialogState(() => copyStudents = v ?? true),
+                ),
+                CheckboxListTile(
+                  value: copySeating,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Carry seating forward'),
+                  subtitle: const Text(
+                      'Keeps room layouts, student placements, seat notes, and reminders.'),
+                  onChanged: (v) =>
+                      setDialogState(() => copySeating = v ?? true),
+                ),
+                CheckboxListTile(
+                  value: copyNotes,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Carry class notes forward'),
+                  onChanged: (v) => setDialogState(() => copyNotes = v ?? true),
+                ),
+                CheckboxListTile(
+                  value: copySchedule,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Carry schedule forward'),
+                  onChanged: (v) =>
+                      setDialogState(() => copySchedule = v ?? true),
                 ),
               ],
             ),
@@ -1386,7 +1485,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Create New Semester Class'),
+              child: const Text('Start Section'),
             ),
           ],
         ),
@@ -1434,6 +1533,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final classService = context.read<ClassService>();
     final studentService = context.read<StudentService>();
     final catService = context.read<GradingCategoryService>();
+    final userId = user.userId;
     if (archiveCurrent && !classItem.isArchived) {
       await classService.archiveClass(classItem.classId);
     }
@@ -1454,11 +1554,143 @@ class _ClassListScreenState extends State<ClassListScreen> {
         await studentService.addStudents(copied);
       }
     }
+    if (copySeating) {
+      await _copySeatingForward(
+        sourceClassId: classItem.classId,
+        targetClassId: newClass.classId,
+        timestamp: now,
+      );
+    }
+    if (copyNotes) {
+      final noteService = ClassNoteService();
+      final notes = await noteService.load(
+        classId: classItem.classId,
+        userId: userId,
+      );
+      await noteService.save(
+        classId: newClass.classId,
+        userId: userId,
+        items: notes,
+      );
+    }
+    if (copySchedule) {
+      final scheduleService = ClassScheduleService();
+      final schedule = await scheduleService.load(classItem.classId);
+      await scheduleService.save(newClass.classId, schedule);
+    }
     await classService.loadClasses(user.userId);
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('New semester class created.')),
+      const SnackBar(
+        content: Text('New section started. Previous section archived.'),
+      ),
+    );
+  }
+
+  Future<void> _showQuickStartSectionDialog(ClassService classService) async {
+    final activeClasses = _orderedActiveClasses(classService.activeClasses);
+    if (activeClasses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Create a class before starting a section.')),
+      );
+      return;
+    }
+
+    var selectedClassId = activeClasses.first.classId;
+    final selected = await showDialog<Class?>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Start New Section'),
+          content: SizedBox(
+            width: 420,
+            child: DropdownButtonFormField<String>(
+              initialValue: selectedClassId,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Current class'),
+              items: [
+                for (final classItem in activeClasses)
+                  DropdownMenuItem(
+                    value: classItem.classId,
+                    child: Text(
+                      '${classItem.className} - ${classItem.term}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                setDialogState(() => selectedClassId = value);
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final classItem = activeClasses.firstWhere(
+                  (item) => item.classId == selectedClassId,
+                );
+                Navigator.pop(ctx, classItem);
+              },
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (selected == null || !mounted) return;
+    await _showStartNewSemesterDialog(selected);
+  }
+
+  Future<void> _copySeatingForward({
+    required String sourceClassId,
+    required String targetClassId,
+    required DateTime timestamp,
+  }) async {
+    final repo = RepositoryFactory.instance;
+    final layouts = await repo.loadSeatingLayouts(sourceClassId);
+    if (layouts.isNotEmpty) {
+      await repo.saveSeatingLayouts(
+        targetClassId,
+        [
+          for (final layout in layouts)
+            _copySeatingLayoutForClass(
+              layout,
+              targetClassId: targetClassId,
+              timestamp: timestamp,
+            ),
+        ],
+      );
+    }
+
+    final activeLayoutId = await repo.loadActiveSeatingLayoutId(sourceClassId);
+    if (activeLayoutId != null && activeLayoutId.trim().isNotEmpty) {
+      await repo.saveActiveSeatingLayoutId(targetClassId, activeLayoutId);
+    }
+
+    final assignedRoomSetupId =
+        await repo.loadAssignedRoomSetupId(sourceClassId);
+    await repo.saveAssignedRoomSetupId(targetClassId, assignedRoomSetupId);
+  }
+
+  SeatingLayout _copySeatingLayoutForClass(
+    SeatingLayout layout, {
+    required String targetClassId,
+    required DateTime timestamp,
+  }) {
+    return layout.copyWith(
+      classId: targetClassId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      tables: [for (final table in layout.tables) table.copyWith()],
+      seats: [for (final seat in layout.seats) seat.copyWith()],
     );
   }
 
@@ -2063,7 +2295,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                       return const [
                         PopupMenuItem(
                             value: 'rollover',
-                            child: Text('Start New Semester')),
+                            child: Text('Start New Section')),
                         PopupMenuItem(
                             value: 'unarchive', child: Text('Unarchive')),
                         PopupMenuItem(value: 'edit', child: Text('Edit')),
@@ -2074,7 +2306,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                       PopupMenuItem(value: 'edit', child: Text('Edit')),
                       PopupMenuItem(
                           value: 'rollover',
-                          child: Text('Archive + New Semester')),
+                          child: Text('Archive + New Section')),
                       PopupMenuItem(value: 'archive', child: Text('Archive')),
                       PopupMenuItem(value: 'delete', child: Text('Delete')),
                     ];
@@ -2095,7 +2327,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
         : classService.activeClasses.length;
     final summary = _showArchived
         ? '$count archived class${count == 1 ? '' : 'es'} kept ready for rollover, restore, and reporting.'
-        : '$count active class${count == 1 ? '' : 'es'} ready to open, act on, and reorder around your teaching day.';
+        : '$count active class${count == 1 ? '' : 'es'} ready to open, start a new section, and reorder around your teaching day.';
     final importReady = _driveAccessToken != null;
 
     Widget statusPill({
@@ -2200,6 +2432,13 @@ class _ClassListScreenState extends State<ClassListScreen> {
         alignment: WrapAlignment.end,
         children: [
           FilledButton.icon(
+            onPressed: classService.activeClasses.isEmpty
+                ? null
+                : () => _showQuickStartSectionDialog(classService),
+            icon: const Icon(Icons.restart_alt_rounded),
+            label: const Text('Start Section'),
+          ),
+          FilledButton.icon(
             onPressed: _showCreateClassDialog,
             icon: const Icon(Icons.add),
             label: const Text('Create Class'),
@@ -2228,7 +2467,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
             _showArchived ? Icons.inventory_2_outlined : Icons.school_outlined,
         title: _showArchived ? 'No archived classes yet' : 'No classes yet',
         subtitle: _showArchived
-            ? 'Archived classes and semester rollovers will appear here when you need them.'
+            ? 'Archived classes and section rollovers will appear here when you need them.'
             : 'Create your first class or import rosters from Excel, CSV, or Drive to start building your workspace.',
         actions: _showArchived
             ? [
@@ -2352,7 +2591,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
       eyebrow: 'Teacher Workspace',
       title: 'Classes workspace',
       subtitle:
-          'Manage rosters, imports, class lifecycle, and semester rollover from one place that feels ready for daily use.',
+          'Manage rosters, imports, class lifecycle, and section rollover from one place that feels ready for daily use.',
       trailingActions: [
         TextButton.icon(
           onPressed: _driveSigningIn ? null : _ensureDriveAccessToken,

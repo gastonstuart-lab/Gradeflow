@@ -97,7 +97,7 @@ async function reopenDemoClassGradebook(page: Page) {
   });
 }
 
-test("core loop: edit score persists; undo reverts", async ({ page }) => {
+test("@regression core loop: edit score persists; undo reverts", async ({ page }) => {
   test.setTimeout(360_000);
 
   await gotoRoot(page);

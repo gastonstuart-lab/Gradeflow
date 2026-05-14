@@ -82,7 +82,7 @@ async function selectClassToolsClass(page: Page, className: string) {
   ).toBeVisible({ timeout: 15_000 });
 }
 
-test('Fresh dashboard blocks class-target actions until a class is explicitly chosen', async ({
+test('@regression Fresh dashboard blocks class-target actions until a class is explicitly chosen', async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -105,7 +105,7 @@ test('Fresh dashboard blocks class-target actions until a class is explicitly ch
   await expect(genericSeatingAction).toBeVisible();
 });
 
-test('Explicit dashboard class selection persists across refresh', async ({
+test('@regression Explicit dashboard class selection persists across refresh', async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -124,7 +124,7 @@ test('Explicit dashboard class selection persists across refresh', async ({
   ).toBeVisible({ timeout: 60_000 });
 });
 
-test('Gradebook and Seating still open for the selected dashboard class', async ({
+test('@regression Gradebook and Seating still open for the selected dashboard class', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -144,7 +144,7 @@ test('Gradebook and Seating still open for the selected dashboard class', async 
   await expect(page.locator('body')).toContainText('Layouts: 1');
 });
 
-test('Export and Final Exam show the selected class clearly in-screen', async ({
+test('@regression Export and Final Exam show the selected class clearly in-screen', async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -166,7 +166,7 @@ test('Export and Final Exam show the selected class clearly in-screen', async ({
   await expect(page.locator('body')).toContainText('Final Exam = 60% of total grade');
 });
 
-test('Class-tools seating, OS class cold-load, and OS home rail stay correct', async ({
+test('@regression Class-tools seating, OS class cold-load, and OS home rail stay correct', async ({
   page,
 }) => {
   test.setTimeout(240_000);

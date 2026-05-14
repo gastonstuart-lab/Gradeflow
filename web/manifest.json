@@ -1,6 +1,6 @@
 {
-    "name": "GradeFlow",
-    "short_name": "GradeFlow",
+    "name": "InstructOS",
+    "short_name": "InstructOS",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#050912",

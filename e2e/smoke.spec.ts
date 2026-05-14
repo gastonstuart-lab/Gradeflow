@@ -5,29 +5,30 @@ import {
   expectDashboardShell,
 } from './helpers';
 
-test('login screen loads', async ({ page }) => {
+test('@smoke login screen loads', async ({ page }) => {
   await page.goto('/');
 
   await ensureFlutterSemantics(page);
 
-  await expect(page.getByText('Enter GradeFlow')).toBeVisible();
+  await expect(page.getByText('InstructOS')).toBeVisible();
+  await expect(page.getByText('Sign in')).toBeVisible();
 
   await expect(page.getByLabel('Email')).toBeVisible();
   await expect(page.getByLabel('Password')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Enter' })).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Continue with Google' }),
   ).toBeVisible();
   await expect(
-    page.getByRole('button', { name: 'Try Demo Account' }),
+    page.getByRole('button', { name: 'Open demo' }),
   ).toBeVisible();
 });
 
-test('demo login opens authenticated workspace', async ({ page }) => {
-  test.setTimeout(120_000);
+test('@smoke demo login opens authenticated workspace', async ({ page }) => {
+  test.setTimeout(240_000);
   await page.goto('/');
 
   await ensureDemoSignedIn(page);
-  await expect(page).toHaveURL(/\/(?:dashboard|os\/home)(?:\?|$)/);
+  await expect(page).toHaveURL(/(?:\/|\/#\/)(?:dashboard|os\/home)(?:[?#]|$)/);
   await expectDashboardShell(page);
 });

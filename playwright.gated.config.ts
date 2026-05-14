@@ -1,0 +1,42 @@
+import { defineConfig, devices } from '@playwright/test';
+
+const port = process.env.PORT ?? '7357';
+const baseURL = process.env.BASE_URL ?? `http://127.0.0.1:${port}`;
+
+export default defineConfig({
+  testDir: './e2e',
+  timeout: 90_000,
+  expect: { timeout: 10_000 },
+  fullyParallel: false,
+  workers: Number(process.env.PLAYWRIGHT_WORKERS ?? '1'),
+  retries: process.env.CI ? 2 : 0,
+  reporter: [['html', { open: 'never' }], ['list']],
+  webServer: {
+    command:
+      process.env.E2E_WEB_SERVER_COMMAND ??
+      `powershell -NoProfile -Command "flutter build web --release; npx.cmd serve build/web -s -l ${port}"`,
+    url: baseURL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 180_000,
+  },
+  use: {
+    baseURL,
+    trace: 'on-first-retry',
+  },
+  projects: [
+    {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'chromium',
+      dependencies: ['setup'],
+      testIgnore: /(?:auth\.setup|smoke\.spec)\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'test-results/.auth/demo-user.json',
+      },
+    },
+  ],
+});

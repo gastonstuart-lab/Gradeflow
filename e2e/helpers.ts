@@ -120,7 +120,7 @@ export async function ensureDemoSignedIn(page: Page) {
       ],
       1_000,
     )) ||
-    /HOME STAGE|Planner|Class workspace|GradeFlow OS|Pinned apps|Class spaces/i.test(
+    /HOME STAGE|Planner|Class workspace|Pinned apps|Class spaces|Command Center/i.test(
       await page
         .locator("body")
         .innerText({ timeout: 1_000 })
@@ -131,17 +131,25 @@ export async function ensureDemoSignedIn(page: Page) {
     return;
   }
 
+  const demo = page
+    .getByRole("button", { name: /^Open demo$/i })
+    .first();
+
   // Fast-path recovery for sessions that are already authenticated but landed
   // on a transient shell route that does not satisfy older dashboard checks.
-  await page.goto('/os/home').catch(() => undefined);
-  await ensureFlutterSemantics(page);
-  if (isSignedInRoute() || (await isSignedInSurfaceVisible())) {
-    return;
+  const demoAlreadyVisible = await demo
+    .isVisible({ timeout: 1_000 })
+    .catch(() => false);
+  if (!demoAlreadyVisible) {
+    await page.goto('/os/home').catch(() => undefined);
+    await ensureFlutterSemantics(page);
+    if (isSignedInRoute() || (await isSignedInSurfaceVisible())) {
+      return;
+    }
   }
 
-  const demo = page.getByRole("button", { name: /^Try Demo Account$/i }).first();
   const enteringWorkspace = page
-    .getByRole("button", { name: /^Entering workspace\.\.\.$/i })
+    .getByRole("button", { name: /^Opening\.\.\.$/i })
     .first();
   const loadingShell = page.getByText(/Loading workspace shell/i).first();
   let loadingShellVisibleSince: number | null = null;
@@ -387,7 +395,7 @@ export async function openFirstClassWorkspace(page: Page) {
   }
 
   const classEntries = page.getByRole("group", {
-    name: /Open class workspace|Grade .*students/i,
+    name: /Open class workspace|Grade .*students|Grade\s+\d+[A-Z]?\b/i,
   });
   const hasClassEntry = await classEntries
     .first()
