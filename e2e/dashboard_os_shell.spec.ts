@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { ensureDemoSignedIn } from './helpers';
 
-test('dashboard attention center and dock stay available on desktop', async ({
+test('@routing dashboard attention center and dock stay available on desktop', async ({
   page,
 }) => {
   test.setTimeout(180_000);

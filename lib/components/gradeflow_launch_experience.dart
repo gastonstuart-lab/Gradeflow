@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:gradeflow/components/animated_page_background.dart';
-import 'package:gradeflow/config/gradeflow_product_config.dart';
+import 'package:gradeflow/config/instructos_branding.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/widgets/branding/instructos_interactive_auth_background.dart';
 
 class GradeFlowLaunchGate extends StatefulWidget {
   final Widget child;
@@ -70,7 +70,7 @@ class _GradeFlowLaunchGateState extends State<GradeFlowLaunchGate> {
               )
             : KeyedSubtree(
                 key: const ValueKey<String>('launch-experience'),
-                child: _GradeFlowLaunchExperience(auth: auth),
+                child: const _GradeFlowLaunchExperience(),
               ),
       ),
     );
@@ -78,38 +78,15 @@ class _GradeFlowLaunchGateState extends State<GradeFlowLaunchGate> {
 }
 
 class _GradeFlowLaunchExperience extends StatelessWidget {
-  final AuthService auth;
-
-  const _GradeFlowLaunchExperience({
-    required this.auth,
-  });
-
-  String _statusLine() {
-    if (!auth.isInitialized && auth.isLoading) {
-      return 'Restoring your secure classroom workspace...';
-    }
-    if (!auth.isInitialized) {
-      return 'Preparing your classroom workspace...';
-    }
-    if (auth.isAuthenticated) {
-      return 'Workspace ready. Opening ${GradeFlowProductConfig.appName}...';
-    }
-    return 'Secure access is ready.';
-  }
-
-  double _progressValue() {
-    if (!auth.isInitialized) return auth.isLoading ? 0.42 : 0.28;
-    return auth.isAuthenticated ? 1.0 : 0.86;
-  }
+  const _GradeFlowLaunchExperience();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final progress = _progressValue();
 
     return Scaffold(
       backgroundColor: const Color(0xFF050912),
-      body: AnimatedPageBackground(
+      body: InstructOSInteractiveAuthBackground(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 640;
@@ -126,40 +103,32 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                 ),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 620),
+                    constraints: const BoxConstraints(maxWidth: 430),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        _LaunchTextLockup(compact: compact),
-                        const SizedBox(height: 16),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 460),
-                          child: Text(
-                            GradeFlowProductConfig.marketingTagline,
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              height: 1.4,
-                              fontWeight: FontWeight.w500,
-                            ),
+                        Text(
+                          InstructOSBranding.productName,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0,
                           ),
                         ),
-                        const SizedBox(height: 26),
-                        _LaunchProgressLine(value: progress),
-                        const SizedBox(height: 14),
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 460),
-                          child: Text(
-                            _statusLine(),
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.92),
-                              height: 1.45,
-                            ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Teaching, organised.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color:
+                                const Color(0xFFD7DDF1).withValues(alpha: 0.72),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
+                        const SizedBox(height: 24),
+                        const _LaunchPulseDot(),
                       ],
                     ),
                   ),
@@ -173,118 +142,46 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
   }
 }
 
-class _LaunchTextLockup extends StatelessWidget {
-  const _LaunchTextLockup({required this.compact});
+class _LaunchPulseDot extends StatefulWidget {
+  const _LaunchPulseDot();
 
-  final bool compact;
+  @override
+  State<_LaunchPulseDot> createState() => _LaunchPulseDotState();
+}
+
+class _LaunchPulseDotState extends State<_LaunchPulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final symbolSize = compact ? 34.0 : 42.0;
-    final nameSize = compact ? 34.0 : 44.0;
-    final symbolStyle = theme.textTheme.headlineMedium?.copyWith(
-          fontSize: symbolSize,
-          fontWeight: FontWeight.w700,
-          height: 1.0,
-          letterSpacing: -0.3,
-          color: theme.colorScheme.onSurface,
-        ) ??
-        TextStyle(
-          fontSize: symbolSize,
-          fontWeight: FontWeight.w700,
-          height: 1.0,
-          letterSpacing: -0.3,
-          color: theme.colorScheme.onSurface,
-        );
-
-    final nameStyle = theme.textTheme.displaySmall?.copyWith(
-          fontSize: nameSize,
-          fontWeight: FontWeight.w700,
-          height: 1.0,
-          letterSpacing: -0.4,
-          color: theme.colorScheme.onSurface,
-        ) ??
-        TextStyle(
-          fontSize: nameSize,
-          fontWeight: FontWeight.w700,
-          height: 1.0,
-          letterSpacing: -0.4,
-          color: theme.colorScheme.onSurface,
-        );
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('I', style: symbolStyle),
-            Text(
-              '/',
-              style: symbolStyle.copyWith(
-                color: const Color(0xFF2A6BFF),
-              ),
-            ),
-            Text(
-              'OS',
-              style: symbolStyle.copyWith(
-                color: const Color(0xFF22D3EE),
-              ),
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.36, end: 0.88).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+      ),
+      child: Container(
+        width: 7,
+        height: 7,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFFB8C3FF).withValues(alpha: 0.90),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.34),
+              blurRadius: 16,
+              spreadRadius: 3,
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        Text(
-          GradeFlowProductConfig.appName,
-          style: nameStyle,
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-}
-
-class _LaunchProgressLine extends StatelessWidget {
-  const _LaunchProgressLine({required this.value});
-
-  final double value;
-
-  @override
-  Widget build(BuildContext context) {
-    final trackColor = Colors.white.withValues(alpha: 0.12);
-    final clamped = value.clamp(0.0, 1.0);
-
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 280),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          return Stack(
-            children: [
-              Container(
-                height: 3,
-                width: width,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  color: trackColor,
-                ),
-              ),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                height: 3,
-                width: width * clamped,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF5C88FF), Color(0xFF22D3EE)],
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
       ),
     );
   }

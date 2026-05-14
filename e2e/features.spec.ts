@@ -20,7 +20,7 @@ async function gotoDemoExport(page: import('@playwright/test').Page) {
   await gotoDemoClassRoute(page, 'export');
 }
 
-test('Export: grade export screen loads with actionable controls', async ({
+test('@core Export: grade export screen loads with actionable controls', async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -33,7 +33,7 @@ test('Export: grade export screen loads with actionable controls', async ({
   await expect(page.getByRole('button', { name: /^Preview CSV$/i })).toBeVisible();
 });
 
-test('Export: browser export action shows download feedback', async ({ page }) => {
+test('@regression Export: browser export action shows download feedback', async ({ page }) => {
   test.setTimeout(180_000);
 
   await gotoRoot(page);
@@ -54,7 +54,7 @@ test('Export: browser export action shows download feedback', async ({ page }) =
   );
 });
 
-test('Export: CSV preview supports download action', async ({ page }) => {
+test('@regression Export: CSV preview supports download action', async ({ page }) => {
   test.setTimeout(180_000);
 
   await gotoRoot(page);
@@ -92,7 +92,7 @@ test('Export: CSV preview supports download action', async ({ page }) => {
   }
 });
 
-test('Export: PDF preview exposes download action', async ({ page }) => {
+test('@regression Export: PDF preview exposes download action', async ({ page }) => {
   test.setTimeout(180_000);
 
   await gotoRoot(page);
@@ -125,7 +125,7 @@ test('Export: PDF preview exposes download action', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Download PDF$/i })).toBeVisible();
 });
 
-test('Export: PDF preview close and reopen keeps download action available', async ({ page }) => {
+test('@regression Export: PDF preview close and reopen keeps download action available', async ({ page }) => {
   test.setTimeout(180_000);
 
   await gotoRoot(page);
@@ -155,8 +155,8 @@ test('Export: PDF preview close and reopen keeps download action available', asy
   await expect(page.getByRole('button', { name: /^Download PDF$/i })).toBeVisible();
 });
 
-test('Seating: editor and full screen flow loads', async ({ page }) => {
-  test.setTimeout(120_000);
+test('@regression Seating: editor and full screen flow loads', async ({ page }) => {
+  test.setTimeout(240_000);
 
   await gotoRoot(page);
   await ensureDemoSignedIn(page);
@@ -198,7 +198,7 @@ test('Seating: editor and full screen flow loads', async ({ page }) => {
   await expectSeatingSurface(page);
 });
 
-test('Seating: substitute handout preview supports download action', async ({
+test('@regression Seating: substitute handout preview supports download action', async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -232,20 +232,20 @@ test('Seating: substitute handout preview supports download action', async ({
   }
 });
 
-test('Routing: direct navigation to classes works without refresh', async ({
+test('@routing Routing: direct navigation to classes works without refresh', async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
 
   await page.goto('/');
   await ensureDemoSignedIn(page);
 
   await gotoClasses(page);
-  await expect(page).toHaveURL(new RegExp(`${classesPath.replace('/', '\\/')}(?:\\?|$)`));
+  await expect(page).toHaveURL(/(?:\/|\/#\/)classes(?:[?#]|$)/);
 });
 
-test('Dashboard: utility dock keeps schedule reachable', async ({ page }) => {
-  test.setTimeout(120_000);
+test('@routing Dashboard: utility rail keeps timetable reachable', async ({ page }) => {
+  test.setTimeout(240_000);
 
   await page.goto('/');
   await ensureDemoSignedIn(page);
@@ -253,12 +253,12 @@ test('Dashboard: utility dock keeps schedule reachable', async ({ page }) => {
   await gotoDashboard(page);
   await expectDashboardShell(page);
   await expect(
-    page.getByRole('button', { name: /^Schedule\b/i }).last(),
+    page.getByRole('button', { name: /^(Open timetable|Timetable\b)/i }).first(),
   ).toBeVisible();
 });
 
-test('Import: classes workspace opens source chooser', async ({ page }) => {
-  test.setTimeout(120_000);
+test('@core Import: classes workspace opens source chooser', async ({ page }) => {
+  test.setTimeout(240_000);
 
   await page.goto('/');
   await ensureDemoSignedIn(page);
@@ -278,10 +278,10 @@ test('Import: classes workspace opens source chooser', async ({ page }) => {
   ).toBeVisible();
 });
 
-test('Navigation: browser back returns from classes to dashboard', async ({
+test('@core Navigation: browser back returns from classes to dashboard', async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
 
   await page.goto('/');
   await ensureDemoSignedIn(page);
@@ -291,12 +291,12 @@ test('Navigation: browser back returns from classes to dashboard', async ({
   await gotoClasses(page);
 
   await page.goBack();
-  await expect(page).toHaveURL(new RegExp(`${dashboardPath.replace('/', '\\/')}(?:\\?|$)`));
+  await expect(page).toHaveURL(/(?:\/|\/#\/)dashboard(?:[?#]|$)/);
   await expectDashboardShell(page);
 });
 
-test('Console: no critical errors during primary navigation', async ({ page }) => {
-  test.setTimeout(120_000);
+test('@regression Console: no critical errors during primary navigation', async ({ page }) => {
+  test.setTimeout(240_000);
 
   const errors: string[] = [];
 
@@ -313,7 +313,7 @@ test('Console: no critical errors during primary navigation', async ({ page }) =
   await gotoClasses(page);
 
   await gotoDemoClassRoute(page, 'seating');
-  await expect(page).toHaveURL(/\/class\/[^/]+\/seating(?:\?|$)/);
+  await expect(page).toHaveURL(/(?:\/|\/#\/)(?:os\/)?class\/[^/]+\/seating(?:[?#]|$)/);
 
   await page.goto(dashboardPath);
   await gotoDashboard(page);

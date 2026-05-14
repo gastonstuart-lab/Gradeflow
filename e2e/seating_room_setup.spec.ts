@@ -8,7 +8,7 @@ import {
   openFirstClassWorkspace,
 } from "./helpers";
 
-test("Seating: room setup save flow works from the toolbar", async ({
+test("@regression Seating: room setup save flow works from the toolbar", async ({
   page,
 }) => {
   test.setTimeout(180_000);

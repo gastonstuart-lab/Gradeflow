@@ -25,7 +25,7 @@
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="GradeFlow">
+  <meta name="apple-mobile-web-app-title" content="InstructOS">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
@@ -35,18 +35,16 @@
   <!-- Set this to your OAuth Web client ID from Google Cloud Console -->
   <meta name="google-signin-client_id" content="851087972500-06hut292tqfb86o9jmfo55tc441de78.apps.googleusercontent.com">
 
-  <title>GradeFlow</title>
+  <title>InstructOS</title>
   <link rel="manifest" href="manifest.json">
   <style>
     :root {
       color-scheme: dark;
       --gf-bg: #050912;
-      --gf-bg-soft: #101a28;
-      --gf-border: rgba(255, 255, 255, 0.1);
+      --gf-bg-soft: #090b16;
       --gf-text: #f5f7fb;
       --gf-muted: rgba(245, 247, 251, 0.72);
-      --gf-accent: #5c88ff;
-      --gf-cyan: #46c6e9;
+      --gf-accent: #8b5cf6;
     }
 
     html,
@@ -55,9 +53,10 @@
       height: 100%;
       margin: 0;
       background:
-        radial-gradient(circle at top right, rgba(92, 136, 255, 0.18), transparent 34%),
-        radial-gradient(circle at bottom left, rgba(70, 198, 233, 0.12), transparent 36%),
-        linear-gradient(140deg, #050912 0%, #071019 54%, var(--gf-bg-soft) 100%);
+        radial-gradient(circle at 24% 38%, rgba(255, 62, 165, 0.16), transparent 32%),
+        radial-gradient(circle at 72% 52%, rgba(34, 211, 238, 0.13), transparent 34%),
+        radial-gradient(circle at 50% 88%, rgba(139, 92, 246, 0.14), transparent 38%),
+        linear-gradient(140deg, #050711 0%, #0a1023 56%, var(--gf-bg-soft) 100%);
       color: var(--gf-text);
     }
 
@@ -77,9 +76,10 @@
       place-items: center;
       padding: 24px;
       background:
-        radial-gradient(circle at top right, rgba(92, 136, 255, 0.20), transparent 34%),
-        radial-gradient(circle at bottom left, rgba(70, 198, 233, 0.14), transparent 40%),
-        linear-gradient(140deg, #050912 0%, #071019 52%, var(--gf-bg-soft) 100%);
+        radial-gradient(circle at 24% 38%, rgba(255, 62, 165, 0.16), transparent 32%),
+        radial-gradient(circle at 72% 52%, rgba(34, 211, 238, 0.13), transparent 34%),
+        radial-gradient(circle at 50% 88%, rgba(139, 92, 246, 0.14), transparent 38%),
+        linear-gradient(140deg, #050711 0%, #0a1023 56%, var(--gf-bg-soft) 100%);
       opacity: 1;
       visibility: visible;
       transition: opacity 360ms ease, visibility 360ms ease;
@@ -94,118 +94,50 @@
 
     .gf-loader-shell {
       position: relative;
-      width: min(100%, 520px);
-      padding: 28px;
-      border-radius: 28px;
-      border: 1px solid var(--gf-border);
-      background: linear-gradient(145deg, rgba(17, 27, 40, 0.9), rgba(11, 18, 28, 0.8));
-      box-shadow:
-        0 24px 64px rgba(0, 0, 0, 0.38),
-        inset 0 1px 0 rgba(255, 255, 255, 0.06);
-      overflow: hidden;
+      width: min(100%, 430px);
       text-align: center;
-    }
-
-    .gf-loader-shell::before {
-      content: "";
-      position: absolute;
-      inset: auto -72px -108px auto;
-      width: 220px;
-      height: 220px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(92, 136, 255, 0.2), transparent 68%);
-      pointer-events: none;
     }
 
     .gf-loader-head {
       display: grid;
       justify-items: center;
-      gap: 12px;
-    }
-
-    .gf-loader-lockup {
-      display: inline-flex;
-      align-items: baseline;
-      gap: 2px;
-      font-size: clamp(1.9rem, 3.5vw, 2.4rem);
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      line-height: 1;
-    }
-
-    .gf-loader-lockup-slash {
-      color: var(--gf-accent);
-    }
-
-    .gf-loader-lockup-os {
-      color: var(--gf-cyan);
+      gap: 6px;
     }
 
     .gf-loader-title {
       margin: 0;
-      font-size: clamp(2rem, 4vw, 2.75rem);
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      line-height: 1.05;
+      font-size: clamp(1.5rem, 4vw, 1.65rem);
+      font-weight: 900;
+      letter-spacing: 0;
+      line-height: 1.1;
     }
 
     .gf-loader-copy {
-      margin: 2px auto 0;
+      margin: 0 auto;
       color: var(--gf-muted);
-      line-height: 1.5;
-      max-width: 34rem;
-      font-size: clamp(0.95rem, 2vw, 1.06rem);
-    }
-
-    .gf-loader-progress {
-      position: relative;
-      height: 3px;
-      margin-top: 24px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.14);
-      overflow: hidden;
-    }
-
-    .gf-loader-progress::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      width: 36%;
-      border-radius: inherit;
-      background: linear-gradient(90deg, var(--gf-accent), var(--gf-cyan));
-      box-shadow: 0 0 18px rgba(92, 136, 255, 0.28);
-      animation: gradeflow-loader 1.35s ease-in-out infinite;
-    }
-
-    .gf-loader-status {
-      display: block;
-      margin-top: 18px;
-      color: var(--gf-muted);
-      font-size: 0.9rem;
-      font-weight: 500;
       line-height: 1.4;
+      font-size: 0.95rem;
+      font-weight: 600;
     }
 
-    @keyframes gradeflow-loader {
-      0% {
-        transform: translateX(-115%);
-      }
-      50% {
-        transform: translateX(120%);
-      }
-      100% {
-        transform: translateX(240%);
-      }
+    .gf-loader-dot {
+      width: 7px;
+      height: 7px;
+      margin: 24px auto 0;
+      border-radius: 999px;
+      background: rgba(184, 195, 255, 0.9);
+      box-shadow: 0 0 18px rgba(139, 92, 246, 0.42);
+      animation: instructos-pulse 1.5s ease-in-out infinite alternate;
     }
 
-    @media (max-width: 640px) {
-      .gf-loader-shell {
-        padding: 22px;
-        border-radius: 24px;
+    @keyframes instructos-pulse {
+      from {
+        opacity: 0.36;
+        transform: scale(0.86);
       }
-
-      .gf-loader-head {
-        gap: 10px;
+      to {
+        opacity: 0.88;
+        transform: scale(1);
       }
     }
   </style>
@@ -214,20 +146,15 @@
   <div id="gradeflow-loader" aria-hidden="true">
     <div class="gf-loader-shell">
       <div class="gf-loader-head">
-        <div class="gf-loader-lockup" aria-hidden="true">
-          <span>I</span><span class="gf-loader-lockup-slash">/</span><span class="gf-loader-lockup-os">OS</span>
-        </div>
         <h1 class="gf-loader-title">InstructOS</h1>
-        <p class="gf-loader-copy">One system. Every classroom workflow.</p>
+        <p class="gf-loader-copy">Teaching, organised.</p>
       </div>
-      <div class="gf-loader-progress"></div>
-      <p class="gf-loader-status">Preparing your classroom workspace...</p>
+      <div class="gf-loader-dot"></div>
     </div>
   </div>
   <script>
     (function () {
       const loader = document.getElementById('gradeflow-loader');
-      const status = loader?.querySelector('.gf-loader-status');
       let removed = false;
 
       function removeLoader() {
@@ -256,11 +183,6 @@
         }
       }, 500);
 
-      window.setTimeout(() => {
-        if (!removed && status) {
-          status.textContent = 'Still preparing your classroom workspace...';
-        }
-      }, 45000);
     })();
   </script>
   <script src="flutter_bootstrap.js" async></script>

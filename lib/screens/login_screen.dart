@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gradeflow/components/animated_page_background.dart';
-import 'package:gradeflow/components/gradeflow_entry_motion.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
-import 'package:gradeflow/config/gradeflow_product_config.dart';
+import 'package:gradeflow/config/instructos_branding.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/demo_data_service.dart';
@@ -15,7 +13,8 @@ import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/nav.dart';
-import 'package:gradeflow/theme.dart';
+import 'package:gradeflow/widgets/branding/instructos_auth_card_shell.dart';
+import 'package:gradeflow/widgets/branding/instructos_interactive_auth_background.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -28,7 +27,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
   bool _isLoading = false;
+  bool _isCreatingAccount = false;
 
   bool get _shouldUseLocalhostForGoogleSignIn =>
       kIsWeb && Uri.base.host == '127.0.0.1';
@@ -39,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -70,6 +72,36 @@ class _LoginScreenState extends State<LoginScreen> {
         _completeAuthNavigation();
       } else {
         _showError('Login failed. Please check your credentials.');
+      }
+    }
+  }
+
+  Future<void> _handleRegister() async {
+    if (_emailController.text.trim().isEmpty) {
+      _showError('Please enter your email');
+      return;
+    }
+
+    final displayName = _nameController.text.trim().isEmpty
+        ? _emailController.text.trim()
+        : _nameController.text.trim();
+
+    setState(() => _isLoading = true);
+
+    final authService = context.read<AuthService>();
+    final success = await authService.register(
+      _emailController.text.trim(),
+      displayName,
+      null,
+    );
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+
+      if (success) {
+        _completeAuthNavigation();
+      } else {
+        _showError('Account creation failed. Please try another email.');
       }
     }
   }
@@ -166,244 +198,69 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildExperiencePanel(
-    BuildContext context, {
-    required bool compact,
-  }) {
-    final theme = Theme.of(context);
-    final panelColor = theme.colorScheme.surface.withValues(alpha: 0.82);
-    final secondaryPanel =
-        theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.26);
-
-    return Container(
-      padding: EdgeInsets.all(compact ? 22 : 28),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(compact ? 28 : 34),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            panelColor,
-            secondaryPanel,
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GradeFlowEntryMotion(
-                size: compact ? 118 : 152,
-                compact: compact,
-              ),
-              SizedBox(width: compact ? 14 : 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _LoginSectionTag(
-                      label: 'Teacher Operating System',
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      GradeFlowProductConfig.appName,
-                      style: (compact
-                              ? theme.textTheme.headlineSmall
-                              : theme.textTheme.headlineMedium)
-                          ?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'A calm command center for today\'s teaching.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Classes, seating, grades, and live tools stay one motion away.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        height: 1.55,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: const [
-              _LoginSignalChip(
-                icon: Icons.verified_user_outlined,
-                label: 'Secure workspace',
-              ),
-              _LoginSignalChip(
-                icon: Icons.meeting_room_outlined,
-                label: 'Classroom tools',
-              ),
-              _LoginSignalChip(
-                icon: Icons.auto_graph_rounded,
-                label: 'Live context',
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              color: Colors.white.withValues(alpha: 0.03),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.06),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                _LoginSectionTag(
-                  label: 'What opens next',
-                ),
-                SizedBox(height: 14),
-                _LoginFeatureTile(
-                  icon: Icons.bolt_outlined,
-                  title: 'Start cleanly',
-                  detail: 'Open into a focused workspace without visual noise.',
-                ),
-                SizedBox(height: 14),
-                _LoginFeatureTile(
-                  icon: Icons.meeting_room_outlined,
-                  title: 'Teach live',
-                  detail:
-                      'Move from class context to seating and tools quickly.',
-                ),
-                SizedBox(height: 14),
-                _LoginFeatureTile(
-                  icon: Icons.insights_outlined,
-                  title: 'Stay aware',
-                  detail: 'Class signals and daily work remain close at hand.',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAccessPanel(
     BuildContext context, {
     required bool compact,
   }) {
     final theme = Theme.of(context);
     final primaryButtonStyle = FilledButton.styleFrom(
-      minimumSize: const Size.fromHeight(52),
+      minimumSize: const Size.fromHeight(54),
+      backgroundColor: const Color(0xFF8B5CF6),
+      foregroundColor: Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(19),
+      ),
+      textStyle: theme.textTheme.titleSmall?.copyWith(
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0,
       ),
     );
     final secondaryButtonStyle = OutlinedButton.styleFrom(
-      minimumSize: const Size.fromHeight(48),
+      minimumSize: const Size.fromHeight(50),
+      foregroundColor: const Color(0xFFB8C3FF),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
       ),
       side: BorderSide(
-        color: Colors.white.withValues(alpha: 0.10),
+        color: Colors.white.withValues(alpha: 0.13),
+      ),
+      textStyle: theme.textTheme.titleSmall?.copyWith(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0,
       ),
     );
 
-    return Container(
-      padding: EdgeInsets.all(compact ? 22 : 26),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(compact ? 28 : 32),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.surface.withValues(alpha: 0.90),
-            theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.82),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
+    return InstructOSAuthCardShell(
+      compact: compact,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: const [
-              _LoginSectionTag(label: 'Secure sign in'),
-              _LoginSectionTag(label: 'Demo-safe preview'),
-            ],
-          ),
-          const SizedBox(height: 14),
           Text(
-            'Enter GradeFlow',
+            InstructOSBranding.productName,
+            textAlign: TextAlign.center,
             style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
               letterSpacing: 0,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            'Sign in to open your teaching workspace.',
+            'Teaching, organised.',
+            textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.5,
+              color: const Color(0xFFD7DDF1).withValues(alpha: 0.72),
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: theme.colorScheme.primary.withValues(alpha: 0.08),
-              border: Border.all(
-                color: theme.colorScheme.primary.withValues(alpha: 0.16),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.apartment_rounded,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    GradeFlowProductConfig.defaultSchoolName,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+          SizedBox(height: compact ? 30 : 36),
+          Text(
+            _isCreatingAccount ? 'Create account' : 'Sign in',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.94),
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
             ),
           ),
           if (_shouldUseLocalhostForGoogleSignIn) ...[
@@ -412,11 +269,9 @@ class _LoginScreenState extends State<LoginScreen> {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
-                color: theme.colorScheme.tertiaryContainer.withValues(
-                  alpha: 0.34,
-                ),
+                color: const Color(0xFF142036).withValues(alpha: 0.62),
                 border: Border.all(
-                  color: theme.colorScheme.tertiary.withValues(alpha: 0.28),
+                  color: theme.colorScheme.tertiary.withValues(alpha: 0.30),
                 ),
               ),
               child: Column(
@@ -446,47 +301,60 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
           AutofillGroup(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_isCreatingAccount) ...[
+                  TextField(
+                    controller: _nameController,
+                    decoration: _portalInputDecoration(
+                      theme,
+                      labelText: 'Name',
+                      prefixIcon: const Icon(Icons.person_outline),
+                    ),
+                    textInputAction: TextInputAction.next,
+                    autofillHints: const [AutofillHints.name],
+                    enabled: !_isLoading,
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 TextField(
                   controller: _emailController,
-                  decoration: InputDecoration(
+                  decoration: _portalInputDecoration(
+                    theme,
                     labelText: 'Email',
                     prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.username],
                   enabled: !_isLoading,
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _passwordController,
-                  decoration: InputDecoration(
+                  decoration: _portalInputDecoration(
+                    theme,
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
                   ),
                   obscureText: true,
                   textInputAction: TextInputAction.done,
                   autofillHints: const [AutofillHints.password],
                   enabled: !_isLoading,
-                  onSubmitted: (_) => _handleLogin(),
+                  onSubmitted: (_) =>
+                      _isCreatingAccount ? _handleRegister() : _handleLogin(),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: _isLoading ? null : _handleLogin,
+            onPressed: _isLoading
+                ? null
+                : (_isCreatingAccount ? _handleRegister : _handleLogin),
             style: primaryButtonStyle,
             icon: _isLoading
                 ? const SizedBox(
@@ -495,34 +363,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.arrow_forward_rounded),
-            label: Text(_isLoading ? 'Entering workspace...' : 'Sign In'),
+            label: Text(_isLoading ? 'Opening...' : 'Enter'),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Divider(
-                  color: Colors.white.withValues(alpha: 0.10),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'or continue with',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Divider(
-                  color: Colors.white.withValues(alpha: 0.10),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           OutlinedButton.icon(
             onPressed: _isLoading ? null : _handleGoogleLogin,
             style: secondaryButtonStyle,
@@ -534,28 +377,65 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: _isLoading ? null : _handleDemoLogin,
             style: secondaryButtonStyle,
             icon: const Icon(Icons.preview_outlined),
-            label: const Text('Try Demo Account'),
+            label: const Text('Open demo'),
           ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              color: Colors.white.withValues(alpha: 0.03),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.06),
-              ),
-            ),
+          const SizedBox(height: 18),
+          TextButton(
+            onPressed: _isLoading
+                ? null
+                : () {
+                    setState(() => _isCreatingAccount = !_isCreatingAccount);
+                  },
             child: Text(
-              'Preview workspace opens a safe sample OS with class tools, seating, and live context.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                height: 1.5,
+              _isCreatingAccount ? 'Sign in' : 'Create account',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: const Color(0xFFB8C3FF),
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  InputDecoration _portalInputDecoration(
+    ThemeData theme, {
+    required String labelText,
+    required Widget prefixIcon,
+  }) {
+    final borderRadius = BorderRadius.circular(18);
+    return InputDecoration(
+      labelText: labelText,
+      prefixIcon: prefixIcon,
+      filled: true,
+      fillColor: const Color(0xFF070B14).withValues(alpha: 0.46),
+      labelStyle: TextStyle(
+        color: const Color(0xFFD7DDF1).withValues(alpha: 0.78),
+        fontWeight: FontWeight.w600,
+      ),
+      prefixIconColor: const Color(0xFFD7DDF1).withValues(alpha: 0.86),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(
+          color: Colors.white.withValues(alpha: 0.13),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: const BorderSide(
+          color: Color(0xFF8B5CF6),
+          width: 1.4,
+        ),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide(
+          color: Colors.white.withValues(alpha: 0.07),
+        ),
+      ),
+      border: OutlineInputBorder(borderRadius: borderRadius),
     );
   }
 
@@ -573,176 +453,26 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final size = MediaQuery.sizeOf(context);
-    final wideLayout = size.width >= 980;
     final shortViewport = size.height < 780;
     final edgePadding = shortViewport ? 18.0 : 24.0;
-    final panelGap = wideLayout ? 24.0 : 18.0;
 
     return Scaffold(
-      body: AnimatedPageBackground(
+      body: InstructOSInteractiveAuthBackground(
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(edgePadding),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1160),
-                child: wideLayout
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _buildExperiencePanel(
-                              context,
-                              compact: false,
-                            ),
-                          ),
-                          SizedBox(width: panelGap),
-                          SizedBox(
-                            width: 404,
-                            child: _buildAccessPanel(
-                              context,
-                              compact: false,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildExperiencePanel(context, compact: true),
-                          SizedBox(height: panelGap),
-                          _buildAccessPanel(context, compact: true),
-                        ],
-                      ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LoginSignalChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _LoginSignalChip({
-    required this.icon,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: Colors.white.withValues(alpha: 0.05),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LoginSectionTag extends StatelessWidget {
-  final String label;
-
-  const _LoginSectionTag({
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        color: theme.colorScheme.primary.withValues(alpha: 0.10),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.18),
-        ),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
-        ),
-      ),
-    );
-  }
-}
-
-class _LoginFeatureTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String detail;
-
-  const _LoginFeatureTile({
-    required this.icon,
-    required this.title,
-    required this.detail,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            color: theme.colorScheme.primary.withValues(alpha: 0.14),
-            border: Border.all(
-              color: theme.colorScheme.primary.withValues(alpha: 0.22),
-            ),
-          ),
-          child: Icon(icon, size: 20, color: theme.colorScheme.primary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+                constraints: const BoxConstraints(maxWidth: 430),
+                child: _buildAccessPanel(
+                  context,
+                  compact: size.width < 560 || shortViewport,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                detail,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.45,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      ],
+      ),
     );
   }
 }
