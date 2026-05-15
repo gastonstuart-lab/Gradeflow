@@ -1386,7 +1386,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.restore_from_trash),
-                tooltip: 'Restore Bin',
+                tooltip: 'Student recycle bin',
                 style: WorkspaceButtonStyles.icon(context),
                 onPressed: () => context
                     .push(AppRoutes.osClassStudentsTrash(widget.classId)),
