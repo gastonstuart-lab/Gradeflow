@@ -1980,16 +1980,16 @@ class _AskInstructOSMiniAppContentState
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
             decoration: BoxDecoration(
               color: dark
-                  ? Colors.white.withValues(alpha: 0.030)
-                  : Colors.white.withValues(alpha: 0.54),
-              borderRadius: BorderRadius.circular(24),
+                  ? Colors.white.withValues(alpha: 0.026)
+                  : Colors.white.withValues(alpha: 0.48),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(
                 color: dark
-                    ? Colors.white.withValues(alpha: 0.055)
-                    : Colors.white.withValues(alpha: 0.70),
+                    ? Colors.white.withValues(alpha: 0.050)
+                    : Colors.white.withValues(alpha: 0.64),
               ),
             ),
             child: _messages.isEmpty
@@ -1999,9 +1999,9 @@ class _AskInstructOSMiniAppContentState
                   )
                 : ListView.separated(
                     controller: _scrollController,
-                    padding: EdgeInsets.zero,
+                    padding: const EdgeInsets.only(bottom: 2),
                     itemCount: _messages.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (_, __) => const SizedBox(height: 7),
                     itemBuilder: (context, index) {
                       final message = _messages[index];
                       return _AskInstructOSBubble(message: message);
@@ -2012,7 +2012,7 @@ class _AskInstructOSMiniAppContentState
         const SizedBox(height: 10),
         if (_messages.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 8),
             child: _AskPromptChips(
               prompts: _suggestedPrompts,
               onPromptTap: _sendSuggestedPrompt,
@@ -2054,75 +2054,92 @@ class _AskInstructOSEmptyState extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  OSColors.indigo.withValues(alpha: dark ? 0.16 : 0.10),
-                  OSColors.cyan.withValues(alpha: dark ? 0.08 : 0.07),
-                  Colors.white.withValues(alpha: dark ? 0.025 : 0.54),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: dark
-                    ? Colors.white.withValues(alpha: 0.060)
-                    : Colors.white.withValues(alpha: 0.74),
-              ),
-            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: OSColors.indigo.withValues(alpha: .16),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: OSColors.indigo.withValues(alpha: .24),
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.auto_awesome_rounded,
-                    color: OSColors.indigo,
-                    size: 21,
-                  ),
-                ),
+                const _AskAssistantMark(size: 38),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Ask for a classroom-ready draft',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: OSColors.text(dark),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ready when you are',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: OSColors.text(dark),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Start with a quick planning, communication, or recap request. This preview stays local for now.',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          height: 1.35,
-                          color: OSColors.textSecondary(dark),
+                        const SizedBox(height: 6),
+                        Text(
+                          'I can help plan lessons, draft messages, create quizzes, and organise your day.',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            height: 1.35,
+                            color: OSColors.textSecondary(dark),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _AskPromptChips(prompts: prompts, onPromptTap: onPromptTap),
         ],
+      ),
+    );
+  }
+}
+
+class _AskAssistantMark extends StatelessWidget {
+  const _AskAssistantMark({this.size = 30});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            OSColors.indigo.withValues(alpha: dark ? 0.30 : 0.18),
+            OSColors.cyan.withValues(alpha: dark ? 0.16 : 0.12),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(size * 0.36),
+        border: Border.all(
+          color: OSColors.indigo.withValues(alpha: dark ? 0.30 : 0.22),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: OSColors.indigo.withValues(alpha: dark ? 0.12 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Text(
+        'I/OS',
+        maxLines: 1,
+        style: TextStyle(
+          fontSize: size * 0.26,
+          fontWeight: FontWeight.w900,
+          color: dark ? const Color(0xFFEFF6FF) : OSColors.indigo,
+        ),
       ),
     );
   }
@@ -2143,35 +2160,48 @@ class _AskPromptChips extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: compact ? 7 : 8,
+      runSpacing: compact ? 7 : 8,
       children: [
         for (final prompt in prompts)
           OSTouchFeedback(
             onTap: () => onPromptTap(prompt),
             borderRadius: OSRadius.pillBr,
-            minSize: const Size(44, 32),
+            minSize: Size(44, compact ? 30 : 32),
             child: Container(
               padding: EdgeInsets.symmetric(
-                horizontal: compact ? 10 : 12,
-                vertical: compact ? 7 : 8,
+                horizontal: compact ? 9 : 11,
+                vertical: compact ? 6 : 7,
               ),
               decoration: BoxDecoration(
                 color: dark
-                    ? Colors.white.withValues(alpha: 0.045)
-                    : Colors.white.withValues(alpha: 0.62),
+                    ? Colors.white.withValues(alpha: 0.038)
+                    : Colors.white.withValues(alpha: 0.58),
                 borderRadius: OSRadius.pillBr,
                 border: Border.all(
-                  color: OSColors.indigo.withValues(alpha: dark ? 0.22 : 0.16),
+                  color: OSColors.indigo.withValues(alpha: dark ? 0.20 : 0.14),
                 ),
               ),
-              child: Text(
-                prompt,
-                style: TextStyle(
-                  fontSize: compact ? 11.5 : 12,
-                  fontWeight: FontWeight.w800,
-                  color: OSColors.textSecondary(dark),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.keyboard_command_key_rounded,
+                    size: compact ? 11 : 12,
+                    color: OSColors.indigo.withValues(alpha: dark ? .88 : .76),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    prompt,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: compact ? 11.3 : 11.8,
+                      fontWeight: FontWeight.w800,
+                      color: OSColors.textSecondary(dark),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -2191,36 +2221,70 @@ class _AskInstructOSBubble extends StatelessWidget {
     final fromAssistant = message.fromAssistant;
     return Align(
       alignment: fromAssistant ? Alignment.centerLeft : Alignment.centerRight,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 520),
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-        decoration: BoxDecoration(
-          color: fromAssistant
-              ? (dark
-                  ? Colors.white.withValues(alpha: 0.052)
-                  : Colors.white.withValues(alpha: 0.76))
-              : OSColors.indigo.withValues(alpha: dark ? 0.20 : 0.13),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(fromAssistant ? 6 : 18),
-            bottomRight: Radius.circular(fromAssistant ? 18 : 6),
-          ),
-          border: Border.all(
-            color: fromAssistant
-                ? (dark
-                    ? Colors.white.withValues(alpha: 0.060)
-                    : Colors.white.withValues(alpha: 0.82))
-                : OSColors.indigo.withValues(alpha: 0.22),
-          ),
-        ),
-        child: Text(
-          message.text,
-          style: TextStyle(
-            fontSize: 12.8,
-            height: 1.38,
-            color: OSColors.text(dark),
-          ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (fromAssistant) ...[
+              const _AskAssistantMark(size: 26),
+              const SizedBox(width: 7),
+            ],
+            Flexible(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: fromAssistant
+                      ? (dark
+                          ? Colors.white.withValues(alpha: 0.050)
+                          : Colors.white.withValues(alpha: 0.72))
+                      : OSColors.indigo.withValues(alpha: dark ? 0.22 : 0.14),
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(16),
+                    topRight: const Radius.circular(16),
+                    bottomLeft: Radius.circular(fromAssistant ? 6 : 16),
+                    bottomRight: Radius.circular(fromAssistant ? 16 : 6),
+                  ),
+                  border: Border.all(
+                    color: fromAssistant
+                        ? (dark
+                            ? Colors.white.withValues(alpha: 0.058)
+                            : Colors.white.withValues(alpha: 0.78))
+                        : OSColors.indigo.withValues(alpha: 0.24),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: dark ? 0.10 : 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  message.text,
+                  style: TextStyle(
+                    fontSize: 12.6,
+                    height: 1.34,
+                    color: OSColors.text(dark),
+                  ),
+                ),
+              ),
+            ),
+            if (!fromAssistant) ...[
+              const SizedBox(width: 7),
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(bottom: 4),
+                decoration: BoxDecoration(
+                  color: OSColors.indigo.withValues(alpha: dark ? 0.72 : 0.56),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -2240,20 +2304,23 @@ class _AskInstructOSInputRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 6, 6, 6),
+      padding: const EdgeInsets.fromLTRB(7, 6, 6, 6),
       decoration: BoxDecoration(
         color: dark
-            ? Colors.white.withValues(alpha: 0.044)
-            : Colors.white.withValues(alpha: 0.70),
-        borderRadius: BorderRadius.circular(22),
+            ? Colors.white.withValues(alpha: 0.050)
+            : Colors.white.withValues(alpha: 0.76),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: dark
-              ? Colors.white.withValues(alpha: 0.070)
-              : Colors.white.withValues(alpha: 0.82),
+              ? Colors.white.withValues(alpha: 0.078)
+              : Colors.white.withValues(alpha: 0.86),
         ),
+        boxShadow: WorkspaceChrome.panelShadow(context, emphasis: .22),
       ),
       child: Row(
         children: [
+          const _AskAssistantMark(size: 28),
+          const SizedBox(width: 8),
           Tooltip(
             message: 'Voice input coming soon',
             child: IconButton(
@@ -2262,10 +2329,16 @@ class _AskInstructOSInputRow extends StatelessWidget {
               iconSize: 19,
               visualDensity: VisualDensity.compact,
               style: IconButton.styleFrom(
-                minimumSize: const Size(34, 34),
+                minimumSize: const Size(30, 30),
                 disabledForegroundColor: OSColors.textMuted(dark),
               ),
             ),
+          ),
+          Container(
+            width: 1,
+            height: 22,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            color: OSColors.textMuted(dark).withValues(alpha: 0.16),
           ),
           Expanded(
             child: TextField(
@@ -2276,7 +2349,7 @@ class _AskInstructOSInputRow extends StatelessWidget {
               onSubmitted: (_) => onSend(),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: 'Ask InstructOS...',
+                hintText: 'Command InstructOS...',
                 hintStyle: TextStyle(
                   color: OSColors.textMuted(dark),
                   fontSize: 13,
@@ -2296,14 +2369,14 @@ class _AskInstructOSInputRow extends StatelessWidget {
             message: 'Send',
             child: OSTouchFeedback(
               onTap: onSend,
-              borderRadius: BorderRadius.circular(16),
-              minSize: const Size(38, 38),
+              borderRadius: BorderRadius.circular(15),
+              minSize: const Size(36, 36),
               child: Container(
-                width: 38,
-                height: 38,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: OSColors.indigo.withValues(alpha: dark ? 0.24 : 0.16),
-                  borderRadius: BorderRadius.circular(16),
+                  color: OSColors.indigo.withValues(alpha: dark ? 0.26 : 0.18),
+                  borderRadius: BorderRadius.circular(15),
                   border: Border.all(
                     color: OSColors.indigo.withValues(alpha: 0.26),
                   ),
