@@ -26,6 +26,7 @@ import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
 import 'package:gradeflow/services/dashboard_weather_service.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
+import 'package:gradeflow/services/instructos_assistant_service.dart';
 import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
 
 class HomeSurface extends StatefulWidget {
@@ -1927,12 +1928,12 @@ class _AskInstructOSMiniAppContentState
     'Help me with this class',
   ];
 
-  static const String _mockReply =
-      'I can help prepare that. In the next version, I\'ll connect to your class data and planning tools.';
-
+  final InstructOSAssistantService _assistantService =
+      InstructOSAssistantService();
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<_AskInstructOSMessage> _messages = [];
+  bool _isSending = false;
 
   @override
   void dispose() {
@@ -1941,22 +1942,58 @@ class _AskInstructOSMiniAppContentState
     super.dispose();
   }
 
-  void _sendCurrentMessage() {
+  Future<void> _sendCurrentMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isSending) return;
+    final conversation = _messages
+        .where((message) => !message.isPending)
+        .map(
+          (message) => InstructOSAssistantMessage(
+            role: message.fromAssistant ? 'assistant' : 'user',
+            content: message.text,
+          ),
+        )
+        .toList(growable: false);
+
     setState(() {
       _messages
         ..add(_AskInstructOSMessage(text: text, fromAssistant: false))
         ..add(const _AskInstructOSMessage(
-          text: _mockReply,
+          text: 'Thinking...',
           fromAssistant: true,
+          isPending: true,
         ));
       _controller.clear();
+      _isSending = true;
+    });
+    _scrollToBottom();
+
+    final reply = await _assistantService.ask(
+      message: text,
+      conversation: conversation,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      final pendingIndex = _messages.lastIndexWhere(
+        (message) => message.isPending,
+      );
+      final replyMessage = _AskInstructOSMessage(
+        text: reply,
+        fromAssistant: true,
+      );
+      if (pendingIndex == -1) {
+        _messages.add(replyMessage);
+      } else {
+        _messages[pendingIndex] = replyMessage;
+      }
+      _isSending = false;
     });
     _scrollToBottom();
   }
 
   void _sendSuggestedPrompt(String prompt) {
+    if (_isSending) return;
     _controller.text = prompt;
     _sendCurrentMessage();
   }
@@ -1996,6 +2033,7 @@ class _AskInstructOSMiniAppContentState
                 ? _AskInstructOSEmptyState(
                     prompts: _suggestedPrompts,
                     onPromptTap: _sendSuggestedPrompt,
+                    enabled: !_isSending,
                   )
                 : ListView.separated(
                     controller: _scrollController,
@@ -2017,11 +2055,13 @@ class _AskInstructOSMiniAppContentState
               prompts: _suggestedPrompts,
               onPromptTap: _sendSuggestedPrompt,
               compact: true,
+              enabled: !_isSending,
             ),
           ),
         _AskInstructOSInputRow(
           controller: _controller,
           onSend: _sendCurrentMessage,
+          isSending: _isSending,
         ),
       ],
     );
@@ -2032,20 +2072,24 @@ class _AskInstructOSMessage {
   const _AskInstructOSMessage({
     required this.text,
     required this.fromAssistant,
+    this.isPending = false,
   });
 
   final String text;
   final bool fromAssistant;
+  final bool isPending;
 }
 
 class _AskInstructOSEmptyState extends StatelessWidget {
   const _AskInstructOSEmptyState({
     required this.prompts,
     required this.onPromptTap,
+    required this.enabled,
   });
 
   final List<String> prompts;
   final ValueChanged<String> onPromptTap;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -2092,7 +2136,11 @@ class _AskInstructOSEmptyState extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _AskPromptChips(prompts: prompts, onPromptTap: onPromptTap),
+          _AskPromptChips(
+            prompts: prompts,
+            onPromptTap: onPromptTap,
+            enabled: enabled,
+          ),
         ],
       ),
     );
@@ -2150,11 +2198,13 @@ class _AskPromptChips extends StatelessWidget {
     required this.prompts,
     required this.onPromptTap,
     this.compact = false,
+    this.enabled = true,
   });
 
   final List<String> prompts;
   final ValueChanged<String> onPromptTap;
   final bool compact;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -2165,7 +2215,7 @@ class _AskPromptChips extends StatelessWidget {
       children: [
         for (final prompt in prompts)
           OSTouchFeedback(
-            onTap: () => onPromptTap(prompt),
+            onTap: enabled ? () => onPromptTap(prompt) : null,
             borderRadius: OSRadius.pillBr,
             minSize: Size(44, compact ? 30 : 32),
             child: Container(
@@ -2295,10 +2345,12 @@ class _AskInstructOSInputRow extends StatelessWidget {
   const _AskInstructOSInputRow({
     required this.controller,
     required this.onSend,
+    required this.isSending,
   });
 
   final TextEditingController controller;
   final VoidCallback onSend;
+  final bool isSending;
 
   @override
   Widget build(BuildContext context) {
@@ -2343,6 +2395,7 @@ class _AskInstructOSInputRow extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
+              enabled: !isSending,
               minLines: 1,
               maxLines: 3,
               textInputAction: TextInputAction.send,
@@ -2368,7 +2421,7 @@ class _AskInstructOSInputRow extends StatelessWidget {
           Tooltip(
             message: 'Send',
             child: OSTouchFeedback(
-              onTap: onSend,
+              onTap: isSending ? null : onSend,
               borderRadius: BorderRadius.circular(15),
               minSize: const Size(36, 36),
               child: Container(
@@ -2381,11 +2434,20 @@ class _AskInstructOSInputRow extends StatelessWidget {
                     color: OSColors.indigo.withValues(alpha: 0.26),
                   ),
                 ),
-                child: const Icon(
-                  Icons.arrow_upward_rounded,
-                  size: 18,
-                  color: OSColors.indigo,
-                ),
+                child: isSending
+                    ? const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: OSColors.indigo,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.arrow_upward_rounded,
+                        size: 18,
+                        color: OSColors.indigo,
+                      ),
               ),
             ),
           ),
