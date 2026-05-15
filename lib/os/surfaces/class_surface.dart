@@ -337,7 +337,7 @@ class _ClassWorkspaceStatusScaffold extends StatelessWidget {
                   if (!loading) ...[
                     const SizedBox(height: 18),
                     GradeFlowActionChip(
-                      label: 'Back to home',
+                      label: 'Back to OS home',
                       icon: Icons.arrow_back_rounded,
                       onPressed: onBack,
                       emphasized: true,
