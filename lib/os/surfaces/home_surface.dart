@@ -660,6 +660,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
 enum _HomeMiniApp {
   weather,
   today,
+  ask,
   classes,
   tasks,
   messages,
@@ -671,6 +672,7 @@ enum _HomeMiniApp {
 _HomeMiniApp _miniAppForFolder(_HomeWorkspaceFolder folder) {
   return switch (folder) {
     _HomeWorkspaceFolder.today => _HomeMiniApp.today,
+    _HomeWorkspaceFolder.ask => _HomeMiniApp.ask,
     _HomeWorkspaceFolder.classes => _HomeMiniApp.classes,
     _HomeWorkspaceFolder.tasks => _HomeMiniApp.tasks,
     _HomeWorkspaceFolder.messages => _HomeMiniApp.messages,
@@ -681,6 +683,7 @@ _HomeMiniApp _miniAppForFolder(_HomeWorkspaceFolder folder) {
 _HomeWorkspaceFolder? _folderForMiniApp(_HomeMiniApp? app) {
   return switch (app) {
     _HomeMiniApp.today => _HomeWorkspaceFolder.today,
+    _HomeMiniApp.ask => _HomeWorkspaceFolder.ask,
     _HomeMiniApp.classes => _HomeWorkspaceFolder.classes,
     _HomeMiniApp.tasks => _HomeWorkspaceFolder.tasks,
     _HomeMiniApp.messages => _HomeWorkspaceFolder.messages,
@@ -1324,6 +1327,11 @@ class _HomeQuickClassEmptyCard extends StatelessWidget {
 
 enum _HomeWorkspaceFolder {
   today(label: 'Today', icon: Icons.today_rounded, accent: OSColors.blue),
+  ask(
+    label: 'Ask InstructOS',
+    icon: Icons.auto_awesome_rounded,
+    accent: OSColors.indigo,
+  ),
   classes(label: 'Classes', icon: Icons.class_rounded, accent: OSColors.green),
   tasks(label: 'Tasks', icon: Icons.task_alt_rounded, accent: OSColors.amber),
   messages(label: 'Messages', icon: Icons.forum_rounded, accent: OSColors.cyan),
@@ -1409,6 +1417,7 @@ class _HomeWorkspaceFolderStrip extends StatelessWidget {
   String _folderDetail(_HomeWorkspaceFolder folder) {
     return switch (folder) {
       _HomeWorkspaceFolder.today => 'Next up',
+      _HomeWorkspaceFolder.ask => 'Assistant',
       _HomeWorkspaceFolder.classes =>
         classCount == 0 ? 'No classes' : '$classCount active',
       _HomeWorkspaceFolder.tasks =>
@@ -1440,7 +1449,7 @@ class _HomeWorkspaceFolderChip extends StatelessWidget {
     final chip = AnimatedContainer(
       duration: const Duration(milliseconds: 190),
       curve: Curves.easeOutCubic,
-      width: 134,
+      width: folder == _HomeWorkspaceFolder.ask ? 168 : 134,
       padding: EdgeInsets.fromLTRB(12, selected ? 9 : 10, 12, 10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1758,9 +1767,11 @@ class _HomeMiniAppWindow extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: SingleChildScrollView(
-                    child: _miniAppBody(context),
-                  ),
+                  child: app == _HomeMiniApp.ask
+                      ? _miniAppBody(context)
+                      : SingleChildScrollView(
+                          child: _miniAppBody(context),
+                        ),
                 ),
               ],
             ),
@@ -1773,6 +1784,7 @@ class _HomeMiniAppWindow extends StatelessWidget {
   Widget _miniAppBody(BuildContext context) {
     return switch (app) {
       _HomeMiniApp.weather => const _WeatherMiniAppContent(),
+      _HomeMiniApp.ask => const _AskInstructOSMiniAppContent(),
       _HomeMiniApp.messages => _MessagesMiniAppContent(unread: unread),
       _HomeMiniApp.agenda => _AgendaMiniAppContent(
           title: 'Review today\'s plan',
@@ -1846,6 +1858,7 @@ class _MiniWindowIconButton extends StatelessWidget {
 String _miniAppTitle(_HomeMiniApp app) {
   return switch (app) {
     _HomeMiniApp.weather => 'Weather',
+    _HomeMiniApp.ask => 'Ask InstructOS',
     _HomeMiniApp.messages => 'Messages',
     _HomeMiniApp.agenda => 'Agenda / Today\'s Plan',
     _HomeMiniApp.audio => 'Focus Audio',
@@ -1859,6 +1872,7 @@ String _miniAppTitle(_HomeMiniApp app) {
 IconData _miniAppIcon(_HomeMiniApp app) {
   return switch (app) {
     _HomeMiniApp.weather => Icons.wb_cloudy_rounded,
+    _HomeMiniApp.ask => Icons.auto_awesome_rounded,
     _HomeMiniApp.messages => Icons.forum_rounded,
     _HomeMiniApp.agenda => Icons.event_available_rounded,
     _HomeMiniApp.audio => Icons.graphic_eq_rounded,
@@ -1872,6 +1886,7 @@ IconData _miniAppIcon(_HomeMiniApp app) {
 Color _miniAppAccent(_HomeMiniApp app) {
   return switch (app) {
     _HomeMiniApp.weather => OSColors.blue,
+    _HomeMiniApp.ask => OSColors.indigo,
     _HomeMiniApp.messages => OSColors.cyan,
     _HomeMiniApp.agenda => OSColors.amber,
     _HomeMiniApp.audio => OSColors.indigo,
@@ -1890,8 +1905,421 @@ String? _miniAppFullRoute(_HomeMiniApp app) {
     _HomeMiniApp.tasks =>
       AppRoutes.osPlanner,
     _HomeMiniApp.classes || _HomeMiniApp.insights => AppRoutes.classes,
-    _HomeMiniApp.weather || _HomeMiniApp.audio => null,
+    _HomeMiniApp.weather || _HomeMiniApp.audio || _HomeMiniApp.ask => null,
   };
+}
+
+class _AskInstructOSMiniAppContent extends StatefulWidget {
+  const _AskInstructOSMiniAppContent();
+
+  @override
+  State<_AskInstructOSMiniAppContent> createState() =>
+      _AskInstructOSMiniAppContentState();
+}
+
+class _AskInstructOSMiniAppContentState
+    extends State<_AskInstructOSMiniAppContent> {
+  static const List<String> _suggestedPrompts = [
+    'Plan my next lesson',
+    'Draft a parent message',
+    'Create a quick quiz',
+    'Summarise today',
+    'Help me with this class',
+  ];
+
+  static const String _mockReply =
+      'I can help prepare that. In the next version, I\'ll connect to your class data and planning tools.';
+
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final List<_AskInstructOSMessage> _messages = [];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _sendCurrentMessage() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _messages
+        ..add(_AskInstructOSMessage(text: text, fromAssistant: false))
+        ..add(const _AskInstructOSMessage(
+          text: _mockReply,
+          fromAssistant: true,
+        ));
+      _controller.clear();
+    });
+    _scrollToBottom();
+  }
+
+  void _sendSuggestedPrompt(String prompt) {
+    _controller.text = prompt;
+    _sendCurrentMessage();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.030)
+                  : Colors.white.withValues(alpha: 0.54),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.055)
+                    : Colors.white.withValues(alpha: 0.70),
+              ),
+            ),
+            child: _messages.isEmpty
+                ? _AskInstructOSEmptyState(
+                    prompts: _suggestedPrompts,
+                    onPromptTap: _sendSuggestedPrompt,
+                  )
+                : ListView.separated(
+                    controller: _scrollController,
+                    padding: EdgeInsets.zero,
+                    itemCount: _messages.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      return _AskInstructOSBubble(message: message);
+                    },
+                  ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (_messages.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _AskPromptChips(
+              prompts: _suggestedPrompts,
+              onPromptTap: _sendSuggestedPrompt,
+              compact: true,
+            ),
+          ),
+        _AskInstructOSInputRow(
+          controller: _controller,
+          onSend: _sendCurrentMessage,
+        ),
+      ],
+    );
+  }
+}
+
+class _AskInstructOSMessage {
+  const _AskInstructOSMessage({
+    required this.text,
+    required this.fromAssistant,
+  });
+
+  final String text;
+  final bool fromAssistant;
+}
+
+class _AskInstructOSEmptyState extends StatelessWidget {
+  const _AskInstructOSEmptyState({
+    required this.prompts,
+    required this.onPromptTap,
+  });
+
+  final List<String> prompts;
+  final ValueChanged<String> onPromptTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  OSColors.indigo.withValues(alpha: dark ? 0.16 : 0.10),
+                  OSColors.cyan.withValues(alpha: dark ? 0.08 : 0.07),
+                  Colors.white.withValues(alpha: dark ? 0.025 : 0.54),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.060)
+                    : Colors.white.withValues(alpha: 0.74),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: OSColors.indigo.withValues(alpha: .16),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: OSColors.indigo.withValues(alpha: .24),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: OSColors.indigo,
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ask for a classroom-ready draft',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: OSColors.text(dark),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Start with a quick planning, communication, or recap request. This preview stays local for now.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.35,
+                          color: OSColors.textSecondary(dark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _AskPromptChips(prompts: prompts, onPromptTap: onPromptTap),
+        ],
+      ),
+    );
+  }
+}
+
+class _AskPromptChips extends StatelessWidget {
+  const _AskPromptChips({
+    required this.prompts,
+    required this.onPromptTap,
+    this.compact = false,
+  });
+
+  final List<String> prompts;
+  final ValueChanged<String> onPromptTap;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final prompt in prompts)
+          OSTouchFeedback(
+            onTap: () => onPromptTap(prompt),
+            borderRadius: OSRadius.pillBr,
+            minSize: const Size(44, 32),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 10 : 12,
+                vertical: compact ? 7 : 8,
+              ),
+              decoration: BoxDecoration(
+                color: dark
+                    ? Colors.white.withValues(alpha: 0.045)
+                    : Colors.white.withValues(alpha: 0.62),
+                borderRadius: OSRadius.pillBr,
+                border: Border.all(
+                  color: OSColors.indigo.withValues(alpha: dark ? 0.22 : 0.16),
+                ),
+              ),
+              child: Text(
+                prompt,
+                style: TextStyle(
+                  fontSize: compact ? 11.5 : 12,
+                  fontWeight: FontWeight.w800,
+                  color: OSColors.textSecondary(dark),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _AskInstructOSBubble extends StatelessWidget {
+  const _AskInstructOSBubble({required this.message});
+
+  final _AskInstructOSMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final fromAssistant = message.fromAssistant;
+    return Align(
+      alignment: fromAssistant ? Alignment.centerLeft : Alignment.centerRight,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 520),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+        decoration: BoxDecoration(
+          color: fromAssistant
+              ? (dark
+                  ? Colors.white.withValues(alpha: 0.052)
+                  : Colors.white.withValues(alpha: 0.76))
+              : OSColors.indigo.withValues(alpha: dark ? 0.20 : 0.13),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(fromAssistant ? 6 : 18),
+            bottomRight: Radius.circular(fromAssistant ? 18 : 6),
+          ),
+          border: Border.all(
+            color: fromAssistant
+                ? (dark
+                    ? Colors.white.withValues(alpha: 0.060)
+                    : Colors.white.withValues(alpha: 0.82))
+                : OSColors.indigo.withValues(alpha: 0.22),
+          ),
+        ),
+        child: Text(
+          message.text,
+          style: TextStyle(
+            fontSize: 12.8,
+            height: 1.38,
+            color: OSColors.text(dark),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AskInstructOSInputRow extends StatelessWidget {
+  const _AskInstructOSInputRow({
+    required this.controller,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.044)
+            : Colors.white.withValues(alpha: 0.70),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.070)
+              : Colors.white.withValues(alpha: 0.82),
+        ),
+      ),
+      child: Row(
+        children: [
+          Tooltip(
+            message: 'Voice input coming soon',
+            child: IconButton(
+              onPressed: null,
+              icon: const Icon(Icons.mic_none_rounded),
+              iconSize: 19,
+              visualDensity: VisualDensity.compact,
+              style: IconButton.styleFrom(
+                minimumSize: const Size(34, 34),
+                disabledForegroundColor: OSColors.textMuted(dark),
+              ),
+            ),
+          ),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              minLines: 1,
+              maxLines: 3,
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => onSend(),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Ask InstructOS...',
+                hintStyle: TextStyle(
+                  color: OSColors.textMuted(dark),
+                  fontSize: 13,
+                ),
+                border: InputBorder.none,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+              ),
+              style: TextStyle(
+                fontSize: 13,
+                color: OSColors.text(dark),
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Tooltip(
+            message: 'Send',
+            child: OSTouchFeedback(
+              onTap: onSend,
+              borderRadius: BorderRadius.circular(16),
+              minSize: const Size(38, 38),
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: OSColors.indigo.withValues(alpha: dark ? 0.24 : 0.16),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: OSColors.indigo.withValues(alpha: 0.26),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.arrow_upward_rounded,
+                  size: 18,
+                  color: OSColors.indigo,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _WeatherMiniAppContent extends StatefulWidget {
