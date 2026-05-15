@@ -31,9 +31,6 @@ import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/models/deleted_class_entry.dart';
 import 'package:gradeflow/services/class_trash_service.dart';
-import 'package:gradeflow/services/ai_import_service.dart';
-import 'package:gradeflow/openai/openai_config.dart';
-import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 import 'package:gradeflow/models/seating_layout.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1084,12 +1081,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
             },
             child: const Text('Copy diagnostics'),
           ),
-          TextButton(
-            onPressed: OpenAIConfig.isConfigured
-                ? () => Navigator.pop(context, 'ai')
-                : null,
-            child: const Text('Analyze with AI'),
-          ),
           FilledButton(
               onPressed: () => Navigator.pop(context, 'close'),
               child: const Text('Close')),
@@ -1997,58 +1988,13 @@ class _ClassListScreenState extends State<ClassListScreen> {
         // ignore; fall through to diagnostics
       }
 
-      final action = await _showImportDiagnosticsDialog(
+      await _showImportDiagnosticsDialog(
         title: 'Could not read this file',
         filename: filename,
         bytes: bytes,
         hint: 'Tip: Export as CSV (UTF-8) and retry.',
       );
-
-      if (!mounted || action != 'ai') return;
-
-      // Use AI to parse classes
-      final rows = _importService.rowsFromAnyBytes(bytes);
-      final aiResult = await showDialog<Map<String, dynamic>>(
-        context: context,
-        builder: (ctx) => AiAnalyzeImportDialog(
-          title: 'Analyze class list with AI',
-          filename: filename,
-          analyze: () => AiImportService()
-              .analyzeClassesFromRows(rows, filename: filename),
-          confirmLabel: 'Use these classes',
-        ),
-      );
-
-      if (!mounted || aiResult == null) return;
-
-      // Convert AI output to ImportedClass list
-      final aiClasses = <ImportedClass>[];
-      final rawClasses = aiResult['classes'];
-      if (rawClasses is List) {
-        for (final c in rawClasses) {
-          if (c is Map) {
-            final className = (c['className'] ?? '').toString().trim();
-            if (className.isNotEmpty) {
-              aiClasses.add(ImportedClass(
-                className: className,
-                subject: (c['subject'] ?? '').toString().trim(),
-                schoolYear: (c['schoolYear'] ?? '').toString().trim(),
-                term: (c['term'] ?? '').toString().trim(),
-                isValid: true,
-              ));
-            }
-          }
-        }
-      }
-
-      if (aiClasses.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('AI did not return any classes.')));
-        return;
-      }
-
-      // Replace parsed with AI result and continue with normal flow
-      parsed = aiClasses;
+      return;
     }
 
     final valid = parsed.where((i) => i.isValid).toList();

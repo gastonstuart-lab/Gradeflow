@@ -1,179 +1,42 @@
 # AI Integration Guide
 
-> Safety note: this guide is legacy background for import-related AI ideas.
-> Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code
-> launch config, or client-side environment variables. Future OpenAI calls must
-> go through Firebase Functions/server-side secrets only.
-
-## Current Status
-
-### ✅ AI Already Integrated
-- **Exam Scores Import** (`exam_input_screen.dart`) - Full AI support with AiAnalyzeImportDialog
-- **Calendar Import** (`teacher_dashboard_screen.dart`) - AI option in diagnostics dialog
-
-### 🟡 AI Service Ready, Not Integrated in UI
-The `AiImportService` already has methods for:
-- `inferFromRows()` - Student roster import (with smart local fallback)
-- `analyzeClassesFromRows()` - Class list import
-- `analyzeTimetableFromRows()` - Timetable import
-- `analyzeSchoolCalendarFromRows()` - Calendar import (already used)
-- `analyzeExamScoresFromRows()` - Exam scores (already used)
-
-## Integration Pattern
-
-All AI imports follow this pattern:
-
-```dart
-// 1. Check if server-side AI is configured
-if (!OpenAIConfig.isConfigured) {
-  _showError('AI not configured. Use Firebase Functions/server-side secrets only.');
-  return;
-}
-
-// 2. Convert file bytes to rows
-final rows = FileImportService().rowsFromAnyBytes(bytes);
-
-// 3. Show AI analyze dialog
-final result = await showDialog<Map<String, dynamic>>(
-  context: context,
-  builder: (ctx) => AiAnalyzeImportDialog(
-    title: 'Analyze [type] with AI',
-    filename: filename,
-    confirmLabel: 'Import [items]',
-    analyze: () => AiImportService().[methodName](rows, filename: filename),
-  ),
-);
-
-// 4. Process result
-if (result == null || !mounted) return;
-// Extract and use data...
-```
-
-## Pending Integrations
-
-### 1. Student List Import (`student_list_screen.dart`)
-
-**Location**: `_showImportDialog()` method (line ~50)
-
-**Current Flow**:
-- FilePicker → parse locally → show preview → import
-
-**Add AI**:
-Add "Try AI" button to the error dialog (where it shows diagnostics):
-
-```dart
-// In the diagnostic dialog actions (around line 100):
-if (OpenAIConfig.isConfigured)
-  FilledButton(
-    onPressed: () async {
-      Navigator.pop(ctx); // Close diagnostics
-      
-      final rows = _importService.rowsFromAnyBytes(bytes);
-      final aiResult = await showDialog<AiImportOutput>(
-        context: context,
-        builder: (_) => AiAnalyzeImportDialog(
-          title: 'Analyze student roster with AI',
-          filename: result.files.single.name,
-          confirmLabel: 'Import students',
-          analyze: () async {
-            final output = await AiImportService()
-                .inferFromRows(rows, filename: result.files.single.name);
-            if (output == null) {
-              return {'error': 'AI could not parse the file'};
-            }
-            // Convert AiImportOutput to Map for dialog
-            return {
-              'classes': output.classesMeta,
-              'students': output.byClass,
-              'errors': output.errors,
-            };
-          },
-        ),
-      );
-      
-      if (aiResult == null) return;
-      // Process AI-parsed students...
-    },
-    child: const Text('Try AI'),
-  ),
-```
-
-### 2. Class Import (`class_list_screen.dart`)
-
-**Location**: Multiple import methods around line 163+
-
-**Current Flow**:
-- FilePicker → parse locally → create classes
-
-**Add AI**:
-Similar pattern - add AI button to error/diagnostics dialogs using `analyzeClassesFromRows()`.
-
-### 3. Timetable Import (DOCX)
-
-**Location**: `teacher_dashboard_screen.dart`, timetable upload (line ~1696)
-
-**Current**: Uses `extractDocxBestTableGrid()` + `cleanTimetableGrid()` (newly added)
-
-**Add AI Enhancement**:
-If the cleaned grid still looks messy, offer AI option:
-
-```dart
-// After cleaning, check if result is still problematic
-if (grid != null && (grid.length > 15 || _hasEmptyCells(grid))) {
-  // Show option to use AI to further clean/interpret
-  final useAI = await showDialog<bool>(...);
-  if (useAI && OpenAIConfig.isConfigured) {
-    final rows = grid; // Use cleaned grid as input
-    final aiResult = await AiImportService()
-        .analyzeTimetableFromRows(rows, filename: name);
-    // Rebuild grid from AI output...
-  }
-}
-```
-
-## Configuration
-
-Legacy Flutter-side OpenAI configuration is deprecated and must not be used for
-Flutter web.
+> Deprecated frontend AI import guidance has been removed.
 
 Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code launch
 config, `.vscode/settings.json`, or client-side environment variables.
 
-Future OpenAI setup must use Firebase Functions / Google Cloud server-side
-secret storage. The Flutter app should call a Firebase callable Function, and
-only that server-side function may call the OpenAI API.
+The legacy Flutter-side OpenAI import path has been removed. The app must not
+call OpenAI or OpenAI proxy endpoints directly from Flutter/web.
 
-## Testing AI Integration
+Future AI import work should use this architecture:
 
-1. **Without Configuration** (default):
-   - AI buttons should be hidden (check `OpenAIConfig.isConfigured`)
-   - Local parsers work as fallback
-   
-2. **With Server-Side Configuration**:
-   - Firebase Functions provide authenticated AI responses
-   - Flutter never receives or stores an OpenAI API key
-   - Results display in preview dialog
-   - User can confirm or cancel
+```text
+Flutter UI -> Firebase callable Function -> server-side secret -> OpenAI API
+```
 
-## Benefits of AI Integration
+Only Firebase Functions or another trusted server-side component may read
+OpenAI secrets or call the OpenAI API. Flutter should call an authenticated
+backend endpoint and render the returned preview for user confirmation.
 
-- **Handles non-standard formats**: AI can interpret messy spreadsheets
-- **Multilingual support**: Works with Chinese/English mixed content
-- **Smart inference**: Guesses column meanings even without headers
-- **Error correction**: Can fix common data entry mistakes
-- **User feedback**: Shows what AI interpreted before importing
+## Current Status
 
-## Implementation Priority
+- Local roster, class, timetable, calendar, and exam import parsing remains in
+  Flutter.
+- The old `OpenAIConfig`, `OpenAIClient`, `AiImportService`, and
+  `AiAnalyzeImportDialog` frontend path has been removed.
+- Ask InstructOS remains a separate Firebase callable placeholder and was not
+  changed by this cleanup.
 
-1. ✅ **Timetable cleanup** (COMPLETED - uses smart local logic)
-2. 🔄 **Student import AI** (HIGH - most frequently used)
-3. 🔄 **Class import AI** (MEDIUM - less frequent, but useful)
-4. 🔄 **Timetable AI enhancement** (LOW - local cleanup works well)
+## Future Migration Notes
 
-## Code Quality Notes
+When AI-assisted imports return, implement them server-side first:
 
-- Always check `OpenAIConfig.isConfigured` before showing AI options
-- Provide clear error messages when AI fails
-- Always have local parser fallback
-- Test both AI and non-AI paths
-- Handle network errors gracefully
+1. Add or extend a Firebase callable Function.
+2. Store OpenAI credentials only in Firebase/Google Cloud server-side secrets.
+3. Require authenticated callable requests.
+4. Return structured preview data to Flutter.
+5. Keep local parsers as the default non-AI path.
+6. Add emulator tests for authenticated success and unauthenticated rejection.
+
+Do not restore Flutter-side OpenAI clients, `--dart-define` key setup, or
+client-side proxy-key configuration.

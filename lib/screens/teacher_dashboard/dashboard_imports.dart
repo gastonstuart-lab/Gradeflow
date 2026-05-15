@@ -115,14 +115,7 @@ extension TeacherDashboardImportActions on _TeacherDashboardScreenState {
       return;
     }
 
-    var items = _classScheduleService.parseFromBytes(bytes);
-    if (items.isEmpty && OpenAIConfig.isConfigured) {
-      final aiOutput = await AiImportService()
-          .analyzeScheduleFromBytes(bytes, filename: filename);
-      if (aiOutput != null && aiOutput.items.isNotEmpty) {
-        items = aiOutput.items;
-      }
-    }
+    final items = _classScheduleService.parseFromBytes(bytes);
 
     if (items.isEmpty) {
       if (!mounted) return;
