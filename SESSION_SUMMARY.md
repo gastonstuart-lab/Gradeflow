@@ -235,17 +235,16 @@ Firebase Functions/server-side secrets only.
 
 ### Future Enhancements
 1. **Implement Student Import AI** (see AI_INTEGRATION_GUIDE.md)
-   - Add "Try AI" button to student import error dialog
-   - Use `AiImportService.inferFromRows()`
+   - Add a Firebase callable backend first
+   - Keep OpenAI credentials in server-side secrets only
    - Show preview before importing
    
 2. **Implement Class Import AI** (see AI_INTEGRATION_GUIDE.md)
-   - Similar pattern to student import
-   - Use `AiImportService.analyzeClassesFromRows()`
+   - Use the same Firebase callable/server-side secret pattern
 
 3. **Optional: Timetable AI Enhancement**
    - Add AI option if cleaned grid still messy
-   - Use `AiImportService.analyzeTimetableFromRows()`
+   - Route analysis through a Firebase callable backend
    - Only needed for complex/non-standard formats
 
 ### Configuration (Optional for AI)

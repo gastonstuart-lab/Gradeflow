@@ -5,7 +5,7 @@
 /// and a text entry for free-form AI requests.
 ///
 /// This is Phase 1 scaffolding: the UI is complete but action routing is
-/// placeholder — wire into OpenAI / action router in Phase 6.
+/// placeholder for the future server-side assistant/action router.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

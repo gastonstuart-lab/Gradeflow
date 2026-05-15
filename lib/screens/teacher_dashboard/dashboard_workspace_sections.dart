@@ -822,11 +822,11 @@ extension TeacherDashboardWorkspaceSections on _TeacherDashboardScreenState {
           textInputAction: TextInputAction.send,
           onSubmitted: (_) => _submitAiSearch(),
           decoration: InputDecoration(
-            labelText: 'Ask AI',
-            hintText: 'Type your question and press Enter',
+            labelText: 'Server-side AI assistant coming soon',
+            hintText: 'AI assistant migration in progress',
             prefixIcon: const Icon(Icons.auto_awesome_outlined),
             suffixIcon: IconButton(
-              icon: const Icon(Icons.open_in_new),
+              icon: const Icon(Icons.info_outline),
               onPressed: _submitAiSearch,
             ),
           ),

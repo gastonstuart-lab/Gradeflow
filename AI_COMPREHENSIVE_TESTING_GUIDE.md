@@ -508,7 +508,8 @@ App is **PRODUCTION READY** when:
 - `lib/screens/teacher_dashboard_screen.dart` - All 8 tools (5000+ lines)
 - `lib/screens/class_list_screen.dart` - Class management
 - `lib/screens/student_list_screen.dart` - Student management
-- `lib/services/ai_import_service.dart` - AI integration
+- AI imports - legacy frontend AI import service removed; future AI imports
+  must use Firebase Functions/server-side secrets only
 - `lib/services/file_import_service.dart` - File parsing
 
 ---

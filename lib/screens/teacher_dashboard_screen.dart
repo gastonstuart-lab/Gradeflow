@@ -33,7 +33,6 @@ import 'package:gradeflow/nav.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
-import 'package:gradeflow/services/ai_import_service.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
 import 'package:gradeflow/services/dashboard_news_service.dart';
 import 'package:gradeflow/services/dashboard_weather_service.dart';
@@ -41,8 +40,6 @@ import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/communication_workspace_service.dart';
 import 'package:gradeflow/services/class_health_service.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
-import 'package:gradeflow/openai/openai_config.dart';
-import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
 import 'package:gradeflow/components/time_slot_timetable.dart';
 import 'package:gradeflow/platform/dashboard_audio_player.dart';
 
@@ -265,89 +262,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           ),
         ),
         actions: [
-          if (OpenAIConfig.isConfigured)
-            TextButton(
-              onPressed: () async {
-                final rows = FileImportService().rowsFromAnyBytes(bytes);
-
-                try {
-                  final result = await showDialog<Map<String, dynamic>>(
-                    context: context,
-                    builder: (_) => AiAnalyzeImportDialog(
-                      title: 'Analyze calendar with AI',
-                      filename: filename,
-                      confirmLabel: 'Import events',
-                      hint:
-                          'If this looks correct, press Import events to add reminders.',
-                      analyze: () =>
-                          AiImportService().analyzeSchoolCalendarFromRows(
-                        rows,
-                        filename: filename,
-                      ),
-                    ),
-                  );
-                  if (result == null || !context.mounted) return;
-
-                  final events = result['events'];
-                  if (events is! List) {
-                    if (context.mounted) {
-                      _showDashboardFeedback(
-                        'AI did not return valid events. Please try a different file format.',
-                        tone: WorkspaceFeedbackTone.warning,
-                        title: 'Import needs review',
-                      );
-                    }
-                    return;
-                  }
-
-                  final remindersToAdd = <_Reminder>[];
-                  for (final e in events) {
-                    if (e is! Map) continue;
-                    final dateStr = (e['date'] ?? '').toString().trim();
-                    final titleStr = (e['title'] ?? '').toString().trim();
-                    if (dateStr.isEmpty || titleStr.isEmpty) continue;
-                    final d = DateTime.tryParse(dateStr);
-                    if (d == null) continue;
-                    final details = (e['details'] ?? '').toString().trim();
-                    final t =
-                        details.isEmpty ? titleStr : '$titleStr - $details';
-                    remindersToAdd.add(_Reminder(t, d, done: false));
-                  }
-
-                  if (remindersToAdd.isEmpty) {
-                    if (context.mounted) {
-                      _showDashboardFeedback(
-                        'No valid events found. Try a file with Date and Title columns.',
-                        tone: WorkspaceFeedbackTone.warning,
-                        title: 'Nothing imported',
-                      );
-                    }
-                    return;
-                  }
-
-                  if (mounted) {
-                    setState(() => _reminders.addAll(remindersToAdd));
-                  }
-                  await _saveReminders();
-                  if (!context.mounted) return;
-                  Navigator.of(ctx).pop();
-                  _showDashboardFeedback(
-                    'Imported ${remindersToAdd.length} events from AI.',
-                    tone: WorkspaceFeedbackTone.success,
-                    title: 'Calendar updated',
-                  );
-                } catch (e) {
-                  // AI failed - show helpful error message
-                  if (context.mounted) {
-                    _showDashboardFeedback(
-                      'AI analysis failed: ${e.toString().contains('quota') ? 'API quota exceeded' : 'Connection error'}',
-                      tone: WorkspaceFeedbackTone.error,
-                    );
-                  }
-                }
-              },
-              child: const Text('Analyze with AI'),
-            ),
           TextButton(
             onPressed: () async {
               final nav = Navigator.of(ctx);
@@ -1606,8 +1520,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Future<void> _submitAiSearch() async {
     final q = _askAiCtrl.text.trim();
     if (q.isEmpty) return;
-    final url = 'https://chat.openai.com/?q=${Uri.encodeQueryComponent(q)}';
-    await _openExternal(url);
+    _showDashboardFeedback(
+      'AI assistance will return after the server-side assistant migration.',
+      tone: WorkspaceFeedbackTone.info,
+      title: 'AI assistant unavailable',
+    );
   }
 
   Future<bool> _enforceImportType({

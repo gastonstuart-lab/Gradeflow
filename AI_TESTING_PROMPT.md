@@ -681,7 +681,8 @@ Key files for understanding features:
 - `lib/screens/student_list_screen.dart` - Student management
 - `lib/screens/grading_screen.dart` - Grades and GPA
 - `lib/screens/attendance_screen.dart` - Attendance tracking
-- `lib/services/ai_import_service.dart` - OpenAI integration
+- AI imports - legacy frontend OpenAI integration removed; future AI imports
+  must use Firebase Functions/server-side secrets only
 - `lib/services/file_import_service.dart` - File parsing logic
 
 ---

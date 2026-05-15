@@ -15,9 +15,6 @@ import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gradeflow/components/drive_file_picker_dialog.dart';
-import 'package:gradeflow/components/ai_analyze_import_dialog.dart';
-import 'package:gradeflow/openai/openai_config.dart';
-import 'package:gradeflow/services/ai_import_service.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
@@ -439,7 +436,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     }
 
     if (examScores.isEmpty) {
-      final action = await showDialog<String>(
+      await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Could not parse exam scores'),
@@ -450,61 +447,12 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, 'close'),
+                onPressed: () => Navigator.pop(ctx),
                 child: const Text('Close')),
-            TextButton(
-              onPressed: OpenAIConfig.isConfigured
-                  ? () => Navigator.pop(ctx, 'ai')
-                  : null,
-              child: const Text('Analyze with AI'),
-            ),
           ],
         ),
       );
-      if (!mounted || action != 'ai') return;
-
-      if (!OpenAIConfig.isConfigured) {
-        _showError(
-            'AI is not configured. Set OPENAI_PROXY_ENDPOINT and OPENAI_PROXY_API_KEY.');
-        return;
-      }
-
-      final rows = _importService.rowsFromAnyBytes(bytes);
-      final jsonObj = await showDialog<Map<String, dynamic>>(
-        context: context,
-        builder: (ctx) => AiAnalyzeImportDialog(
-          title: 'Analyze exam scores',
-          filename: picked.filename,
-          analyze: () => AiImportService()
-              .analyzeExamScoresFromRows(rows, filename: picked.filename),
-          confirmLabel: 'Use these scores',
-        ),
-      );
-      if (!mounted || jsonObj == null) return;
-
-      final extracted = <String, double>{};
-      final rawScores = jsonObj['scores'];
-      if (rawScores is List) {
-        for (final e in rawScores) {
-          if (e is Map) {
-            final sid = (e['studentId'] ?? '').toString().trim();
-            final raw = e['score'];
-            final score = raw is num
-                ? raw.toDouble()
-                : double.tryParse(raw?.toString() ?? '');
-            if (sid.isNotEmpty && score != null) {
-              extracted[sid] = score;
-            }
-          }
-        }
-      }
-
-      if (extracted.isEmpty) {
-        _showError('AI did not return any usable exam scores.');
-        return;
-      }
-
-      examScores = extracted;
+      return;
     }
 
     final confirm = await showDialog<bool>(

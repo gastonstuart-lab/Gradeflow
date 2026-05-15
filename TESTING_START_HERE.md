@@ -225,7 +225,8 @@ The app is **PRODUCTION READY** when:
 - **Students**: `lib/screens/student_list_screen.dart`
 - **Grading**: `lib/screens/grading_screen.dart`
 - **Attendance**: `lib/screens/attendance_screen.dart`
-- **AI Service**: `lib/services/ai_import_service.dart`
+- **AI imports**: legacy frontend AI import service removed; future AI imports
+  must use Firebase Functions/server-side secrets only
 - **File Service**: `lib/services/file_import_service.dart`
 
 ### Build & Deploy

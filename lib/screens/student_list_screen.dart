@@ -16,8 +16,6 @@ import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/student_trash_service.dart';
 import 'package:gradeflow/models/deleted_student_entry.dart';
 import 'package:flutter/services.dart';
-import 'package:gradeflow/services/ai_import_service.dart';
-import 'package:gradeflow/openai/openai_config.dart';
 import 'package:gradeflow/nav.dart';
 
 enum _SortBy { studentId, seat, chinese, english }
@@ -171,7 +169,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
       if (parsed.isEmpty) {
         final diag = _importService.diagnosticsForFile(bytes,
             filename: result.files.single.name);
-        final action = await showDialog<String>(
+        await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text('Could not read this file'),
@@ -207,18 +205,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
             ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx, 'close'),
+                  onPressed: () => Navigator.pop(ctx),
                   child: const Text('Close')),
-              TextButton(
-                onPressed: OpenAIConfig.isConfigured
-                    ? () => Navigator.pop(ctx, 'ai')
-                    : null,
-                child: const Text('Analyze with AI'),
-              ),
               TextButton(
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: diag));
-                  if (ctx.mounted) Navigator.pop(ctx, 'close');
+                  if (ctx.mounted) Navigator.pop(ctx);
                   _showSuccess('Copied diagnostics to clipboard');
                 },
                 child: const Text('Copy diagnostics'),
@@ -227,165 +219,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
           ),
         );
 
-        if (!mounted || action != 'ai') return;
-
-        // Use AI to parse the roster
-        final rows = _importService.rowsFromAnyBytes(bytes);
-
-        // Show AI analysis dialog with AiAnalyzeImportDialog pattern
-        final aiOutput = await showDialog<AiImportOutput>(
-          context: context,
-          builder: (ctx) {
-            // Wrap inferFromRows to return proper format
-            return FutureBuilder<AiImportOutput?>(
-              future: AiImportService()
-                  .inferFromRows(rows, filename: result.files.single.name),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const AlertDialog(
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(height: 8),
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Analyzing student roster with AI…'),
-                      ],
-                    ),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return AlertDialog(
-                    title: const Text('AI Analysis Failed'),
-                    content: Text(snapshot.error.toString()),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Close'),
-                      ),
-                    ],
-                  );
-                }
-
-                final aiOutput = snapshot.data;
-                if (aiOutput == null) {
-                  return AlertDialog(
-                    title: const Text('No Results'),
-                    content: const Text('AI did not return any data.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Close'),
-                      ),
-                    ],
-                  );
-                }
-
-                // Convert to ImportedStudent list
-                final aiStudents = <ImportedStudent>[];
-                for (final entry in aiOutput.byClass.entries) {
-                  aiStudents.addAll(entry.value);
-                }
-
-                final valid = aiStudents.where((s) => s.isValid).toList();
-                final invalid = aiStudents.where((s) => !s.isValid).toList();
-
-                return AlertDialog(
-                  title: const Text('AI Analysis Complete'),
-                  content: SizedBox(
-                    width: 600,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.check_circle,
-                                color: Theme.of(context).colorScheme.primary,
-                                size: 20),
-                            const SizedBox(width: 8),
-                            Text('Valid students: ${valid.length}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                        if (invalid.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(Icons.warning,
-                                  color: Theme.of(context).colorScheme.error,
-                                  size: 20),
-                              const SizedBox(width: 8),
-                              Text('Issues: ${invalid.length}',
-                                  style: TextStyle(
-                                      color:
-                                          Theme.of(context).colorScheme.error,
-                                      fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ],
-                        if (valid.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          const Divider(),
-                          const SizedBox(height: 8),
-                          const Text('Sample (first 3):',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 8),
-                          ...valid.take(3).map((s) => Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.person, size: 16),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        "${s.chineseName} (${s.englishFirstName} ${s.englishLastName})${s.seatNo != null ? '  • Seat ${s.seatNo}' : ''}",
-                                        style: const TextStyle(fontSize: 13),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )),
-                        ],
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: valid.isEmpty
-                          ? null
-                          : () => Navigator.pop(ctx, aiOutput),
-                      child: const Text('Import students'),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-
-        if (!mounted || aiOutput == null) return;
-
-        // Convert AI output to ImportedStudent list
-        final aiStudents = <ImportedStudent>[];
-        for (final entry in aiOutput.byClass.entries) {
-          aiStudents.addAll(entry.value);
-        }
-
-        if (aiStudents.isEmpty) {
-          _showError('AI did not return any students.');
-          return;
-        }
-
-        // Replace parsed with AI result and continue with normal flow
-        parsed = aiStudents;
+        return;
       }
 
       final valid = parsed.where((s) => s.isValid).toList();
