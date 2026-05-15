@@ -242,14 +242,11 @@ If you want to customize or extend the app:
 ## 📝 Important Notes
 
 ### Environment Variables (Optional)
-For AI-powered import, set these when running:
-```powershell
-flutter run -d chrome `
-  --dart-define=OPENAI_PROXY_API_KEY=your-key `
-  --dart-define=OPENAI_PROXY_ENDPOINT=https://api.openai.com/v1/chat/completions
-```
+For AI-powered import, do not put OpenAI API keys in Flutter/web code,
+`--dart-define`, VS Code launch config, or client-side environment variables.
+Future OpenAI calls must go through Firebase Functions/server-side secrets only.
 
-**Note**: App works fully without OpenAI. It's only needed for AI-assisted roster parsing.
+**Note**: App works fully without OpenAI.
 
 ### Data Persistence
 - All data is stored in browser localStorage (web)

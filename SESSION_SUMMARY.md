@@ -137,11 +137,8 @@ Created comprehensive documentation:
 - `analyzeTimetableFromRows()` - Timetable interpretation
 
 **Configuration Required**:
-```bash
-flutter run -d chrome \
-  --dart-define=OPENAI_PROXY_ENDPOINT=https://api.openai.com/v1 \
-  --dart-define=OPENAI_PROXY_API_KEY=sk-...
-```
+Do not configure OpenAI keys in Flutter/web. Future OpenAI calls must use
+Firebase Functions/server-side secrets only.
 
 **Implementation Priority**:
 1. Student import AI (HIGH) - Most frequently used
@@ -252,16 +249,9 @@ flutter run -d chrome \
    - Only needed for complex/non-standard formats
 
 ### Configuration (Optional for AI)
-```bash
-# Set environment variables
-OPENAI_PROXY_ENDPOINT=https://api.openai.com/v1
-OPENAI_PROXY_API_KEY=sk-your-key-here
-
-# Or pass as build flags
-flutter run -d chrome \
-  --dart-define=OPENAI_PROXY_ENDPOINT=$OPENAI_PROXY_ENDPOINT \
-  --dart-define=OPENAI_PROXY_API_KEY=$OPENAI_PROXY_API_KEY
-```
+Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code launch
+config, or client-side environment variables. Future OpenAI integration must use
+Firebase Functions/server-side secrets only.
 
 ---
 

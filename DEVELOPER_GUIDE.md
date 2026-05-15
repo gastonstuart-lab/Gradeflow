@@ -385,12 +385,10 @@ flutter pub get
 
 ### Issue: OpenAI import not working
 
-**Solution**: Ensure API key is provided:
-```powershell
-flutter run -d chrome `
-  --dart-define=OPENAI_PROXY_API_KEY=sk-... `
-  --dart-define=OPENAI_PROXY_ENDPOINT=https://api.openai.com/v1/chat/completions
-```
+**Solution**: Do not configure OpenAI keys in Flutter/web. OpenAI keys must not
+be passed with `--dart-define`, VS Code launch config, or client-side
+environment variables. Future OpenAI calls should go through Firebase
+Functions/server-side secrets only.
 
 ### Issue: PDF Chinese characters not showing
 

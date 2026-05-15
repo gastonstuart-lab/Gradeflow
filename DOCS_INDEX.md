@@ -17,9 +17,9 @@
 ### Setup & Configuration
 | Document | Purpose | Status |
 |----------|---------|--------|
-| [AI_SETUP_QUICK.md](AI_SETUP_QUICK.md) | Quick AI setup (2 minutes) | ✅ Complete |
-| [SETUP_AI.md](SETUP_AI.md) | Full AI configuration guide | ✅ Complete |
-| [AI_INTEGRATION_GUIDE.md](AI_INTEGRATION_GUIDE.md) | Technical AI integration details | ✅ Complete |
+| [AI_SETUP_QUICK.md](AI_SETUP_QUICK.md) | Deprecated frontend AI setup warning | Safety note |
+| [SETUP_AI.md](SETUP_AI.md) | Server-side-only AI setup direction | Safety note |
+| [AI_INTEGRATION_GUIDE.md](AI_INTEGRATION_GUIDE.md) | Legacy AI integration details with safety note | Safety note |
 | [.env.example](.env.example) | Environment configuration template | ✅ In place |
 
 ### Security & Deployment
@@ -124,7 +124,7 @@
 ### Development
 ```bash
 flutter run -d chrome  # Run with demo config
-flutter run -d chrome --dart-define=OPENAI_PROXY_API_KEY=sk-...  # With AI
+flutter run -d chrome  # AI keys must not be passed to Flutter/web
 ```
 
 ### Testing

@@ -1,5 +1,10 @@
 # AI Integration Guide
 
+> Safety note: this guide is legacy background for import-related AI ideas.
+> Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code
+> launch config, or client-side environment variables. Future OpenAI calls must
+> go through Firebase Functions/server-side secrets only.
+
 ## Current Status
 
 ### ✅ AI Already Integrated
@@ -19,9 +24,9 @@ The `AiImportService` already has methods for:
 All AI imports follow this pattern:
 
 ```dart
-// 1. Check if AI is configured
+// 1. Check if server-side AI is configured
 if (!OpenAIConfig.isConfigured) {
-  _showError('AI not configured. Set OPENAI_PROXY_ENDPOINT and OPENAI_PROXY_API_KEY.');
+  _showError('AI not configured. Use Firebase Functions/server-side secrets only.');
   return;
 }
 
@@ -128,21 +133,15 @@ if (grid != null && (grid.length > 15 || _hasEmptyCells(grid))) {
 
 ## Configuration
 
-To enable AI, the app needs OpenAI proxy configuration:
+Legacy Flutter-side OpenAI configuration is deprecated and must not be used for
+Flutter web.
 
-### Flutter Run/Build Commands:
-```bash
-flutter run -d chrome --dart-define=OPENAI_PROXY_ENDPOINT=https://your-endpoint --dart-define=OPENAI_PROXY_API_KEY=your-key
+Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code launch
+config, `.vscode/settings.json`, or client-side environment variables.
 
-flutter build web --dart-define=OPENAI_PROXY_ENDPOINT=https://your-endpoint --dart-define=OPENAI_PROXY_API_KEY=your-key
-```
-
-### Environment Setup:
-Or use environment files (requires flutter_dotenv or similar):
-```
-OPENAI_PROXY_ENDPOINT=https://api.openai.com/v1
-OPENAI_PROXY_API_KEY=sk-...
-```
+Future OpenAI setup must use Firebase Functions / Google Cloud server-side
+secret storage. The Flutter app should call a Firebase callable Function, and
+only that server-side function may call the OpenAI API.
 
 ## Testing AI Integration
 
@@ -150,9 +149,9 @@ OPENAI_PROXY_API_KEY=sk-...
    - AI buttons should be hidden (check `OpenAIConfig.isConfigured`)
    - Local parsers work as fallback
    
-2. **With Configuration**:
-   - AI buttons appear in import dialogs
-   - Clicking shows loading state
+2. **With Server-Side Configuration**:
+   - Firebase Functions provide authenticated AI responses
+   - Flutter never receives or stores an OpenAI API key
    - Results display in preview dialog
    - User can confirm or cancel
 

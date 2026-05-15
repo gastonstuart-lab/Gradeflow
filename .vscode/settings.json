@@ -36,10 +36,8 @@
     "Test-Path": true
   },
 
-  // ============================================
-  // 🤖 AI SETUP - SET VIA ENVIRONMENT
-  // ============================================
-  // IMPORTANT: API key is now set via system environment variable, NOT here!
-  // To set up: Set-Item -Path Env:OPENAI_API_KEY -Value "your-key-here"
-  // Never commit actual API keys to version control!
+  // OpenAI/API key safety:
+  // Do not put OpenAI API keys in Flutter/web code, --dart-define, VS Code
+  // launch config, this settings file, or client-side environment variables.
+  // Use Firebase Functions / Google Cloud server-side secrets only.
 }

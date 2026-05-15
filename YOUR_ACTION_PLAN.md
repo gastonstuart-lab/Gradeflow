@@ -7,14 +7,8 @@
 
 ### Hour 1: Setup (15 min)
 ```powershell
-# 1. Get your OpenAI API key
-# Go to: https://platform.openai.com/api-keys
-# Create new key, copy it
-
-# 2. Set the environment variable
-Set-Item -Path Env:OPENAI_PROXY_API_KEY -Value "sk-paste-your-key-here"
-
-# 3. Run the app with AI
+# Do not configure OpenAI keys in Flutter/web.
+# OpenAI calls must use Firebase Functions/server-side secrets only.
 cd c:\Dev\Gradeflow
 flutter run -d chrome
 ```
@@ -238,10 +232,12 @@ After deployment, verify:
 **You've got this! 🎉**
 
 Everything is ready. You just need to:
-1. Get your OpenAI API key (if using AI)
-2. Run through the manual tests (1-2 hours)
-3. Fix any issues that come up
-4. Deploy!
+1. Run through the manual tests (1-2 hours)
+2. Fix any issues that come up
+3. Deploy when ready
+
+Do not configure OpenAI keys in Flutter/web. Future AI setup must use
+Firebase Functions/server-side secrets only.
 
 **Estimated total time: 3-4 hours to deployment**
 
