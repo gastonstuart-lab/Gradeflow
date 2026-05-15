@@ -9,7 +9,7 @@
 
 ## What You're Testing
 
-**Gradeflow** is a Flutter-based classroom management system that helps teachers manage classes, students, grades, attendance, and interactive classroom activities. The app uses Firebase for data storage and OpenAI API for intelligent file imports.
+**Gradeflow** is a Flutter-based classroom management system that helps teachers manage classes, students, grades, attendance, and interactive classroom activities. The app uses Firebase for data storage. Any future OpenAI API usage must go through Firebase Functions/server-side secrets only.
 
 ### Current Status
 - **Completion**: 95%
@@ -255,7 +255,7 @@ Steps:
   4. Check reminders appear in "This Week's To-Dos"
   
   ERROR HANDLING:
-  1. Try to import with AI when no API key
+  1. Try local or placeholder AI flows without configuring a frontend API key
   2. Should see helpful error message (not crash)
   3. Local features still work without API
   
@@ -489,7 +489,7 @@ App is **PRODUCTION READY** when:
 **If you get quota errors on AI:**
 - [ ] This is expected (free tier limit)
 - [ ] Use local features (they work perfectly)
-- [ ] Or test with paid API key
+- [ ] Do not test with a frontend OpenAI API key
 
 **If data doesn't persist:**
 - [ ] Check browser console (F12) for errors
@@ -523,7 +523,7 @@ App is **PRODUCTION READY** when:
 
 ## Questions Before You Start
 
-1. Should you test with or without a valid OpenAI API key? (Both work, but AI features only function with key)
+1. Should you test the current placeholder/local flows only? Do not configure OpenAI keys in Flutter/web.
 2. Do you need to test on mobile devices or is desktop sufficient?
 3. Should you test extremely large files (10MB+) for import?
 4. Do you need to test concurrent user scenarios?

@@ -6,11 +6,8 @@
 
 ### 1. Environment Setup
 ```powershell
-# Set OpenAI API key (if testing AI features)
-Set-Item -Path Env:OPENAI_PROXY_API_KEY -Value "sk-your-actual-key"
-Set-Item -Path Env:OPENAI_PROXY_ENDPOINT -Value "https://api.openai.com/v1"
-
-# Run with AI config
+# Do not configure OpenAI keys in Flutter/web.
+# AI calls must go through Firebase Functions/server-side secrets only.
 flutter run -d chrome
 ```
 

@@ -143,12 +143,13 @@ After that, both machines are looking at the same repo on the desktop. You can s
 
 AI-assisted import analysis is optional. The app still works without it.
 
-Run with:
+Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code launch
+config, or client-side environment variables.
 
-```bash
-flutter run -d chrome \
-  --dart-define=OPENAI_PROXY_API_KEY=sk-your-key-here \
-  --dart-define=OPENAI_PROXY_ENDPOINT=https://api.openai.com/v1/chat/completions
+Future OpenAI integration must use Firebase Functions/server-side secrets only:
+
+```text
+Flutter UI -> service wrapper -> Firebase callable Function -> OpenAI API
 ```
 
 ### Firebase

@@ -1,38 +1,19 @@
-# 🤖 AI Setup - Quick Reference Card
+# AI Setup Quick Reference
 
-**Status**: ⚠️ AI Not Configured Yet
+Status: deprecated frontend setup guide.
 
-## ⚡ 2-Minute Setup
+Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code launch
+config, `.vscode/settings.json`, or client-side environment variables.
 
-### Step 1: Get API Key
-👉 https://platform.openai.com/api-keys → Create new key
+Safe architecture:
 
-### Step 2: Add to VS Code
-Open `.vscode/settings.json` and uncomment this section at the bottom:
-
-```json
-"terminal.integrated.env.windows": {
-  "OPENAI_API_KEY": "sk-paste-your-key-here"
-}
+```text
+Flutter UI -> service wrapper -> Firebase callable Function -> OpenAI API
 ```
 
-### Step 3: Run
-Press **F5** → Choose **"Flutter (Chrome) + AI 🤖"**
+OpenAI credentials must live only in Firebase Functions / Google Cloud
+server-side secret storage. The current `askInstructOS` callable is a
+placeholder and does not include real OpenAI integration yet.
 
----
-
-## 📖 Full Guide
-See **SETUP_AI.md** for complete instructions and troubleshooting.
-
-## 🎯 What You Get
-- AI-powered exam score import
-- Smart calendar event detection
-- Automatic data format interpretation
-- Multilingual support
-
-## 💰 Cost
-~$0.01-$0.05 per import (free $5 credit for new accounts)
-
----
-
-**Note**: AI is optional - the app works great without it!
+For this slice, use emulator smoke tests for verification. Do not configure
+frontend OpenAI keys for Flutter web.

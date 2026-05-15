@@ -244,15 +244,14 @@ flutter build apk
 
 **Run Locally**:
 ```bash
-flutter run -d chrome --dart-define=OPENAI_PROXY_API_KEY=$env:OPENAI_API_KEY
+flutter run -d chrome
 ```
 
-### Environment Variables
-```
-OPENAI_PROXY_API_KEY=[your OpenAI API key]
-OPENAI_PROXY_ENDPOINT=https://api.openai.com/v1
-GOOGLE_CLIENT_ID=[from Firebase]
-```
+### OpenAI Secrets
+
+Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code launch
+config, or client-side environment variables. Future OpenAI calls must go
+through Firebase Functions/server-side secrets only.
 
 ---
 

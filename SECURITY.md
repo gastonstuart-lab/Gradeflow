@@ -1,83 +1,60 @@
 # Security Guidelines - Gradeflow
 
-**Last Updated:** January 16, 2026
+Last updated: May 15, 2026
 
-## Critical: API Key Management
+## Critical: OpenAI API Key Management
 
-### ⚠️ API Key Exposure History
-A production OpenAI API key was accidentally committed to git history on:
-- Commits: `a6de36f`, `a272c14`
-- Status: **REVOKED AND REGENERATED**
-- Action: If you have access to git history, assume that key is compromised
+OpenAI API keys must never be exposed to Flutter/web clients.
 
-### ✅ Current Security Status
-- API keys are **NOT** stored in version control
-- Environment variables are used for secrets
-- `.env` file is in `.gitignore`
-- Settings JSON contains no actual keys
+Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code launch
+config, `.vscode/settings.json`, or client-side environment variables.
 
-### How to Set Up Secrets Safely
+Use this architecture only:
 
-#### Option 1: PowerShell Environment Variable (Development)
-```powershell
-Set-Item -Path Env:OPENAI_PROXY_API_KEY -Value "sk-your-key-here"
-Set-Item -Path Env:OPENAI_PROXY_ENDPOINT -Value "https://api.openai.com/v1"
-flutter run -d chrome
+```text
+Flutter UI -> service wrapper -> Firebase callable Function -> OpenAI API
 ```
 
-#### Option 2: VS Code Launch Configuration
-Edit `.vscode/launch.json` and add to the `Flutter (Chrome) + AI 🤖` configuration:
-```json
-"env": {
-  "OPENAI_PROXY_API_KEY": "${env:OPENAI_PROXY_API_KEY}",
-  "OPENAI_PROXY_ENDPOINT": "https://api.openai.com/v1"
-}
-```
+Store OpenAI credentials in Firebase Functions / Google Cloud server-side secret
+storage and read them only from backend function runtime code.
 
-#### Option 3: Firebase Cloud Build (Production)
-Store secrets in Google Cloud Secret Manager and inject them during build.
+## API Key Exposure History
 
-### Secrets to Rotate/Check
+A production OpenAI API key was previously committed to git history. That key
+was revoked and should be treated as permanently compromised.
 
-- [ ] OpenAI API Key - **ROTATE NOW**
-- [ ] Firebase Service Account Key
-- [ ] Google Cloud API Keys  
-- [ ] GitHub Personal Access Token (if used)
+If you have access to old history, assume any historical OpenAI key is unsafe.
+Do not reuse it.
 
-### Audit Checklist
+## Current Security Status
 
-- [ ] Remove all API keys from `.vscode/settings.json`
-- [ ] Check `.env` file is in `.gitignore`
-- [ ] Verify no keys in git history (search for `sk-`, `AIza`, `firebase_key`)
-- [ ] Enable git hooks to prevent future commits of secrets (use `gitleaks` or similar)
-- [ ] Rotate any keys that were exposed
+- API keys are not stored in version control.
+- `.env` is ignored by git.
+- `.vscode/settings.json` contains no OpenAI keys.
+- Future OpenAI integration must be server-side only.
 
-### Best Practices Going Forward
+## Best Practices
 
-1. **Never commit secrets** - Use environment variables
-2. **Use .env files locally** - Copy `.env.example` to `.env`, add your keys
-3. **Add to .gitignore** - Ensure `.env` is ignored
-4. **Use secret managers** - Firebase, AWS Secrets Manager, Google Cloud Secret Manager for production
-5. **Rotate regularly** - Change API keys every 90 days
-6. **Monitor usage** - Check OpenAI dashboard for unexpected activity
+1. Never commit secrets.
+2. Never expose OpenAI keys to Flutter web.
+3. Never pass OpenAI keys with `--dart-define`.
+4. Never put OpenAI keys in VS Code settings or launch configs.
+5. Use Firebase Functions / Google Cloud Secret Manager for OpenAI credentials.
+6. Rotate any key after suspected exposure.
+7. Monitor OpenAI usage after any suspected leak.
 
-### Detection
+## Audit Checklist
 
-To find any remaining secrets in the codebase:
-```bash
-git log --all -p | grep -i "sk-\|AIza\|secret\|api.key" | head -20
-```
+- [ ] Search tracked files for `sk-`, `OPENAI_API_KEY`, and related names.
+- [ ] Confirm `.vscode/settings.json` has no OpenAI key values.
+- [ ] Confirm docs do not instruct frontend key setup.
+- [ ] Confirm any future backend OpenAI key is stored in server-side secret storage.
+- [ ] Use tools such as `gitleaks` for deeper history scanning when needed.
 
-Or use a tool like `gitleaks`:
-```bash
-gitleaks detect --source . -v
-```
+## If You Suspect a Key Leak
 
----
-
-**If you suspect a key leak:**
-1. Immediately revoke the key in the service provider
-2. Generate a new key
-3. Update environment variables
-4. Redeploy
-5. Check logs for unauthorized usage
+1. Immediately revoke the key in the service provider dashboard.
+2. Generate a new key only if still needed.
+3. Store the new key server-side only.
+4. Check logs and billing dashboards for unauthorized usage.
+5. Audit git history and any published artifacts.

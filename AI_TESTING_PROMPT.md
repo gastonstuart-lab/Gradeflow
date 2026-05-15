@@ -16,7 +16,7 @@
 - **State Management**: Provider pattern
 - **Routing**: GoRouter
 - **Backend**: Firebase (Firestore, Authentication, Storage)
-- **AI**: OpenAI API (gpt-4o model) for smart imports and analysis
+- **AI**: Future OpenAI calls must go through Firebase Functions/server-side secrets only
 - **File Support**: CSV, XLSX, DOCX (tables), PDF parsing
 
 ---
@@ -540,7 +540,7 @@
 3. **Quota Errors**:
    - [ ] **Recent Fix**: Better error messages
    - [ ] Distinguish between OpenAI quota and connection issues
-   - [ ] Suggest adding paid API key if quota exceeded
+   - [ ] Suggest backend-only secret setup if real OpenAI integration is added later
    - [ ] Local features work without API
 
 4. **File Errors**:
@@ -617,7 +617,7 @@
 - [ ] All 8 class tools in normal view
 - [ ] All 8 class tools in fullscreen mode
 - [ ] File import/export for students and grades
-- [ ] AI import features (if API key available)
+- [ ] AI import features only through backend-safe test paths
 - [ ] Timetable upload and viewing
 - [ ] Calendar import and reminders
 
@@ -663,12 +663,12 @@ The app is **READY FOR PRODUCTION** when:
 1. Check browser console (F12) for error messages
 2. Check terminal running `flutter run` for Dart errors
 3. Try hard refresh (Ctrl+Shift+R)
-4. Check that OpenAI API key is set (if testing AI features)
+4. Do not configure OpenAI keys in Flutter/web; test backend-only emulator flows for AI placeholders
 5. Document the exact steps to reproduce
 
 **OpenAI API Note**:
-- If you hit quota errors, use local features (they work perfectly without AI)
-- To add paid API key: Contact developer or update environment variable
+- Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code launch config, or client-side environment variables
+- Use local features or backend-only emulator tests until server-side OpenAI integration exists
 
 ---
 

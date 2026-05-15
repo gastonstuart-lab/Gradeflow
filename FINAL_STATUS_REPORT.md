@@ -13,9 +13,9 @@
 - UI/UX complete and responsive
 - Database schema and indexes ready
 
-⚠️ **AI Integration:** Requires API Key Setup
+⚠️ **AI Integration:** Requires future backend-only secret setup
 - Code implemented and integrated
-- Waiting for valid OpenAI API key
+- Waiting for reviewed Firebase Functions/server-side OpenAI integration
 - All 4 import types wired (Student, Class, Exam, Calendar)
 
 ⚠️ **Authentication:** Partially Tested
@@ -84,7 +84,7 @@
 ### 🔴 Not Yet Tested / Verified
 1. Grade export download in production browsers (Chrome/Firefox/Safari)
 2. Google Sign-In complete flow
-3. AI feature end-to-end (requires API key)
+3. AI feature end-to-end (requires backend-only secret setup)
 4. Performance under load
 5. Error scenarios (network offline, quota exceeded, etc.)
 
@@ -96,7 +96,7 @@
 **Grade: A**
 - No secrets in codebase ✅
 - .env properly gitignored ✅
-- API key validation at startup ✅
+- Historical API key validation existed; frontend key setup is now deprecated ✅
 - SECURITY.md guidelines created ✅
 - Firebase rules reviewed ✅
 - Input validation in place ✅
@@ -144,7 +144,7 @@
 1. [ ] Manual testing of all 30 test cases (MANUAL_TESTING_GUIDE.md)
 2. [ ] Grade export download verified in Chrome/Firefox/Safari
 3. [ ] Google Sign-In flow tested manually
-4. [ ] OpenAI API key set up and AI features tested (if using AI)
+4. [ ] Backend-only OpenAI secret setup and AI features tested (if using AI later)
 
 **Important (Should Have):**
 1. [ ] Performance baseline established
@@ -169,19 +169,15 @@
 - [x] Error handling implemented
 - [x] Loading dialogs implemented
 
-### Configuration Status: ⚠️ Awaiting User
-- API Key: **NOT SET** (needs to be set by user)
-- Endpoint: **SET** (https://api.openai.com/v1)
-- Validation: **IN PLACE** (app checks on startup)
+### Configuration Status
+- Frontend OpenAI key setup: **DEPRECATED**
+- Server-side OpenAI secret setup: **NOT IMPLEMENTED YET**
+- Validation: **IN PLACE** for existing placeholder behavior
 
-### How to Enable AI Features
-```powershell
-# Set environment variable
-Set-Item -Path Env:OPENAI_PROXY_API_KEY -Value "sk-your-key-here"
-
-# Run with AI
-flutter run -d chrome
-```
+### How to Enable AI Features Later
+Do not put OpenAI API keys in Flutter/web code, `--dart-define`, VS Code launch
+config, or client-side environment variables. Add real OpenAI support only via
+Firebase Functions/server-side secrets in a reviewed backend slice.
 
 ### Testing AI Features
 See Section 5 in [MANUAL_TESTING_GUIDE.md](MANUAL_TESTING_GUIDE.md)
@@ -242,10 +238,9 @@ Available at: (staging URL if configured)
 ## Sign-Off & Next Steps
 
 ### Immediate Next Steps
-1. **User to Set Up API Key** (if using AI)
-   - Get key from https://platform.openai.com/api-keys
-   - Set as environment variable
-   - Test AI features
+1. **Backend AI setup** (if using AI later)
+   - Store OpenAI credentials only in Firebase Functions / Google Cloud secrets
+   - Test through backend emulator or deployed backend checks
 
 2. **Run Full Manual Testing**
    - Follow MANUAL_TESTING_GUIDE.md
