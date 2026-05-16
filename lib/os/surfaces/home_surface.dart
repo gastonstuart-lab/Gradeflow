@@ -5,10 +5,10 @@
 // portals tucked off to the side instead of one long dashboard feed.
 
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -2043,7 +2043,9 @@ class _AskInstructOSMiniAppContentState
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
     final assistantContext = _assistantHomeContext();
-    debugPrint('Ask InstructOS context sent:\n$assistantContext');
+    if (kDebugMode) {
+      debugPrint('Ask InstructOS context sent:\n$assistantContext');
+    }
     final conversation = [
       InstructOSAssistantMessage(
         role: 'system',

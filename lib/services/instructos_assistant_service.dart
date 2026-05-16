@@ -51,9 +51,11 @@ class InstructOSAssistantService {
   }) async {
     final trimmedMessage = message.trim();
     if (trimmedMessage.isEmpty) {
-      debugPrint(
-        'Ask InstructOS fallback: empty message payload before callable invocation.',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Ask InstructOS fallback: empty message payload before callable invocation.',
+        );
+      }
       return fallbackReply;
     }
 
@@ -65,23 +67,29 @@ class InstructOSAssistantService {
     };
 
     try {
-      debugPrint(
-        'Ask InstructOS invoking callable=$_functionName region=$_functionRegion '
-        'firebaseAvailable=${FirebaseService.isAvailable} '
-        'messageLength=${trimmedMessage.length} '
-        'conversationItems=${(payload['conversation'] as List).length} '
-        'contextMode=${payload['contextMode']}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Ask InstructOS invoking callable=$_functionName region=$_functionRegion '
+          'firebaseAvailable=${FirebaseService.isAvailable} '
+          'messageLength=${trimmedMessage.length} '
+          'conversationItems=${(payload['conversation'] as List).length} '
+          'contextMode=${payload['contextMode']}',
+        );
+      }
       final data = await _call(payload).timeout(const Duration(seconds: 20));
-      debugPrint(
-        'Ask InstructOS callable response received '
-        'dataType=${data.runtimeType} keys=${data.keys.toList()}',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Ask InstructOS callable response received '
+          'dataType=${data.runtimeType} keys=${data.keys.toList()}',
+        );
+      }
       final reply = data['reply'];
       if (reply is String && reply.trim().isNotEmpty) {
-        debugPrint(
-          'Ask InstructOS using callable reply length=${reply.trim().length}',
-        );
+        if (kDebugMode) {
+          debugPrint(
+            'Ask InstructOS using callable reply length=${reply.trim().length}',
+          );
+        }
         return reply.trim();
       }
       debugPrint(
@@ -94,8 +102,10 @@ class InstructOSAssistantService {
         'Ask InstructOS callable failed: code=${error.code} '
         'message=${error.message ?? 'none'} details=${error.details}',
       );
-      debugPrint(
-          'Ask InstructOS fallback: FirebaseFunctionsException path used.');
+      if (kDebugMode) {
+        debugPrint(
+            'Ask InstructOS fallback: FirebaseFunctionsException path used.');
+      }
       return _messageForFunctionsError(error);
     } catch (error) {
       debugPrint('Ask InstructOS unavailable: ${error.runtimeType}');
@@ -107,14 +117,18 @@ class InstructOSAssistantService {
   Future<Map<String, dynamic>> _call(Map<String, Object?> payload) async {
     final invoker = _callableInvoker;
     if (invoker != null) {
-      debugPrint('Ask InstructOS using injected callable invoker.');
+      if (kDebugMode) {
+        debugPrint('Ask InstructOS using injected callable invoker.');
+      }
       return invoker(Map<String, dynamic>.from(payload));
     }
 
     if (!FirebaseService.isAvailable) {
-      debugPrint(
-        'Ask InstructOS fallback: Firebase unavailable, returning local fallback reply.',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'Ask InstructOS fallback: Firebase unavailable, returning local fallback reply.',
+        );
+      }
       return const <String, dynamic>{'reply': fallbackReply};
     }
 
@@ -128,12 +142,14 @@ class InstructOSAssistantService {
       };
     }
 
-    debugPrint(
-      'Ask InstructOS Firebase Auth user present uidLength=${currentFirebaseUser.uid.length}',
-    );
-    debugPrint(
-      'Ask InstructOS creating Firebase callable name=$_functionName region=$_functionRegion',
-    );
+    if (kDebugMode) {
+      debugPrint(
+        'Ask InstructOS Firebase Auth user present uidLength=${currentFirebaseUser.uid.length}',
+      );
+      debugPrint(
+        'Ask InstructOS creating Firebase callable name=$_functionName region=$_functionRegion',
+      );
+    }
     final callable =
         (_functions ?? FirebaseFunctions.instanceFor(region: _functionRegion))
             .httpsCallable(
