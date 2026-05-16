@@ -57,7 +57,14 @@ class AppProviders extends StatelessWidget {
         ProxyProvider<GoogleAuthService, GoogleDriveService>(
           update: (_, auth, __) => GoogleDriveService(authService: auth),
         ),
-        ChangeNotifierProvider(create: (_) => ClassService()),
+        ChangeNotifierProxyProvider<AuthService, ClassService>(
+          create: (_) => ClassService(),
+          update: (_, auth, service) {
+            service ??= ClassService();
+            service.syncAuth(auth);
+            return service;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => StudentService()),
         ChangeNotifierProvider(create: (_) => GradingCategoryService()),
         ChangeNotifierProvider(create: (_) => GradeItemService()),

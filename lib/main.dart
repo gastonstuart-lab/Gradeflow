@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -30,12 +28,6 @@ void main() async {
   }
 
   runApp(const MyApp());
-
-  if (kIsWeb) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(FirebaseService.maybeInitialize());
-    });
-  }
 }
 
 class MyApp extends StatefulWidget {
