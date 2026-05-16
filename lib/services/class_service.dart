@@ -1,26 +1,58 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
+import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_schedule_service.dart';
 
 class ClassService extends ChangeNotifier {
   List<Class> _classes = [];
   bool _isLoading = false;
+  String? _syncedTeacherId;
+  bool _hasLoadedForSyncedTeacher = false;
 
   // Active classes by default for UI
   List<Class> get classes => _classes.where((c) => !c.isArchived).toList();
-  List<Class> get activeClasses => _classes.where((c) => !c.isArchived).toList();
-  List<Class> get archivedClasses => _classes.where((c) => c.isArchived).toList();
+  List<Class> get activeClasses =>
+      _classes.where((c) => !c.isArchived).toList();
+  List<Class> get archivedClasses =>
+      _classes.where((c) => c.isArchived).toList();
   bool get isLoading => _isLoading;
+
+  void syncAuth(AuthService auth) {
+    if (!auth.isInitialized || auth.isLoading) return;
+
+    final user = auth.currentUser;
+    if (user == null) {
+      final hadState = _syncedTeacherId != null || _classes.isNotEmpty;
+      _syncedTeacherId = null;
+      _hasLoadedForSyncedTeacher = false;
+      _classes = [];
+      if (hadState) notifyListeners();
+      return;
+    }
+
+    if (_syncedTeacherId == user.userId &&
+        (_hasLoadedForSyncedTeacher || _isLoading)) {
+      return;
+    }
+
+    _syncedTeacherId = user.userId;
+    unawaited(loadClasses(user.userId));
+  }
 
   Future<void> loadClasses(String teacherId) async {
     _isLoading = true;
     // Removed early notify to avoid setState/markNeedsBuild during build
-    
+
     try {
       final repo = RepositoryFactory.instance;
       final all = await repo.loadClasses();
       _classes = all.where((c) => c.teacherId == teacherId).toList();
+      if (_syncedTeacherId == teacherId) {
+        _hasLoadedForSyncedTeacher = true;
+      }
     } catch (e) {
       debugPrint('Failed to load classes: $e');
     } finally {
@@ -42,7 +74,8 @@ class ClassService extends ChangeNotifier {
 
   Future<void> updateClass(Class updatedClass) async {
     try {
-      final localIndex = _classes.indexWhere((c) => c.classId == updatedClass.classId);
+      final localIndex =
+          _classes.indexWhere((c) => c.classId == updatedClass.classId);
       if (localIndex == -1) return;
       _classes[localIndex] = updatedClass;
       final repo = RepositoryFactory.instance;
@@ -57,7 +90,8 @@ class ClassService extends ChangeNotifier {
     try {
       final idx = _classes.indexWhere((c) => c.classId == classId);
       if (idx == -1) return;
-      final updated = _classes[idx].copyWith(isArchived: true, updatedAt: DateTime.now());
+      final updated =
+          _classes[idx].copyWith(isArchived: true, updatedAt: DateTime.now());
       await updateClass(updated);
     } catch (e) {
       debugPrint('Failed to archive class: $e');
@@ -68,7 +102,8 @@ class ClassService extends ChangeNotifier {
     try {
       final idx = _classes.indexWhere((c) => c.classId == classId);
       if (idx == -1) return;
-      final updated = _classes[idx].copyWith(isArchived: false, updatedAt: DateTime.now());
+      final updated =
+          _classes[idx].copyWith(isArchived: false, updatedAt: DateTime.now());
       await updateClass(updated);
     } catch (e) {
       debugPrint('Failed to unarchive class: $e');

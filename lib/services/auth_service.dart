@@ -30,8 +30,12 @@ class AuthService extends ChangeNotifier {
     if (_initialized || _isLoading) return;
     _isLoading = true;
     // Do not notify here to avoid setState/markNeedsBuild during build
-    
+
     try {
+      if (kIsWeb && !FirebaseService.isInitialized) {
+        await FirebaseService.maybeInitialize();
+      }
+
       if (FirebaseService.isAvailable) {
         final u = fb.FirebaseAuth.instance.currentUser;
         if (u != null) {
@@ -45,7 +49,8 @@ class AuthService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString(_currentUserKey);
       if (userJson != null) {
-        _currentUser = User.fromJson(json.decode(userJson) as Map<String, dynamic>);
+        _currentUser =
+            User.fromJson(json.decode(userJson) as Map<String, dynamic>);
       }
     } catch (e) {
       debugPrint('Failed to load current user: $e');
@@ -114,7 +119,8 @@ class AuthService extends ChangeNotifier {
         await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_currentUserKey, json.encode(_currentUser!.toJson()));
+        await prefs.setString(
+            _currentUserKey, json.encode(_currentUser!.toJson()));
 
         _isLoading = false;
         notifyListeners();
@@ -122,14 +128,16 @@ class AuthService extends ChangeNotifier {
       }
 
       final googleAuth = _googleAuth ?? GoogleAuthService();
-      final result = await googleAuth.ensureAccessTokenDetailed(interactive: true);
+      final result =
+          await googleAuth.ensureAccessTokenDetailed(interactive: true);
       if (!result.ok) {
         _isLoading = false;
         notifyListeners();
         return false;
       }
       if (!result.hasIdToken) {
-        debugPrint('Google sign-in did not return an idToken; cannot sign into FirebaseAuth.');
+        debugPrint(
+            'Google sign-in did not return an idToken; cannot sign into FirebaseAuth.');
         _isLoading = false;
         notifyListeners();
         return false;
@@ -139,7 +147,8 @@ class AuthService extends ChangeNotifier {
         accessToken: result.accessToken,
         idToken: result.idToken,
       );
-      final cred = await fb.FirebaseAuth.instance.signInWithCredential(credential);
+      final cred =
+          await fb.FirebaseAuth.instance.signInWithCredential(credential);
 
       final u = cred.user;
       if (u == null) {
@@ -153,7 +162,8 @@ class AuthService extends ChangeNotifier {
       await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_currentUserKey, json.encode(_currentUser!.toJson()));
+      await prefs.setString(
+          _currentUserKey, json.encode(_currentUser!.toJson()));
 
       _isLoading = false;
       notifyListeners();
@@ -169,13 +179,14 @@ class AuthService extends ChangeNotifier {
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
       // Prefer Firebase Auth when available (production).
       if (FirebaseService.isAvailable) {
         try {
           final cred = await fb.FirebaseAuth.instance
-              .signInWithEmailAndPassword(email: email.trim(), password: password);
+              .signInWithEmailAndPassword(
+                  email: email.trim(), password: password);
           final u = cred.user;
           if (u != null) {
             _currentUser = _userFromFirebase(u);
@@ -201,23 +212,24 @@ class AuthService extends ChangeNotifier {
 
       final prefs = await SharedPreferences.getInstance();
       final usersJson = prefs.getString(_usersKey);
-      
+
       if (usersJson != null) {
         final List<dynamic> usersList = json.decode(usersJson) as List;
         final userMap = usersList.firstWhere(
           (u) => (u as Map<String, dynamic>)['email'] == email,
           orElse: () => null,
         );
-        
+
         if (userMap != null) {
           _currentUser = User.fromJson(userMap as Map<String, dynamic>);
-          await prefs.setString(_currentUserKey, json.encode(_currentUser!.toJson()));
+          await prefs.setString(
+              _currentUserKey, json.encode(_currentUser!.toJson()));
           _isLoading = false;
           notifyListeners();
           return true;
         }
       }
-      
+
       _isLoading = false;
       notifyListeners();
       return false;
@@ -229,10 +241,11 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(String email, String fullName, String? schoolName) async {
+  Future<bool> register(
+      String email, String fullName, String? schoolName) async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
       // Local-only account creation (demo/offline mode).
       RepositoryFactory.useLocal();
@@ -240,17 +253,18 @@ class AuthService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final usersJson = prefs.getString(_usersKey);
       List<Map<String, dynamic>> usersList = [];
-      
+
       if (usersJson != null) {
-        usersList = (json.decode(usersJson) as List).cast<Map<String, dynamic>>();
-        
+        usersList =
+            (json.decode(usersJson) as List).cast<Map<String, dynamic>>();
+
         if (usersList.any((u) => u['email'] == email)) {
           _isLoading = false;
           notifyListeners();
           return false;
         }
       }
-      
+
       final now = DateTime.now();
       final newUser = User(
         userId: const Uuid().v4(),
@@ -260,13 +274,14 @@ class AuthService extends ChangeNotifier {
         createdAt: now,
         updatedAt: now,
       );
-      
+
       usersList.add(newUser.toJson());
       await prefs.setString(_usersKey, json.encode(usersList));
-      
+
       _currentUser = newUser;
-      await prefs.setString(_currentUserKey, json.encode(_currentUser!.toJson()));
-      
+      await prefs.setString(
+          _currentUserKey, json.encode(_currentUser!.toJson()));
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -281,7 +296,7 @@ class AuthService extends ChangeNotifier {
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
       if (FirebaseService.isAvailable) {
         try {
@@ -320,7 +335,8 @@ class AuthService extends ChangeNotifier {
       final usersJson = prefs.getString(_usersKey);
       if (usersJson != null) {
         final List<dynamic> list = json.decode(usersJson) as List<dynamic>;
-        final idx = list.indexWhere((u) => (u as Map<String, dynamic>)['userId'] == updated.userId);
+        final idx = list.indexWhere(
+            (u) => (u as Map<String, dynamic>)['userId'] == updated.userId);
         if (idx != -1) {
           list[idx] = updated.toJson();
           await prefs.setString(_usersKey, json.encode(list));
@@ -336,7 +352,7 @@ class AuthService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final usersJson = prefs.getString(_usersKey);
-      
+
       if (usersJson == null) {
         final demoUser = User(
           userId: 'demo-teacher-1',
@@ -346,7 +362,7 @@ class AuthService extends ChangeNotifier {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
-        
+
         await prefs.setString(_usersKey, json.encode([demoUser.toJson()]));
         debugPrint('Demo user seeded successfully');
       }
