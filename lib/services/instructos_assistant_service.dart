@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
@@ -40,6 +42,7 @@ class InstructOSAssistantService {
   static const String _functionName = 'askInstructOS';
   static const String _functionRegion = 'us-central1';
   static const int _maxConversationItems = 20;
+  static const Duration _callableTimeout = Duration(seconds: 35);
 
   final FirebaseFunctions? _functions;
   final InstructOSCallableInvoker? _callableInvoker;
@@ -76,7 +79,7 @@ class InstructOSAssistantService {
           'contextMode=${payload['contextMode']}',
         );
       }
-      final data = await _call(payload).timeout(const Duration(seconds: 20));
+      final data = await _call(payload).timeout(_callableTimeout);
       if (kDebugMode) {
         debugPrint(
           'Ask InstructOS callable response received '
@@ -107,6 +110,9 @@ class InstructOSAssistantService {
             'Ask InstructOS fallback: FirebaseFunctionsException path used.');
       }
       return _messageForFunctionsError(error);
+    } on TimeoutException {
+      debugPrint('Ask InstructOS callable timed out locally.');
+      return 'The planning request took too long. Try asking for a shorter plan, or choose a specific class/topic.';
     } catch (error) {
       debugPrint('Ask InstructOS unavailable: ${error.runtimeType}');
       debugPrint('Ask InstructOS fallback: unexpected exception path used.');
@@ -154,7 +160,7 @@ class InstructOSAssistantService {
         (_functions ?? FirebaseFunctions.instanceFor(region: _functionRegion))
             .httpsCallable(
       _functionName,
-      options: HttpsCallableOptions(timeout: const Duration(seconds: 20)),
+      options: HttpsCallableOptions(timeout: _callableTimeout),
     );
     final result = await callable.call<Map<String, dynamic>>(payload);
     return result.data;

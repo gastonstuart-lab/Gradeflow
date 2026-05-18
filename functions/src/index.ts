@@ -8,7 +8,7 @@ const MAX_CONVERSATION_CONTENT_LENGTH = 2000;
 const MAX_CONTEXT_MODE_LENGTH = 64;
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const OPENAI_MODEL = "gpt-4.1-mini";
-const OPENAI_TIMEOUT_MS = 12000;
+const OPENAI_TIMEOUT_MS = 25000;
 const OPENAI_MAX_OUTPUT_TOKENS = 700;
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
@@ -46,7 +46,12 @@ const ASSISTANT_INSTRUCTIONS = [
 ].join(" ");
 
 export const askInstructOS = onCall<AskInstructOSPayload>(
-  {region: "us-central1", secrets: [OPENAI_API_KEY], invoker: "public"},
+  {
+    region: "us-central1",
+    secrets: [OPENAI_API_KEY],
+    invoker: "public",
+    timeoutSeconds: 60,
+  },
   async (request): Promise<AskInstructOSResponse> => {
     try {
       if (!request.auth) {
@@ -178,7 +183,7 @@ async function fetchOpenAiReply(
     if (error instanceof Error && error.name === "AbortError") {
       throw new HttpsError(
         "unavailable",
-        "AI provider request timed out. Please try again.",
+        "The planning request took too long. Try asking for a shorter plan, or choose a specific class/topic.",
       );
     }
 
