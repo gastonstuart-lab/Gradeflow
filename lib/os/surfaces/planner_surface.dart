@@ -54,7 +54,12 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final userId = context.read<AuthService>().currentUser?.userId ?? 'local';
+    final auth = Provider.of<AuthService>(context);
+    final userId = _plannerStorageUserId(auth);
+    if (userId == null) {
+      _planningLoading = true;
+      return;
+    }
     if (_loadedUserId == userId) return;
     _loadedUserId = userId;
     _planningLoading = true;
@@ -65,6 +70,11 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
   void dispose() {
     _reminderCtrl.dispose();
     super.dispose();
+  }
+
+  String? _plannerStorageUserId(AuthService auth) {
+    if (!auth.isInitialized || auth.isLoading) return null;
+    return auth.currentUser?.userId ?? 'local';
   }
 
   Future<void> _loadPlannerState(String userId) async {
@@ -161,25 +171,39 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     );
   }
 
-  String _remindersPrefsKey() => _preferences.scopedKey(
-        baseKey: _remindersPrefsBaseKey,
-        userId: _loadedUserId ?? 'local',
-      );
+  String? _remindersPrefsKey() {
+    final userId = _loadedUserId;
+    if (userId == null) return null;
+    return _preferences.scopedKey(
+      baseKey: _remindersPrefsBaseKey,
+      userId: userId,
+    );
+  }
 
-  String _timetablePrefsKey() => _preferences.scopedKey(
-        baseKey: _timetablesPrefsBaseKey,
-        userId: _loadedUserId ?? 'local',
-      );
+  String? _timetablePrefsKey() {
+    final userId = _loadedUserId;
+    if (userId == null) return null;
+    return _preferences.scopedKey(
+      baseKey: _timetablesPrefsBaseKey,
+      userId: userId,
+    );
+  }
 
-  String _selectedTimetablePrefsKey() => _preferences.scopedKey(
-        baseKey: _selectedTimetablePrefsBaseKey,
-        userId: _loadedUserId ?? 'local',
-      );
+  String? _selectedTimetablePrefsKey() {
+    final userId = _loadedUserId;
+    if (userId == null) return null;
+    return _preferences.scopedKey(
+      baseKey: _selectedTimetablePrefsBaseKey,
+      userId: userId,
+    );
+  }
 
   Future<void> _saveReminders() async {
     try {
+      final key = _remindersPrefsKey();
+      if (key == null) return;
       await _preferences.writeJsonList(
-        key: _remindersPrefsKey(),
+        key: key,
         items: _reminders
             .map(
               (reminder) => {
@@ -204,12 +228,15 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
 
   Future<void> _saveTimetables() async {
     try {
+      final timetableKey = _timetablePrefsKey();
+      final selectedKey = _selectedTimetablePrefsKey();
+      if (timetableKey == null || selectedKey == null) return;
       await _preferences.writeString(
-        key: _timetablePrefsKey(),
+        key: timetableKey,
         value: jsonEncode(_timetables.map((item) => item.toJson()).toList()),
       );
       await _preferences.writeString(
-        key: _selectedTimetablePrefsKey(),
+        key: selectedKey,
         value: _selectedTimetableId,
       );
     } catch (e) {
@@ -235,7 +262,8 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     await context.read<GlobalSystemShellController>().refreshWorkspaceSnapshot(
           auth,
         );
-    final userId = auth.currentUser?.userId ?? 'local';
+    final userId = _plannerStorageUserId(auth);
+    if (userId == null) return;
     if (!mounted) return;
     await _loadPlannerState(userId);
   }
