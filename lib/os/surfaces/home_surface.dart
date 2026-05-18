@@ -5,10 +5,10 @@
 // portals tucked off to the side instead of one long dashboard feed.
 
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +28,7 @@ import 'package:gradeflow/services/dashboard_weather_service.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/services/instructos_assistant_service.dart';
 import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
+import 'package:gradeflow/repositories/repository_factory.dart';
 
 class HomeSurface extends StatefulWidget {
   const HomeSurface({super.key});
@@ -49,6 +50,9 @@ class _HomeSurfaceState extends State<HomeSurface> {
   String? _wallpaperImageBase64;
   String? _loadedUserId;
   bool _loadingWallpaper = false;
+  Map<String, int> _classStudentCounts = const {};
+  String _studentCountSignature = '';
+  bool _loadingStudentCounts = false;
 
   @override
   void didChangeDependencies() {
@@ -321,6 +325,9 @@ class _HomeSurfaceState extends State<HomeSurface> {
     final controller = context.read<GradeFlowOSController>();
     final themeMode = context.watch<ThemeModeNotifier>().themeMode;
     final toggleTheme = context.read<ThemeModeNotifier>().toggleTheme;
+    _scheduleStudentCountSync(classes);
+    final resolvedTotalStudents =
+        _resolvedTotalStudents(classes: classes, fallback: totalStudents);
 
     return _HomeReadabilityScope(
       preset: _readabilityPreset,
@@ -367,7 +374,8 @@ class _HomeSurfaceState extends State<HomeSurface> {
                               classes: classes,
                               reminders: reminders,
                               primaryReminder: primaryReminder,
-                              totalStudents: totalStudents,
+                              totalStudents: resolvedTotalStudents,
+                              classStudentCounts: _classStudentCounts,
                               unread: unread,
                               now: now,
                               themeMode: themeMode,
@@ -388,7 +396,8 @@ class _HomeSurfaceState extends State<HomeSurface> {
                               classes: classes,
                               reminders: reminders,
                               primaryReminder: primaryReminder,
-                              totalStudents: totalStudents,
+                              totalStudents: resolvedTotalStudents,
+                              classStudentCounts: _classStudentCounts,
                               unread: unread,
                               now: now,
                               themeMode: themeMode,
@@ -417,6 +426,61 @@ class _HomeSurfaceState extends State<HomeSurface> {
         ? snapshotClasses
         : serviceClasses;
     return candidates.isNotEmpty ? candidates.first : null;
+  }
+
+  void _scheduleStudentCountSync(List<Class> classes) {
+    final ids = classes.map((classItem) => classItem.classId).toList()..sort();
+    final signature = ids.join('|');
+    if (signature == _studentCountSignature || _loadingStudentCounts) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          signature == _studentCountSignature ||
+          _loadingStudentCounts) {
+        return;
+      }
+      _loadStudentCounts(classes, signature);
+    });
+  }
+
+  Future<void> _loadStudentCounts(
+    List<Class> classes,
+    String signature,
+  ) async {
+    setState(() => _loadingStudentCounts = true);
+    final counts = <String, int>{};
+    try {
+      final repository = RepositoryFactory.instance;
+      for (final classItem in classes) {
+        final students = await repository.loadStudents(classItem.classId);
+        counts[classItem.classId] = students.length;
+      }
+    } catch (error) {
+      debugPrint('Ask InstructOS context count load failed: $error');
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _classStudentCounts = counts;
+      _studentCountSignature = signature;
+      _loadingStudentCounts = false;
+    });
+  }
+
+  int _resolvedTotalStudents({
+    required List<Class> classes,
+    required int fallback,
+  }) {
+    if (classes.isNotEmpty &&
+        classes.every((classItem) =>
+            _classStudentCounts.containsKey(classItem.classId))) {
+      return classes.fold<int>(
+        0,
+        (total, classItem) =>
+            total + (_classStudentCounts[classItem.classId] ?? 0),
+      );
+    }
+    return fallback;
   }
 }
 
@@ -450,6 +514,7 @@ class _HomeDesktopLayout extends StatefulWidget {
     required this.reminders,
     required this.primaryReminder,
     required this.totalStudents,
+    required this.classStudentCounts,
     required this.unread,
     required this.now,
     required this.themeMode,
@@ -467,6 +532,7 @@ class _HomeDesktopLayout extends StatefulWidget {
   final List<TeacherWorkspaceReminderSnapshot> reminders;
   final TeacherWorkspaceReminderSnapshot? primaryReminder;
   final int totalStudents;
+  final Map<String, int> classStudentCounts;
   final int unread;
   final DateTime now;
   final ThemeMode themeMode;
@@ -626,6 +692,8 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                                     reminders: widget.reminders,
                                     unread: widget.unread,
                                     totalStudents: widget.totalStudents,
+                                    classStudentCounts:
+                                        widget.classStudentCounts,
                                     now: widget.now,
                                     selectedClass: _selectedClassPreview,
                                     onClose: _closeMiniApp,
@@ -1683,6 +1751,7 @@ class _HomeMiniAppWindow extends StatelessWidget {
     required this.reminders,
     required this.unread,
     required this.totalStudents,
+    required this.classStudentCounts,
     required this.now,
     required this.selectedClass,
     required this.onClose,
@@ -1694,6 +1763,7 @@ class _HomeMiniAppWindow extends StatelessWidget {
   final List<TeacherWorkspaceReminderSnapshot> reminders;
   final int unread;
   final int totalStudents;
+  final Map<String, int> classStudentCounts;
   final DateTime now;
   final Class? selectedClass;
   final VoidCallback onClose;
@@ -1785,7 +1855,16 @@ class _HomeMiniAppWindow extends StatelessWidget {
   Widget _miniAppBody(BuildContext context) {
     return switch (app) {
       _HomeMiniApp.weather => const _WeatherMiniAppContent(),
-      _HomeMiniApp.ask => const _AskInstructOSMiniAppContent(),
+      _HomeMiniApp.ask => _AskInstructOSMiniAppContent(
+          primaryClass: primaryClass,
+          selectedClass: selectedClass,
+          classes: classes,
+          reminders: reminders,
+          totalStudents: totalStudents,
+          classStudentCounts: classStudentCounts,
+          unread: unread,
+          now: now,
+        ),
       _HomeMiniApp.messages => _MessagesMiniAppContent(unread: unread),
       _HomeMiniApp.agenda => _AgendaMiniAppContent(
           title: 'Review today\'s plan',
@@ -1911,7 +1990,25 @@ String? _miniAppFullRoute(_HomeMiniApp app) {
 }
 
 class _AskInstructOSMiniAppContent extends StatefulWidget {
-  const _AskInstructOSMiniAppContent();
+  const _AskInstructOSMiniAppContent({
+    required this.primaryClass,
+    required this.selectedClass,
+    required this.classes,
+    required this.reminders,
+    required this.totalStudents,
+    required this.classStudentCounts,
+    required this.unread,
+    required this.now,
+  });
+
+  final Class? primaryClass;
+  final Class? selectedClass;
+  final List<Class> classes;
+  final List<TeacherWorkspaceReminderSnapshot> reminders;
+  final int totalStudents;
+  final Map<String, int> classStudentCounts;
+  final int unread;
+  final DateTime now;
 
   @override
   State<_AskInstructOSMiniAppContent> createState() =>
@@ -1945,15 +2042,22 @@ class _AskInstructOSMiniAppContentState
   Future<void> _sendCurrentMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSending) return;
-    final conversation = _messages
-        .where((message) => !message.isPending)
-        .map(
-          (message) => InstructOSAssistantMessage(
-            role: message.fromAssistant ? 'assistant' : 'user',
-            content: message.text,
+    final assistantContext = _assistantHomeContext();
+    if (kDebugMode) {
+      debugPrint('Ask InstructOS context sent:\n$assistantContext');
+    }
+    final conversation = [
+      InstructOSAssistantMessage(
+        role: 'system',
+        content: assistantContext,
+      ),
+      ..._messages.where((message) => !message.isPending).map(
+            (message) => InstructOSAssistantMessage(
+              role: message.fromAssistant ? 'assistant' : 'user',
+              content: message.text,
+            ),
           ),
-        )
-        .toList(growable: false);
+    ];
 
     setState(() {
       _messages
@@ -1971,6 +2075,7 @@ class _AskInstructOSMiniAppContentState
     final reply = await _assistantService.ask(
       message: text,
       conversation: conversation,
+      contextMode: 'os-home',
     );
     if (!mounted) return;
 
@@ -2007,6 +2112,84 @@ class _AskInstructOSMiniAppContentState
         curve: Curves.easeOutCubic,
       );
     });
+  }
+
+  String _assistantHomeContext() {
+    final classItem = widget.selectedClass ?? widget.primaryClass;
+    final knownStudentTotal = widget.classes.isNotEmpty &&
+        widget.classes.every((classItem) =>
+            widget.classStudentCounts.containsKey(classItem.classId));
+    final lines = <String>[
+      'InstructOS home context.',
+      'Today: ${_formatLongDate(widget.now)}.',
+      'Workspace: ${widget.classes.length} active class${widget.classes.length == 1 ? '' : 'es'}, ${_studentTotalContextLabel(knownStudentTotal)}, ${widget.reminders.length} pending reminder${widget.reminders.length == 1 ? '' : 's'}, ${widget.unread} unread message${widget.unread == 1 ? '' : 's'}.',
+    ];
+
+    if (classItem == null) {
+      lines.add('Active class: none pinned; use a general teaching plan.');
+    } else {
+      final count = widget.classStudentCounts[classItem.classId];
+      lines.add(
+        'Active class: ${classItem.className}; subject: ${classItem.subject}; students: ${count ?? 'unknown in current assistant context'}; term: ${classItem.term}; school year: ${classItem.schoolYear}.',
+      );
+      final syllabusEntries = classItem.syllabus?.entries
+              .where((entry) => entry.lessonContent.trim().isNotEmpty)
+              .take(2)
+              .toList(growable: false) ??
+          const <ClassSyllabusEntry>[];
+      if (syllabusEntries.isNotEmpty) {
+        lines.add('Syllabus signals:');
+        for (final entry in syllabusEntries) {
+          final dateRange = entry.dateRange.trim();
+          final week = entry.week.trim();
+          final label = [
+            if (week.isNotEmpty) 'week $week',
+            if (dateRange.isNotEmpty) dateRange,
+          ].join(', ');
+          lines.add(
+            '- ${label.isEmpty ? 'entry' : label}: ${_trimLine(entry.lessonContent, 120)}',
+          );
+        }
+      }
+    }
+
+    if (widget.classes.isNotEmpty) {
+      lines.add('Visible class summaries:');
+      for (final classSummary in widget.classes.take(8)) {
+        final count = widget.classStudentCounts[classSummary.classId];
+        final syllabusSignal = _firstSyllabusSignal(classSummary);
+        lines.add(
+          '- ${classSummary.className}; subject: ${classSummary.subject}; students: ${count ?? 'unknown'}; ${syllabusSignal == null ? 'next lesson signal: unknown' : 'lesson signal: $syllabusSignal'}',
+        );
+      }
+    }
+
+    if (widget.reminders.isNotEmpty) {
+      final reminder = widget.reminders.first;
+      lines.add(
+        'Nearest reminder: ${_relativeReminderLabel(reminder, widget.now)} - ${_trimLine(reminder.text, 110)}',
+      );
+    }
+
+    lines.add(
+      'Answer factual questions from this context when possible. Never invent student counts or roster data. If a count is unknown, say exactly what is visible and what is missing. When class/topic context is incomplete, draft a useful starting plan first and ask one focused follow-up question.',
+    );
+    return lines.join('\n');
+  }
+
+  String _studentTotalContextLabel(bool knownStudentTotal) {
+    if (knownStudentTotal) return '${widget.totalStudents} total students';
+    return '${widget.totalStudents} total students reported by the home snapshot; per-class counts still loading or unavailable';
+  }
+
+  String? _firstSyllabusSignal(Class classItem) {
+    final entries = classItem.syllabus?.entries ?? const <ClassSyllabusEntry>[];
+    for (final entry in entries) {
+      if (entry.lessonContent.trim().isNotEmpty) {
+        return _trimLine(entry.lessonContent, 80);
+      }
+    }
+    return null;
   }
 
   @override
@@ -4145,6 +4328,7 @@ class _HomeStackedLayout extends StatefulWidget {
     required this.reminders,
     required this.primaryReminder,
     required this.totalStudents,
+    required this.classStudentCounts,
     required this.unread,
     required this.now,
     required this.themeMode,
@@ -4163,6 +4347,7 @@ class _HomeStackedLayout extends StatefulWidget {
   final List<TeacherWorkspaceReminderSnapshot> reminders;
   final TeacherWorkspaceReminderSnapshot? primaryReminder;
   final int totalStudents;
+  final Map<String, int> classStudentCounts;
   final int unread;
   final DateTime now;
   final ThemeMode themeMode;
@@ -4287,6 +4472,7 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
                       reminders: widget.reminders,
                       unread: widget.unread,
                       totalStudents: widget.totalStudents,
+                      classStudentCounts: widget.classStudentCounts,
                       now: widget.now,
                       selectedClass: _selectedClassPreview,
                       onClose: _closeMiniApp,

@@ -8,8 +8,8 @@ const MAX_CONVERSATION_CONTENT_LENGTH = 2000;
 const MAX_CONTEXT_MODE_LENGTH = 64;
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const OPENAI_MODEL = "gpt-4.1-mini";
-const OPENAI_TIMEOUT_MS = 12000;
-const OPENAI_MAX_OUTPUT_TOKENS = 450;
+const OPENAI_TIMEOUT_MS = 25000;
+const OPENAI_MAX_OUTPUT_TOKENS = 700;
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
@@ -30,54 +30,73 @@ interface AskInstructOSResponse {
   reply: string;
 }
 
-const PLACEHOLDER_REPLY =
-  "Ask InstructOS backend is ready. Real AI connection will be added in a later slice.";
-
-const PROVIDER_FALLBACK_REPLY =
-  "Ask InstructOS is temporarily unable to reach the AI provider. Please try again soon.";
-
 const ASSISTANT_INSTRUCTIONS = [
-  "Ask InstructOS is a teacher assistant inside InstructOS.",
-  "It can help plan lessons, draft ideas, create quizzes, and organise teaching work.",
-  "It must not claim access to class data, student records, planner data, or live app tools yet.",
-  "It should be concise, useful, and teacher-friendly.",
-  "It should refuse to pretend it has accessed data it has not been given.",
+  "Ask InstructOS is a premium teacher co-pilot inside InstructOS.",
+  "Sound calm, professional, practical, and already embedded in the teacher's workspace.",
+  "Use any provided InstructOS home or class context as working context, but never claim access to data, records, or tools that were not included in the request.",
+  "For factual questions about classes, students, reminders, or the current workspace, answer directly from the provided InstructOS context when the value is present.",
+  "Never invent student counts, roster details, names, or class membership. If a value is unknown, say what context is visible and what specific data is missing.",
+  "If the context includes a total student count, use it when asked how many students the teacher has. If per-class counts are included, use the matching class count for class-specific questions.",
+  "Do not respond like a generic chatbot. Prefer a useful draft, checklist, rubric, message, or plan over asking for broad clarification.",
+  "For lesson-planning requests, infer a sensible next-lesson plan from the available class, subject, date, syllabus, reminders, and conversation context.",
+  "If exact topic or grade context is missing, still provide a teacher-ready starter plan with warm-up, main activity, check for understanding, and exit task, then ask one focused follow-up question at the end.",
+  "Avoid opening with 'please provide the subject, grade level, and topic' unless there is truly no usable context and no productive default.",
+  "Keep replies concise, structured, and classroom-ready. Use bullets or short sections when helpful.",
+  "When making assumptions, state them briefly and make them easy for the teacher to correct.",
 ].join(" ");
 
 export const askInstructOS = onCall<AskInstructOSPayload>(
-  {region: "us-central1", secrets: [OPENAI_API_KEY]},
+  {
+    region: "us-central1",
+    secrets: [OPENAI_API_KEY],
+    invoker: "public",
+    timeoutSeconds: 60,
+  },
   async (request): Promise<AskInstructOSResponse> => {
-    if (!request.auth) {
-      throw new HttpsError(
-        "unauthenticated",
-        "Sign in is required to use Ask InstructOS.",
-      );
-    }
+    try {
+      if (!request.auth) {
+        throw new HttpsError(
+          "unauthenticated",
+          "Sign in is required to use Ask InstructOS.",
+        );
+      }
 
-    const payload = validatePayload(request.data);
+      const payload = validatePayload(request.data);
 
-    // Do not log full user messages. Keep logs limited to safe operational
-    // metadata until privacy review, rate limiting, and real AI are added.
-    logger.info("Ask InstructOS invoked", {
-      uid: request.auth.uid,
-      messageLength: payload.message.length,
-      conversationItems: payload.conversation?.length ?? 0,
-      contextMode: payload.contextMode ?? "none",
-    });
-
-    const apiKey = getOpenAiApiKey();
-    if (apiKey === undefined) {
-      logger.info("Ask InstructOS OpenAI secret unavailable; using fallback", {
+      // Do not log full user messages. Keep logs limited to safe operational
+      // metadata until privacy review, rate limiting, and real AI are added.
+      logger.info("Ask InstructOS invoked", {
         uid: request.auth.uid,
         messageLength: payload.message.length,
         conversationItems: payload.conversation?.length ?? 0,
         contextMode: payload.contextMode ?? "none",
       });
-      return {reply: PLACEHOLDER_REPLY};
-    }
 
-    const reply = await fetchOpenAiReply(payload, apiKey, request.auth.uid);
-    return {reply};
+      const apiKey = getOpenAiApiKey();
+      if (apiKey === undefined) {
+        logger.warn("Ask InstructOS OpenAI secret unavailable", {
+          uid: request.auth.uid,
+        });
+        throw new HttpsError(
+          "failed-precondition",
+          "OPENAI_API_KEY is not available to this function.",
+        );
+      }
+
+      const reply = await fetchOpenAiReply(payload, apiKey, request.auth.uid);
+      return {reply};
+    } catch (error) {
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+
+      logger.error("Ask InstructOS unexpected handler error", {
+        errorName: error instanceof Error ? error.name : "unknown",
+        errorMessage:
+          error instanceof Error ? sanitizeForLog(error.message) : undefined,
+      });
+      throw new HttpsError("internal", "Ask InstructOS failed unexpectedly.");
+    }
   },
 );
 
@@ -117,13 +136,15 @@ async function fetchOpenAiReply(
 
     const latencyMs = Date.now() - startedAt;
     if (!response.ok) {
+      const providerMessage = await readProviderErrorMessage(response);
       logger.warn("Ask InstructOS OpenAI request failed", {
         uid,
         status: response.status,
         statusClass: `${Math.floor(response.status / 100)}xx`,
+        providerMessage,
         latencyMs,
       });
-      return PROVIDER_FALLBACK_REPLY;
+      throw new HttpsError("unavailable", "AI provider request failed.");
     }
 
     const data = await response.json() as unknown;
@@ -133,7 +154,10 @@ async function fetchOpenAiReply(
         uid,
         latencyMs,
       });
-      return PROVIDER_FALLBACK_REPLY;
+      throw new HttpsError(
+        "unavailable",
+        "AI provider response did not include usable reply text.",
+      );
     }
 
     logger.info("Ask InstructOS OpenAI request succeeded", {
@@ -143,16 +167,56 @@ async function fetchOpenAiReply(
     });
     return reply;
   } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
     const latencyMs = Date.now() - startedAt;
     logger.warn("Ask InstructOS OpenAI request errored", {
       uid,
       latencyMs,
       errorName: error instanceof Error ? error.name : "unknown",
+      errorMessage:
+        error instanceof Error ? sanitizeForLog(error.message) : undefined,
     });
-    return PROVIDER_FALLBACK_REPLY;
+
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new HttpsError(
+        "unavailable",
+        "The planning request took too long. Try asking for a shorter plan, or choose a specific class/topic.",
+      );
+    }
+
+    throw new HttpsError(
+      "unavailable",
+      "AI provider is currently unavailable. Please try again.",
+    );
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function readProviderErrorMessage(
+  response: Response,
+): Promise<string | undefined> {
+  try {
+    const data = await response.json() as unknown;
+    if (!isRecord(data)) return undefined;
+
+    const errorValue = data.error;
+    if (!isRecord(errorValue)) return undefined;
+
+    const message = errorValue.message;
+    if (typeof message !== "string") return undefined;
+
+    return sanitizeForLog(message);
+  } catch {
+    return undefined;
+  }
+}
+
+function sanitizeForLog(value: string): string {
+  return value.replace(/\s+/g, " ").trim().slice(0, 240);
 }
 
 function buildOpenAiInput(payload: AskInstructOSPayload): string {
