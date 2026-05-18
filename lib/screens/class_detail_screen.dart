@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -38,6 +40,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
   String? _driveAccessToken;
   bool _driveSigningIn = false;
   bool _handledInitialAction = false;
+  String? _loadedClassDataUserId;
   final ClassNoteService _classNoteService = ClassNoteService();
 
   void _showFeedback(
@@ -102,15 +105,42 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // Schedule data loading after the first frame to avoid setState during build
+  }
+
+  @override
+  void didUpdateWidget(covariant ClassDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _loadedClassDataUserId = null;
+      _handledInitialAction = false;
+      final userId = _classDataUserIdFor(context.read<AuthService>());
+      if (userId != null) {
+        _scheduleLoadData(userId);
+      }
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = Provider.of<AuthService>(context);
+    final userId = _classDataUserIdFor(auth);
+    if (userId == null || _loadedClassDataUserId == userId) return;
+    _scheduleLoadData(userId);
+  }
+
+  void _scheduleLoadData(String userId) {
+    _loadedClassDataUserId = userId;
+    // Schedule data loading after the first frame to avoid setState during build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
+      if (!mounted || _loadedClassDataUserId != userId) return;
+      unawaited(_loadData(userId));
     });
   }
 
-  String _classDataUserId() {
-    final user = context.read<AuthService>().currentUser;
-    return user?.userId ?? 'local';
+  String? _classDataUserIdFor(AuthService auth) {
+    if (!auth.isInitialized || auth.isLoading) return null;
+    return auth.currentUser?.userId ?? 'local';
   }
 
   DateTime _dateOnly(DateTime value) =>
@@ -149,14 +179,16 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
   }
 
   Future<void> _saveClassNotes() async {
+    final userId = _loadedClassDataUserId;
+    if (userId == null) return;
     await _classNoteService.save(
       classId: widget.classId,
-      userId: _classDataUserId(),
+      userId: userId,
       items: _classNotes,
     );
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData(String classDataUserId) async {
     final authService = context.read<AuthService>();
     final classService = context.read<ClassService>();
     final studentService = context.read<StudentService>();
@@ -191,7 +223,7 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     final items = await scheduleService.load(widget.classId);
     final notes = await _classNoteService.load(
       classId: widget.classId,
-      userId: user?.userId ?? 'local',
+      userId: classDataUserId,
     );
     if (!mounted) return;
     setState(() {
@@ -421,10 +453,23 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthService>();
     final classService = context.watch<ClassService>();
     final studentService = context.watch<StudentService>();
     final categoryService = context.watch<GradingCategoryService>();
     final classItem = classService.getClassById(widget.classId);
+
+    if (!auth.isInitialized || auth.isLoading) {
+      return const WorkspaceScaffold(
+        eyebrow: 'Class workspace',
+        title: 'Restoring session',
+        subtitle: 'Loading the teacher workspace for this class.',
+        child: WorkspaceLoadingState(
+          title: 'Restoring class workspace',
+          subtitle: 'Waiting for the signed-in teacher session.',
+        ),
+      );
+    }
 
     if (classItem == null) {
       return const WorkspaceScaffold(

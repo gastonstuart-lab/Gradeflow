@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/models/user.dart';
 import 'package:gradeflow/os/gradeflow_os_shell.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/surfaces/home_surface.dart';
@@ -56,6 +59,58 @@ void main() {
     expect(find.text('Upload'), findsOneWidget);
     expect(find.text('Class schedules and assessments'), findsNothing);
     expect(find.text('Where do uploads go?'), findsNothing);
+  });
+
+  testWidgets(
+      'PlannerSurface waits for restored auth before loading scoped data',
+      (tester) async {
+    final user = User(
+      userId: 'teacher-restored',
+      email: 'teacher@example.com',
+      fullName: 'Restored Teacher',
+      schoolName: 'Pilot School',
+      createdAt: DateTime(2026, 5, 1),
+      updatedAt: DateTime(2026, 5, 1),
+    );
+    final auth = AuthService();
+    SharedPreferences.setMockInitialValues({
+      'current_user': jsonEncode(user.toJson()),
+      'dashboard_reminders_v1:local': jsonEncode([
+        {
+          'text': 'Local-only reminder should not hydrate first',
+          'timestamp': DateTime(2026, 5, 2).toIso8601String(),
+          'done': false,
+        }
+      ]),
+      'dashboard_reminders_v1:teacher-restored': jsonEncode([
+        {
+          'text': 'Restored user reminder',
+          'timestamp': DateTime(2026, 5, 3).toIso8601String(),
+          'done': false,
+        }
+      ]),
+    });
+    addTearDown(auth.dispose);
+
+    await tester.pumpWidget(
+      _harness(
+        const PlannerSurface(),
+        auth: auth,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Local-only reminder should not hydrate first'),
+        findsNothing);
+    expect(find.text('Restored user reminder'), findsNothing);
+
+    await auth.initialize();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+
+    expect(find.text('Local-only reminder should not hydrate first'),
+        findsNothing);
+    expect(find.text('Restored user reminder'), findsOneWidget);
   });
 
   testWidgets('GradeFlowOSShell shows one overlay at a time', (tester) async {
@@ -120,10 +175,14 @@ void main() {
   });
 }
 
-Widget _harness(Widget child, {GradeFlowOSController? controller}) {
+Widget _harness(
+  Widget child, {
+  GradeFlowOSController? controller,
+  AuthService? auth,
+}) {
   return MultiProvider(
     providers: [
-      ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
+      ChangeNotifierProvider<AuthService>.value(value: auth ?? AuthService()),
       ChangeNotifierProvider<ClassService>(create: (_) => ClassService()),
       ChangeNotifierProvider<CommunicationService>(
         create: (_) => CommunicationService(),
