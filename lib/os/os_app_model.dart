@@ -23,6 +23,7 @@ class OSAppId {
   static const String exports = 'gradeflow.exports';
   static const String messages = 'gradeflow.messages';
   static const String planner = 'gradeflow.planner';
+  static const String schoolDataInbox = 'gradeflow.schoolDataInbox';
   static const String attendance = 'gradeflow.attendance';
   static const String files = 'gradeflow.files';
   static const String reports = 'gradeflow.reports';
@@ -178,6 +179,15 @@ class OSAppRegistry {
       description: 'Schedule, reminders & timetable',
       route: '/os/planner',
       color: Color(0xFF58C78B),
+    ),
+    OSApp(
+      id: OSAppId.schoolDataInbox,
+      name: 'Data Inbox',
+      icon: Icons.move_to_inbox_rounded,
+      category: OSAppCategory.productivity,
+      description: 'Uploads and Drive imports',
+      route: '/os/inbox',
+      color: Color(0xFF5EC7E6),
     ),
     OSApp(
       id: OSAppId.attendance,
