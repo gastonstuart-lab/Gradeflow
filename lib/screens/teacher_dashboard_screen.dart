@@ -304,7 +304,10 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final userId = _dashboardStorageUserId();
+    final userId = _resolvedDashboardStorageUserId();
+    if (userId == null) {
+      return;
+    }
     if (_dashboardPrefsUserId == userId) return;
     _dashboardPrefsUserId = userId;
     _dashboardLayoutReady = false;
@@ -312,6 +315,15 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     _dashboardRailSelectedClassId = null;
     _dashboardClassSelectionReady = false;
     _dashboardClassSelectionConfirmed = false;
+    _classes = [];
+    _totalStudents = 0;
+    _reminders.clear();
+    _timetables.clear();
+    _selectedTimetableId = null;
+    _customLinks.clear();
+    _customAudioStations.clear();
+    _selectedAudioStationId = null;
+    _scheduleByClass.clear();
     unawaited(_loadDashboardLayout());
     unawaited(_loadData());
     unawaited(_loadReminders());
@@ -642,6 +654,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Future<void> _loadData() async {
     final auth = context.read<AuthService>();
     final classService = context.read<ClassService>();
+    final dashboardUserId = _dashboardPrefsUserId;
+    if (dashboardUserId == null) return;
     final storedSelectedClassId = await _loadStoredSelectedDashboardClassId();
 
     if (mounted && _dashboardClassSelectionReady) {
@@ -650,12 +664,15 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
     final user = auth.currentUser;
     if (user == null) return;
+    if (_dashboardPrefsUserId != dashboardUserId) return;
 
     await classService.loadClasses(user.userId);
+    if (_dashboardPrefsUserId != dashboardUserId) return;
     final healthSignals = await _classHealthService.loadStaticSignals(
       userId: user.userId,
       classes: classService.classes,
     );
+    if (_dashboardPrefsUserId != dashboardUserId) return;
     final classes = <_ClassBrief>[];
     int totalStudents = 0;
     for (final c in classService.classes) {

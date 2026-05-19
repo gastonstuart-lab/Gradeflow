@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:gradeflow/models/deleted_class_entry.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/services/class_schedule_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/class_trash_service.dart';
 import 'package:gradeflow/services/grade_item_service.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/theme.dart';
@@ -93,8 +93,10 @@ class _DeletedClassesScreenState extends State<DeletedClassesScreen> {
       }
 
       // Clear per-class schedule storage (if any)
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('class_schedule_v1:$classId');
+      await ClassScheduleService().clear(
+        classId,
+        userId: entry.classItem.teacherId,
+      );
 
       // Ensure the class itself is gone
       await classSvc.deleteClass(classId);

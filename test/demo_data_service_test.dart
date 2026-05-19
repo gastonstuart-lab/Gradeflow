@@ -42,7 +42,10 @@ void main() {
     expect(classService.classes, isNotEmpty);
 
     final firstClass = classService.classes.first;
-    final schedule = await ClassScheduleService().load(firstClass.classId);
+    final schedule = await ClassScheduleService().load(
+      firstClass.classId,
+      userId: DemoDataService.demoUserId,
+    );
     final notes = await ClassNoteService().load(
       classId: firstClass.classId,
       userId: DemoDataService.demoUserId,

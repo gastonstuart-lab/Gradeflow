@@ -31,6 +31,7 @@ class _ClassSurfaceState extends State<ClassSurface>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   bool _hydrating = false;
+  String? _lastHydrationUserId;
 
   static const _tabDefs = [
     _TabDef(icon: Icons.dashboard_outlined, label: 'Overview'),
@@ -65,12 +66,31 @@ class _ClassSurfaceState extends State<ClassSurface>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.classId != widget.classId) {
       _tabs.index = 0;
+      _lastHydrationUserId = null;
       setState(() {
         _hydrating =
             context.read<ClassService>().getClassById(widget.classId) == null;
       });
       _scheduleHydration();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = Provider.of<AuthService>(context);
+    if (!auth.isInitialized || auth.isLoading) {
+      if (!_hydrating &&
+          context.read<ClassService>().getClassById(widget.classId) == null) {
+        _hydrating = true;
+      }
+      return;
+    }
+
+    final userId = auth.currentUser?.userId ?? 'local';
+    if (_lastHydrationUserId == userId) return;
+    _lastHydrationUserId = userId;
+    _scheduleHydration();
   }
 
   @override
@@ -92,7 +112,15 @@ class _ClassSurfaceState extends State<ClassSurface>
     final classService = context.read<ClassService>();
     final studentService = context.read<StudentService>();
 
+    if (!auth.isInitialized || auth.isLoading) {
+      if (mounted && !_hydrating) {
+        setState(() => _hydrating = true);
+      }
+      return;
+    }
+
     try {
+      _lastHydrationUserId = auth.currentUser?.userId ?? 'local';
       final user = auth.currentUser;
       if (user != null && classService.getClassById(requestedClassId) == null) {
         await classService.loadClasses(user.userId);

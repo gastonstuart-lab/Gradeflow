@@ -1566,8 +1566,15 @@ class _ClassListScreenState extends State<ClassListScreen> {
     }
     if (copySchedule) {
       final scheduleService = ClassScheduleService();
-      final schedule = await scheduleService.load(classItem.classId);
-      await scheduleService.save(newClass.classId, schedule);
+      final schedule = await scheduleService.load(
+        classItem.classId,
+        userId: userId,
+      );
+      await scheduleService.save(
+        newClass.classId,
+        schedule,
+        userId: userId,
+      );
     }
     await classService.loadClasses(user.userId);
     if (!mounted) return;

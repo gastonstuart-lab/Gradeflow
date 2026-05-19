@@ -58,7 +58,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final auth = context.read<AuthService>();
-    _syncWallpaperForUser(auth.currentUser?.userId ?? 'local');
+    final userId = _homeStorageUserId(auth);
+    if (userId != null) {
+      _syncWallpaperForUser(userId);
+    }
   }
 
   void _syncWallpaperForUser(String userId) {
@@ -111,7 +114,12 @@ class _HomeSurfaceState extends State<HomeSurface> {
     }
   }
 
-  String get _wallpaperUserId => _loadedUserId ?? 'local';
+  String? get _wallpaperUserId => _loadedUserId;
+
+  String? _homeStorageUserId(AuthService auth) {
+    if (!auth.isInitialized || auth.isLoading) return null;
+    return auth.currentUser?.userId ?? 'local';
+  }
 
   Future<void> _saveWallpaper({
     _HomeWallpaperStyle? style,
@@ -129,6 +137,7 @@ class _HomeSurfaceState extends State<HomeSurface> {
     });
 
     final userId = _wallpaperUserId;
+    if (userId == null) return;
     await _preferences.writeString(
       key: _preferences.scopedKey(
         baseKey: _wallpaperStyleBaseKey,
@@ -151,10 +160,12 @@ class _HomeSurfaceState extends State<HomeSurface> {
     _HomeReadabilityPreset preset,
   ) async {
     setState(() => _readabilityPreset = preset);
+    final userId = _wallpaperUserId;
+    if (userId == null) return;
     await _preferences.writeString(
       key: _preferences.scopedKey(
         baseKey: _readabilityBaseKey,
-        userId: _wallpaperUserId,
+        userId: userId,
       ),
       value: preset.id,
     );
@@ -303,10 +314,12 @@ class _HomeSurfaceState extends State<HomeSurface> {
     final snapshot = shell.workspaceSnapshot;
     final auth = context.watch<AuthService>();
     final user = auth.currentUser ?? snapshot?.user;
-    final userId = user?.userId ?? 'local';
-    if (_loadedUserId != userId && !_loadingWallpaper) {
+    final wallpaperUserId = _homeStorageUserId(auth);
+    if (wallpaperUserId != null &&
+        _loadedUserId != wallpaperUserId &&
+        !_loadingWallpaper) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _syncWallpaperForUser(userId);
+        if (mounted) _syncWallpaperForUser(wallpaperUserId);
       });
     }
     final serviceClasses = context.watch<ClassService>().activeClasses;

@@ -21,8 +21,13 @@ extension TeacherDashboardImportActions on _TeacherDashboardScreenState {
 
   Future<void> _loadClassSchedule(String classId) async {
     if (_scheduleByClass.containsKey(classId)) return;
+    final userId = _dashboardPrefsUserId;
+    if (userId == null) return;
     try {
-      final items = await _classScheduleService.load(classId);
+      final items = await _classScheduleService.load(
+        classId,
+        userId: userId,
+      );
       if (!mounted) return;
       setState(() => _scheduleByClass[classId] = items);
     } catch (e) {
@@ -32,7 +37,13 @@ extension TeacherDashboardImportActions on _TeacherDashboardScreenState {
 
   Future<void> _saveClassSchedule(
       String classId, List<ClassScheduleItem> items) async {
-    await _classScheduleService.save(classId, items);
+    final userId = _dashboardPrefsUserId;
+    if (userId == null) return;
+    await _classScheduleService.save(
+      classId,
+      items,
+      userId: userId,
+    );
     if (!mounted) return;
     setState(() => _scheduleByClass[classId] = items);
   }
