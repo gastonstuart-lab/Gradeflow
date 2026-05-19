@@ -51,7 +51,11 @@ class ClassScheduleService {
     String? userId,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_key(classId, userId: userId));
+    final scopedKey = _key(classId, userId: userId);
+    await prefs.remove(scopedKey);
+    if (scopedKey != _key(classId)) {
+      await prefs.remove(_key(classId));
+    }
   }
 
   List<ClassScheduleItem> parseFromBytes(Uint8List bytes) {

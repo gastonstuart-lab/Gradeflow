@@ -63,4 +63,33 @@ void main() {
     expect(scoped.single.title, 'Legacy schedule');
     expect(reloaded.single.title, 'Legacy schedule');
   });
+
+  test('clear with user id removes scoped and legacy schedule keys', () async {
+    final service = ClassScheduleService();
+
+    await service.save(
+      'class-to-clear',
+      const [
+        ClassScheduleItem(title: 'Legacy schedule'),
+      ],
+    );
+    await service.save(
+      'class-to-clear',
+      const [
+        ClassScheduleItem(title: 'Scoped schedule'),
+      ],
+      userId: 'teacher-restored',
+    );
+
+    await service.clear('class-to-clear', userId: 'teacher-restored');
+
+    final scoped = await service.load(
+      'class-to-clear',
+      userId: 'teacher-restored',
+    );
+    final legacy = await service.load('class-to-clear');
+
+    expect(scoped, isEmpty);
+    expect(legacy, isEmpty);
+  });
 }
