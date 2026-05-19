@@ -1212,8 +1212,13 @@ DateTime? _parseSchoolCalendarDateToken(
 DateTime? _parseDateFlexible(String raw) {
   final value = raw.trim();
   if (value.isEmpty) return null;
-  final iso = DateTime.tryParse(value);
-  if (iso != null) return iso;
+  final iso = RegExp(r'^(\d{4})-(\d{1,2})-(\d{1,2})$').firstMatch(value);
+  if (iso != null) {
+    final year = int.tryParse(iso.group(1)!);
+    final month = int.tryParse(iso.group(2)!);
+    final day = int.tryParse(iso.group(3)!);
+    return _validDate(year: year, month: month, day: day);
+  }
   final parts =
       RegExp(r'^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?$').firstMatch(value);
   if (parts != null) {
@@ -1222,9 +1227,31 @@ DateTime? _parseDateFlexible(String raw) {
     var year = int.tryParse(parts.group(3) ?? '') ?? DateTime.now().year;
     if (year < 100) year += 2000;
     if (first == null || second == null) return null;
-    return DateTime(year, first, second);
+    if (first > 12 && second <= 12) {
+      return _validDate(year: year, month: second, day: first);
+    }
+    if (second > 12 && first <= 12) {
+      return _validDate(year: year, month: first, day: second);
+    }
+    if (first <= 12 && second <= 12) {
+      return _validDate(year: year, month: second, day: first);
+    }
   }
   return null;
+}
+
+DateTime? _validDate({
+  required int? year,
+  required int? month,
+  required int? day,
+}) {
+  if (year == null || month == null || day == null) return null;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  final value = DateTime(year, month, day);
+  if (value.year != year || value.month != month || value.day != day) {
+    return null;
+  }
+  return value;
 }
 
 TimeOfDay? _parseTimeFlexible(String raw) {

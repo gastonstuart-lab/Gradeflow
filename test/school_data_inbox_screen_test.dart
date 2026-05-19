@@ -38,6 +38,63 @@ void main() {
     expect(result.events.first.details, 'Auditorium');
   });
 
+  test('school calendar parser handles Taiwan and UK-style dates safely', () {
+    final bytes = Uint8List.fromList(utf8.encode(
+      'Date,Event\n'
+      '2026-05-20,ISO event\n'
+      '20/05/2026,Slash day-month event\n'
+      '20-05-2026,Dash day-month event\n'
+      '05/06/2026,Ambiguous day-month event\n'
+      '31/02/2026,Impossible event\n'
+      '20/20/2026,Overflow event\n',
+    ));
+
+    final result = parseSchoolCalendarInboxImport(
+      bytes,
+      filename: '2026-school-calendar.csv',
+    );
+
+    expect(
+      result.events.map((event) => event.title),
+      containsAll([
+        'ISO event',
+        'Slash day-month event',
+        'Dash day-month event',
+        'Ambiguous day-month event',
+      ]),
+    );
+    expect(
+      result.events.firstWhere((event) => event.title == 'ISO event').date,
+      DateTime(2026, 5, 20),
+    );
+    expect(
+      result.events
+          .firstWhere((event) => event.title == 'Slash day-month event')
+          .date,
+      DateTime(2026, 5, 20),
+    );
+    expect(
+      result.events
+          .firstWhere((event) => event.title == 'Dash day-month event')
+          .date,
+      DateTime(2026, 5, 20),
+    );
+    expect(
+      result.events
+          .firstWhere((event) => event.title == 'Ambiguous day-month event')
+          .date,
+      DateTime(2026, 6, 5),
+    );
+    expect(
+      result.events.map((event) => event.title),
+      isNot(contains('Impossible event')),
+    );
+    expect(
+      result.events.map((event) => event.title),
+      isNot(contains('Overflow event')),
+    );
+  });
+
   testWidgets('SchoolDataInboxScreen renders source and import cards',
       (tester) async {
     final auth = AuthService();
