@@ -524,56 +524,19 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
                           onBack: () => context.go(AppRoutes.osHome),
                         ),
                         const SizedBox(height: WorkspaceSpacing.lg),
-                        _InboxSectionHeader(
-                          title: 'Start with a file',
-                          subtitle:
-                              'Choose a source first. InstructOS will detect whether it looks like a calendar, class schedule, roster, score sheet, or teaching resource.',
+                        _InboxUploadStation(
+                          busy: _busy,
+                          source: _source,
+                          onSourceChanged: _busy
+                              ? null
+                              : (source) => setState(() => _source = source),
+                          onRunImport: _busy ? null : _runImport,
                         ),
-                        const SizedBox(height: WorkspaceSpacing.sm),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final narrow = constraints.maxWidth < 720;
-                            return _InboxResponsiveGrid(
-                              narrow: narrow,
-                              children: [
-                                _InboxActionCard(
-                                  title: 'Upload from computer',
-                                  subtitle:
-                                      'Pick a CSV, Excel, Word, or ICS file from this device.',
-                                  icon: Icons.upload_file_rounded,
-                                  selected: _source == _InboxSource.computer,
-                                  enabled: !_busy,
-                                  onTap: () => setState(
-                                      () => _source = _InboxSource.computer),
-                                ),
-                                _InboxActionCard(
-                                  title: 'Choose from Google Drive',
-                                  subtitle:
-                                      'Opens a Drive file picker list. Choose a file first; extracted data is previewed before saving.',
-                                  icon: Icons.drive_folder_upload_rounded,
-                                  selected: _source == _InboxSource.drive,
-                                  enabled: !_busy,
-                                  onTap: () => setState(
-                                      () => _source = _InboxSource.drive),
-                                ),
-                                const _InboxActionCard(
-                                  title: 'Connect school shared folder',
-                                  subtitle:
-                                      'Later, pin a shared Drive folder for calendars, timetables, quizzes, worksheets, rosters, and teaching documents.',
-                                  icon: Icons.snippet_folder_rounded,
-                                  enabled: false,
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                        const SizedBox(height: WorkspaceSpacing.lg),
-                        const _InboxPreviewPanel(),
                         const SizedBox(height: WorkspaceSpacing.xl),
                         _InboxSectionHeader(
-                          title: 'Current supported imports',
+                          title: 'Supported today',
                           subtitle:
-                              'These imports already stop for preview and confirmation before saving.',
+                              'Class schedule and School calendar imports already stop for preview and confirmation before saving.',
                         ),
                         const SizedBox(height: WorkspaceSpacing.sm),
                         LayoutBuilder(
@@ -585,7 +548,7 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
                                 _InboxActionCard(
                                   title: 'Class schedule',
                                   subtitle:
-                                      'Preview lesson rows, choose a class, then save.',
+                                      'Preview lesson rows, choose a class, then save only after confirming.',
                                   icon: Icons.event_note_rounded,
                                   enabled: !_busy,
                                   onTap: () => _runImport(
@@ -595,7 +558,7 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
                                 _InboxActionCard(
                                   title: 'School calendar',
                                   subtitle:
-                                      'Preview events, then add them to Planner.',
+                                      'Preview events, then add them to Planner after review.',
                                   icon: Icons.calendar_month_rounded,
                                   enabled: !_busy,
                                   onTap: () => _runImport(
@@ -610,7 +573,7 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
                         _InboxSectionHeader(
                           title: 'Coming next',
                           subtitle:
-                              'Future school knowledge tools stay secondary until they are safe to review, undo, and control.',
+                              'Future school knowledge tools stay compact until they are safe to review, undo, and control.',
                         ),
                         const SizedBox(height: WorkspaceSpacing.sm),
                         LayoutBuilder(
@@ -978,57 +941,563 @@ class _InboxModePill extends StatelessWidget {
   }
 }
 
+class _InboxUploadStation extends StatelessWidget {
+  const _InboxUploadStation({
+    required this.busy,
+    required this.source,
+    required this.onSourceChanged,
+    required this.onRunImport,
+  });
+
+  final bool busy;
+  final _InboxSource source;
+  final ValueChanged<_InboxSource>? onSourceChanged;
+  final ValueChanged<_InboxDestination>? onRunImport;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = context.isDark;
+    final accent = theme.colorScheme.primary;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: WorkspaceChrome.panelShadow(context, emphasis: 1.35),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.colorScheme.surface.withValues(
+                        alpha: dark ? 0.72 : 0.92,
+                      ),
+                      Color.lerp(
+                        theme.colorScheme.surfaceContainerHighest,
+                        accent,
+                        dark ? 0.18 : 0.10,
+                      )!
+                          .withValues(alpha: dark ? 0.58 : 0.86),
+                      Color.lerp(
+                        OSColors.cyan,
+                        theme.colorScheme.surface,
+                        dark ? 0.72 : 0.82,
+                      )!
+                          .withValues(alpha: dark ? 0.48 : 0.78),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: accent.withValues(alpha: dark ? 0.34 : 0.24),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: Container(
+                height: 1,
+                color: Colors.white.withValues(alpha: dark ? 0.16 : 0.70),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final narrow = constraints.maxWidth < 880;
+                  final sourceColumn = _InboxUploadSourceColumn(
+                    busy: busy,
+                    source: source,
+                    onSourceChanged: onSourceChanged,
+                    onRunImport: onRunImport,
+                  );
+                  final previewColumn = const _InboxPreviewPanel();
+
+                  if (narrow) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        sourceColumn,
+                        const SizedBox(height: WorkspaceSpacing.md),
+                        previewColumn,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 5, child: sourceColumn),
+                      const SizedBox(width: WorkspaceSpacing.lg),
+                      const Expanded(flex: 4, child: _InboxPreviewPanel()),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InboxUploadSourceColumn extends StatelessWidget {
+  const _InboxUploadSourceColumn({
+    required this.busy,
+    required this.source,
+    required this.onSourceChanged,
+    required this.onRunImport,
+  });
+
+  final bool busy;
+  final _InboxSource source;
+  final ValueChanged<_InboxSource>? onSourceChanged;
+  final ValueChanged<_InboxDestination>? onRunImport;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final activeLabel =
+        source == _InboxSource.computer ? 'computer' : 'Google Drive';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: WorkspaceSpacing.xs,
+          runSpacing: WorkspaceSpacing.xs,
+          children: const [
+            _InboxFlowChip(label: '1', value: 'Choose file'),
+            _InboxFlowChip(label: '2', value: 'Detect'),
+            _InboxFlowChip(label: '3', value: 'Preview'),
+            _InboxFlowChip(label: '4', value: 'Confirm'),
+          ],
+        ),
+        const SizedBox(height: WorkspaceSpacing.lg),
+        Text(
+          'Start with a file',
+          style: context.textStyles.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0,
+          ),
+        ),
+        const SizedBox(height: WorkspaceSpacing.xs),
+        Text(
+          'Choose a source first. InstructOS will detect whether it looks like a calendar, class schedule, roster, score sheet, or teaching resource.',
+          style: context.textStyles.bodyMedium?.copyWith(
+            color: OSColors.textSecondary(dark),
+            height: 1.42,
+          ),
+        ),
+        const SizedBox(height: WorkspaceSpacing.lg),
+        _InboxSourceTile(
+          title: 'Upload from computer',
+          subtitle: 'Pick a CSV, Excel, Word, or ICS file from this device.',
+          icon: Icons.upload_file_rounded,
+          selected: source == _InboxSource.computer,
+          enabled: !busy,
+          onTap: onSourceChanged == null
+              ? null
+              : () => onSourceChanged!(_InboxSource.computer),
+        ),
+        const SizedBox(height: WorkspaceSpacing.sm),
+        _InboxSourceTile(
+          title: 'Choose from Google Drive',
+          subtitle:
+              'Opens a Drive file picker list. Choose a file first; extracted data is previewed before saving.',
+          icon: Icons.add_to_drive_rounded,
+          selected: source == _InboxSource.drive,
+          enabled: !busy,
+          onTap: onSourceChanged == null
+              ? null
+              : () => onSourceChanged!(_InboxSource.drive),
+        ),
+        const SizedBox(height: WorkspaceSpacing.sm),
+        const _InboxSourceTile(
+          title: 'Connect school shared folder',
+          subtitle:
+              'Later, connect a shared Drive folder for calendars, timetables, quizzes, worksheets, rosters, and teaching documents.',
+          icon: Icons.snippet_folder_rounded,
+          selected: false,
+          enabled: false,
+        ),
+        const SizedBox(height: WorkspaceSpacing.lg),
+        Text(
+          'Ready to preview from $activeLabel',
+          style: context.textStyles.labelLarge?.copyWith(
+            color: OSColors.textSecondary(dark),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: WorkspaceSpacing.xs),
+        Wrap(
+          spacing: WorkspaceSpacing.sm,
+          runSpacing: WorkspaceSpacing.sm,
+          children: [
+            FilledButton.icon(
+              onPressed: onRunImport == null
+                  ? null
+                  : () => onRunImport!(_InboxDestination.classSchedule),
+              icon: busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.event_note_rounded),
+              label: const Text('Class schedule'),
+              style: WorkspaceButtonStyles.filled(context),
+            ),
+            OutlinedButton.icon(
+              onPressed: onRunImport == null
+                  ? null
+                  : () => onRunImport!(_InboxDestination.schoolCalendar),
+              icon: const Icon(Icons.calendar_month_rounded),
+              label: const Text('School calendar'),
+              style: WorkspaceButtonStyles.outlined(context),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _InboxFlowChip extends StatelessWidget {
+  const _InboxFlowChip({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.16),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: context.textStyles.labelSmall?.copyWith(
+                color: accent,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            value,
+            style: context.textStyles.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InboxSourceTile extends StatelessWidget {
+  const _InboxSourceTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.enabled,
+    this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = context.isDark;
+    final accent = selected ? theme.colorScheme.primary : OSColors.cyan;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected
+                ? accent.withValues(alpha: dark ? 0.18 : 0.12)
+                : theme.colorScheme.surface.withValues(
+                    alpha: enabled ? (dark ? 0.34 : 0.56) : 0.26,
+                  ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected
+                  ? accent.withValues(alpha: 0.38)
+                  : theme.colorScheme.outline.withValues(alpha: 0.22),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: enabled ? 0.16 : 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: accent.withValues(alpha: enabled ? 0.24 : 0.12),
+                  ),
+                ),
+                child: Icon(
+                  icon,
+                  color: enabled ? accent : OSColors.textMuted(dark),
+                ),
+              ),
+              const SizedBox(width: WorkspaceSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: context.textStyles.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        if (!enabled)
+                          const _InboxStatusPill(label: 'Coming soon')
+                        else if (selected)
+                          const _InboxStatusPill(label: 'Selected'),
+                      ],
+                    ),
+                    const SizedBox(height: WorkspaceSpacing.xs),
+                    Text(
+                      subtitle,
+                      style: context.textStyles.bodySmall?.copyWith(
+                        color: enabled
+                            ? OSColors.textSecondary(dark)
+                            : OSColors.textMuted(dark),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _InboxPreviewPanel extends StatelessWidget {
   const _InboxPreviewPanel();
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    return WorkspaceSurfaceCard(
-      radius: 8,
+    final theme = Theme.of(context);
+    return Container(
       padding: const EdgeInsets.all(18),
-      child: Row(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(
+          alpha: dark ? 0.40 : 0.66,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: OSColors.green.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: OSColors.green.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.fact_check_rounded,
+                  color: OSColors.green,
+                ),
+              ),
+              const SizedBox(width: WorkspaceSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Preview before saving',
+                      style: context.textStyles.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: WorkspaceSpacing.xs),
+                    Text(
+                      'Your preview will appear here after you choose a file.',
+                      style: context.textStyles.bodyMedium?.withColor(
+                        OSColors.textSecondary(dark),
+                      ),
+                    ),
+                    const SizedBox(height: WorkspaceSpacing.xs),
+                    Text(
+                      'Nothing is saved until you review and confirm.',
+                      style: context.textStyles.bodySmall?.withColor(
+                        OSColors.textMuted(dark),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: WorkspaceSpacing.lg),
+          const _InboxPreviewPlaceholder(
+            label: 'Detected type',
+            value: 'Waiting for file',
+            icon: Icons.manage_search_rounded,
+          ),
+          const SizedBox(height: WorkspaceSpacing.xs),
+          const _InboxPreviewPlaceholder(
+            label: 'Items found',
+            value: 'Preview count appears here',
+            icon: Icons.format_list_bulleted_rounded,
+          ),
+          const SizedBox(height: WorkspaceSpacing.xs),
+          const _InboxPreviewPlaceholder(
+            label: 'Warnings',
+            value: 'Date gaps or unsupported columns',
+            icon: Icons.warning_amber_rounded,
+          ),
+          const SizedBox(height: WorkspaceSpacing.xs),
+          const _InboxPreviewPlaceholder(
+            label: 'Action before saving',
+            value: 'Teacher confirms import',
+            icon: Icons.verified_user_rounded,
+          ),
+          const SizedBox(height: WorkspaceSpacing.lg),
           Container(
-            width: 48,
-            height: 48,
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: OSColors.green.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(8),
+              color: OSColors.cyan.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: OSColors.green.withValues(alpha: 0.22),
+                color: OSColors.cyan.withValues(alpha: 0.20),
               ),
             ),
-            child: const Icon(
-              Icons.fact_check_rounded,
-              color: OSColors.green,
+            child: Text(
+              'Future Ask InstructOS support can search approved school folders only after teacher/admin permission.',
+              style: context.textStyles.bodySmall?.copyWith(
+                color: OSColors.textSecondary(dark),
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(width: WorkspaceSpacing.md),
+        ],
+      ),
+    );
+  }
+}
+
+class _InboxPreviewPlaceholder extends StatelessWidget {
+  const _InboxPreviewPlaceholder({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface.withValues(
+              alpha: dark ? 0.28 : 0.46,
+            ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: OSColors.textMuted(dark),
+          ),
+          const SizedBox(width: WorkspaceSpacing.sm),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Preview before saving',
-                  style: context.textStyles.titleMedium?.semiBold,
-                ),
-                const SizedBox(height: WorkspaceSpacing.xs),
-                Text(
-                  'Your preview will appear here after you choose a file.',
-                  style: context.textStyles.bodyMedium?.withColor(
-                    OSColors.textSecondary(dark),
-                  ),
-                ),
-                const SizedBox(height: WorkspaceSpacing.xs),
-                Text(
-                  'Nothing is saved until you review and confirm.',
-                  style: context.textStyles.bodySmall?.withColor(
-                    OSColors.textMuted(dark),
-                  ),
-                ),
-              ],
+            child: Text(
+              label,
+              style: context.textStyles.labelMedium?.copyWith(
+                color: OSColors.textSecondary(dark),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: WorkspaceSpacing.sm),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.textStyles.bodySmall?.copyWith(
+                color: OSColors.textMuted(dark),
+                height: 1.25,
+              ),
             ),
           ),
         ],
@@ -1094,7 +1563,6 @@ class _InboxActionCard extends StatelessWidget {
     required this.icon,
     this.onTap,
     this.enabled = true,
-    this.selected = false,
   });
 
   final String title;
@@ -1102,13 +1570,12 @@ class _InboxActionCard extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final bool enabled;
-  final bool selected;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dark = context.isDark;
-    final accent = selected ? theme.colorScheme.primary : OSColors.cyan;
+    final accent = theme.colorScheme.primary;
     return WorkspaceSurfaceCard(
       radius: 8,
       padding: EdgeInsets.zero,
@@ -1150,8 +1617,8 @@ class _InboxActionCard extends StatelessWidget {
                       ),
                       if (!enabled)
                         const _InboxStatusPill(label: 'Coming next')
-                      else if (selected)
-                        const _InboxStatusPill(label: 'Selected'),
+                      else
+                        const _InboxStatusPill(label: 'Preview first'),
                     ],
                   ),
                   const SizedBox(height: WorkspaceSpacing.xs),

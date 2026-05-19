@@ -95,8 +95,11 @@ void main() {
     );
   });
 
-  testWidgets('SchoolDataInboxScreen renders source and import cards',
+  testWidgets('SchoolDataInboxScreen renders premium upload station',
       (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final auth = AuthService();
     await auth.initialize();
     addTearDown(auth.dispose);
@@ -140,10 +143,13 @@ void main() {
     expect(find.text('Connect school shared folder'), findsOneWidget);
     expect(
       find.text(
-        'Later, pin a shared Drive folder for calendars, timetables, quizzes, worksheets, rosters, and teaching documents.',
+        'Later, connect a shared Drive folder for calendars, timetables, quizzes, worksheets, rosters, and teaching documents.',
       ),
       findsOneWidget,
     );
+    expect(find.text('Choose file'), findsOneWidget);
+    expect(find.text('Detect'), findsOneWidget);
+    expect(find.text('Confirm'), findsOneWidget);
     expect(find.text('Preview before saving'), findsOneWidget);
     expect(
       find.text('Your preview will appear here after you choose a file.'),
@@ -153,12 +159,26 @@ void main() {
       find.text('Nothing is saved until you review and confirm.'),
       findsOneWidget,
     );
+    expect(find.text('Detected type'), findsOneWidget);
+    expect(find.text('Items found'), findsOneWidget);
+    expect(find.text('Warnings'), findsOneWidget);
+    expect(find.text('Action before saving'), findsOneWidget);
+    expect(
+      find.text(
+        'Future Ask InstructOS support can search approved school folders only after teacher/admin permission.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Class schedule'), findsWidgets);
+    expect(find.text('School calendar'), findsWidgets);
 
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
+    await tester.scrollUntilVisible(
+      find.text('Teacher timetable'),
+      700,
+      scrollable: find.byType(Scrollable),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Class schedule'), findsOneWidget);
-    expect(find.text('School calendar'), findsOneWidget);
     expect(find.text('Teacher timetable'), findsOneWidget);
     expect(find.text('Roster'), findsOneWidget);
     expect(find.text('Scores'), findsOneWidget);
