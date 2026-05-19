@@ -39,6 +39,7 @@ void main() {
     expect(find.text('Tasks'), findsWidgets);
     expect(find.text('Messages'), findsWidgets);
     expect(find.text('Data Inbox'), findsWidgets);
+    expect(find.text('Import data'), findsOneWidget);
     expect(find.text('Insights'), findsWidgets);
     expect(find.text('Create a class to begin staging teaching tools.'),
         findsNothing);

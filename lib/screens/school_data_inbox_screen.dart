@@ -525,8 +525,9 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
                         ),
                         const SizedBox(height: WorkspaceSpacing.lg),
                         _InboxSectionHeader(
-                          title: 'Sources',
-                          subtitle: 'Choose where the file is coming from.',
+                          title: 'Start with a file',
+                          subtitle:
+                              'Choose a source first. InstructOS will detect whether it looks like a calendar, class schedule, roster, score sheet, or teaching resource.',
                         ),
                         const SizedBox(height: WorkspaceSpacing.sm),
                         LayoutBuilder(
@@ -538,7 +539,7 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
                                 _InboxActionCard(
                                   title: 'Upload from computer',
                                   subtitle:
-                                      'Pick a CSV, Excel, Word, or ICS file.',
+                                      'Pick a CSV, Excel, Word, or ICS file from this device.',
                                   icon: Icons.upload_file_rounded,
                                   selected: _source == _InboxSource.computer,
                                   enabled: !_busy,
@@ -546,29 +547,38 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
                                       () => _source = _InboxSource.computer),
                                 ),
                                 _InboxActionCard(
-                                  title: 'Import from Google Drive',
+                                  title: 'Choose from Google Drive',
                                   subtitle:
-                                      'Opens a Drive file list. Choose a file, then preview extracted data before saving.',
+                                      'Opens a Drive file picker list. Choose a file first; extracted data is previewed before saving.',
                                   icon: Icons.drive_folder_upload_rounded,
                                   selected: _source == _InboxSource.drive,
                                   enabled: !_busy,
                                   onTap: () => setState(
                                       () => _source = _InboxSource.drive),
                                 ),
+                                const _InboxActionCard(
+                                  title: 'Connect school shared folder',
+                                  subtitle:
+                                      'Later, pin a shared Drive folder for calendars, timetables, quizzes, worksheets, rosters, and teaching documents.',
+                                  icon: Icons.snippet_folder_rounded,
+                                  enabled: false,
+                                ),
                               ],
                             );
                           },
                         ),
+                        const SizedBox(height: WorkspaceSpacing.lg),
+                        const _InboxPreviewPanel(),
                         const SizedBox(height: WorkspaceSpacing.xl),
                         _InboxSectionHeader(
-                          title: 'Import types',
+                          title: 'Current supported imports',
                           subtitle:
-                              'This first slice imports class schedules and school calendars. Other data types are staged here for review.',
+                              'These imports already stop for preview and confirmation before saving.',
                         ),
                         const SizedBox(height: WorkspaceSpacing.sm),
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            final narrow = constraints.maxWidth < 840;
+                            final narrow = constraints.maxWidth < 720;
                             return _InboxResponsiveGrid(
                               narrow: narrow,
                               children: [
@@ -592,32 +602,56 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
                                     _InboxDestination.schoolCalendar,
                                   ),
                                 ),
-                                const _InboxActionCard(
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: WorkspaceSpacing.xl),
+                        _InboxSectionHeader(
+                          title: 'Coming next',
+                          subtitle:
+                              'Future school knowledge tools stay secondary until they are safe to review, undo, and control.',
+                        ),
+                        const SizedBox(height: WorkspaceSpacing.sm),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final narrow = constraints.maxWidth < 840;
+                            return _InboxResponsiveGrid(
+                              narrow: narrow,
+                              children: const [
+                                _InboxActionCard(
                                   title: 'Teacher timetable',
                                   subtitle:
                                       'Timetable review will land in a later slice.',
                                   icon: Icons.table_chart_rounded,
                                   enabled: false,
                                 ),
-                                const _InboxActionCard(
+                                _InboxActionCard(
                                   title: 'Roster',
                                   subtitle:
                                       'Roster review is visible here, import comes next.',
                                   icon: Icons.groups_rounded,
                                   enabled: false,
                                 ),
-                                const _InboxActionCard(
+                                _InboxActionCard(
                                   title: 'Scores',
                                   subtitle:
                                       'Score imports stay disabled until mapping is added.',
                                   icon: Icons.stacked_bar_chart_rounded,
                                   enabled: false,
                                 ),
-                                const _InboxActionCard(
+                                _InboxActionCard(
                                   title: 'Recent imports',
                                   subtitle:
                                       'Import history and undo controls are coming soon.',
                                   icon: Icons.history_rounded,
+                                  enabled: false,
+                                ),
+                                _InboxActionCard(
+                                  title: 'Ask InstructOS over approved folders',
+                                  subtitle:
+                                      'Later, ask questions over school shared folders after teacher approval.',
+                                  icon: Icons.manage_search_rounded,
                                   enabled: false,
                                 ),
                               ],
@@ -841,7 +875,7 @@ class _InboxHeader extends StatelessWidget {
     final dark = context.isDark;
     return WorkspaceSurfaceCard(
       radius: 8,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -864,7 +898,7 @@ class _InboxHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: WorkspaceSpacing.xxs),
                     Text(
-                      'Upload, connect, review, and route school data from one place.',
+                      'The front door for uploads, Drive imports, and future school knowledge.',
                       style: WorkspaceTypography.pageSubtitle(context),
                     ),
                   ],
@@ -873,31 +907,129 @@ class _InboxHeader extends StatelessWidget {
               if (busy) const CircularProgressIndicator.adaptive(),
             ],
           ),
+          const SizedBox(height: WorkspaceSpacing.lg),
+          Text(
+            'Choose a file first. InstructOS will detect what it probably is, then show a preview. Nothing is saved, printed, shared, or sent until you review and confirm.',
+            style: TextStyle(color: OSColors.textSecondary(dark)),
+          ),
           const SizedBox(height: WorkspaceSpacing.md),
           Wrap(
             spacing: WorkspaceSpacing.sm,
             runSpacing: WorkspaceSpacing.sm,
             children: [
-              ChoiceChip(
-                label: const Text('Computer'),
+              _InboxModePill(
+                label: 'Computer',
                 selected: source == _InboxSource.computer,
-                onSelected: onSourceChanged == null
+                onTap: onSourceChanged == null
                     ? null
-                    : (_) => onSourceChanged!(_InboxSource.computer),
+                    : () => onSourceChanged!(_InboxSource.computer),
               ),
-              ChoiceChip(
-                label: const Text('Google Drive'),
+              _InboxModePill(
+                label: 'Google Drive',
                 selected: source == _InboxSource.drive,
-                onSelected: onSourceChanged == null
+                onTap: onSourceChanged == null
                     ? null
-                    : (_) => onSourceChanged!(_InboxSource.drive),
+                    : () => onSourceChanged!(_InboxSource.drive),
+              ),
+              const _InboxModePill(
+                label: 'Shared folder coming soon',
+                selected: false,
               ),
             ],
           ),
-          const SizedBox(height: WorkspaceSpacing.sm),
-          Text(
-            'Google Drive opens a picker list first; extracted import data is previewed before anything is saved.',
-            style: TextStyle(color: OSColors.textSecondary(dark)),
+        ],
+      ),
+    );
+  }
+}
+
+class _InboxModePill extends StatelessWidget {
+  const _InboxModePill({
+    required this.label,
+    required this.selected,
+    this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final accent = Theme.of(context).colorScheme.primary;
+    return ActionChip(
+      onPressed: onTap,
+      avatar: Icon(
+        selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+        size: 16,
+        color: selected ? accent : OSColors.textMuted(dark),
+      ),
+      label: Text(label),
+      backgroundColor: selected
+          ? accent.withValues(alpha: 0.12)
+          : OSColors.surface(dark).withValues(alpha: 0.82),
+      side: BorderSide(
+        color: selected
+            ? accent.withValues(alpha: 0.32)
+            : OSColors.border(dark).withValues(alpha: 0.6),
+      ),
+    );
+  }
+}
+
+class _InboxPreviewPanel extends StatelessWidget {
+  const _InboxPreviewPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    return WorkspaceSurfaceCard(
+      radius: 8,
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: OSColors.green.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: OSColors.green.withValues(alpha: 0.22),
+              ),
+            ),
+            child: const Icon(
+              Icons.fact_check_rounded,
+              color: OSColors.green,
+            ),
+          ),
+          const SizedBox(width: WorkspaceSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Preview before saving',
+                  style: context.textStyles.titleMedium?.semiBold,
+                ),
+                const SizedBox(height: WorkspaceSpacing.xs),
+                Text(
+                  'Your preview will appear here after you choose a file.',
+                  style: context.textStyles.bodyMedium?.withColor(
+                    OSColors.textSecondary(dark),
+                  ),
+                ),
+                const SizedBox(height: WorkspaceSpacing.xs),
+                Text(
+                  'Nothing is saved until you review and confirm.',
+                  style: context.textStyles.bodySmall?.withColor(
+                    OSColors.textMuted(dark),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

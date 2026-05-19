@@ -666,6 +666,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                       onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
                       onPlannerTap: () => _openMiniApp(_HomeMiniApp.agenda),
                       onClassesTap: () => _openMiniApp(_HomeMiniApp.classes),
+                      onInboxTap: () => context.go(AppRoutes.osInbox),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -4451,6 +4452,7 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
             onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
             onPlannerTap: () => _openMiniApp(_HomeMiniApp.agenda),
             onClassesTap: () => _openMiniApp(_HomeMiniApp.classes),
+            onInboxTap: () => context.go(AppRoutes.osInbox),
           ),
         ),
         const SizedBox(height: 14),
@@ -5548,6 +5550,7 @@ class _HomeStagePanel extends StatelessWidget {
     required this.onMessagesTap,
     required this.onPlannerTap,
     required this.onClassesTap,
+    required this.onInboxTap,
   });
 
   final String teacherName;
@@ -5563,6 +5566,7 @@ class _HomeStagePanel extends StatelessWidget {
   final VoidCallback onMessagesTap;
   final VoidCallback onPlannerTap;
   final VoidCallback onClassesTap;
+  final VoidCallback onInboxTap;
 
   @override
   Widget build(BuildContext context) {
@@ -5676,6 +5680,16 @@ class _HomeStagePanel extends StatelessWidget {
                             : _trimLine(primaryReminder!.text, 88),
                         onTap: onPlannerTap,
                       ),
+                      const SizedBox(height: 12),
+                      _StageSpotlightTile(
+                        title: 'Import school data',
+                        icon: Icons.cloud_upload_rounded,
+                        accent: OSColors.cyan,
+                        headline: 'Data Inbox',
+                        detail:
+                            'Upload calendars, schedules, and school files.',
+                        onTap: onInboxTap,
+                      ),
                     ],
                   ),
                 ],
@@ -5692,6 +5706,7 @@ class _HomeStagePanel extends StatelessWidget {
               onMessagesTap: onMessagesTap,
               onPlannerTap: onPlannerTap,
               onClassesTap: onClassesTap,
+              onInboxTap: onInboxTap,
             ),
     );
   }
@@ -5709,6 +5724,7 @@ class _DesktopStageShell extends StatelessWidget {
     required this.onMessagesTap,
     required this.onPlannerTap,
     required this.onClassesTap,
+    required this.onInboxTap,
   });
 
   final String teacherName;
@@ -5721,6 +5737,7 @@ class _DesktopStageShell extends StatelessWidget {
   final VoidCallback onMessagesTap;
   final VoidCallback onPlannerTap;
   final VoidCallback onClassesTap;
+  final VoidCallback onInboxTap;
 
   @override
   Widget build(BuildContext context) {
@@ -5807,22 +5824,20 @@ class _DesktopStageShell extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
                 children: [
                   _StageStatusChip(text: signal),
-                  const SizedBox(width: 8),
                   _StageStatusChip(
                     text: classCount == 0
                         ? 'No active classes'
                         : '$classCount classes',
                   ),
-                  if (needsAttention) ...[
-                    const SizedBox(width: 8),
-                    const _StageStatusChip(text: 'Attention'),
-                  ],
+                  if (needsAttention) const _StageStatusChip(text: 'Attention'),
                 ],
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 6),
               Text(
                 commandTitle,
                 maxLines: 1,
@@ -5835,7 +5850,7 @@ class _DesktopStageShell extends StatelessWidget {
                   color: OSColors.text(dark),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 commandDetail,
                 maxLines: 1,
@@ -5850,6 +5865,12 @@ class _DesktopStageShell extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
+        _FolderActionButton(
+          label: 'Import data',
+          icon: Icons.cloud_upload_rounded,
+          onTap: onInboxTap,
+        ),
+        const SizedBox(width: 8),
         _FolderActionButton(
           label: primaryActionLabel,
           icon: primaryActionIcon,

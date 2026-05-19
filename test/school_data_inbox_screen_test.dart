@@ -124,23 +124,45 @@ void main() {
 
     expect(find.text('School Data Inbox'), findsOneWidget);
     expect(find.text('Upload from computer'), findsOneWidget);
-    expect(find.text('Import from Google Drive'), findsOneWidget);
+    expect(find.text('Choose from Google Drive'), findsOneWidget);
     expect(
       find.text(
-        'Opens a Drive file list. Choose a file, then preview extracted data before saving.',
+        'Opens a Drive file picker list. Choose a file first; extracted data is previewed before saving.',
       ),
       findsOneWidget,
     );
     expect(
       find.text(
-        'Google Drive opens a picker list first; extracted import data is previewed before anything is saved.',
+        'Choose a file first. InstructOS will detect what it probably is, then show a preview. Nothing is saved, printed, shared, or sent until you review and confirm.',
       ),
       findsOneWidget,
     );
+    expect(find.text('Connect school shared folder'), findsOneWidget);
+    expect(
+      find.text(
+        'Later, pin a shared Drive folder for calendars, timetables, quizzes, worksheets, rosters, and teaching documents.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Preview before saving'), findsOneWidget);
+    expect(
+      find.text('Your preview will appear here after you choose a file.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Nothing is saved until you review and confirm.'),
+      findsOneWidget,
+    );
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
+    await tester.pumpAndSettle();
+
     expect(find.text('Class schedule'), findsOneWidget);
+    expect(find.text('School calendar'), findsOneWidget);
     expect(find.text('Teacher timetable'), findsOneWidget);
     expect(find.text('Roster'), findsOneWidget);
     expect(find.text('Scores'), findsOneWidget);
     expect(find.text('Recent imports'), findsOneWidget);
+    expect(find.text('Ask InstructOS over approved folders'), findsOneWidget);
   });
 }
