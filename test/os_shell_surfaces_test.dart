@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:gradeflow/models/user.dart';
 import 'package:gradeflow/os/gradeflow_os_shell.dart';
 import 'package:gradeflow/os/os_controller.dart';
+import 'package:gradeflow/os/surfaces/class_surface.dart';
 import 'package:gradeflow/os/surfaces/home_surface.dart';
 import 'package:gradeflow/os/surfaces/planner_surface.dart';
 import 'package:gradeflow/providers/app_providers.dart';
@@ -13,6 +14,7 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
+import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -89,6 +91,31 @@ void main() {
           'done': false,
         }
       ]),
+      'dashboard_timetables_v1:local': jsonEncode([
+        {
+          'id': 'local-table',
+          'name': 'Local-only timetable',
+          'base64': '',
+          'grid': [
+            ['Time', 'Monday'],
+            ['08:00', 'Local-only class block'],
+          ],
+          'uploadedAt': DateTime(2026, 5, 2).toIso8601String(),
+        }
+      ]),
+      'dashboard_timetables_v1:teacher-restored': jsonEncode([
+        {
+          'id': 'restored-table',
+          'name': 'Restored timetable',
+          'base64': '',
+          'grid': [
+            ['Time', 'Monday'],
+            ['08:00', 'Restored timetable class block'],
+          ],
+          'uploadedAt': DateTime(2026, 5, 3).toIso8601String(),
+        }
+      ]),
+      'dashboard_selected_timetable_v1:teacher-restored': 'restored-table',
     });
     addTearDown(auth.dispose);
 
@@ -103,6 +130,8 @@ void main() {
     expect(find.text('Local-only reminder should not hydrate first'),
         findsNothing);
     expect(find.text('Restored user reminder'), findsNothing);
+    expect(find.text('Local-only class block'), findsNothing);
+    expect(find.text('Restored timetable class block'), findsNothing);
 
     await auth.initialize();
     await tester.pump();
@@ -111,6 +140,43 @@ void main() {
     expect(find.text('Local-only reminder should not hydrate first'),
         findsNothing);
     expect(find.text('Restored user reminder'), findsOneWidget);
+    expect(find.text('Local-only class block'), findsNothing);
+    expect(find.text('Restored timetable class block'), findsOneWidget);
+  });
+
+  testWidgets('ClassSurface keeps deep links loading while auth restores',
+      (tester) async {
+    final user = User(
+      userId: 'teacher-restored',
+      email: 'teacher@example.com',
+      fullName: 'Restored Teacher',
+      schoolName: 'Pilot School',
+      createdAt: DateTime(2026, 5, 1),
+      updatedAt: DateTime(2026, 5, 1),
+    );
+    final auth = AuthService();
+    SharedPreferences.setMockInitialValues({
+      'current_user': jsonEncode(user.toJson()),
+    });
+    addTearDown(auth.dispose);
+
+    await tester.pumpWidget(
+      _harness(
+        const ClassSurface(classId: 'class-deep-link'),
+        auth: auth,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Loading class workspace'), findsOneWidget);
+    expect(find.text('Class not found'), findsNothing);
+
+    await auth.initialize();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+
+    expect(find.text('Loading class workspace'), findsNothing);
+    expect(find.text('Class not found'), findsOneWidget);
   });
 
   testWidgets('GradeFlowOSShell shows one overlay at a time', (tester) async {
@@ -184,6 +250,7 @@ Widget _harness(
     providers: [
       ChangeNotifierProvider<AuthService>.value(value: auth ?? AuthService()),
       ChangeNotifierProvider<ClassService>(create: (_) => ClassService()),
+      ChangeNotifierProvider<StudentService>(create: (_) => StudentService()),
       ChangeNotifierProvider<CommunicationService>(
         create: (_) => CommunicationService(),
       ),

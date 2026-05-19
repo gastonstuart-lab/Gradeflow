@@ -4,9 +4,15 @@ part of '../teacher_dashboard_screen.dart';
 
 extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
   Future<void> _loadReminders() async {
+    final loadUserId = _dashboardPrefsUserId;
+    if (loadUserId == null) return;
     try {
+      final remindersKey = _dashboardPreferencesService.scopedKey(
+        baseKey: 'dashboard_reminders_v1',
+        userId: loadUserId,
+      );
       final list = await _dashboardPreferencesService.readScopedJsonList(
-        scopedKey: _remindersPrefsKey(),
+        scopedKey: remindersKey,
         legacyKey: _TeacherDashboardScreenState._legacyRemindersPrefsKey,
         migrationFlagKey:
             _TeacherDashboardScreenState._remindersMigrationFlagKey,
@@ -25,7 +31,7 @@ extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
           classIds: ids == null || ids.isEmpty ? null : ids,
         );
       }).toList();
-      if (!mounted) {
+      if (!mounted || _dashboardPrefsUserId != loadUserId) {
         return;
       }
       setState(() {
@@ -56,8 +62,18 @@ extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
     }
   }
 
+  String? _resolvedDashboardStorageUserId() {
+    final auth = context.read<AuthService>();
+    if (!auth.isInitialized || auth.isLoading) return null;
+    return auth.currentUser?.userId ?? 'local';
+  }
+
   String _dashboardStorageUserId() {
-    return context.read<AuthService>().currentUser?.userId ?? 'local';
+    final userId = _dashboardPrefsUserId;
+    if (userId == null) {
+      throw StateError('Dashboard preferences user is not resolved yet.');
+    }
+    return userId;
   }
 
   String _remindersPrefsKey() => _dashboardPreferencesService.scopedKey(
@@ -195,12 +211,22 @@ extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
   }
 
   Future<void> _loadTimetables() async {
+    final loadUserId = _dashboardPrefsUserId;
+    if (loadUserId == null) return;
     try {
+      final timetableKey = _dashboardPreferencesService.scopedKey(
+        baseKey: 'dashboard_timetables_v1',
+        userId: loadUserId,
+      );
+      final selectedTimetableKey = _dashboardPreferencesService.scopedKey(
+        baseKey: 'dashboard_selected_timetable_v1',
+        userId: loadUserId,
+      );
       final raw = await _dashboardPreferencesService.readScopedString(
-        scopedKey: _timetablePrefsKey(),
+        scopedKey: timetableKey,
       );
       final selectedId = await _dashboardPreferencesService.readScopedString(
-        scopedKey: _selectedTimetablePrefsKey(),
+        scopedKey: selectedTimetableKey,
       );
 
       final parsed = <_Timetable>[];
@@ -212,7 +238,7 @@ extension TeacherDashboardPersistence on _TeacherDashboardScreenState {
         }
       }
 
-      if (!mounted) {
+      if (!mounted || _dashboardPrefsUserId != loadUserId) {
         return;
       }
       setState(() {

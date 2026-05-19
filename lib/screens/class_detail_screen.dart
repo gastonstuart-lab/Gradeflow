@@ -220,7 +220,10 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     await gradeItemService.loadGradeItems(widget.classId);
 
     // Load schedule + class notes/reminders
-    final items = await scheduleService.load(widget.classId);
+    final items = await scheduleService.load(
+      widget.classId,
+      userId: classDataUserId,
+    );
     final notes = await _classNoteService.load(
       classId: widget.classId,
       userId: classDataUserId,
@@ -1257,7 +1260,11 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
         return;
       }
 
-      await scheduleService.save(widget.classId, items);
+      await scheduleService.save(
+        widget.classId,
+        items,
+        userId: _loadedClassDataUserId,
+      );
       if (!mounted) return;
 
       setState(() {
@@ -1316,7 +1323,11 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
     if (confirm != true) return;
 
     final scheduleService = ClassScheduleService();
-    await scheduleService.save(widget.classId, []);
+    await scheduleService.save(
+      widget.classId,
+      [],
+      userId: _loadedClassDataUserId,
+    );
     if (!mounted) return;
 
     setState(() {
@@ -1464,7 +1475,11 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
         return;
       }
 
-      await scheduleService.save(widget.classId, items);
+      await scheduleService.save(
+        widget.classId,
+        items,
+        userId: _loadedClassDataUserId,
+      );
       setState(() {
         _scheduleItems = items;
       });

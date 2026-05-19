@@ -6,30 +6,56 @@ import 'package:gradeflow/services/file_import_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ClassScheduleService {
-  static String _key(String classId) => 'class_schedule_v1:$classId';
+  static String _key(String classId, {String? userId}) {
+    if (userId == null || userId.trim().isEmpty) {
+      return 'class_schedule_v1:$classId';
+    }
+    return 'class_schedule_v1:$userId:$classId';
+  }
 
-  Future<List<ClassScheduleItem>> load(String classId) async {
+  Future<List<ClassScheduleItem>> load(
+    String classId, {
+    String? userId,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key(classId));
+    final scopedKey = _key(classId, userId: userId);
+    final legacyKey = _key(classId);
+    final raw = prefs.getString(scopedKey) ??
+        (scopedKey == legacyKey ? null : prefs.getString(legacyKey));
     if (raw == null || raw.trim().isEmpty) return const [];
 
     final decoded = jsonDecode(raw);
     if (decoded is! List) return const [];
-    return decoded
+    final items = decoded
         .whereType<Map>()
         .map((m) => ClassScheduleItem.fromJson(Map<String, dynamic>.from(m)))
         .toList();
+    if (scopedKey != legacyKey && prefs.getString(scopedKey) == null) {
+      await prefs.setString(scopedKey, raw);
+    }
+    return items;
   }
 
-  Future<void> save(String classId, List<ClassScheduleItem> items) async {
+  Future<void> save(
+    String classId,
+    List<ClassScheduleItem> items, {
+    String? userId,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final data = items.map((i) => i.toJson()).toList();
-    await prefs.setString(_key(classId), jsonEncode(data));
+    await prefs.setString(_key(classId, userId: userId), jsonEncode(data));
   }
 
-  Future<void> clear(String classId) async {
+  Future<void> clear(
+    String classId, {
+    String? userId,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_key(classId));
+    final scopedKey = _key(classId, userId: userId);
+    await prefs.remove(scopedKey);
+    if (scopedKey != _key(classId)) {
+      await prefs.remove(_key(classId));
+    }
   }
 
   List<ClassScheduleItem> parseFromBytes(Uint8List bytes) {

@@ -80,6 +80,7 @@ class DemoDataService {
 
       await _seedDemoScheduleIfNeeded(
         classItem: classItem,
+        userId: teacherId,
         scheduleService: scheduleService,
       );
       await _seedDemoNotesIfNeeded(
@@ -98,9 +99,13 @@ class DemoDataService {
 
   static Future<void> _seedDemoScheduleIfNeeded({
     required Class classItem,
+    required String userId,
     required ClassScheduleService scheduleService,
   }) async {
-    final existing = await scheduleService.load(classItem.classId);
+    final existing = await scheduleService.load(
+      classItem.classId,
+      userId: userId,
+    );
     if (existing.isNotEmpty) return;
 
     final now = DateTime.now();
@@ -147,7 +152,11 @@ class DemoDataService {
       ),
     ];
 
-    await scheduleService.save(classItem.classId, items);
+    await scheduleService.save(
+      classItem.classId,
+      items,
+      userId: userId,
+    );
   }
 
   static Future<void> _seedDemoNotesIfNeeded({
