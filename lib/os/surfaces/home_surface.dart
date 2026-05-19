@@ -646,7 +646,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final stageHeight =
-                  (constraints.maxHeight * 0.18).clamp(142.0, 174.0);
+                  (constraints.maxHeight * 0.18).clamp(156.0, 174.0);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -802,8 +802,8 @@ class _HomeUtilityRail extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final signalText = [
-      unread == 0 ? 'Inbox quiet' : '$unread unread',
-      reminderCount == 0 ? 'agenda clear' : '$reminderCount queued',
+      unread == 0 ? 'Messages quiet' : '$unread unread',
+      reminderCount == 0 ? 'Planner clear' : '$reminderCount queued',
     ].join(' / ');
 
     return _GlassPanel(
@@ -838,7 +838,7 @@ class _HomeUtilityRail extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const _PanelEyebrow(label: 'Utility Rail'),
+                      const _PanelEyebrow(label: 'Daily Signals'),
                       const SizedBox(height: 2),
                       Text(
                         signalText,
@@ -1059,7 +1059,7 @@ class _HomeQuickClassesStrip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Open the next class workspace directly.',
+            'Class workspaces stay ready here.',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -1370,7 +1370,7 @@ class _HomeQuickClassEmptyCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Open classes',
+                    'Create first class',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -1382,7 +1382,7 @@ class _HomeQuickClassEmptyCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Set up the first workspace',
+                    'Start the teaching workspace',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -1499,14 +1499,14 @@ class _HomeWorkspaceFolderStrip extends StatelessWidget {
 
   String _folderDetail(_HomeWorkspaceFolder folder) {
     return switch (folder) {
-      _HomeWorkspaceFolder.today => 'Next up',
-      _HomeWorkspaceFolder.ask => 'Assistant',
+      _HomeWorkspaceFolder.today => 'Today plan',
+      _HomeWorkspaceFolder.ask => 'Teaching help',
       _HomeWorkspaceFolder.classes =>
-        classCount == 0 ? 'No classes' : '$classCount active',
+        classCount == 0 ? 'Set up' : '$classCount active',
       _HomeWorkspaceFolder.tasks =>
-        reminderCount == 0 ? 'Clear' : '$reminderCount queued',
+        reminderCount == 0 ? 'Planner clear' : '$reminderCount queued',
       _HomeWorkspaceFolder.messages => unread == 0 ? 'Quiet' : '$unread unread',
-      _HomeWorkspaceFolder.insights => 'Signals',
+      _HomeWorkspaceFolder.insights => 'At a glance',
     };
   }
 }
@@ -1663,95 +1663,178 @@ class _HomeCalmWorkspaceFloor extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
 
-    return SizedBox(
-      height: 224,
-      child: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          Positioned(
-            top: 4,
-            left: 56,
-            right: 56,
-            child: IgnorePointer(
-              child: Container(
-                height: 42,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(40),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 560;
+        return SizedBox(
+          height: narrow ? 176 : 224,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Positioned(
+                top: 4,
+                left: narrow ? 40 : 56,
+                right: narrow ? 40 : 56,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 42,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(40),
+                      ),
+                      gradient: LinearGradient(
+                        colors: [
+                          OSColors.blue.withValues(alpha: dark ? 0.12 : 0.16),
+                          Colors.white.withValues(alpha: dark ? 0.016 : 0.14),
+                          OSColors.cyan.withValues(alpha: dark ? 0.07 : 0.10),
+                        ],
+                      ),
+                    ),
                   ),
-                  gradient: LinearGradient(
-                    colors: [
-                      OSColors.blue.withValues(alpha: dark ? 0.12 : 0.16),
-                      Colors.white.withValues(alpha: dark ? 0.016 : 0.14),
-                      OSColors.cyan.withValues(alpha: dark ? 0.07 : 0.10),
+                ),
+              ),
+              Positioned(
+                left: -12,
+                right: -12,
+                top: 24,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(-0.20, -0.55),
+                        radius: 0.86,
+                        colors: [
+                          OSColors.blue.withValues(alpha: dark ? 0.10 : 0.13),
+                          OSColors.cyan.withValues(alpha: dark ? 0.036 : 0.060),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: narrow ? 34 : 52,
+                right: narrow ? 34 : 52,
+                top: narrow ? 58 : 72,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      borderRadius: OSRadius.pillBr,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          Colors.white.withValues(alpha: dark ? 0.10 : 0.34),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: narrow ? 18 : 38,
+                top: narrow ? 28 : 42,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 112,
+                    height: 112,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          OSColors.indigo.withValues(alpha: dark ? 0.07 : 0.09),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: narrow ? 22 : 92,
+                left: narrow ? 22 : 96,
+                right: narrow ? 22 : 96,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: narrow ? 12 : 18,
+                    vertical: narrow ? 11 : 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? Colors.white.withValues(alpha: 0.042)
+                        : Colors.white.withValues(alpha: 0.62),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: dark
+                          ? Colors.white.withValues(alpha: 0.070)
+                          : Colors.white.withValues(alpha: 0.76),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            Colors.black.withValues(alpha: dark ? 0.18 : 0.06),
+                        blurRadius: 22,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: narrow ? 30 : 34,
+                        height: narrow ? 30 : 34,
+                        decoration: BoxDecoration(
+                          color: OSColors.indigo.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: const Icon(
+                          Icons.route_rounded,
+                          color: OSColors.indigo,
+                          size: 18,
+                        ),
+                      ),
+                      SizedBox(width: narrow ? 9 : 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Today\'s command path',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: narrow ? 12.5 : 13,
+                                fontWeight: FontWeight.w900,
+                                color: OSColors.text(dark),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Open a folder above, or jump to Classes, Planner, Knowledge Hub, or Ask InstructOS.',
+                              maxLines: narrow ? 1 : 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: narrow ? 10.5 : 11.5,
+                                height: 1.3,
+                                color: OSColors.textSecondary(dark),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-          Positioned(
-            left: -12,
-            right: -12,
-            top: 24,
-            bottom: 0,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(-0.20, -0.55),
-                    radius: 0.86,
-                    colors: [
-                      OSColors.blue.withValues(alpha: dark ? 0.10 : 0.13),
-                      OSColors.cyan.withValues(alpha: dark ? 0.036 : 0.060),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 52,
-            right: 52,
-            top: 72,
-            child: IgnorePointer(
-              child: Container(
-                height: 1,
-                decoration: BoxDecoration(
-                  borderRadius: OSRadius.pillBr,
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.transparent,
-                      Colors.white.withValues(alpha: dark ? 0.10 : 0.34),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 38,
-            top: 42,
-            child: IgnorePointer(
-              child: Container(
-                width: 112,
-                height: 112,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      OSColors.indigo.withValues(alpha: dark ? 0.07 : 0.09),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -3566,7 +3649,7 @@ class _ClassesFolderContent extends StatelessWidget {
       eyebrow: 'Classes',
       title: classes.isEmpty ? 'No active classes' : 'Active class spaces',
       subtitle: classes.isEmpty
-          ? 'Create a class to begin staging teaching tools.'
+          ? 'Create your first class workspace to unlock students, seating, gradebook, and Teach.'
           : 'Tap a class, or jump straight to a teaching tool.',
       actionLabel: classes.isEmpty ? 'Open Classes' : 'Open first class',
       actionIcon: Icons.class_rounded,
@@ -3581,7 +3664,9 @@ class _ClassesFolderContent extends StatelessWidget {
       child: Column(
         children: [
           if (visible.isEmpty)
-            const _FolderEmptyLine('Class workspaces will appear here.')
+            const _FolderEmptyLine(
+              'Class workspaces will appear here after setup.',
+            )
           else
             for (int index = 0; index < visible.length; index++) ...[
               _HomeQuickClassCard(classItem: visible[index], dense: true),
@@ -3819,7 +3904,7 @@ class _TasksFolderContent extends StatelessWidget {
       eyebrow: 'Tasks',
       title: reminders.isEmpty ? 'Clear for now' : 'Priority queue',
       subtitle: reminders.isEmpty
-          ? 'No dated reminders are asking for attention.'
+          ? 'No dated reminders are asking for attention. Open Planner when you want to stage the next task.'
           : '${reminders.length} item${reminders.length == 1 ? '' : 's'} staged from planning.',
       actionLabel: 'Open Planner',
       actionIcon: Icons.calendar_month_rounded,
@@ -3827,7 +3912,8 @@ class _TasksFolderContent extends StatelessWidget {
       child: Column(
         children: [
           if (visible.isEmpty)
-            const _FolderEmptyLine('Planning lane is calm.')
+            const _FolderEmptyLine(
+                'Planner is clear. Add reminders from Planner when the day needs structure.')
           else
             for (int index = 0; index < visible.length; index++) ...[
               _FolderInfoRow(
@@ -5658,31 +5744,31 @@ class _HomeStagePanel extends StatelessWidget {
                   Column(
                     children: [
                       _StageSpotlightTile(
-                        title: 'Lead class',
+                        title: 'Next class',
                         icon: Icons.class_rounded,
                         accent: OSColors.green,
-                        headline: primaryClass?.className ?? 'No room pinned',
+                        headline: primaryClass?.className ?? 'No class ready',
                         detail: primaryClass == null
-                            ? 'Open Classes to start your first workspace.'
+                            ? 'Create or open a class workspace.'
                             : primaryClass!.subject,
                         onTap: primaryClass == null ? onClassesTap : null,
                       ),
                       const SizedBox(height: 12),
                       _StageSpotlightTile(
-                        title: 'Next signal',
+                        title: 'Planner signal',
                         icon: Icons.event_note_outlined,
                         accent: OSColors.amber,
                         headline: primaryReminder == null
                             ? 'No pending reminders'
                             : _relativeReminderLabel(primaryReminder!, now),
                         detail: primaryReminder == null
-                            ? 'Your day is currently clear.'
+                            ? 'Planner is clear right now.'
                             : _trimLine(primaryReminder!.text, 88),
                         onTap: onPlannerTap,
                       ),
                       const SizedBox(height: 12),
                       _StageSpotlightTile(
-                        title: 'Import school data',
+                        title: 'Knowledge Hub',
                         icon: Icons.cloud_upload_rounded,
                         accent: OSColors.cyan,
                         headline: 'Knowledge Hub',
@@ -5749,10 +5835,10 @@ class _DesktopStageShell extends StatelessWidget {
             : 'Quiet';
     final needsAttention = primaryReminder != null || unread > 0;
     final primaryActionLabel = unread > 0
-        ? 'Messages'
+        ? 'Open messages'
         : primaryClass != null
-            ? 'Classes'
-            : 'Planner';
+            ? 'Open class'
+            : 'Open planner';
     final primaryActionIcon = unread > 0
         ? Icons.forum_rounded
         : primaryClass != null
@@ -5769,14 +5855,14 @@ class _DesktopStageShell extends StatelessWidget {
         : unread > 0
             ? 'Messages need review'
             : primaryClass == null
-                ? 'Check today\'s schedule'
+                ? 'Set up today\'s schedule'
                 : 'Class workspace ready';
     final commandDetail = primaryReminder != null
         ? _trimLine(primaryReminder!.text, 84)
         : unread > 0
             ? 'Open conversations before the next handoff.'
             : primaryClass == null
-                ? 'Review schedule in Planner.'
+                ? 'Open Planner to stage the day before class.'
                 : '${primaryClass!.className} / ${primaryClass!.subject}';
 
     return Row(
@@ -5837,7 +5923,7 @@ class _DesktopStageShell extends StatelessWidget {
                   if (needsAttention) const _StageStatusChip(text: 'Attention'),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 commandTitle,
                 maxLines: 1,
@@ -5850,7 +5936,7 @@ class _DesktopStageShell extends StatelessWidget {
                   color: OSColors.text(dark),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 commandDetail,
                 maxLines: 1,
@@ -5866,7 +5952,7 @@ class _DesktopStageShell extends StatelessWidget {
         ),
         const SizedBox(width: 16),
         _FolderActionButton(
-          label: 'Import data',
+          label: 'Knowledge Hub',
           icon: Icons.cloud_upload_rounded,
           onTap: onInboxTap,
         ),
@@ -5891,7 +5977,7 @@ class _StageStatusChip extends StatelessWidget {
     final dark = context.isDark;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
       decoration: BoxDecoration(
         color: dark
             ? Colors.white.withValues(alpha: 0.08)
@@ -6039,8 +6125,16 @@ class _HomeShortcutShelf extends StatelessWidget {
       _shortcutFromApp(OSAppId.teach,
           onTap: () => context.go(AppRoutes.osTeach)),
       _shortcutFromApp(
-        OSAppId.whiteboard,
-        onTap: () => context.push(AppRoutes.whiteboard),
+        OSAppId.classes,
+        onTap: () => context.go(AppRoutes.classes),
+      ),
+      _shortcutFromApp(
+        OSAppId.planner,
+        onTap: () => context.go(AppRoutes.osPlanner),
+      ),
+      _shortcutFromApp(
+        OSAppId.schoolDataInbox,
+        onTap: () => context.go(AppRoutes.osInbox),
       ),
       _shortcutFromApp(
         OSAppId.messages,
@@ -6048,8 +6142,8 @@ class _HomeShortcutShelf extends StatelessWidget {
         badge: unread > 0 ? '$unread' : null,
       ),
       _shortcutFromApp(
-        OSAppId.schoolDataInbox,
-        onTap: () => context.go(AppRoutes.osInbox),
+        OSAppId.whiteboard,
+        onTap: () => context.push(AppRoutes.whiteboard),
       ),
       if (showLauncher)
         _HomeShortcutData(
@@ -6074,7 +6168,7 @@ class _HomeShortcutShelf extends StatelessWidget {
               const _PanelEyebrow(label: 'Pinned Apps'),
               SizedBox(height: compact ? 5 : 8),
               Text(
-                'Quick launch',
+                'Teacher launchpad',
                 style: TextStyle(
                   fontSize: compact ? 14.5 : 17,
                   fontWeight: FontWeight.w800,
@@ -6084,7 +6178,7 @@ class _HomeShortcutShelf extends StatelessWidget {
               if (!compact) ...[
                 const SizedBox(height: 4),
                 Text(
-                  'Teach, message, and open the tools you use most.',
+                  'Classes, Planner, Knowledge Hub, and teaching tools stay one tap away.',
                   style: TextStyle(
                     fontSize: 11.5,
                     height: 1.4,
@@ -6953,7 +7047,7 @@ class _HomeAgendaPanel extends StatelessWidget {
           ),
           child: Text(
             reminders.isEmpty
-                ? 'The planning lane is calm.'
+                ? 'Planner is clear. Add reminders when the day needs structure.'
                 : 'Priority items stay visible without crowding the workspace.',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -7115,7 +7209,7 @@ class _AgendaEmptyState extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'New planner items will appear as a quiet timeline.',
+                  'Open Planner to stage the next task or timetable note.',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
