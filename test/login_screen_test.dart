@@ -42,6 +42,6 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('InstructOS'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
-    expect(find.text('Open demo'), findsOneWidget);
+    expect(find.text('Open demo workspace'), findsOneWidget);
   });
 }

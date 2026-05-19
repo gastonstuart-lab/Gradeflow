@@ -2077,7 +2077,7 @@ class _AskInstructOSMiniAppContentState
       _messages
         ..add(_AskInstructOSMessage(text: text, fromAssistant: false))
         ..add(const _AskInstructOSMessage(
-          text: 'Thinking...',
+          text: 'Thinking through your teaching context...',
           fromAssistant: true,
           isPending: true,
         ));
@@ -2599,7 +2599,7 @@ class _AskInstructOSInputRow extends StatelessWidget {
               onSubmitted: (_) => onSend(),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: 'Command InstructOS...',
+                hintText: 'Ask InstructOS...',
                 hintStyle: TextStyle(
                   color: OSColors.textMuted(dark),
                   fontSize: 13,
@@ -2682,20 +2682,20 @@ class _WeatherMiniAppContentState extends State<_WeatherMiniAppContent> {
         final forecast =
             data?.forecast.take(5).toList() ?? const <DashboardForecastDay>[];
         final temp =
-            hasError || loading ? '--' : '${data!.temperatureC.round()}Â°';
+            hasError || loading ? '--' : '${data!.temperatureC.round()} C';
         final condition = hasError
             ? 'Forecast unavailable'
             : loading
                 ? 'Checking forecast'
                 : _weatherLabel(data!.weatherCode);
         final location = hasError
-            ? 'Weather will return when the network responds.'
+            ? 'Forecast is unavailable. Check your connection.'
             : loading
                 ? 'Taichung City'
                 : data!.locationName;
         final feelsLike = data == null
             ? 'Feels-like unavailable'
-            : 'Feels like ${data.apparentTempC.round()}Â°';
+            : 'Feels like ${data.apparentTempC.round()} C';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2819,11 +2819,11 @@ class _WeatherTeacherNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final note = switch (mood) {
-      _WeatherMood.rain => 'Rain signal - indoor transitions may be easier.',
+      _WeatherMood.rain => 'Rainy day: indoor transitions may be easier.',
       _WeatherMood.cloudy =>
         'Cloud cover - keep transitions calm and flexible.',
-      _WeatherMood.sunny => 'Warm afternoon - keep water nearby.',
-      _WeatherMood.night => 'Evening conditions - keep dismissal paths clear.',
+      _WeatherMood.sunny => 'Warm day: keep water nearby.',
+      _WeatherMood.night => 'Evening conditions: keep dismissal paths clear.',
     };
     return _StatusPill(
         label: note, accent: _weatherAccentColor(mood, context.isDark));
@@ -3067,8 +3067,8 @@ class _FocusAudioMiniAppContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final stations = [
-      ('Classroom sound', 'Quiet work and transitions', OSColors.cyan),
-      ('Deep focus', 'Low-distraction study bed', OSColors.indigo),
+      ('Audio preview', 'Playback controls coming soon', OSColors.cyan),
+      ('Deep focus', 'Low-distraction study cue', OSColors.indigo),
       ('Bell reset', 'Short transition cue', OSColors.amber),
     ];
     return Column(
@@ -3099,10 +3099,10 @@ class _FocusAudioMiniAppContent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _PanelEyebrow(label: 'Now Playing'),
+                    const _PanelEyebrow(label: 'Preview only'),
                     const SizedBox(height: 5),
                     Text(
-                      'Classroom sound',
+                      'Focus audio',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -3111,7 +3111,7 @@ class _FocusAudioMiniAppContent extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Stations for quiet work and transitions.',
+                      'Audio playback is coming soon. Use these cues for classroom routines.',
                       style: TextStyle(color: OSColors.textSecondary(dark)),
                     ),
                     const SizedBox(height: 12),
@@ -3153,11 +3153,11 @@ class _FocusAudioMiniAppContent extends StatelessWidget {
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _PanelEyebrow(label: 'Signal'),
+                  _PanelEyebrow(label: 'Cue preview'),
                   SizedBox(height: 12),
                   _MiniEqualizer(),
                   SizedBox(height: 14),
-                  _MiniInputBar(label: 'Add station'),
+                  _MiniInputBar(label: 'Station requests coming soon'),
                 ],
               ),
             );
@@ -3487,7 +3487,7 @@ class _RoundPlayButton extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+      child: const Icon(Icons.headphones_rounded, color: Colors.white),
     );
   }
 }
@@ -4544,7 +4544,7 @@ extension _HomeWallpaperStyleX on _HomeWallpaperStyle {
   String get label {
     switch (this) {
       case _HomeWallpaperStyle.defaultStyle:
-        return 'GradeFlow';
+        return 'InstructOS';
       case _HomeWallpaperStyle.sky:
         return 'Sky';
       case _HomeWallpaperStyle.meadow:
@@ -5239,7 +5239,7 @@ class _HomeSystemStrip extends StatelessWidget {
                       Text(
                         teacherName.isEmpty
                             ? schoolName
-                            : '$teacherName Ãƒâ€šÃ‚Â· $schoolName',
+                            : '$teacherName / $schoolName',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -5685,7 +5685,7 @@ class _HomeStagePanel extends StatelessWidget {
                         title: 'Import school data',
                         icon: Icons.cloud_upload_rounded,
                         accent: OSColors.cyan,
-                        headline: 'Data Inbox',
+                        headline: 'Knowledge Hub',
                         detail:
                             'Upload calendars, schedules, and school files.',
                         onTap: onInboxTap,
@@ -6292,17 +6292,17 @@ class _HomeWeatherPanelState extends State<_HomeWeatherPanel> {
             ? '--'
             : loading
                 ? '--'
-                : '${data!.temperatureC.round()}°';
+                : '${data!.temperatureC.round()} C';
         final conditionLabel = hasError
             ? 'Forecast unavailable'
             : loading
                 ? 'Checking forecast'
                 : _weatherLabel(data!.weatherCode);
         final locationLabel = hasError
-            ? 'Weather will return when the network responds.'
+            ? 'Forecast is unavailable. Check your connection.'
             : loading
                 ? 'Taichung City'
-                : '${data!.locationName} / feels like ${data.apparentTempC.round()}°';
+                : '${data!.locationName} / feels like ${data.apparentTempC.round()} C';
 
         final gap = widget.embedded ? 10.0 : 18.0;
         final tempSize = widget.embedded ? 38.0 : 46.0;
@@ -6704,10 +6704,10 @@ class _HomeAudioPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _PanelEyebrow(label: 'Focus Audio'),
+                    const _PanelEyebrow(label: 'Focus Audio Preview'),
                     const SizedBox(height: 5),
                     Text(
-                      'Classroom sound',
+                      'Sound cues',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -6718,7 +6718,7 @@ class _HomeAudioPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Stations for quiet work and transitions.',
+                      'Preview only: playback is coming soon.',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

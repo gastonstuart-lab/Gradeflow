@@ -377,7 +377,7 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: _isLoading ? null : _handleDemoLogin,
             style: secondaryButtonStyle,
             icon: const Icon(Icons.preview_outlined),
-            label: const Text('Open demo'),
+            label: const Text('Open demo workspace'),
           ),
           const SizedBox(height: 18),
           TextButton(
@@ -443,8 +443,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final router = GoRouter.of(context);
-    debugPrint(
-        'LoginScreen.build | isAuth=${auth.isAuthenticated} isLoading=${auth.isLoading} isInit=${auth.isInitialized}');
+    if (kDebugMode) {
+      debugPrint(
+          'LoginScreen.build | isAuth=${auth.isAuthenticated} isLoading=${auth.isLoading} isInit=${auth.isInitialized}');
+    }
     if (auth.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
