@@ -17,6 +17,7 @@ import 'package:gradeflow/screens/teacher_dashboard_screen.dart';
 import 'package:gradeflow/screens/demo_dashboard_preview_screen.dart';
 import 'package:gradeflow/screens/communication_hub_screen.dart';
 import 'package:gradeflow/screens/admin_workspace_screen.dart';
+import 'package:gradeflow/screens/school_data_inbox_screen.dart';
 import 'package:gradeflow/screens/teacher_whiteboard_screen.dart';
 import 'package:gradeflow/components/teacher_whiteboard.dart';
 import 'package:gradeflow/components/global_system_shell.dart';
@@ -96,6 +97,15 @@ class AppRouter {
           state,
           surface: OSSurface.planner,
           child: const PlannerSurface(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.osInbox,
+        name: 'osInbox',
+        pageBuilder: (context, state) => _osPage(
+          state,
+          surface: OSSurface.other,
+          child: const SchoolDataInboxScreen(),
         ),
       ),
       GoRoute(
@@ -411,6 +421,7 @@ class AppRoutes {
   // GradeFlow OS surfaces
   static const String osHome = '/os/home';
   static const String osPlanner = '/os/planner';
+  static const String osInbox = '/os/inbox';
   static const String osClass = '/os/class';
   static const String osTeach = '/os/teach';
 
