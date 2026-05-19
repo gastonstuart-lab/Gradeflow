@@ -125,6 +125,18 @@ void main() {
     expect(find.text('School Data Inbox'), findsOneWidget);
     expect(find.text('Upload from computer'), findsOneWidget);
     expect(find.text('Import from Google Drive'), findsOneWidget);
+    expect(
+      find.text(
+        'Opens a Drive file list. Choose a file, then preview extracted data before saving.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Google Drive opens a picker list first; extracted import data is previewed before anything is saved.',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Class schedule'), findsOneWidget);
     expect(find.text('Teacher timetable'), findsOneWidget);
     expect(find.text('Roster'), findsOneWidget);

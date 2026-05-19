@@ -6026,6 +6026,10 @@ class _HomeShortcutShelf extends StatelessWidget {
         onTap: onMessagesTap,
         badge: unread > 0 ? '$unread' : null,
       ),
+      _shortcutFromApp(
+        OSAppId.schoolDataInbox,
+        onTap: () => context.go(AppRoutes.osInbox),
+      ),
       if (showLauncher)
         _HomeShortcutData(
           label: 'Launcher',
