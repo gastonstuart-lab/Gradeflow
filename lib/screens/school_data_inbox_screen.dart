@@ -549,7 +549,7 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
         child: userId == null
             ? const WorkspaceLoadingState(
                 title: 'Restoring workspace',
-                subtitle: 'Preparing the School Data Inbox.',
+                subtitle: 'Preparing the School Knowledge Hub.',
               )
             : CustomScrollView(
                 slivers: [

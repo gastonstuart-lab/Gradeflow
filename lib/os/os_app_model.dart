@@ -182,10 +182,10 @@ class OSAppRegistry {
     ),
     OSApp(
       id: OSAppId.schoolDataInbox,
-      name: 'Data Inbox',
+      name: 'Knowledge Hub',
       icon: Icons.move_to_inbox_rounded,
       category: OSAppCategory.productivity,
-      description: 'Uploads and Drive imports',
+      description: 'Upload, Drive, and shared school data',
       route: '/os/inbox',
       color: Color(0xFF5EC7E6),
     ),

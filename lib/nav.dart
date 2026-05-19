@@ -53,8 +53,10 @@ class AppRouter {
         final loggingIn = state.matchedLocation == AppRoutes.home;
         final previewing =
             kDebugMode && state.matchedLocation == AppRoutes.previewDashboard;
-        debugPrint(
-            'GoRouter.redirect from \'${state.matchedLocation}\' | isAuth=${auth.isAuthenticated} isInit=${auth.isInitialized} isLoading=${auth.isLoading}');
+        if (kDebugMode) {
+          debugPrint(
+              'GoRouter.redirect from \'${state.matchedLocation}\' | isAuth=${auth.isAuthenticated} isInit=${auth.isInitialized} isLoading=${auth.isLoading}');
+        }
         if (!auth.isAuthenticated && !loggingIn && !previewing)
           return AppRouter.loginRedirectLocationFor(state);
         if (auth.isAuthenticated && loggingIn) {

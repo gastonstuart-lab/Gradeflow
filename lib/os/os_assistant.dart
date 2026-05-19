@@ -1,4 +1,4 @@
-﻿/// GradeFlow OS — AI Assistant Entry
+/// GradeFlow OS — AI Assistant Entry
 ///
 /// [OSAssistantFab] is the always-visible floating AI orb button.
 /// [OSAssistantPanel] is the slide-up panel with suggested actions
@@ -106,14 +106,14 @@ class _OSAssistantPanelState extends State<OSAssistantPanel> {
       _lastResponse = null;
     });
 
-    // Phase 1 placeholder — wire real AI call in Phase 6
+    // This shell panel is a local preview until routed assistant actions land.
     await Future<void>.delayed(const Duration(milliseconds: 800));
 
     if (mounted) {
       setState(() {
         _thinking = false;
         _lastResponse =
-            'AI action routing will be connected in Phase 6. Prompt received: "$prompt"';
+            'This quick assistant panel is still being connected. For teaching-context help today, open Ask InstructOS on Home. I captured: "$prompt"';
       });
     }
   }
@@ -372,7 +372,7 @@ class _AssistantInputBar extends StatelessWidget {
                   color: OSColors.text(dark),
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Ask anything…',
+                  hintText: 'Ask anything...',
                   hintStyle: TextStyle(
                     fontSize: 13,
                     color: OSColors.textMuted(dark),
