@@ -548,7 +548,7 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
                                 _InboxActionCard(
                                   title: 'Import from Google Drive',
                                   subtitle:
-                                      'Browse recent files, folders, and Sheets.',
+                                      'Opens a Drive file list. Choose a file, then preview extracted data before saving.',
                                   icon: Icons.drive_folder_upload_rounded,
                                   selected: _source == _InboxSource.drive,
                                   enabled: !_busy,
@@ -896,7 +896,7 @@ class _InboxHeader extends StatelessWidget {
           ),
           const SizedBox(height: WorkspaceSpacing.sm),
           Text(
-            'Every writing import stops for preview and confirmation.',
+            'Google Drive opens a picker list first; extracted import data is previewed before anything is saved.',
             style: TextStyle(color: OSColors.textSecondary(dark)),
           ),
         ],
