@@ -95,8 +95,11 @@ void main() {
     );
   });
 
-  testWidgets('SchoolDataInboxScreen renders source and import cards',
+  testWidgets('SchoolDataInboxScreen renders School Knowledge Hub layout',
       (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     final auth = AuthService();
     await auth.initialize();
     addTearDown(auth.dispose);
@@ -122,47 +125,125 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('School Data Inbox'), findsOneWidget);
+    expect(find.text('School Knowledge Hub'), findsOneWidget);
+    expect(
+      find.text(
+        'Upload and connect school data to power smarter insights, planning, and support.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Secure & private'), findsOneWidget);
+    expect(find.text('Add school data'), findsOneWidget);
+    expect(
+      find.text(
+        'Choose a source to get started. InstructOS will detect what it likely is, show a preview, and you confirm before anything is imported.',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Upload from computer'), findsOneWidget);
     expect(find.text('Choose from Google Drive'), findsOneWidget);
+    expect(find.text('Drag & drop files'), findsOneWidget);
+    expect(find.text('Choose file'), findsOneWidget);
+    expect(find.text('Choose from Drive'), findsOneWidget);
+    expect(find.text('Browse files'), findsOneWidget);
     expect(
       find.text(
-        'Opens a Drive file picker list. Choose a file first; extracted data is previewed before saving.',
+        'Upload CSV, Excel, Word, or ICS files up to 250 MB.',
       ),
       findsOneWidget,
     );
     expect(
       find.text(
-        'Choose a file first. InstructOS will detect what it probably is, then show a preview. Nothing is saved, printed, shared, or sent until you review and confirm.',
+        'Browse and select files from your Drive.',
       ),
       findsOneWidget,
     );
-    expect(find.text('Connect school shared folder'), findsOneWidget);
     expect(
       find.text(
-        'Later, pin a shared Drive folder for calendars, timetables, quizzes, worksheets, rosters, and teaching documents.',
+        'Drag files here to upload from your computer.',
       ),
       findsOneWidget,
     );
-    expect(find.text('Preview before saving'), findsOneWidget);
     expect(
-      find.text('Your preview will appear here after you choose a file.'),
+      find.text(
+        "We'll detect what it is, show a preview, and you confirm what to import.",
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Preview'), findsOneWidget);
+    expect(
+      find.text('See a quick preview before you confirm.'),
+      findsOneWidget,
+    );
+    expect(find.text('Choose a file to preview'), findsOneWidget);
+    expect(
+      find.text(
+        'A preview of your data will appear here.',
+      ),
       findsOneWidget,
     );
     expect(
       find.text('Nothing is saved until you review and confirm.'),
+      findsWidgets,
+    );
+    expect(find.text('School shared folder'), findsOneWidget);
+    expect(find.text('Coming soon'), findsOneWidget);
+    expect(
+      find.text(
+        'Access approved shared resources like calendars, quizzes, worksheets, rosters, and teaching docs.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Calendars'), findsOneWidget);
+    expect(find.text('Quizzes'), findsOneWidget);
+    expect(find.text('Worksheets'), findsOneWidget);
+    expect(find.text('Rosters'), findsOneWidget);
+    expect(find.text('Teaching docs'), findsOneWidget);
+    expect(
+      find.text('Visible only after your school approves access.'),
       findsOneWidget,
     );
 
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
+    await tester.scrollUntilVisible(
+      find.text(
+        'Ask InstructOS can later search approved school folders — only with permission.',
+      ),
+      360,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
 
+    expect(
+      find.text(
+        'Ask InstructOS can later search approved school folders — only with permission.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Learn more'), findsOneWidget);
+    expect(find.text('School Data Inbox'), findsNothing);
+    expect(find.text('Import destination'), findsNothing);
+    expect(find.text('Class schedule'), findsNothing);
+    expect(find.text('School calendar'), findsNothing);
+    expect(find.text('Teacher timetable'), findsNothing);
+    expect(find.text('Roster'), findsNothing);
+    expect(find.text('Scores'), findsNothing);
+    expect(find.text('Recent imports'), findsNothing);
+    expect(find.text('Ask InstructOS over approved folders'), findsNothing);
+    expect(find.text('Detected type'), findsNothing);
+    expect(find.text('Items found'), findsNothing);
+    expect(find.text('Warnings'), findsNothing);
+    expect(find.text('Action before saving'), findsNothing);
+
+    await tester.scrollUntilVisible(
+      find.text('Choose file'),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Choose file'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('What are you importing?'), findsOneWidget);
     expect(find.text('Class schedule'), findsOneWidget);
     expect(find.text('School calendar'), findsOneWidget);
-    expect(find.text('Teacher timetable'), findsOneWidget);
-    expect(find.text('Roster'), findsOneWidget);
-    expect(find.text('Scores'), findsOneWidget);
-    expect(find.text('Recent imports'), findsOneWidget);
-    expect(find.text('Ask InstructOS over approved folders'), findsOneWidget);
   });
 }
