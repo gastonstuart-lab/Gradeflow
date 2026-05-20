@@ -40,6 +40,7 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
   bool _isBootstrapping = true;
   bool _isBuildingHandout = false;
   bool _presentationMode = false;
+  bool _setupMode = false;
 
   void _goToClassWorkspace() {
     context.go('${AppRoutes.osClass}/${widget.classId}');
@@ -132,6 +133,8 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     final seatCount = activeLayout?.seats.length ?? 0;
     final tableCount = activeLayout?.tables.length ?? 0;
     final emptySeatCount = (seatCount - placedSeatCount).clamp(0, seatCount);
+    final hasRoomBuilt = (activeLayout?.tables.isNotEmpty ?? false) ||
+        (activeLayout?.seats.isNotEmpty ?? false);
     final signalSummary = _StudentSignalSummary.from(
       students: students,
       activeLayout: activeLayout,
@@ -140,8 +143,11 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     return _SeatingNativeSurface(
       eyebrow: 'Class workspace',
       title: classItem.className,
-      toolLabel:
-          _presentationMode ? 'Presentation Mode' : 'Classroom Command Map',
+      toolLabel: _presentationMode
+          ? 'Presentation Mode'
+          : _setupMode
+              ? 'Setup Room'
+              : 'Teach Mode',
       subtitle:
           '${classItem.subject} - ${classItem.schoolYear} - ${classItem.term}',
       leading: IconButton(
@@ -150,9 +156,17 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
         tooltip: 'Back to class workspace',
       ),
       trailing: [
+        if (!_presentationMode)
+          _SeatingModeSwitch(
+            setupMode: _setupMode,
+            onChanged: (setup) => setState(() => _setupMode = setup),
+          ),
         _PresentationModeToggle(
           enabled: _presentationMode,
-          onChanged: (enabled) => setState(() => _presentationMode = enabled),
+          onChanged: (enabled) => setState(() {
+            _presentationMode = enabled;
+            if (enabled) _setupMode = false;
+          }),
         ),
         if (!_presentationMode)
           PilotFeedbackIconButton(
@@ -169,6 +183,7 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
         emptySeatCount: emptySeatCount,
         roomName: linkedRoom?.name,
         presentationMode: _presentationMode,
+        setupMode: _setupMode,
       ),
       insightRail: _SeatingInsightRail(
         studentCount: students.length,
@@ -180,6 +195,7 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
         activeLayout: activeLayout,
         signalSummary: signalSummary,
         presentationMode: _presentationMode,
+        setupMode: _setupMode,
       ),
       workspace: LayoutBuilder(
         builder: (context, constraints) {
@@ -189,8 +205,9 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
             students: students,
             autoLoad: false,
             presentationMode: _presentationMode,
-            showToolbar: !_presentationMode,
-            showStudentPanel: false,
+            editRoomMode: _setupMode,
+            showToolbar: !_presentationMode && _setupMode,
+            showStudentPanel: !_presentationMode && _setupMode,
             showUseHint: false,
             showFullScreenButton: !_presentationMode,
             onOpenRoomSetups: _presentationMode || activeLayout == null
@@ -209,6 +226,11 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
           );
           final mapWorkspace = _ClassroomMapWorkspace(
             presentationMode: _presentationMode,
+            setupMode: _setupMode,
+            hasRoomBuilt: hasRoomBuilt,
+            onStartSetup: _presentationMode
+                ? null
+                : () => setState(() => _setupMode = true),
             signalSummary: signalSummary,
             child: designer,
           );
@@ -816,13 +838,19 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
 class _ClassroomMapWorkspace extends StatelessWidget {
   const _ClassroomMapWorkspace({
     required this.presentationMode,
+    required this.setupMode,
+    required this.hasRoomBuilt,
     required this.signalSummary,
     required this.child,
+    this.onStartSetup,
   });
 
   final bool presentationMode;
+  final bool setupMode;
+  final bool hasRoomBuilt;
   final _StudentSignalSummary signalSummary;
   final Widget child;
+  final VoidCallback? onStartSetup;
 
   @override
   Widget build(BuildContext context) {
@@ -834,8 +862,123 @@ class _ClassroomMapWorkspace extends StatelessWidget {
           presentationMode: presentationMode,
         ),
         SizedBox(height: presentationMode ? 12 : 10),
+        if (!presentationMode)
+          _ClassroomModeHelper(
+            setupMode: setupMode,
+            hasRoomBuilt: hasRoomBuilt,
+            onStartSetup: onStartSetup,
+          ),
+        if (!presentationMode) const SizedBox(height: 10),
         Expanded(child: child),
       ],
+    );
+  }
+}
+
+class _ClassroomModeHelper extends StatelessWidget {
+  const _ClassroomModeHelper({
+    required this.setupMode,
+    required this.hasRoomBuilt,
+    this.onStartSetup,
+  });
+
+  final bool setupMode;
+  final bool hasRoomBuilt;
+  final VoidCallback? onStartSetup;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final title = setupMode
+        ? 'Build the real room'
+        : hasRoomBuilt
+            ? 'Use the map during class'
+            : 'Build your classroom';
+    final message = setupMode
+        ? 'Add tables or desks, drag them into place, place students, then save the room.'
+        : hasRoomBuilt
+            ? 'Tap a seat for notes or status. Drag students only when you switch to Setup Room.'
+            : 'Add tables or desks, place students, then teach from a calm classroom map.';
+
+    return WorkspaceFlatSurface(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Icon(
+            setupMode ? Icons.draw_outlined : Icons.event_seat_outlined,
+            size: 18,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: context.textStyles.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  message,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: WorkspaceTypography.metadata(context),
+                ),
+              ],
+            ),
+          ),
+          if (!setupMode && onStartSetup != null) ...[
+            const SizedBox(width: 10),
+            FilledButton.icon(
+              onPressed: onStartSetup,
+              icon: const Icon(Icons.add_home_work_outlined),
+              label: Text(hasRoomBuilt ? 'Edit room' : 'Start building'),
+              style: WorkspaceButtonStyles.filled(context, compact: true),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SeatingModeSwitch extends StatelessWidget {
+  const _SeatingModeSwitch({
+    required this.setupMode,
+    required this.onChanged,
+  });
+
+  final bool setupMode;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<bool>(
+      segments: const [
+        ButtonSegment(
+          value: false,
+          icon: Icon(Icons.visibility_outlined),
+          label: Text('Teach'),
+        ),
+        ButtonSegment(
+          value: true,
+          icon: Icon(Icons.draw_outlined),
+          label: Text('Setup'),
+        ),
+      ],
+      selected: {setupMode},
+      onSelectionChanged: (selection) => onChanged(selection.first),
+      style: ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        textStyle: WidgetStatePropertyAll(
+          Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+      ),
     );
   }
 }
@@ -1449,6 +1592,7 @@ class _SeatingInsightRail extends StatelessWidget {
     required this.activeLayout,
     required this.signalSummary,
     required this.presentationMode,
+    required this.setupMode,
     this.roomName,
   });
 
@@ -1460,6 +1604,7 @@ class _SeatingInsightRail extends StatelessWidget {
   final SeatingLayout? activeLayout;
   final _StudentSignalSummary signalSummary;
   final bool presentationMode;
+  final bool setupMode;
   final String? roomName;
 
   @override
@@ -1488,8 +1633,8 @@ class _SeatingInsightRail extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const GradeFlowSectionHeader(
-                title: 'Class map',
-                subtitle: 'Live seating coverage',
+                title: 'Room readiness',
+                subtitle: 'Classroom map coverage',
               ),
               const SizedBox(height: WorkspaceSpacing.sm),
               GridView.count(
@@ -1526,7 +1671,11 @@ class _SeatingInsightRail extends StatelessWidget {
               _RailLine(
                 icon: Icons.cast_for_education_outlined,
                 label: 'Mode',
-                value: presentationMode ? 'Presentation' : 'Teacher',
+                value: presentationMode
+                    ? 'Presentation'
+                    : setupMode
+                        ? 'Setup'
+                        : 'Teach',
               ),
             ],
           ),
@@ -1540,7 +1689,7 @@ class _SeatingInsightRail extends StatelessWidget {
             children: [
               const GradeFlowSectionHeader(
                 title: 'Student signals',
-                subtitle: 'Local visual indicators',
+                subtitle: 'Local seat indicators',
               ),
               const SizedBox(height: WorkspaceSpacing.sm),
               for (final signal in signalSummary.all)
@@ -1548,22 +1697,24 @@ class _SeatingInsightRail extends StatelessWidget {
               const SizedBox(height: WorkspaceSpacing.sm),
               const GradeFlowSectionHeader(
                 title: 'Seat status',
-                subtitle: 'Current layout marks',
+                subtitle: 'Local notes only',
               ),
               const SizedBox(height: WorkspaceSpacing.xs),
               _StatusLegendRow(
                   color: Colors.green.shade600,
-                  label: 'Green',
+                  label: 'Steady',
                   value: '$greenCount'),
               _StatusLegendRow(
                   color: Colors.amber.shade700,
-                  label: 'Yellow',
+                  label: 'Check in',
                   value: '$yellowCount'),
               _StatusLegendRow(
-                  color: Colors.red.shade600, label: 'Red', value: '$redCount'),
+                  color: Colors.red.shade600,
+                  label: 'Attention',
+                  value: '$redCount'),
               _StatusLegendRow(
                   color: Colors.blue.shade600,
-                  label: 'Blue',
+                  label: 'Support',
                   value: '$blueCount'),
               const SizedBox(height: WorkspaceSpacing.xs),
               _RailLine(
@@ -1763,6 +1914,7 @@ class _SeatingContextStrip extends StatelessWidget {
     required this.placedSeatCount,
     required this.emptySeatCount,
     required this.presentationMode,
+    required this.setupMode,
     this.roomName,
   });
 
@@ -1773,6 +1925,7 @@ class _SeatingContextStrip extends StatelessWidget {
   final int placedSeatCount;
   final int emptySeatCount;
   final bool presentationMode;
+  final bool setupMode;
   final String? roomName;
 
   @override
@@ -1816,10 +1969,15 @@ class _SeatingContextStrip extends StatelessWidget {
           WorkspaceContextPill(
             icon: Icons.cast_for_education_outlined,
             label: 'Mode',
-            value: presentationMode ? 'Present' : 'Teacher',
-            emphasized: presentationMode,
-            accent:
-                presentationMode ? Theme.of(context).colorScheme.primary : null,
+            value: presentationMode
+                ? 'Present'
+                : setupMode
+                    ? 'Setup'
+                    : 'Teach',
+            emphasized: presentationMode || setupMode,
+            accent: presentationMode || setupMode
+                ? Theme.of(context).colorScheme.primary
+                : null,
           ),
           if ((roomName ?? '').trim().isNotEmpty) ...[
             const SizedBox(width: 8),

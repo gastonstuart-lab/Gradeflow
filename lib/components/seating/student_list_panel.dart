@@ -92,7 +92,7 @@ class _StudentListPanelState extends State<StudentListPanel> {
           children: [
             Expanded(
               child: Text(
-                'Students',
+                'Unseated students',
                 style: Theme.of(context)
                     .textTheme
                     .labelLarge
@@ -145,7 +145,7 @@ class _StudentListPanelState extends State<StudentListPanel> {
           children: [
             Expanded(
               child: Text(
-                '$unassignedCount unassigned | $assignedCount placed',
+                '$unassignedCount need seats | $assignedCount placed',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -302,7 +302,7 @@ class _StudentPanelEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Tap any seat to review, recolor, or clear it.',
+              'Tap any seat to review notes, status, or placement.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: textColor,

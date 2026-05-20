@@ -8,6 +8,7 @@ class SeatingToolbar extends StatelessWidget {
   final List<SeatingLayout> layouts;
   final String? activeLayoutId;
   final bool designMode;
+  final bool showDesignModeToggle;
   final VoidCallback onToggleDesignMode;
   final ValueChanged<String> onSelectLayout;
   final VoidCallback onAddLayout;
@@ -38,6 +39,7 @@ class SeatingToolbar extends StatelessWidget {
     required this.layouts,
     required this.activeLayoutId,
     required this.designMode,
+    this.showDesignModeToggle = true,
     required this.onToggleDesignMode,
     required this.onSelectLayout,
     required this.onAddLayout,
@@ -82,12 +84,17 @@ class SeatingToolbar extends StatelessWidget {
               child: DropdownButtonFormField<String>(
                 key: ValueKey(active.layoutId),
                 initialValue: active.layoutId.isEmpty ? null : active.layoutId,
+                isExpanded: true,
                 decoration: _seatingToolbarFieldDecoration(context),
                 items: [
                   for (final layout in layouts)
                     DropdownMenuItem(
                       value: layout.layoutId,
-                      child: Text(layout.name),
+                      child: Text(
+                        layout.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                 ],
                 onChanged: (value) {
@@ -99,14 +106,14 @@ class SeatingToolbar extends StatelessWidget {
             FilledButton.icon(
               onPressed: onAddLayout,
               icon: const Icon(Icons.add),
-              label: const Text('New layout'),
+              label: const Text('New room map'),
               style: WorkspaceButtonStyles.filled(context, compact: true),
             ),
             const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: onDuplicateLayout,
               icon: const Icon(Icons.copy),
-              label: const Text('Duplicate'),
+              label: const Text('Duplicate room'),
               style: WorkspaceButtonStyles.outlined(context, compact: true),
             ),
             const SizedBox(width: 8),
@@ -130,7 +137,7 @@ class SeatingToolbar extends StatelessWidget {
               itemBuilder: (context) => [
                 const PopupMenuItem(
                   value: _LayoutAction.rename,
-                  child: Text('Rename layout'),
+                  child: Text('Rename room map'),
                 ),
                 const PopupMenuItem(
                   value: _LayoutAction.roomSettings,
@@ -138,21 +145,21 @@ class SeatingToolbar extends StatelessWidget {
                 ),
                 const PopupMenuItem(
                   value: _LayoutAction.clearRoom,
-                  child: Text('Clear room'),
+                  child: Text('Clear furniture'),
                 ),
                 PopupMenuItem(
                   value: _LayoutAction.delete,
                   enabled: layouts.length > 1,
                   child: Text(
                     layouts.length > 1
-                        ? 'Delete layout'
-                        : 'Delete layout (keep at least one)',
+                        ? 'Delete room map'
+                        : 'Delete room map (keep at least one)',
                   ),
                 ),
               ],
               child: const _ToolbarMenuButton(
                 icon: Icons.settings_outlined,
-                label: 'Layout',
+                label: 'Room map',
               ),
             ),
             const SizedBox(width: 8),
@@ -161,24 +168,24 @@ class SeatingToolbar extends StatelessWidget {
               itemBuilder: (context) => const [
                 PopupMenuItem(
                   value: SeatingTemplateType.rows,
-                  child: Text('Rows layout'),
+                  child: Text('Rows starter'),
                 ),
                 PopupMenuItem(
                   value: SeatingTemplateType.groups,
-                  child: Text('Group tables'),
+                  child: Text('Group tables starter'),
                 ),
                 PopupMenuItem(
                   value: SeatingTemplateType.exam,
-                  child: Text('Exam layout'),
+                  child: Text('Exam starter'),
                 ),
                 PopupMenuItem(
                   value: SeatingTemplateType.currentClassroom,
-                  child: Text('Current classroom'),
+                  child: Text('Simple classroom starter'),
                 ),
               ],
               child: const _ToolbarMenuButton(
                 icon: Icons.auto_fix_high_outlined,
-                label: 'Templates',
+                label: 'Starting points',
               ),
             ),
             const SizedBox(width: 8),
@@ -202,48 +209,55 @@ class SeatingToolbar extends StatelessWidget {
               itemBuilder: (context) => const [
                 PopupMenuItem(
                   value: _AssignmentAction.autoAssign,
-                  child: Text('Auto-fill from roster'),
+                  child: Text('Place roster into seats'),
                 ),
                 PopupMenuItem(
                   value: _AssignmentAction.shuffleSeating,
-                  child: Text('Shuffle seating'),
+                  child: Text('Shuffle students'),
                 ),
                 PopupMenuItem(
                   value: _AssignmentAction.pickStudent,
-                  child: Text('Pick a student'),
+                  child: Text('Pick random student'),
                 ),
                 PopupMenuDivider(),
                 PopupMenuItem(
                   value: _AssignmentAction.clearAssignments,
-                  child: Text('Clear student placements'),
+                  child: Text('Clear placements'),
                 ),
               ],
               child: const _ToolbarMenuButton(
                 icon: Icons.people_alt_outlined,
-                label: 'Roster Actions',
+                label: 'Place students',
               ),
             ),
-            const SizedBox(width: 8),
-            FilterChip(
-              avatar: const Icon(Icons.draw_outlined, size: 18),
-              label: const Text('Edit room'),
-              selected: designMode,
-              onSelected: (_) => onToggleDesignMode(),
-              selectedColor:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.14),
-              checkmarkColor: Theme.of(context).colorScheme.primary,
-              side: BorderSide(
-                color: designMode
-                    ? Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.36)
-                    : WorkspaceChrome.panelBorderColor(context, emphasis: 0.9),
+            if (showDesignModeToggle) ...[
+              const SizedBox(width: 8),
+              FilterChip(
+                avatar: const Icon(Icons.draw_outlined, size: 18),
+                label: const Text('Build room'),
+                selected: designMode,
+                onSelected: (_) => onToggleDesignMode(),
+                selectedColor: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.14),
+                checkmarkColor: Theme.of(context).colorScheme.primary,
+                side: BorderSide(
+                  color: designMode
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.36)
+                      : WorkspaceChrome.panelBorderColor(
+                          context,
+                          emphasis: 0.9,
+                        ),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
+            ],
             if (designMode) ...[
               const SizedBox(width: 8),
               PopupMenuButton<_FurnitureAction>(
@@ -266,24 +280,24 @@ class SeatingToolbar extends StatelessWidget {
                 itemBuilder: (context) => const [
                   PopupMenuItem(
                     value: _FurnitureAction.rectTable,
-                    child: Text('Rect table'),
+                    child: Text('Add table'),
                   ),
                   PopupMenuItem(
                     value: _FurnitureAction.squareTable,
-                    child: Text('Square table'),
+                    child: Text('Add square table'),
                   ),
                   PopupMenuItem(
                     value: _FurnitureAction.desk,
-                    child: Text('Desk'),
+                    child: Text('Add single desk'),
                   ),
                   PopupMenuItem(
                     value: _FurnitureAction.teacherDesk,
-                    child: Text('Teacher desk'),
+                    child: Text('Add teacher desk'),
                   ),
                 ],
                 child: const _ToolbarMenuButton(
                   icon: Icons.add_home_work_outlined,
-                  label: 'Add furniture',
+                  label: 'Add table',
                 ),
               ),
             ],
@@ -292,7 +306,7 @@ class SeatingToolbar extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onOpenRoomSetups,
                 icon: const Icon(Icons.meeting_room_outlined),
-                label: const Text('Room setups'),
+                label: const Text('Save / reuse room'),
                 style: WorkspaceButtonStyles.outlined(context, compact: true),
               ),
             ],
@@ -364,7 +378,7 @@ InputDecoration _seatingToolbarFieldDecoration(BuildContext context) {
   );
 
   return InputDecoration(
-    labelText: 'Layout',
+    labelText: 'Room map',
     prefixIcon: const Icon(Icons.layers_outlined, size: 18),
     prefixIconConstraints: const BoxConstraints(minWidth: 36),
     isDense: true,
