@@ -47,6 +47,39 @@ void main() {
         findsNothing);
   });
 
+  testWidgets('HomeSurface Ask InstructOS explains context and control',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _harness(
+        const HomeSurface(),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Ask InstructOS').first);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Your teaching co-pilot for planning, class decisions, and clearer communication.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Context I can use'), findsOneWidget);
+    expect(find.text('Not connected yet'), findsOneWidget);
+    expect(find.textContaining('parent or student messages are never sent'),
+        findsOneWidget);
+    expect(find.text('Help me prepare today\'s class'), findsOneWidget);
+    expect(find.text('Summarise what needs attention'), findsOneWidget);
+    expect(find.text('Ready - using limited Home context'), findsOneWidget);
+  });
+
   testWidgets('PlannerSurface exposes planning upload entry points',
       (tester) async {
     SharedPreferences.setMockInitialValues({});

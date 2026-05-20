@@ -43,4 +43,32 @@ void main() {
 
     expect(reply, InstructOSAssistantService.fallbackReply);
   });
+
+  test('askDetailed marks fallback mode when callable fails', () async {
+    final service = InstructOSAssistantService(
+      callableInvoker: (_) async => throw StateError('offline'),
+    );
+
+    final reply = await service.askDetailed(
+      message: 'Help me prepare today\'s class',
+    );
+
+    expect(reply.content, InstructOSAssistantService.fallbackReply);
+    expect(reply.status, InstructOSAssistantReplyStatus.fallback);
+    expect(reply.isLimited, isTrue);
+  });
+
+  test('askDetailed marks normal backend replies as success', () async {
+    final service = InstructOSAssistantService(
+      callableInvoker: (_) async => {'reply': 'Use a calm starter task.'},
+    );
+
+    final reply = await service.askDetailed(
+      message: 'Help me plan a calmer lesson',
+    );
+
+    expect(reply.content, 'Use a calm starter task.');
+    expect(reply.status, InstructOSAssistantReplyStatus.success);
+    expect(reply.isLimited, isFalse);
+  });
 }

@@ -9,6 +9,27 @@ typedef InstructOSCallableInvoker = Future<Map<String, dynamic>> Function(
   Map<String, dynamic> payload,
 );
 
+enum InstructOSAssistantReplyStatus {
+  success,
+  fallback,
+  timeout,
+  error,
+  needsSignIn,
+  configuration,
+}
+
+class InstructOSAssistantReply {
+  const InstructOSAssistantReply({
+    required this.content,
+    required this.status,
+  });
+
+  final String content;
+  final InstructOSAssistantReplyStatus status;
+
+  bool get isLimited => status != InstructOSAssistantReplyStatus.success;
+}
+
 class InstructOSAssistantMessage {
   const InstructOSAssistantMessage({
     required this.role,
@@ -52,6 +73,19 @@ class InstructOSAssistantService {
     List<InstructOSAssistantMessage> conversation = const [],
     String contextMode = 'general',
   }) async {
+    final reply = await askDetailed(
+      message: message,
+      conversation: conversation,
+      contextMode: contextMode,
+    );
+    return reply.content;
+  }
+
+  Future<InstructOSAssistantReply> askDetailed({
+    required String message,
+    List<InstructOSAssistantMessage> conversation = const [],
+    String contextMode = 'general',
+  }) async {
     final trimmedMessage = message.trim();
     if (trimmedMessage.isEmpty) {
       if (kDebugMode) {
@@ -59,7 +93,10 @@ class InstructOSAssistantService {
           'Ask InstructOS fallback: empty message payload before callable invocation.',
         );
       }
-      return fallbackReply;
+      return const InstructOSAssistantReply(
+        content: fallbackReply,
+        status: InstructOSAssistantReplyStatus.fallback,
+      );
     }
 
     final payload = <String, Object?>{
@@ -93,13 +130,22 @@ class InstructOSAssistantService {
             'Ask InstructOS using callable reply length=${reply.trim().length}',
           );
         }
-        return reply.trim();
+        final trimmedReply = reply.trim();
+        return InstructOSAssistantReply(
+          content: trimmedReply,
+          status: trimmedReply == fallbackReply
+              ? InstructOSAssistantReplyStatus.fallback
+              : InstructOSAssistantReplyStatus.success,
+        );
       }
       debugPrint(
         'Ask InstructOS fallback: callable response missing non-empty string reply. '
         'replyType=${reply.runtimeType}',
       );
-      return fallbackReply;
+      return const InstructOSAssistantReply(
+        content: fallbackReply,
+        status: InstructOSAssistantReplyStatus.fallback,
+      );
     } on FirebaseFunctionsException catch (error) {
       debugPrint(
         'Ask InstructOS callable failed: code=${error.code} '
@@ -109,14 +155,21 @@ class InstructOSAssistantService {
         debugPrint(
             'Ask InstructOS fallback: FirebaseFunctionsException path used.');
       }
-      return _messageForFunctionsError(error);
+      return _replyForFunctionsError(error);
     } on TimeoutException {
       debugPrint('Ask InstructOS callable timed out locally.');
-      return 'The planning request took too long. Try asking for a shorter plan, or choose a specific class/topic.';
+      return const InstructOSAssistantReply(
+        content:
+            'The request took too long. Your message was not lost. Try a shorter prompt, or ask about one class, lesson, or note at a time.',
+        status: InstructOSAssistantReplyStatus.timeout,
+      );
     } catch (error) {
       debugPrint('Ask InstructOS unavailable: ${error.runtimeType}');
       debugPrint('Ask InstructOS fallback: unexpected exception path used.');
-      return fallbackReply;
+      return const InstructOSAssistantReply(
+        content: fallbackReply,
+        status: InstructOSAssistantReplyStatus.fallback,
+      );
     }
   }
 
@@ -176,25 +229,44 @@ class InstructOSAssistantService {
         .toList(growable: false);
   }
 
-  String _messageForFunctionsError(FirebaseFunctionsException error) {
+  InstructOSAssistantReply _replyForFunctionsError(
+    FirebaseFunctionsException error,
+  ) {
     final serverMessage = error.message?.trim();
-    return switch (error.code) {
-      'unauthenticated' => serverMessage?.isNotEmpty == true
-          ? serverMessage!
-          : 'Please sign in again to use Ask InstructOS.',
-      'invalid-argument' => serverMessage?.isNotEmpty == true
-          ? serverMessage!
-          : 'Ask InstructOS could not understand that request.',
-      'failed-precondition' =>
-        'Ask InstructOS is not fully configured on the server yet.',
-      'unavailable' => serverMessage?.isNotEmpty == true
-          ? serverMessage!
-          : 'Ask InstructOS cannot reach the AI provider right now. Please try again.',
-      'deadline-exceeded' =>
-        'Ask InstructOS took too long to reply. Please try again.',
-      _ => serverMessage?.isNotEmpty == true
-          ? serverMessage!
-          : 'Ask InstructOS hit a server error. Please try again shortly.',
+    final (content, status) = switch (error.code) {
+      'unauthenticated' => (
+          serverMessage?.isNotEmpty == true
+              ? serverMessage!
+              : 'Please sign in again to use Ask InstructOS.',
+          InstructOSAssistantReplyStatus.needsSignIn,
+        ),
+      'invalid-argument' => (
+          serverMessage?.isNotEmpty == true
+              ? serverMessage!
+              : 'Ask InstructOS could not understand that request. Try a clearer, shorter prompt.',
+          InstructOSAssistantReplyStatus.error,
+        ),
+      'failed-precondition' => (
+          'Ask InstructOS is not fully configured on the server yet.',
+          InstructOSAssistantReplyStatus.configuration,
+        ),
+      'unavailable' => (
+          serverMessage?.isNotEmpty == true
+              ? serverMessage!
+              : 'Ask InstructOS cannot reach the AI provider right now. Your message was not lost; please try again.',
+          InstructOSAssistantReplyStatus.error,
+        ),
+      'deadline-exceeded' => (
+          'Ask InstructOS took too long to reply. Your message was not lost; try a shorter prompt.',
+          InstructOSAssistantReplyStatus.timeout,
+        ),
+      _ => (
+          serverMessage?.isNotEmpty == true
+              ? serverMessage!
+              : 'Ask InstructOS hit a server error. Your message was not lost; please try again shortly.',
+          InstructOSAssistantReplyStatus.error,
+        ),
     };
+    return InstructOSAssistantReply(content: content, status: status);
   }
 }

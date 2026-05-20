@@ -73,23 +73,23 @@ class _OSAssistantPanelState extends State<OSAssistantPanel> {
   static const List<_SuggestedAction> _suggestions = [
     _SuggestedAction(
       icon: Icons.summarize_outlined,
-      label: 'Summarise today',
-      prompt: 'Summarise my teaching schedule and priorities for today.',
+      label: 'Prepare today',
+      prompt: 'Help me prepare today\'s class.',
     ),
     _SuggestedAction(
       icon: Icons.email_outlined,
-      label: 'Draft a parent email',
-      prompt: 'Help me draft a professional email to a parent.',
+      label: 'Draft note',
+      prompt: 'Draft a parent-friendly progress note for me to review.',
     ),
     _SuggestedAction(
-      icon: Icons.grade_outlined,
-      label: 'Grade rubric ideas',
-      prompt: 'Suggest a grading rubric for a class assignment.',
+      icon: Icons.quiz_outlined,
+      label: 'Quick quiz',
+      prompt: 'Turn this lesson idea into a quick quiz.',
     ),
     _SuggestedAction(
       icon: Icons.group_outlined,
-      label: 'Group students',
-      prompt: 'How should I group students for a collaborative activity?',
+      label: 'Calmer lesson',
+      prompt: 'Help me plan a calmer lesson flow.',
     ),
   ];
 
@@ -113,7 +113,7 @@ class _OSAssistantPanelState extends State<OSAssistantPanel> {
       setState(() {
         _thinking = false;
         _lastResponse =
-            'This quick assistant panel is still being connected. For teaching-context help today, open Ask InstructOS on Home. I captured: "$prompt"';
+            'This quick shell panel is a draft surface. For the fuller Ask InstructOS workspace, open Home and choose Ask InstructOS. Your prompt was not sent anywhere from this panel: "$prompt"';
       });
     }
   }
@@ -199,11 +199,24 @@ class _AssistantHeader extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Text(
-            'InstructOS Assistant',
+            'Ask InstructOS',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: OSColors.text(dark),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'Draft help only',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: OSColors.textMuted(dark),
+              ),
             ),
           ),
           const Spacer(),
@@ -372,7 +385,7 @@ class _AssistantInputBar extends StatelessWidget {
                   color: OSColors.text(dark),
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Ask anything...',
+                  hintText: 'Ask for teaching help...',
                   hintStyle: TextStyle(
                     fontSize: 13,
                     color: OSColors.textMuted(dark),
