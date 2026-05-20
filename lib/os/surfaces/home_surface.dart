@@ -1915,6 +1915,20 @@ class _HomeMiniAppWindow extends StatelessWidget {
                               color: OSColors.text(dark),
                             ),
                           ),
+                          if (_miniAppSubtitle(app) != null) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              _miniAppSubtitle(app)!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                height: 1.25,
+                                fontWeight: FontWeight.w600,
+                                color: OSColors.textSecondary(dark),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -2046,6 +2060,14 @@ String _miniAppTitle(_HomeMiniApp app) {
   };
 }
 
+String? _miniAppSubtitle(_HomeMiniApp app) {
+  return switch (app) {
+    _HomeMiniApp.ask =>
+      'Your teaching co-pilot for planning, class decisions, and clearer communication.',
+    _ => null,
+  };
+}
+
 IconData _miniAppIcon(_HomeMiniApp app) {
   return switch (app) {
     _HomeMiniApp.weather => Icons.wb_cloudy_rounded,
@@ -2115,11 +2137,10 @@ class _AskInstructOSMiniAppContent extends StatefulWidget {
 class _AskInstructOSMiniAppContentState
     extends State<_AskInstructOSMiniAppContent> {
   static const List<String> _suggestedPrompts = [
-    'Plan my next lesson',
-    'Draft a parent message',
-    'Create a quick quiz',
-    'Summarise today',
-    'Help me with this class',
+    'Prepare class',
+    'Make quiz',
+    'Draft note',
+    'Calm lesson',
   ];
 
   final InstructOSAssistantService _assistantService =
@@ -2128,6 +2149,7 @@ class _AskInstructOSMiniAppContentState
   final ScrollController _scrollController = ScrollController();
   final List<_AskInstructOSMessage> _messages = [];
   bool _isSending = false;
+  InstructOSAssistantReplyStatus? _lastStatus;
 
   @override
   void dispose() {
@@ -2160,16 +2182,17 @@ class _AskInstructOSMiniAppContentState
       _messages
         ..add(_AskInstructOSMessage(text: text, fromAssistant: false))
         ..add(const _AskInstructOSMessage(
-          text: 'Thinking through your teaching context...',
+          text: 'Thinking through your workspace...',
           fromAssistant: true,
           isPending: true,
         ));
       _controller.clear();
       _isSending = true;
+      _lastStatus = null;
     });
     _scrollToBottom();
 
-    final reply = await _assistantService.ask(
+    final reply = await _assistantService.askDetailed(
       message: text,
       conversation: conversation,
       contextMode: 'os-home',
@@ -2181,8 +2204,9 @@ class _AskInstructOSMiniAppContentState
         (message) => message.isPending,
       );
       final replyMessage = _AskInstructOSMessage(
-        text: reply,
+        text: reply.content,
         fromAssistant: true,
+        status: reply.status,
       );
       if (pendingIndex == -1) {
         _messages.add(replyMessage);
@@ -2190,6 +2214,7 @@ class _AskInstructOSMiniAppContentState
         _messages[pendingIndex] = replyMessage;
       }
       _isSending = false;
+      _lastStatus = reply.status;
     });
     _scrollToBottom();
   }
@@ -2269,9 +2294,52 @@ class _AskInstructOSMiniAppContentState
     }
 
     lines.add(
-      'Answer factual questions from this context when possible. Never invent student counts or roster data. If a count is unknown, say exactly what is visible and what is missing. When class/topic context is incomplete, draft a useful starting plan first and ask one focused follow-up question.',
+      'Answer factual questions from this context when possible. Never invent student counts, roster data, school documents, or timetable details that are not visible here. Parent communication should be draft-only and reviewed by the teacher before anything is sent. If a count is unknown, say exactly what is visible and what is missing. When class/topic context is incomplete, draft a useful starting plan first and ask one focused follow-up question.',
     );
     return lines.join('\n');
+  }
+
+  String _connectionStatusLabel() {
+    if (_isSending) return 'Thinking through your workspace...';
+    return switch (_lastStatus) {
+      InstructOSAssistantReplyStatus.success => '',
+      InstructOSAssistantReplyStatus.timeout =>
+        'Timed out - try a shorter prompt',
+      InstructOSAssistantReplyStatus.fallback =>
+        'Limited mode - try again shortly',
+      InstructOSAssistantReplyStatus.error ||
+      InstructOSAssistantReplyStatus.configuration =>
+        'Needs retry - service unavailable',
+      InstructOSAssistantReplyStatus.needsSignIn => 'Needs sign-in',
+      null => '',
+    };
+  }
+
+  IconData _connectionStatusIcon() {
+    if (_isSending) return Icons.sync_rounded;
+    return switch (_lastStatus) {
+      InstructOSAssistantReplyStatus.success => Icons.check_circle_rounded,
+      InstructOSAssistantReplyStatus.timeout => Icons.timer_off_rounded,
+      InstructOSAssistantReplyStatus.fallback => Icons.offline_bolt_outlined,
+      InstructOSAssistantReplyStatus.error ||
+      InstructOSAssistantReplyStatus.configuration =>
+        Icons.error_outline_rounded,
+      InstructOSAssistantReplyStatus.needsSignIn => Icons.lock_outline_rounded,
+      null => Icons.info_outline_rounded,
+    };
+  }
+
+  bool _shouldShowStatus() {
+    if (_isSending) return true;
+    return switch (_lastStatus) {
+      InstructOSAssistantReplyStatus.timeout ||
+      InstructOSAssistantReplyStatus.fallback ||
+      InstructOSAssistantReplyStatus.error ||
+      InstructOSAssistantReplyStatus.configuration ||
+      InstructOSAssistantReplyStatus.needsSignIn =>
+        true,
+      InstructOSAssistantReplyStatus.success || null => false,
+    };
   }
 
   String _studentTotalContextLabel(bool knownStudentTotal) {
@@ -2327,10 +2395,19 @@ class _AskInstructOSMiniAppContentState
                   ),
           ),
         ),
-        const SizedBox(height: 10),
+        if (_shouldShowStatus()) ...[
+          const SizedBox(height: 6),
+          _AskStatusStrip(
+            label: _connectionStatusLabel(),
+            icon: _connectionStatusIcon(),
+            isThinking: _isSending,
+            status: _lastStatus,
+          ),
+        ],
+        const SizedBox(height: 6),
         if (_messages.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: 6),
             child: _AskPromptChips(
               prompts: _suggestedPrompts,
               onPromptTap: _sendSuggestedPrompt,
@@ -2353,11 +2430,13 @@ class _AskInstructOSMessage {
     required this.text,
     required this.fromAssistant,
     this.isPending = false,
+    this.status,
   });
 
   final String text;
   final bool fromAssistant;
   final bool isPending;
+  final InstructOSAssistantReplyStatus? status;
 }
 
 class _AskInstructOSEmptyState extends StatelessWidget {
@@ -2374,48 +2453,33 @@ class _AskInstructOSEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    return SingleChildScrollView(
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _AskAssistantMark(size: 38),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 1),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Ready when you are',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            color: OSColors.text(dark),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'I can help plan lessons, draft messages, create quizzes, and organise your day.',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            height: 1.35,
-                            color: OSColors.textSecondary(dark),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+          const _AskAssistantMark(size: 42),
+          const SizedBox(height: 14),
+          Text(
+            'Ask InstructOS',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: OSColors.text(dark),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 6),
+          Text(
+            'What can I help you with today?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.3,
+              fontWeight: FontWeight.w600,
+              color: OSColors.textSecondary(dark),
+            ),
+          ),
+          const SizedBox(height: 18),
           _AskPromptChips(
             prompts: prompts,
             onPromptTap: onPromptTap,
@@ -2540,6 +2604,77 @@ class _AskPromptChips extends StatelessWidget {
   }
 }
 
+class _AskStatusStrip extends StatelessWidget {
+  const _AskStatusStrip({
+    required this.label,
+    required this.icon,
+    required this.isThinking,
+    required this.status,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isThinking;
+  final InstructOSAssistantReplyStatus? status;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final accent = _accentForStatus();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: dark ? 0.075 : 0.045),
+        borderRadius: OSRadius.pillBr,
+        border: Border.all(color: accent.withValues(alpha: 0.11)),
+      ),
+      child: Row(
+        children: [
+          if (isThinking)
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.8,
+                color: accent,
+              ),
+            )
+          else
+            Icon(icon, size: 13, color: accent),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.8,
+                height: 1.25,
+                fontWeight: FontWeight.w700,
+                color: OSColors.textSecondary(dark),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _accentForStatus() {
+    if (isThinking) return OSColors.indigo;
+    return switch (status) {
+      InstructOSAssistantReplyStatus.success => OSColors.green,
+      InstructOSAssistantReplyStatus.timeout => OSColors.amber,
+      InstructOSAssistantReplyStatus.fallback => OSColors.cyan,
+      InstructOSAssistantReplyStatus.error ||
+      InstructOSAssistantReplyStatus.configuration =>
+        OSColors.coral,
+      InstructOSAssistantReplyStatus.needsSignIn => OSColors.amber,
+      null => OSColors.indigo,
+    };
+  }
+}
+
 class _AskInstructOSBubble extends StatelessWidget {
   const _AskInstructOSBubble({required this.message});
 
@@ -2549,6 +2684,7 @@ class _AskInstructOSBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final fromAssistant = message.fromAssistant;
+    final accent = _bubbleAccent();
     return Align(
       alignment: fromAssistant ? Alignment.centerLeft : Alignment.centerRight,
       child: ConstrainedBox(
@@ -2579,9 +2715,12 @@ class _AskInstructOSBubble extends StatelessWidget {
                   ),
                   border: Border.all(
                     color: fromAssistant
-                        ? (dark
-                            ? Colors.white.withValues(alpha: 0.058)
-                            : Colors.white.withValues(alpha: 0.78))
+                        ? accent.withValues(
+                            alpha: message.isPending
+                                ? 0.22
+                                : message.status == null
+                                    ? 0.08
+                                    : 0.20)
                         : OSColors.indigo.withValues(alpha: 0.24),
                   ),
                   boxShadow: [
@@ -2618,6 +2757,20 @@ class _AskInstructOSBubble extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Color _bubbleAccent() {
+    if (message.isPending) return OSColors.indigo;
+    return switch (message.status) {
+      InstructOSAssistantReplyStatus.success => OSColors.green,
+      InstructOSAssistantReplyStatus.timeout => OSColors.amber,
+      InstructOSAssistantReplyStatus.fallback => OSColors.cyan,
+      InstructOSAssistantReplyStatus.error ||
+      InstructOSAssistantReplyStatus.configuration =>
+        OSColors.coral,
+      InstructOSAssistantReplyStatus.needsSignIn => OSColors.amber,
+      null => Colors.white,
+    };
   }
 }
 
