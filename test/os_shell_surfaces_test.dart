@@ -66,30 +66,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ask InstructOS'), findsWidgets);
-    expect(find.text('Your teaching co-pilot.'), findsOneWidget);
-    expect(
-      find.text(
-        'Get practical help with planning, class decisions, and clearer communication.',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Using Home context: classes, reminders, messages.'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-          'school folder search and automatic parent messaging'),
-      findsOneWidget,
-    );
-    expect(find.text('Suggestions are drafts. You stay in control.'),
-        findsOneWidget);
-    expect(find.text('Help me prepare today\'s class'), findsOneWidget);
-    expect(find.text('Summarise what needs attention'), findsOneWidget);
-    expect(find.text('Draft a progress note'), findsOneWidget);
-    expect(find.text('Turn this into a quick quiz'), findsOneWidget);
+    expect(find.text('What can I help you with today?'), findsOneWidget);
+    expect(find.text('Prepare class'), findsOneWidget);
+    expect(find.text('Make quiz'), findsOneWidget);
+    expect(find.text('Draft note'), findsOneWidget);
+    expect(find.text('Calm lesson'), findsOneWidget);
+    expect(find.textContaining('Using Home context'), findsNothing);
+    expect(find.textContaining('Context limits'), findsNothing);
+    expect(find.textContaining('Suggestions are drafts'), findsNothing);
+    expect(find.textContaining('Ready -'), findsNothing);
+    expect(find.text('Help me prepare today\'s class'), findsNothing);
+    expect(find.text('Summarise what needs attention'), findsNothing);
+    expect(find.text('Draft a progress note'), findsNothing);
+    expect(find.text('Turn this into a quick quiz'), findsNothing);
     expect(find.text('Suggest a seating adjustment'), findsNothing);
-    expect(find.text('Ready - using Home context'), findsOneWidget);
   });
 
   testWidgets('PlannerSurface exposes planning upload entry points',

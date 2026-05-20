@@ -2137,10 +2137,10 @@ class _AskInstructOSMiniAppContent extends StatefulWidget {
 class _AskInstructOSMiniAppContentState
     extends State<_AskInstructOSMiniAppContent> {
   static const List<String> _suggestedPrompts = [
-    'Help me prepare today\'s class',
-    'Summarise what needs attention',
-    'Draft a progress note',
-    'Turn this into a quick quiz',
+    'Prepare class',
+    'Make quiz',
+    'Draft note',
+    'Calm lesson',
   ];
 
   final InstructOSAssistantService _assistantService =
@@ -2299,14 +2299,10 @@ class _AskInstructOSMiniAppContentState
     return lines.join('\n');
   }
 
-  String _visibleContextSummary() {
-    return 'Using Home context: classes, reminders, messages.';
-  }
-
   String _connectionStatusLabel() {
     if (_isSending) return 'Thinking through your workspace...';
     return switch (_lastStatus) {
-      InstructOSAssistantReplyStatus.success => 'Ready - response prepared',
+      InstructOSAssistantReplyStatus.success => '',
       InstructOSAssistantReplyStatus.timeout =>
         'Timed out - try a shorter prompt',
       InstructOSAssistantReplyStatus.fallback =>
@@ -2315,7 +2311,7 @@ class _AskInstructOSMiniAppContentState
       InstructOSAssistantReplyStatus.configuration =>
         'Needs retry - service unavailable',
       InstructOSAssistantReplyStatus.needsSignIn => 'Needs sign-in',
-      null => 'Ready - using Home context',
+      null => '',
     };
   }
 
@@ -2330,6 +2326,19 @@ class _AskInstructOSMiniAppContentState
         Icons.error_outline_rounded,
       InstructOSAssistantReplyStatus.needsSignIn => Icons.lock_outline_rounded,
       null => Icons.info_outline_rounded,
+    };
+  }
+
+  bool _shouldShowStatus() {
+    if (_isSending) return true;
+    return switch (_lastStatus) {
+      InstructOSAssistantReplyStatus.timeout ||
+      InstructOSAssistantReplyStatus.fallback ||
+      InstructOSAssistantReplyStatus.error ||
+      InstructOSAssistantReplyStatus.configuration ||
+      InstructOSAssistantReplyStatus.needsSignIn =>
+        true,
+      InstructOSAssistantReplyStatus.success || null => false,
     };
   }
 
@@ -2373,7 +2382,6 @@ class _AskInstructOSMiniAppContentState
                     prompts: _suggestedPrompts,
                     onPromptTap: _sendSuggestedPrompt,
                     enabled: !_isSending,
-                    contextSummary: _visibleContextSummary(),
                   )
                 : ListView.separated(
                     controller: _scrollController,
@@ -2387,13 +2395,15 @@ class _AskInstructOSMiniAppContentState
                   ),
           ),
         ),
-        const SizedBox(height: 6),
-        _AskStatusStrip(
-          label: _connectionStatusLabel(),
-          icon: _connectionStatusIcon(),
-          isThinking: _isSending,
-          status: _lastStatus,
-        ),
+        if (_shouldShowStatus()) ...[
+          const SizedBox(height: 6),
+          _AskStatusStrip(
+            label: _connectionStatusLabel(),
+            icon: _connectionStatusIcon(),
+            isThinking: _isSending,
+            status: _lastStatus,
+          ),
+        ],
         const SizedBox(height: 6),
         if (_messages.isNotEmpty)
           Padding(
@@ -2434,184 +2444,48 @@ class _AskInstructOSEmptyState extends StatelessWidget {
     required this.prompts,
     required this.onPromptTap,
     required this.enabled,
-    required this.contextSummary,
   });
 
   final List<String> prompts;
   final ValueChanged<String> onPromptTap;
   final bool enabled;
-  final String contextSummary;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    return SingleChildScrollView(
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _AskWelcomeBlock(contextSummary: contextSummary),
-          const SizedBox(height: 12),
+          const _AskAssistantMark(size: 42),
+          const SizedBox(height: 14),
+          Text(
+            'Ask InstructOS',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: OSColors.text(dark),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'What can I help you with today?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.3,
+              fontWeight: FontWeight.w600,
+              color: OSColors.textSecondary(dark),
+            ),
+          ),
+          const SizedBox(height: 18),
           _AskPromptChips(
             prompts: prompts,
             onPromptTap: onPromptTap,
             enabled: enabled,
           ),
-          const SizedBox(height: 10),
-          _AskFooterNote(
-            text: 'Suggestions are drafts. You stay in control.',
-            dark: dark,
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _AskWelcomeBlock extends StatelessWidget {
-  const _AskWelcomeBlock({required this.contextSummary});
-
-  final String contextSummary;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 11),
-      decoration: BoxDecoration(
-        color: dark
-            ? Colors.white.withValues(alpha: 0.034)
-            : Colors.white.withValues(alpha: 0.60),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: dark
-              ? Colors.white.withValues(alpha: 0.058)
-              : Colors.white.withValues(alpha: 0.72),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _AskAssistantMark(size: 34),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ask InstructOS',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: OSColors.text(dark),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Your teaching co-pilot.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: OSColors.textSecondary(dark),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Get practical help with planning, class decisions, and clearer communication.',
-            style: TextStyle(
-              fontSize: 12.4,
-              height: 1.34,
-              color: OSColors.textSecondary(dark),
-            ),
-          ),
-          const SizedBox(height: 10),
-          _AskContextPill(text: contextSummary),
-          const SizedBox(height: 6),
-          _AskFooterNote(
-            text:
-                'Context limits: school folder search and automatic parent messaging are not connected yet.',
-            dark: dark,
-            compact: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AskContextPill extends StatelessWidget {
-  const _AskContextPill({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: OSColors.indigo.withValues(alpha: dark ? 0.12 : 0.08),
-        borderRadius: OSRadius.pillBr,
-        border: Border.all(
-          color: OSColors.indigo.withValues(alpha: dark ? 0.18 : 0.12),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.auto_awesome_rounded,
-            size: 12,
-            color: OSColors.indigo.withValues(alpha: dark ? 0.92 : 0.78),
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11.2,
-                fontWeight: FontWeight.w800,
-                color: OSColors.textSecondary(dark),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AskFooterNote extends StatelessWidget {
-  const _AskFooterNote({
-    required this.text,
-    required this.dark,
-    this.compact = false,
-  });
-
-  final String text;
-  final bool dark;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      maxLines: compact ? 2 : 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: compact ? 10.8 : 11.2,
-        height: 1.25,
-        fontWeight: FontWeight.w600,
-        color: OSColors.textMuted(dark),
       ),
     );
   }
