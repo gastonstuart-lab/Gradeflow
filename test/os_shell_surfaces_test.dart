@@ -47,7 +47,7 @@ void main() {
         findsNothing);
   });
 
-  testWidgets('HomeSurface Ask InstructOS explains context and control',
+  testWidgets('HomeSurface Ask InstructOS stays calm and scoped',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1440, 900);
@@ -65,19 +65,31 @@ void main() {
     await tester.tap(find.text('Ask InstructOS').first);
     await tester.pumpAndSettle();
 
+    expect(find.text('Ask InstructOS'), findsWidgets);
+    expect(find.text('Your teaching co-pilot.'), findsOneWidget);
     expect(
       find.text(
-        'Your teaching co-pilot for planning, class decisions, and clearer communication.',
+        'Get practical help with planning, class decisions, and clearer communication.',
       ),
       findsOneWidget,
     );
-    expect(find.text('Context I can use'), findsOneWidget);
-    expect(find.text('Not connected yet'), findsOneWidget);
-    expect(find.textContaining('parent or student messages are never sent'),
+    expect(
+      find.text('Using Home context: classes, reminders, messages.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+          'school folder search and automatic parent messaging'),
+      findsOneWidget,
+    );
+    expect(find.text('Suggestions are drafts. You stay in control.'),
         findsOneWidget);
     expect(find.text('Help me prepare today\'s class'), findsOneWidget);
     expect(find.text('Summarise what needs attention'), findsOneWidget);
-    expect(find.text('Ready - using limited Home context'), findsOneWidget);
+    expect(find.text('Draft a progress note'), findsOneWidget);
+    expect(find.text('Turn this into a quick quiz'), findsOneWidget);
+    expect(find.text('Suggest a seating adjustment'), findsNothing);
+    expect(find.text('Ready - using Home context'), findsOneWidget);
   });
 
   testWidgets('PlannerSurface exposes planning upload entry points',
