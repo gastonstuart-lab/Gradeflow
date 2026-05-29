@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/models/grading_category.dart';
 import 'package:gradeflow/theme.dart';
@@ -12,10 +15,15 @@ class CategoryManagementScreen extends StatefulWidget {
   const CategoryManagementScreen({super.key, required this.classId});
 
   @override
-  State<CategoryManagementScreen> createState() => _CategoryManagementScreenState();
+  State<CategoryManagementScreen> createState() =>
+      _CategoryManagementScreenState();
 }
 
 class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
+  void _goToClassWorkspace() {
+    context.go('${AppRoutes.osClass}/${widget.classId}');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -30,14 +38,13 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
     final nameController = TextEditingController();
     final weightController = TextEditingController();
     AggregationMethod selectedMethod = AggregationMethod.average;
-    
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Add Category'),
           content: SingleChildScrollView(
-            primary: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -54,9 +61,11 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                 const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<AggregationMethod>(
                   initialValue: selectedMethod,
-                  decoration: const InputDecoration(labelText: 'Aggregation Method'),
+                  decoration:
+                      const InputDecoration(labelText: 'Aggregation Method'),
                   items: AggregationMethod.values.map((method) {
-                    return DropdownMenuItem(value: method, child: Text(method.displayName));
+                    return DropdownMenuItem(
+                        value: method, child: Text(method.displayName));
                   }).toList(),
                   onChanged: (value) {
                     setState(() => selectedMethod = value!);
@@ -66,20 +75,24 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Add')),
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Add')),
           ],
         ),
       ),
     );
-    
+
     if (result == true && mounted) {
       final weight = double.tryParse(weightController.text);
       if (weight == null || weight <= 0) {
         _showError('Invalid weight');
         return;
       }
-      
+
       final now = DateTime.now();
       final category = GradingCategory(
         categoryId: const Uuid().v4(),
@@ -91,7 +104,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
         createdAt: now,
         updatedAt: now,
       );
-      
+
       await context.read<GradingCategoryService>().addCategory(category);
       _showSuccess('Category added');
     }
@@ -99,7 +112,8 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
 
   Future<void> _showEditWeightDialog(GradingCategory category) async {
     final nameController = TextEditingController(text: category.name);
-    final weightController = TextEditingController(text: category.weightPercent.toString());
+    final weightController =
+        TextEditingController(text: category.weightPercent.toString());
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -121,8 +135,12 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Save')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Save')),
         ],
       ),
     );
@@ -130,7 +148,9 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
       final weight = double.tryParse(weightController.text);
       if (weight != null && weight > 0) {
         final updated = category.copyWith(
-          name: nameController.text.trim().isEmpty ? category.name : nameController.text.trim(),
+          name: nameController.text.trim().isEmpty
+              ? category.name
+              : nameController.text.trim(),
           weightPercent: weight,
           updatedAt: DateTime.now(),
         );
@@ -141,12 +161,15 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Theme.of(context).colorScheme.error),
+      SnackBar(
+          content: Text(message),
+          backgroundColor: Theme.of(context).colorScheme.error),
     );
   }
 
   void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -155,67 +178,98 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
     final totalWeight = categoryService.getTotalWeight(widget.classId);
     final isValid = categoryService.isWeightValid(widget.classId);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Grading Categories'),
+    return WorkspaceScaffold(
+      title: 'Grading Categories',
+      subtitle: 'Weight, balance, and tune the process-score structure',
+      eyebrow: 'Assessment Setup',
+      leadingActions: [
+        IconButton(
+          onPressed: _goToClassWorkspace,
+          tooltip: 'Back to class workspace',
+          style: WorkspaceButtonStyles.icon(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+      ],
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddCategoryDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Category'),
       ),
-      body: Column(
+      child: Column(
         children: [
-          Container(
-            padding: AppSpacing.paddingLg,
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Total Weight:', style: context.textStyles.titleMedium),
-                    Text('${totalWeight.toStringAsFixed(1)}% / 100%', style: context.textStyles.titleLarge?.bold.withColor(isValid ? LightModeColors.lightSuccess : LightModeColors.lightWarning)),
-                  ],
-                ),
-                if (!isValid) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Container(
-                    padding: AppSpacing.paddingMd,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning, color: Theme.of(context).colorScheme.onErrorContainer),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            'Category weights must total 100% (applied to the 40% process component)',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+          WorkspaceSurfaceCard(
+            child: Padding(
+              padding: AppSpacing.paddingLg,
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total Weight:',
+                          style: context.textStyles.titleMedium),
+                      Text('${totalWeight.toStringAsFixed(1)}% / 100%',
+                          style: context.textStyles.titleLarge?.bold.withColor(
+                              isValid
+                                  ? LightModeColors.lightSuccess
+                                  : LightModeColors.lightWarning)),
+                    ],
+                  ),
+                  if (!isValid) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Container(
+                      padding: AppSpacing.paddingMd,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onErrorContainer),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              'Category weights must total 100% (applied to the 40% process component)',
+                              style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  FilledButton.icon(
-                    onPressed: () async {
-                      await categoryService.autoFixWeights(widget.classId);
-                      _showSuccess('Weights auto-balanced to 100%');
-                    },
-                    icon: const Icon(Icons.auto_fix_high),
-                    label: const Text('Auto-Fix to 100%'),
-                  ),
+                    const SizedBox(height: AppSpacing.sm),
+                    FilledButton.icon(
+                      style: WorkspaceButtonStyles.filled(context),
+                      onPressed: () async {
+                        await categoryService.autoFixWeights(widget.classId);
+                        _showSuccess('Weights auto-balanced to 100%');
+                      },
+                      icon: const Icon(Icons.auto_fix_high),
+                      label: const Text('Auto-Fix to 100%'),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
+          const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: categoryService.categories.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.category_outlined, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        Icon(Icons.category_outlined,
+                            size: 64,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(height: AppSpacing.md),
-                        Text('No categories yet', style: context.textStyles.titleLarge),
+                        Text('No categories yet',
+                            style: context.textStyles.titleLarge),
                       ],
                     ),
                   )
@@ -229,24 +283,30 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                           margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer,
                               child: Text(
                                 '${category.weightPercent.toStringAsFixed(0)}%',
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                             title: Text(category.name),
-                            subtitle: Text(category.aggregationMethod.displayName),
+                            subtitle:
+                                Text(category.aggregationMethod.displayName),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.edit),
-                                  onPressed: () => _showEditWeightDialog(category),
+                                  onPressed: () =>
+                                      _showEditWeightDialog(category),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete),
@@ -255,19 +315,25 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                                       context: context,
                                       builder: (context) => AlertDialog(
                                         title: const Text('Delete Category'),
-                                        content: Text('Delete ${category.name}?'),
+                                        content:
+                                            Text('Delete ${category.name}?'),
                                         actions: [
-                                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context, false),
+                                              child: const Text('Cancel')),
                                           FilledButton(
-                                            onPressed: () => Navigator.pop(context, true),
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
                                             child: const Text('Delete'),
                                           ),
                                         ],
                                       ),
                                     );
-                                    
+
                                     if (confirm == true && mounted) {
-                                      await categoryService.deleteCategory(category.categoryId);
+                                      await categoryService
+                                          .deleteCategory(category.categoryId);
                                       _showSuccess('Category deleted');
                                     }
                                   },
@@ -281,11 +347,6 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                   ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddCategoryDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Category'),
       ),
     );
   }

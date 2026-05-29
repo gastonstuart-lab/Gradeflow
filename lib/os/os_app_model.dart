@@ -5,7 +5,6 @@
 /// Gradebook, Seating, Whiteboard, Export, Messages, etc. — is registered
 /// here as a first-class OS app.  The launcher, dock, and home surface all
 /// read from this registry.
-library;
 
 import 'package:flutter/material.dart';
 
@@ -24,6 +23,7 @@ class OSAppId {
   static const String exports = 'gradeflow.exports';
   static const String messages = 'gradeflow.messages';
   static const String planner = 'gradeflow.planner';
+  static const String schoolDataInbox = 'gradeflow.schoolDataInbox';
   static const String attendance = 'gradeflow.attendance';
   static const String files = 'gradeflow.files';
   static const String reports = 'gradeflow.reports';
@@ -177,8 +177,17 @@ class OSAppRegistry {
       icon: Icons.calendar_month_rounded,
       category: OSAppCategory.productivity,
       description: 'Schedule, reminders & timetable',
-      route: '/os/home',
+      route: '/os/planner',
       color: Color(0xFF58C78B),
+    ),
+    OSApp(
+      id: OSAppId.schoolDataInbox,
+      name: 'Knowledge Hub',
+      icon: Icons.move_to_inbox_rounded,
+      category: OSAppCategory.productivity,
+      description: 'Upload, Drive, and shared school data',
+      route: '/os/inbox',
+      color: Color(0xFF5EC7E6),
     ),
     OSApp(
       id: OSAppId.attendance,
@@ -246,10 +255,8 @@ class OSAppRegistry {
   /// Apps suitable for the dock (non-system, non-context-requiring).
   static List<OSApp> get dockDefaults => [
         findById(OSAppId.home)!,
+        findById(OSAppId.planner)!,
         findById(OSAppId.classes)!,
-        findById(OSAppId.whiteboard)!,
-        findById(OSAppId.messages)!,
-        findById(OSAppId.teach)!,
       ];
 
   /// Apps visible in the launcher (everything except purely internal OS apps).
