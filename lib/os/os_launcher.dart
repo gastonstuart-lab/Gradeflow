@@ -61,6 +61,7 @@ class OSLauncher extends StatelessWidget {
                 _LauncherHeader(onClose: onClose),
                 Flexible(
                   child: SingleChildScrollView(
+                    primary: false,
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

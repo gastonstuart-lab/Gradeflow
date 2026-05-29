@@ -783,6 +783,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
         content: SizedBox(
           width: 560,
           child: SingleChildScrollView(
+            primary: false,
             child: SelectableText(
               [
                 if (hint != null && hint.trim().isNotEmpty) hint.trim(),
@@ -890,6 +891,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Edit Class'),
         content: SingleChildScrollView(
+          primary: false,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1018,6 +1020,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
         builder: (context, setLocalState) => AlertDialog(
           title: const Text('Create New Class'),
           content: SingleChildScrollView(
+            primary: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

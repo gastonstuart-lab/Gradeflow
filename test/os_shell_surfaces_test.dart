@@ -32,19 +32,17 @@ void main() {
       ),
     );
 
-    expect(find.text('COMMAND CENTER'), findsOneWidget);
-    expect(find.text('PINNED APPS'), findsOneWidget);
-    expect(find.text('Today'), findsWidgets);
-    expect(find.text('Classes'), findsWidgets);
-    expect(find.text('Tasks'), findsWidgets);
-    expect(find.text('Messages'), findsWidgets);
-    expect(find.text('Knowledge Hub'), findsWidgets);
-    expect(find.text('Teacher launchpad'), findsWidgets);
-    expect(find.text('Today\'s command path'), findsOneWidget);
-    expect(find.text('DAILY SIGNALS'), findsOneWidget);
-    expect(find.text('Insights'), findsWidgets);
-    expect(find.text('Create a class to begin staging teaching tools.'),
-        findsNothing);
+    expect(find.text('Teacher command center'), findsOneWidget);
+    expect(find.text('Workspace widgets'), findsOneWidget);
+    expect(find.text('Class focus'), findsOneWidget);
+    expect(find.text('Quick tools'), findsOneWidget);
+    expect(find.text('Enter Teach Mode'), findsOneWidget);
+    expect(find.text('Ask Assistant'), findsOneWidget);
+    expect(find.text('Open Launcher'), findsOneWidget);
+    expect(find.text('No classes yet'), findsWidgets);
+    expect(find.text('Use the Classes app to create your first teaching workspace'),
+        findsWidgets);
+    expect(find.text('COMMAND CENTER'), findsNothing);
   });
 
   testWidgets('HomeSurface Ask InstructOS stays calm and scoped',
@@ -57,29 +55,28 @@ void main() {
 
     await tester.pumpWidget(
       _harness(
-        const HomeSurface(),
+        GradeFlowOSShell(
+          child: const HomeSurface(),
+        ),
       ),
     );
     await tester.pump();
 
-    await tester.tap(find.text('Ask InstructOS').first);
-    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ask Assistant').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Ask InstructOS'), findsWidgets);
-    expect(find.text('What can I help you with today?'), findsOneWidget);
-    expect(find.text('Prepare class'), findsOneWidget);
-    expect(find.text('Make quiz'), findsOneWidget);
+    expect(find.text('Ask InstructOS'), findsOneWidget);
+    expect(find.text('Draft help only'), findsOneWidget);
+    expect(find.text('Prepare today'), findsOneWidget);
     expect(find.text('Draft note'), findsOneWidget);
-    expect(find.text('Calm lesson'), findsOneWidget);
-    expect(find.textContaining('Using Home context'), findsNothing);
-    expect(find.textContaining('Context limits'), findsNothing);
-    expect(find.textContaining('Suggestions are drafts'), findsNothing);
-    expect(find.textContaining('Ready -'), findsNothing);
-    expect(find.text('Help me prepare today\'s class'), findsNothing);
-    expect(find.text('Summarise what needs attention'), findsNothing);
-    expect(find.text('Draft a progress note'), findsNothing);
-    expect(find.text('Turn this into a quick quiz'), findsNothing);
-    expect(find.text('Suggest a seating adjustment'), findsNothing);
+    expect(find.text('Quick quiz'), findsOneWidget);
+    expect(find.text('Calmer lesson'), findsOneWidget);
+    expect(find.text('Ask for teaching help...'), findsOneWidget);
+    expect(find.text('What can I help you with today?'), findsNothing);
+    expect(find.text('Prepare class'), findsNothing);
+    expect(find.text('Make quiz'), findsNothing);
+    expect(find.text('Calm lesson'), findsNothing);
   });
 
   testWidgets('PlannerSurface exposes planning upload entry points',

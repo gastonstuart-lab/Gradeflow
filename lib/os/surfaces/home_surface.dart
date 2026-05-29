@@ -57,6 +57,7 @@ class HomeSurface extends StatelessWidget {
             final now = DateTime.now();
 
             return SingleChildScrollView(
+              primary: false,
               padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -37,6 +37,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
         builder: (context, setState) => AlertDialog(
           title: const Text('Add Category'),
           content: SingleChildScrollView(
+            primary: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
