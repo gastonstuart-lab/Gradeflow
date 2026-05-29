@@ -5,16 +5,15 @@
 ///
 /// It shows all registered [OSApp] items in a grid grouped by category.
 /// Tapping an app navigates to it (or prompts for class context if needed).
+library;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/os/os_app_model.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/nav.dart';
-import 'package:gradeflow/services/class_service.dart';
 
 class OSLauncher extends StatelessWidget {
   const OSLauncher({super.key, required this.onClose});
@@ -49,7 +48,8 @@ class OSLauncher extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 640),
             decoration: BoxDecoration(
               color: OSColors.surface(dark),
-              borderRadius: isPhone ? BorderRadius.zero : OSRadius.xlBr,
+              borderRadius:
+                  isPhone ? BorderRadius.zero : OSRadius.xlBr,
               border: Border.all(
                 color: OSColors.border(dark),
                 width: 1,
@@ -70,14 +70,12 @@ class OSLauncher extends StatelessWidget {
                           const SizedBox(height: 8),
                           _AppGrid(
                             apps: entry.value,
-                            onTap: (app) {
-                              _launchApp(
-                                context,
-                                app: app,
-                                controller: controller,
-                                onClose: onClose,
-                              );
-                            },
+                            onTap: (app) => _launchApp(
+                              context,
+                              app: app,
+                              controller: controller,
+                              onClose: onClose,
+                            ),
                           ),
                           const SizedBox(height: 16),
                         ],
@@ -118,81 +116,24 @@ class OSLauncher extends StatelessWidget {
     }
   }
 
-  Future<void> _launchApp(
+  void _launchApp(
     BuildContext context, {
     required OSApp app,
     required GradeFlowOSController controller,
     required VoidCallback onClose,
-  }) async {
-    final router = GoRouter.of(context);
+  }) {
+    onClose();
     if (app.id == OSAppId.assistant) {
-      onClose();
       controller.openAssistant();
       return;
     }
-    if (app.requiresClassContext) {
-      final classService = context.read<ClassService>();
-      if (classService.activeClasses.isEmpty) {
-        onClose();
-        router.go(AppRoutes.classes);
-        return;
-      }
-      final selectedClass = await _selectClassForApp(context, app);
-      if (selectedClass == null || !context.mounted) return;
-      onClose();
-      final tool = _classToolForApp(app.id);
-      router.go(
-        tool == null
-            ? AppRoutes.osClassWorkspace(selectedClass.classId)
-            : AppRoutes.osClassTool(selectedClass.classId, tool),
-      );
-      return;
-    }
     final route = app.route;
-    onClose();
     if (route == null) {
-      router.go(AppRoutes.classes);
+      // Needs class context — go to classes list first
+      context.go(AppRoutes.classes);
       return;
     }
-    router.go(route);
-  }
-
-  String? _classToolForApp(String appId) {
-    switch (appId) {
-      case OSAppId.seating:
-        return 'seating';
-      case OSAppId.gradebook:
-        return 'gradebook';
-      case OSAppId.exports:
-      case OSAppId.reports:
-        return 'export';
-      case OSAppId.attendance:
-        return 'students';
-      case OSAppId.files:
-        return 'schedule';
-      default:
-        return null;
-    }
-  }
-
-  Future<Class?> _selectClassForApp(BuildContext context, OSApp app) async {
-    final classService = context.read<ClassService>();
-    final classes = classService.activeClasses;
-    if (classes.length == 1) return classes.first;
-
-    return showDialog<Class>(
-      context: context,
-      builder: (dialogContext) => SimpleDialog(
-        title: Text('Choose a class for ${app.name}'),
-        children: [
-          for (final classItem in classes)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(dialogContext, classItem),
-              child: Text(classItem.className),
-            ),
-        ],
-      ),
-    );
+    context.go(route);
   }
 }
 
@@ -274,8 +215,7 @@ class _AppGrid extends StatelessWidget {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children:
-          apps.map((a) => _AppTile(app: a, onTap: () => onTap(a))).toList(),
+      children: apps.map((a) => _AppTile(app: a, onTap: () => onTap(a))).toList(),
     );
   }
 }

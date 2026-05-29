@@ -1,12 +1,16 @@
-﻿/// GradeFlow OS - Design Tokens
+/// GradeFlow OS — Design Tokens
 ///
-/// Centralized colors, spacing, motion, and radius values for the OS shell
-/// layer. Surface-level screens (HomeSurface, ClassSurface, TeachSurface)
+/// Centralised colours, spacing, motion, and radius values for the OS shell
+/// layer.  Surface-level screens (HomeSurface, ClassSurface, TeachSurface)
 /// and every OS chrome component (dock, launcher, shade, assistant, idle)
-/// should use these tokens so the OS has one coherent visual identity.
+/// must use these tokens so the OS has one coherent visual identity.
 library;
 
 import 'package:flutter/material.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COLOURS
+// ─────────────────────────────────────────────────────────────────────────────
 
 class OSColors {
   OSColors._();
@@ -85,6 +89,10 @@ class OSColors {
   static Color textMuted(bool dark) => dark ? darkTextMuted : lightTextMuted;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MOTION
+// ─────────────────────────────────────────────────────────────────────────────
+
 class OSMotion {
   OSMotion._();
 
@@ -108,6 +116,10 @@ class OSMotion {
   static const Duration overlayIn = Duration(milliseconds: 320);
   static const Duration overlayOut = Duration(milliseconds: 240);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPACING
+// ─────────────────────────────────────────────────────────────────────────────
 
 class OSSpacing {
   OSSpacing._();
@@ -133,6 +145,10 @@ class OSSpacing {
   static const double widgetPad = 16.0;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RADIUS
+// ─────────────────────────────────────────────────────────────────────────────
+
 class OSRadius {
   OSRadius._();
 
@@ -151,7 +167,10 @@ class OSRadius {
   static BorderRadius get pillBr => BorderRadius.circular(pill);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
 extension OSBrightnessX on BuildContext {
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 }
-
