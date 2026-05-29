@@ -854,6 +854,8 @@ class _ClassroomMapWorkspace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showModeHelper = !presentationMode && (setupMode || !hasRoomBuilt);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -862,13 +864,13 @@ class _ClassroomMapWorkspace extends StatelessWidget {
           presentationMode: presentationMode,
         ),
         SizedBox(height: presentationMode ? 12 : 10),
-        if (!presentationMode)
+        if (showModeHelper)
           _ClassroomModeHelper(
             setupMode: setupMode,
             hasRoomBuilt: hasRoomBuilt,
             onStartSetup: onStartSetup,
           ),
-        if (!presentationMode) const SizedBox(height: 10),
+        if (showModeHelper) const SizedBox(height: 10),
         Expanded(child: child),
       ],
     );
