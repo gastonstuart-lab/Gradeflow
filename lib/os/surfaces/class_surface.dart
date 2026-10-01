@@ -39,6 +39,7 @@ class _ClassSurfaceState extends State<ClassSurface>
     _TabDef(icon: Icons.menu_book_rounded, label: 'Gradebook'),
     _TabDef(icon: Icons.description_outlined, label: 'Exams'),
     _TabDef(icon: Icons.assessment_outlined, label: 'Results'),
+    _TabDef(icon: Icons.meeting_room_rounded, label: 'Classroom'),
     _TabDef(icon: Icons.event_seat_rounded, label: 'Seating'),
     _TabDef(icon: Icons.people_rounded, label: 'Students'),
     _TabDef(icon: Icons.picture_as_pdf_rounded, label: 'Export'),
@@ -261,10 +262,20 @@ class _ClassSurfaceState extends State<ClassSurface>
                           ),
                         ),
                         _ClassToolTab(
+                          icon: Icons.meeting_room_rounded,
+                          title: 'Classroom',
+                          description:
+                              'Run the live class from the room map with a focused teacher tools drawer.',
+                          action: 'Open Classroom',
+                          onTap: () => context.go(
+                            AppRoutes.osClassroom(widget.classId),
+                          ),
+                        ),
+                        _ClassToolTab(
                           icon: Icons.event_seat_rounded,
                           title: 'Seating',
                           description:
-                              'Open the room layout, student placements, and substitute handout tools.',
+                              'Keep the existing full seating setup available while Classroom is proven.',
                           action: 'Open Seating',
                           onTap: () => context.go(
                             AppRoutes.osClassSeating(widget.classId),
