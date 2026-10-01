@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import {
-  ensureDemoSignedIn,
   ensureFlutterSemantics,
   expectDashboardShell,
 } from './helpers';
@@ -15,19 +14,33 @@ async function openValidatedHome(page: import('@playwright/test').Page) {
   await expect(demo).toBeVisible({ timeout: 60_000 });
   await demo.click();
 
-  await ensureDemoSignedIn(page);
-  await page.goto('/os/home');
+  // Wait for the real authenticated Home. Do not use the older demo helper
+  // here because its legacy button matcher can race authentication.
+  await expect(page.getByText('TEACHER HOME', { exact: true })).toBeVisible({
+    timeout: 120_000,
+  });
   await ensureFlutterSemantics(page);
 
-  await expect(page.getByText('TEACHER HOME', { exact: true })).toBeVisible({
-    timeout: 60_000,
-  });
-  await expect(page.getByText('Where do you want to go?', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Where do you want to go?', { exact: true }),
+  ).toBeVisible();
   await expectDashboardShell(page);
 }
 
-test('@home-v1 desktop Home is clear, truthful, and overflow-safe', async ({ page }) => {
-  test.setTimeout(420_000);
+async function expectNoHorizontalOverflow(page: import('@playwright/test').Page) {
+  const overflow = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    document: document.documentElement.scrollWidth,
+    body: document.body.scrollWidth,
+  }));
+
+  expect(overflow.document).toBeLessThanOrEqual(overflow.viewport + 2);
+  expect(overflow.body).toBeLessThanOrEqual(overflow.viewport + 2);
+}
+
+test('@home-v1 Home is clear at desktop and Surface-like landscape sizes', async ({ page }) => {
+  test.setTimeout(240_000);
+
   await page.setViewportSize({ width: 1440, height: 900 });
   await openValidatedHome(page);
 
@@ -44,13 +57,7 @@ test('@home-v1 desktop Home is clear, truthful, and overflow-safe', async ({ pag
   expect(body).not.toMatch(/\b42%\b/);
   expect(body).not.toContain('Next class');
 
-  const overflow = await page.evaluate(() => ({
-    viewport: window.innerWidth,
-    document: document.documentElement.scrollWidth,
-    body: document.body.scrollWidth,
-  }));
-  expect(overflow.document).toBeLessThanOrEqual(overflow.viewport + 2);
-  expect(overflow.body).toBeLessThanOrEqual(overflow.viewport + 2);
+  await expectNoHorizontalOverflow(page);
 
   await page.screenshot({
     path: 'artifacts/home-v1/home-desktop-1440x900.png',
@@ -64,32 +71,26 @@ test('@home-v1 desktop Home is clear, truthful, and overflow-safe', async ({ pag
 
   await page.goto('/os/home');
   await ensureFlutterSemantics(page);
-  await expect(page.getByText('TEACHER HOME', { exact: true })).toBeVisible();
-});
+  await expect(page.getByText('TEACHER HOME', { exact: true })).toBeVisible({
+    timeout: 60_000,
+  });
 
-test('@home-v1 Surface-like landscape Home remains usable', async ({ page }) => {
-  test.setTimeout(420_000);
   await page.setViewportSize({ width: 1180, height: 720 });
-  await openValidatedHome(page);
+  await page.waitForTimeout(400);
 
   await expect(page.getByText('TEACHER HOME', { exact: true })).toBeVisible();
   await expect(page.getByText('IED Studio', { exact: true })).toBeVisible();
   await expect(page.getByText('Science', { exact: true })).toBeVisible();
-
-  const overflow = await page.evaluate(() => ({
-    viewport: window.innerWidth,
-    document: document.documentElement.scrollWidth,
-    body: document.body.scrollWidth,
-  }));
-  expect(overflow.document).toBeLessThanOrEqual(overflow.viewport + 2);
-  expect(overflow.body).toBeLessThanOrEqual(overflow.viewport + 2);
+  await expectNoHorizontalOverflow(page);
 
   await page.screenshot({
     path: 'artifacts/home-v1/home-surface-1180x720.png',
     fullPage: true,
   });
 
-  const themeButton = page.getByRole('button', { name: /Toggle theme/i }).first();
+  const themeButton = page
+    .getByRole('button', { name: /Toggle theme/i })
+    .first();
   if (await themeButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await themeButton.click();
     await page.waitForTimeout(500);
