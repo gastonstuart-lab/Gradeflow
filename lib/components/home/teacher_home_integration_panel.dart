@@ -161,7 +161,7 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
                 ),
                 _DestinationSpec(
                   title: 'Science',
-                  subtitle: 'Courses, lessons, and teaching resources.',
+                  subtitle: 'Science Hub, shared resources, and teaching content.',
                   icon: Icons.science_rounded,
                   accent: OSColors.cyan,
                   onTap: () => _openScience(context),
