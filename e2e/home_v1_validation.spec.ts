@@ -82,8 +82,8 @@ test('@home-v1 Home is clear at desktop and Surface-like landscape sizes', async
   await page.waitForTimeout(400);
 
   await expect(page.getByText('TEACHER HOME', { exact: true })).toBeVisible();
-  await expect(page.getByText('IED Studio', { exact: true })).toBeVisible();
-  await expect(page.getByText('Science', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^IED Studio\b/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Science\b/i })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.screenshot({
