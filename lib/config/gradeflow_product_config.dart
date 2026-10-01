@@ -7,6 +7,12 @@ class GradeFlowProductConfig {
   static const String defaultAttendancePortalUrl =
       'https://fsis.hn.thu.edu.tw/csn1t/permain.asp';
 
+  // Connected systems remain separate products/backends. Home launches them
+  // explicitly rather than copying their data into InstructOS.
+  static const String iedStudioUrl = 'https://ied-hub.web.app/login';
+  static const String scienceLessonsUrl =
+      'https://ied-hub.web.app/science-lessons.html';
+
   static const String dashboardWeatherLocationName = 'Taichung City';
   static const double dashboardWeatherLatitude = 24.1469;
   static const double dashboardWeatherLongitude = 120.6839;
