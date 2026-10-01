@@ -11,7 +11,7 @@ class GradeFlowProductConfig {
   // explicitly rather than copying their data into InstructOS.
   static const String iedStudioUrl = 'https://ied-hub.web.app/admin';
   static const String scienceLessonsUrl =
-      'https://ied-hub.web.app/science-lessons.html';
+      'https://ied-hub.web.app/esl/science';
 
   static const String dashboardWeatherLocationName = 'Taichung City';
   static const double dashboardWeatherLatitude = 24.1469;
