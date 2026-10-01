@@ -733,10 +733,8 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
             unread: widget.unread,
             reminders: widget.reminders,
             reminderCount: widget.reminders.length,
-            onAudioTap: () => _openMiniApp(_HomeMiniApp.audio),
             onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
             onAgendaTap: () => _openMiniApp(_HomeMiniApp.agenda),
-            onWeatherTap: () => _openMiniApp(_HomeMiniApp.weather),
           ),
         ),
       ],
@@ -788,19 +786,15 @@ class _HomeUtilityRail extends StatelessWidget {
     required this.unread,
     required this.reminders,
     required this.reminderCount,
-    required this.onAudioTap,
     required this.onMessagesTap,
     required this.onAgendaTap,
-    required this.onWeatherTap,
   });
 
   final int unread;
   final List<TeacherWorkspaceReminderSnapshot> reminders;
   final int reminderCount;
-  final VoidCallback onAudioTap;
   final VoidCallback onMessagesTap;
   final VoidCallback onAgendaTap;
-  final VoidCallback onWeatherTap;
 
   @override
   Widget build(BuildContext context) {
@@ -861,12 +855,12 @@ class _HomeUtilityRail extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          _HomeWeatherPanel(embedded: true, onTap: onWeatherTap),
-          const SizedBox(height: 8),
-          _HomeAudioPanel(
+          _HomeAgendaPanel(
+            reminders: reminders,
+            scrollable: false,
             embedded: true,
             compact: true,
-            onTap: onAudioTap,
+            onTap: onAgendaTap,
           ),
           const SizedBox(height: 8),
           _RailSection(
@@ -875,14 +869,6 @@ class _HomeUtilityRail extends StatelessWidget {
               onTap: onMessagesTap,
               compact: true,
             ),
-          ),
-          const SizedBox(height: 8),
-          _HomeAgendaPanel(
-            reminders: reminders,
-            scrollable: false,
-            embedded: true,
-            compact: true,
-            onTap: onAgendaTap,
           ),
         ],
       ),
@@ -5722,7 +5708,7 @@ class _HomeStagePanel extends StatelessWidget {
                   Column(
                     children: [
                       _StageSpotlightTile(
-                        title: 'Next class',
+                        title: 'Teaching context',
                         icon: Icons.class_rounded,
                         accent: OSColors.green,
                         headline: primaryClass?.className ?? 'No class ready',
@@ -7687,7 +7673,7 @@ String _weatherLabel(int code) {
 
 String _stageHeadline(String teacherName, Class? primaryClass) {
   if (primaryClass != null) {
-    return 'Ready for ${primaryClass.className}';
+    return 'Teaching context · ${primaryClass.className}';
   }
   if (teacherName.isNotEmpty && teacherName != 'Teacher') {
     return 'Welcome back, $teacherName';
@@ -7710,7 +7696,7 @@ String _stageSupportLine({
     return '$unread unread conversation${unread == 1 ? '' : 's'} waiting in Messages. Keep the day moving from this quiet command center.';
   }
   if (primaryClass != null) {
-    return '${primaryClass.subject} is ready as your lead classroom. $classCount class workspace${classCount == 1 ? '' : 's'} available from $schoolName.';
+    return '${primaryClass.subject} workspace ready. $classCount active class${classCount == 1 ? '' : 'es'} available from $schoolName.';
   }
   return 'Open a class workspace or start Teach when the room is ready.';
 }
