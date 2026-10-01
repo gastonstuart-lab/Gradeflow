@@ -620,3 +620,150 @@ Required next gate:
 8. approve Home V1 before moving to the connected-destinations contract.
 
 Do not proceed to Science progress persistence, Firebase migration, IED redesign, Classroom feature work, or identity/SSO until this gate is passed.
+
+
+## 21. Teacher Home V1 validation approval — 2026-10-01
+
+Status: **HOME V1 APPROVED**
+
+Validated branch:
+- `integration/instructos-unification`
+
+Primary successful validation run:
+- GitHub Actions run `36874315912`
+- validated commit `143413b67ad707641d9cae7e29ff53e0e5d85627`
+- overall conclusion: `success`
+
+Current branch may contain later validation-workflow-only changes; no later product-code change invalidates this approval.
+
+### Proven working
+
+- full repository `flutter analyze`: PASS;
+- focused Home V1 analyze: PASS;
+- required widget tests:
+  - `test/teacher_home_integration_panel_test.dart`: PASS;
+  - `test/os_shell_surfaces_test.dart`: PASS;
+- Flutter release web build: PASS;
+- Chromium Home validation: PASS;
+- desktop 1440x900 Home: PASS;
+- Surface-like 1180x720 Home: PASS;
+- alternate light theme at Surface-like size: PASS;
+- no horizontal overflow detected;
+- Classroom route from Home: PASS;
+- live IED Studio signed-out/protected route: PASS;
+- live Science destination: PASS.
+
+### Visual approval notes
+
+The approved default Home now prioritizes:
+- teaching context;
+- reminder / attention state;
+- Classroom;
+- Planner;
+- Grades;
+- Students;
+- IED Studio;
+- Science.
+
+The previous competing surfaces are preserved but demoted behind:
+- `More Home tools`
+
+They no longer surround the default Teacher Home.
+
+Validated screenshots showed:
+- clean desktop hierarchy;
+- all six destinations visible at Surface-like landscape size;
+- readable dark and light modes;
+- bottom OS navigation preserved;
+- touch-sized controls preserved.
+
+### Data truth confirmed
+
+Home does not claim:
+- a verified next class;
+- Science completion percentage;
+- last Science slide;
+- persistent Science progress;
+- cross-project Firebase identity.
+
+No strings for:
+- `Continue last lesson`;
+- `Last opened at slide`;
+- `Next class`;
+remain in the InstructOS codebase.
+
+### External destination correction
+
+The originally configured:
+- `/science-lessons.html`
+
+was proven not to be deployed on the current live IED host.
+
+Home now uses the deployed Science Hub:
+- `https://ied-hub.web.app/esl/science`
+
+This is deliberately a safe live fallback.
+
+The private Science Lessons workspace remains present in the IED codebase but must not be presented as a live production destination until it receives an approved deployment.
+
+### IED authentication verification boundary
+
+Production signed-out behavior was runtime-tested:
+- `/admin` is reachable;
+- unauthenticated users are redirected/protected correctly.
+
+No production IED staff credential was used during this gate.
+
+The production-ready IED code was inspected and confirms:
+- `/admin` is wrapped in `ProtectedRoute`;
+- authenticated staff users proceed into `ProtectedAppShell`;
+- unauthenticated users redirect to `/login`;
+- permission failures render access denied;
+- forced password-change state redirects to `/admin/change-password`.
+
+Therefore the InstructOS destination contract is valid, while credential-level signed-in production verification remains an IED operational check rather than a Home V1 defect.
+
+### Drift check
+
+Home V1 application changes were limited to:
+- Home integration UI;
+- Home composition/simplification;
+- connected destination configuration;
+- Home tests.
+
+One out-of-scope source edit occurred during validation:
+- `lib/os/surfaces/classroom_surface.dart`
+- one unsupported icon constant was replaced with a supported Flutter icon solely to allow repository analysis to compile;
+- no Classroom behavior, persistence, data, routing, or interaction logic changed.
+
+Frozen systems remained otherwise untouched.
+
+### Preserved
+
+- Classroom behavior and seating persistence;
+- Gradebook calculations;
+- categories;
+- exams;
+- results;
+- exports;
+- Planner storage architecture;
+- student data models;
+- repository architecture;
+- Gradeflow Firebase schema;
+- IED Firebase/security rules;
+- Science curriculum/lesson content;
+- native PowerPoint/courseware.
+
+### Next milestone
+
+The next integration milestone is:
+
+**Connected Destinations Contract**
+
+Purpose:
+- replace ad-hoc cross-system links with a small explicit connection contract;
+- keep IED, Science, PowerPoint and InstructOS as separate owned systems;
+- make stable destination/resource references possible without copying data;
+- prepare later class-to-course and lesson-progress integration.
+
+Do not begin this milestone until explicitly instructed to continue.
