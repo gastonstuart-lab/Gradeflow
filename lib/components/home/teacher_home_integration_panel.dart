@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
-
-import 'package:gradeflow/config/gradeflow_product_config.dart';
+import 'package:gradeflow/integrations/connected_destinations.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_palette.dart';
@@ -152,16 +150,16 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
                   onTap: () => _openStudents(context),
                 ),
                 _DestinationSpec(
-                  title: 'IED Studio',
-                  subtitle: 'Departments, hubs, publishing, and shared content.',
+                  title: ConnectedDestinations.iedStudio.label,
+                  subtitle: ConnectedDestinations.iedStudio.description,
                   icon: Icons.hub_rounded,
                   accent: OSColors.indigo,
                   onTap: () => _openIedStudio(context),
                   external: true,
                 ),
                 _DestinationSpec(
-                  title: 'Science',
-                  subtitle: 'Science Hub, shared resources, and teaching content.',
+                  title: ConnectedDestinations.iedScienceHub.label,
+                  subtitle: ConnectedDestinations.iedScienceHub.description,
                   icon: Icons.science_rounded,
                   accent: OSColors.cyan,
                   onTap: () => _openScience(context),
@@ -241,8 +239,7 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
     }
     _launchConnectedDestination(
       context,
-      GradeFlowProductConfig.iedStudioUrl,
-      label: 'IED Studio',
+      ConnectedDestinations.iedStudio,
     );
   }
 
@@ -253,23 +250,26 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
     }
     _launchConnectedDestination(
       context,
-      GradeFlowProductConfig.scienceLessonsUrl,
-      label: 'Science',
+      ConnectedDestinations.iedScienceHub,
     );
   }
 
   Future<void> _launchConnectedDestination(
     BuildContext context,
-    String url, {
-    required String label,
-  }) async {
-    final uri = Uri.parse(url);
-    final opened = await launchUrl(uri, mode: LaunchMode.platformDefault);
-    if (!opened && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$label could not be opened.')),
-      );
+    ConnectedDestination destination,
+  ) async {
+    final result = await ConnectedDestinationLauncher().open(destination);
+    if (result == ConnectedDestinationLaunchResult.opened || !context.mounted) {
+      return;
     }
+
+    final message = result == ConnectedDestinationLaunchResult.unavailable
+        ? '${destination.label} is not available yet.'
+        : '${destination.label} could not be opened.';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 }
 
