@@ -451,3 +451,61 @@ Final principle:
 Do not start again.  
 Do not multiply systems.  
 Do not drift.
+
+
+## 18. C1 implementation checkpoint — 2026-10-01
+
+Status: **IMPLEMENTED IN BRANCH, RUNTIME VERIFICATION STILL REQUIRED**
+
+Branch:
+- `integration/instructos-unification`
+
+C1 implementation currently adds:
+- `lib/os/surfaces/classroom_surface.dart`
+- `lib/components/classroom/classroom_tools_drawer.dart`
+- `test/classroom_surface_test.dart`
+
+Existing files changed minimally:
+- `lib/nav.dart` — additive Classroom route only;
+- `lib/os/surfaces/class_surface.dart` — additive Classroom entry beside Seating;
+- `lib/components/seating/seating_designer_view.dart` — adds a default-safe `interactive` option so the new public presentation can be read-only without changing old Seating behavior.
+
+Current Classroom behavior:
+- loads the real class through `ClassService`;
+- loads the real roster through `StudentService`;
+- loads/persists the real room map through `SeatingService`;
+- uses the existing `SeatingDesignerView` and repository-backed seating engine;
+- provides a collapsible right-side drawer;
+- reflows the map when the drawer closes on normal/large widths;
+- uses an overlay drawer at narrow widths;
+- provides Today / Students / Class / Setup sections with only existing working links/data in C1;
+- hides setup controls during normal teaching;
+- enables the existing seating toolbar/student panel only in Setup Room mode;
+- keeps full reusable-room management in the old Seating screen during C1;
+- opens a separate read-only Presentation view with no private drawer or seat actions;
+- leaves the old Seating route intact as a fallback.
+
+Class workspace now exposes:
+- Classroom — new C1 surface;
+- Seating — existing full seating implementation, unchanged as a fallback.
+
+Focused tests added for:
+- drawer open/close behavior;
+- map remaining present when drawer closes;
+- setup controls hidden until Setup Room is enabled;
+- presentation hiding teacher/private controls;
+- presentation seats being read-only;
+- narrow overlay drawer dismissal.
+
+Verification limitation:
+- no Flutter SDK is available in the current execution environment;
+- no GitHub Actions run was attached to the latest branch commit at the time of this checkpoint;
+- therefore C1 must not yet be labelled approved or production-ready.
+
+Next required action:
+1. run `flutter analyze`;
+2. run `flutter test test/classroom_surface_test.dart test/full_screen_seating_test.dart test/seating_service_test.dart`;
+3. run the web app on the Surface Pro / desktop;
+4. visually compare Classroom against the approved 1 October Classroom Planner;
+5. fix only C1 defects;
+6. approve C1 before adding attendance or any later feature.
