@@ -1,17 +1,6 @@
 name: InstructOS Integration Preview
 
 on:
-  push:
-    branches:
-      - integration/instructos-unification
-    paths:
-      - 'lib/**'
-      - 'web/**'
-      - 'assets/**'
-      - 'pubspec.yaml'
-      - 'firebase.json'
-      - '.firebaserc'
-      - '.github/workflows/instructos-preview.yml'
   workflow_dispatch:
 
 permissions:
