@@ -351,7 +351,7 @@ class _ClassroomHeader extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onToggleTools,
             icon: Icon(
-              toolsOpen ? Icons.right_panel_close : Icons.tune_rounded,
+              toolsOpen ? Icons.chevron_right_rounded : Icons.tune_rounded,
               size: 18,
             ),
             label: Text(toolsOpen ? 'Hide tools' : 'Show tools'),
