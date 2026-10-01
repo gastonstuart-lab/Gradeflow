@@ -322,7 +322,7 @@ class _IntegrationHeader extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 hasClass
-                    ? 'Ready for ${className ?? 'class'}'
+                    ? 'Teaching context · ${className ?? 'class'}'
                     : 'Choose your teaching direction',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -330,6 +330,16 @@ class _IntegrationHeader extends StatelessWidget {
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
                   color: OSColors.text(dark),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                classCount == 0
+                    ? 'No active classes loaded'
+                    : '$classCount active class${classCount == 1 ? '' : 'es'}',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: OSColors.textSecondary(dark),
                 ),
               ),
             ],
