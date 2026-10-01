@@ -415,7 +415,7 @@ class _TeachingContextCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Home is not guessing a next-class time. Planner remains the source for timetable context until that link is reliable.',
+            'Check Planner for timetable and next-class timing.',
             style: TextStyle(
               fontSize: 10.5,
               height: 1.3,
@@ -643,7 +643,7 @@ class _ClassStrip extends StatelessWidget {
           Text(
             classes.isEmpty
                 ? 'No active classes are loaded.'
-                : 'Open a class workspace without pretending these are today’s classes.',
+                : 'Open any active class workspace.',
             style: TextStyle(
               fontSize: 11.5,
               color: OSColors.textSecondary(dark),
