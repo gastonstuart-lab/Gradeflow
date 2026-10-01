@@ -8,7 +8,9 @@ on:
       - 'lib/components/home/**'
       - 'lib/os/surfaces/home_surface.dart'
       - 'lib/config/gradeflow_product_config.dart'
+      - 'lib/integrations/**'
       - 'test/teacher_home_integration_panel_test.dart'
+      - 'test/connected_destinations_test.dart'
       - 'test/os_shell_surfaces_test.dart'
       - 'e2e/home_v1_validation.spec.ts'
       - '.github/workflows/home-v1-validation.yml'
@@ -52,7 +54,9 @@ jobs:
           lib/components/home/teacher_home_integration_panel.dart
           lib/os/surfaces/home_surface.dart
           lib/config/gradeflow_product_config.dart
+          lib/integrations/connected_destinations.dart
           test/teacher_home_integration_panel_test.dart
+          test/connected_destinations_test.dart
           test/os_shell_surfaces_test.dart
           --no-fatal-infos
 
