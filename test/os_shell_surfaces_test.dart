@@ -32,20 +32,21 @@ void main() {
       ),
     );
 
-    expect(find.text('COMMAND CENTER'), findsOneWidget);
-    expect(find.text('PINNED APPS'), findsOneWidget);
-    expect(find.text('Today'), findsWidgets);
-    expect(find.text('Classes'), findsWidgets);
-    expect(find.text('Tasks'), findsWidgets);
-    expect(find.text('Messages'), findsWidgets);
-    expect(find.text('Knowledge Hub'), findsWidgets);
-    expect(find.text('Teacher launchpad'), findsWidgets);
     expect(find.text('TEACHER HOME'), findsOneWidget);
     expect(find.text('Where do you want to go?'), findsOneWidget);
+    expect(find.text('Classroom'), findsOneWidget);
+    expect(find.text('Planner'), findsWidgets);
+    expect(find.text('Grades'), findsOneWidget);
+    expect(find.text('Students'), findsOneWidget);
     expect(find.text('IED Studio'), findsOneWidget);
     expect(find.text('Science'), findsOneWidget);
-    expect(find.text('DAILY SIGNALS'), findsOneWidget);
-    expect(find.text('Insights'), findsWidgets);
+    expect(find.text('More Home tools'), findsOneWidget);
+
+    // Legacy Home utilities are deliberately demoted from the default view.
+    expect(find.text('COMMAND CENTER'), findsNothing);
+    expect(find.text('PINNED APPS'), findsNothing);
+    expect(find.text('DAILY SIGNALS'), findsNothing);
+    expect(find.text('Teacher launchpad'), findsNothing);
     expect(find.text('Create a class to begin staging teaching tools.'),
         findsNothing);
   });
@@ -65,6 +66,8 @@ void main() {
     );
     await tester.pump();
 
+    await tester.tap(find.text('More Home tools'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Ask InstructOS').first);
     await tester.pumpAndSettle();
 
