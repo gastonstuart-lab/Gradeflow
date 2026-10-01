@@ -17,6 +17,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: home-v1-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate-home-v1:
     runs-on: ubuntu-latest
