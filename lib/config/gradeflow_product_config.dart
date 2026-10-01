@@ -9,7 +9,7 @@ class GradeFlowProductConfig {
 
   // Connected systems remain separate products/backends. Home launches them
   // explicitly rather than copying their data into InstructOS.
-  static const String iedStudioUrl = 'https://ied-hub.web.app/login';
+  static const String iedStudioUrl = 'https://ied-hub.web.app/admin';
   static const String scienceLessonsUrl =
       'https://ied-hub.web.app/science-lessons.html';
 
