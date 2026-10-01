@@ -482,6 +482,7 @@ class _ClassroomPresentationView extends StatelessWidget {
                     students: students,
                     autoLoad: false,
                     presentationMode: true,
+                    interactive: false,
                     editRoomMode: false,
                     showToolbar: false,
                     showStudentPanel: false,
