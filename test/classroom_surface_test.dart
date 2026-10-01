@@ -101,6 +101,10 @@ void main() {
     expect(find.text('Open student records'), findsNothing);
     expect(find.byType(InteractiveViewer), findsWidgets);
 
+    await tester.tap(find.byIcon(Icons.person).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Add note or reminder'), findsNothing);
+
     await tester.tap(find.text('Exit presentation'));
     await tester.pumpAndSettle();
 
