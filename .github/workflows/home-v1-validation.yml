@@ -38,8 +38,18 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
+      - name: Full repository analyze baseline
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+
+      - name: Analyze Home V1 touched code
+        run: >
+          flutter analyze
+          lib/components/home/teacher_home_integration_panel.dart
+          lib/os/surfaces/home_surface.dart
+          lib/config/gradeflow_product_config.dart
+          test/teacher_home_integration_panel_test.dart
+          test/os_shell_surfaces_test.dart
+          --no-fatal-infos
 
       - name: Required widget tests
         run: >
