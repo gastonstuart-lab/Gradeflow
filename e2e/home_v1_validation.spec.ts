@@ -55,7 +55,10 @@ test('@home-v1 Home is clear at desktop and Surface-like landscape sizes', async
   expect(body).not.toContain('Continue last lesson');
   expect(body).not.toContain('Last opened at slide');
   expect(body).not.toMatch(/\b42%\b/);
-  expect(body).not.toContain('Next class');\n  expect(body).not.toContain('PINNED APPS');\n  expect(body).not.toContain('DAILY SIGNALS');\n  expect(body).not.toContain('COMMAND CENTER');
+  expect(body).not.toContain('Next class');
+  expect(body).not.toContain('PINNED APPS');
+  expect(body).not.toContain('DAILY SIGNALS');
+  expect(body).not.toContain('COMMAND CENTER');
 
   await expectNoHorizontalOverflow(page);
 
