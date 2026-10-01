@@ -1,0 +1,80 @@
+name: Home V1 Validation
+
+on:
+  push:
+    branches:
+      - integration/instructos-unification
+    paths:
+      - 'lib/components/home/**'
+      - 'lib/os/surfaces/home_surface.dart'
+      - 'lib/config/gradeflow_product_config.dart'
+      - 'test/teacher_home_integration_panel_test.dart'
+      - 'test/os_shell_surfaces_test.dart'
+      - 'e2e/home_v1_validation.spec.ts'
+      - '.github/workflows/home-v1-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-home-v1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Required widget tests
+        run: >
+          flutter test
+          test/teacher_home_integration_panel_test.dart
+          test/os_shell_surfaces_test.dart
+
+      - name: Build web release
+        run: flutter build web --release
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install browser test dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Home V1 browser and live-destination checks
+        env:
+          E2E_WEB_SERVER_COMMAND: npx serve build/web -s -l 7357
+          PLAYWRIGHT_WORKERS: '1'
+        run: npx playwright test e2e/home_v1_validation.spec.ts --workers=1
+
+      - name: Upload Home V1 validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: home-v1-validation
+          path: |
+            artifacts/home-v1
+            playwright-report
+            test-results
+          if-no-files-found: warn
