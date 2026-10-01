@@ -40,7 +40,10 @@ void main() {
     expect(find.text('Messages'), findsWidgets);
     expect(find.text('Knowledge Hub'), findsWidgets);
     expect(find.text('Teacher launchpad'), findsWidgets);
-    expect(find.text('Today\'s command path'), findsOneWidget);
+    expect(find.text('TEACHER HOME'), findsOneWidget);
+    expect(find.text('Where do you want to go?'), findsOneWidget);
+    expect(find.text('IED Studio'), findsOneWidget);
+    expect(find.text('Science'), findsOneWidget);
     expect(find.text('DAILY SIGNALS'), findsOneWidget);
     expect(find.text('Insights'), findsWidgets);
     expect(find.text('Create a class to begin staging teaching tools.'),
