@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/components/home/teacher_home_integration_panel.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_app_model.dart';
@@ -692,8 +693,11 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                           switchOutCurve: Curves.easeInOut,
                           transitionBuilder: _homeFolderTransition,
                           child: _selectedMiniApp == null
-                              ? const _HomeCalmWorkspaceFloor(
-                                  key: ValueKey('workspace-closed'),
+                              ? TeacherHomeIntegrationPanel(
+                                  key: const ValueKey('workspace-closed'),
+                                  primaryClass: widget.primaryClass,
+                                  classes: widget.classes,
+                                  primaryReminder: widget.primaryReminder,
                                 )
                               : TapRegion(
                                   groupId: _miniAppTapRegionGroup,
@@ -1652,189 +1656,6 @@ class _HomeWorkspaceFolderChip extends StatelessWidget {
         minSize: const Size(126, 58),
         child: chip,
       ),
-    );
-  }
-}
-
-class _HomeCalmWorkspaceFloor extends StatelessWidget {
-  const _HomeCalmWorkspaceFloor({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < 560;
-        return SizedBox(
-          height: narrow ? 176 : 224,
-          child: Stack(
-            alignment: Alignment.topCenter,
-            children: [
-              Positioned(
-                top: 4,
-                left: narrow ? 40 : 56,
-                right: narrow ? 40 : 56,
-                child: IgnorePointer(
-                  child: Container(
-                    height: 42,
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        bottom: Radius.circular(40),
-                      ),
-                      gradient: LinearGradient(
-                        colors: [
-                          OSColors.blue.withValues(alpha: dark ? 0.12 : 0.16),
-                          Colors.white.withValues(alpha: dark ? 0.016 : 0.14),
-                          OSColors.cyan.withValues(alpha: dark ? 0.07 : 0.10),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: -12,
-                right: -12,
-                top: 24,
-                bottom: 0,
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: const Alignment(-0.20, -0.55),
-                        radius: 0.86,
-                        colors: [
-                          OSColors.blue.withValues(alpha: dark ? 0.10 : 0.13),
-                          OSColors.cyan.withValues(alpha: dark ? 0.036 : 0.060),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: narrow ? 34 : 52,
-                right: narrow ? 34 : 52,
-                top: narrow ? 58 : 72,
-                child: IgnorePointer(
-                  child: Container(
-                    height: 1,
-                    decoration: BoxDecoration(
-                      borderRadius: OSRadius.pillBr,
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          Colors.white.withValues(alpha: dark ? 0.10 : 0.34),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: narrow ? 18 : 38,
-                top: narrow ? 28 : 42,
-                child: IgnorePointer(
-                  child: Container(
-                    width: 112,
-                    height: 112,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          OSColors.indigo.withValues(alpha: dark ? 0.07 : 0.09),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: narrow ? 22 : 92,
-                left: narrow ? 22 : 96,
-                right: narrow ? 22 : 96,
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: narrow ? 12 : 18,
-                    vertical: narrow ? 11 : 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: dark
-                        ? Colors.white.withValues(alpha: 0.042)
-                        : Colors.white.withValues(alpha: 0.62),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(
-                      color: dark
-                          ? Colors.white.withValues(alpha: 0.070)
-                          : Colors.white.withValues(alpha: 0.76),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            Colors.black.withValues(alpha: dark ? 0.18 : 0.06),
-                        blurRadius: 22,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: narrow ? 30 : 34,
-                        height: narrow ? 30 : 34,
-                        decoration: BoxDecoration(
-                          color: OSColors.indigo.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        child: const Icon(
-                          Icons.route_rounded,
-                          color: OSColors.indigo,
-                          size: 18,
-                        ),
-                      ),
-                      SizedBox(width: narrow ? 9 : 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Today\'s command path',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: narrow ? 12.5 : 13,
-                                fontWeight: FontWeight.w900,
-                                color: OSColors.text(dark),
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              'Open a folder above, or jump to Classes, Planner, Knowledge Hub, or Ask InstructOS.',
-                              maxLines: narrow ? 1 : 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: narrow ? 10.5 : 11.5,
-                                height: 1.3,
-                                color: OSColors.textSecondary(dark),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }
@@ -4708,10 +4529,14 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
           switchOutCurve: Curves.easeInOut,
           transitionBuilder: _homeFolderTransition,
           child: _selectedMiniApp == null
-              ? const Padding(
-                  key: ValueKey('workspace-closed'),
-                  padding: EdgeInsets.only(top: 14),
-                  child: _HomeCalmWorkspaceFloor(),
+              ? Padding(
+                  key: const ValueKey('workspace-closed'),
+                  padding: const EdgeInsets.only(top: 14),
+                  child: TeacherHomeIntegrationPanel(
+                    primaryClass: widget.primaryClass,
+                    classes: widget.classes,
+                    primaryReminder: widget.primaryReminder,
+                  ),
                 )
               : TapRegion(
                   groupId: _miniAppTapRegionGroup,
