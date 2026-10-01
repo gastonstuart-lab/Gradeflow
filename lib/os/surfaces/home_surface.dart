@@ -564,6 +564,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
   static const String _miniAppTapRegionGroup = 'home-mini-app-desktop';
   _HomeMiniApp? _selectedMiniApp;
   Class? _selectedClassPreview;
+  bool _secondaryToolsOpen = false;
 
   void _closeMiniApp() {
     if (_selectedMiniApp != null) {
@@ -600,15 +601,26 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
     });
   }
 
+  void _toggleSecondaryTools() {
+    setState(() {
+      _secondaryToolsOpen = !_secondaryToolsOpen;
+      if (!_secondaryToolsOpen) {
+        _selectedMiniApp = null;
+        _selectedClassPreview = null;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    const sideRailWidth = 260.0;
+    const identityRailWidth = 238.0;
+    const legacyRailWidth = 238.0;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          width: sideRailWidth,
+          width: identityRailWidth,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -622,121 +634,126 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                 onThemeTap: widget.onThemeTap,
                 onWallpaperTap: widget.onWallpaperTap,
               ),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 174,
-                child: _HomeShortcutShelf(
-                  unread: widget.unread,
-                  onLauncherTap: widget.onLauncherTap,
-                  onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
-                  compact: true,
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _toggleSecondaryTools,
+                icon: Icon(
+                  _secondaryToolsOpen
+                      ? Icons.expand_less_rounded
+                      : Icons.tune_rounded,
+                ),
+                label: Text(
+                  _secondaryToolsOpen
+                      ? 'Hide Home tools'
+                      : 'More Home tools',
                 ),
               ),
-              const SizedBox(height: 14),
-              Expanded(
-                child: _HomeQuickClassesStrip(
-                  classes: widget.classes,
-                  onClassPreview: _openDesktopClassPreview,
+              if (_secondaryToolsOpen) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 170,
+                  child: _HomeShortcutShelf(
+                    unread: widget.unread,
+                    onLauncherTap: widget.onLauncherTap,
+                    onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+                    compact: true,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: _HomeQuickClassesStrip(
+                    classes: widget.classes,
+                    onClassPreview: _openDesktopClassPreview,
+                  ),
+                ),
+              ] else
+                const Spacer(),
             ],
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final stageHeight =
-                  (constraints.maxHeight * 0.18).clamp(156.0, 174.0);
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    height: stageHeight,
-                    child: _HomeStagePanel(
-                      teacherName: widget.teacherName,
-                      schoolName: widget.schoolName,
-                      primaryClass: widget.primaryClass,
-                      primaryReminder: widget.primaryReminder,
-                      classCount: widget.classes.length,
-                      totalStudents: widget.totalStudents,
-                      unread: widget.unread,
-                      reminderCount: widget.reminders.length,
-                      now: widget.now,
-                      compact: false,
-                      onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
-                      onPlannerTap: () => _openMiniApp(_HomeMiniApp.agenda),
-                      onClassesTap: () => _openMiniApp(_HomeMiniApp.classes),
-                      onInboxTap: () => context.go(AppRoutes.osInbox),
-                    ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_secondaryToolsOpen) ...[
+                SizedBox(
+                  height: 164,
+                  child: _HomeStagePanel(
+                    teacherName: widget.teacherName,
+                    schoolName: widget.schoolName,
+                    primaryClass: widget.primaryClass,
+                    primaryReminder: widget.primaryReminder,
+                    classCount: widget.classes.length,
+                    totalStudents: widget.totalStudents,
+                    unread: widget.unread,
+                    reminderCount: widget.reminders.length,
+                    now: widget.now,
+                    compact: false,
+                    onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+                    onPlannerTap: () => _openMiniApp(_HomeMiniApp.agenda),
+                    onClassesTap: () => _openMiniApp(_HomeMiniApp.classes),
+                    onInboxTap: () => context.go(AppRoutes.osInbox),
                   ),
-                  const SizedBox(height: 14),
-                  Align(
-                    alignment: Alignment.center,
-                    child: _HomeWorkspaceFolderStrip(
-                      selected: _folderForMiniApp(_selectedMiniApp),
-                      classCount: widget.classes.length,
-                      reminderCount: widget.reminders.length,
-                      unread: widget.unread,
-                      onSelected: _toggleFolder,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 980),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 240),
-                          switchInCurve: Curves.easeOutCubic,
-                          switchOutCurve: Curves.easeInOut,
-                          transitionBuilder: _homeFolderTransition,
-                          child: _selectedMiniApp == null
-                              ? TeacherHomeIntegrationPanel(
-                                  key: const ValueKey('workspace-closed'),
-                                  primaryClass: widget.primaryClass,
-                                  classes: widget.classes,
-                                  primaryReminder: widget.primaryReminder,
-                                )
-                              : TapRegion(
-                                  groupId: _miniAppTapRegionGroup,
-                                  onTapOutside: (_) => _closeMiniApp(),
-                                  child: _HomeMiniAppWindow(
-                                    key: ValueKey(_selectedMiniApp),
-                                    app: _selectedMiniApp!,
-                                    primaryClass: widget.primaryClass,
-                                    classes: widget.classes,
-                                    reminders: widget.reminders,
-                                    unread: widget.unread,
-                                    totalStudents: widget.totalStudents,
-                                    classStudentCounts:
-                                        widget.classStudentCounts,
-                                    now: widget.now,
-                                    selectedClass: _selectedClassPreview,
-                                    onClose: _closeMiniApp,
-                                  ),
-                                ),
+                ),
+                const SizedBox(height: 10),
+                _HomeWorkspaceFolderStrip(
+                  selected: _folderForMiniApp(_selectedMiniApp),
+                  classCount: widget.classes.length,
+                  reminderCount: widget.reminders.length,
+                  unread: widget.unread,
+                  onSelected: _toggleFolder,
+                ),
+                const SizedBox(height: 10),
+              ],
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 240),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInOut,
+                  transitionBuilder: _homeFolderTransition,
+                  child: _selectedMiniApp == null
+                      ? TeacherHomeIntegrationPanel(
+                          key: const ValueKey('workspace-closed'),
+                          primaryClass: widget.primaryClass,
+                          classes: widget.classes,
+                          primaryReminder: widget.primaryReminder,
+                        )
+                      : TapRegion(
+                          groupId: _miniAppTapRegionGroup,
+                          onTapOutside: (_) => _closeMiniApp(),
+                          child: _HomeMiniAppWindow(
+                            key: ValueKey(_selectedMiniApp),
+                            app: _selectedMiniApp!,
+                            primaryClass: widget.primaryClass,
+                            classes: widget.classes,
+                            reminders: widget.reminders,
+                            unread: widget.unread,
+                            totalStudents: widget.totalStudents,
+                            classStudentCounts: widget.classStudentCounts,
+                            now: widget.now,
+                            selectedClass: _selectedClassPreview,
+                            onClose: _closeMiniApp,
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 16),
-        SizedBox(
-          width: sideRailWidth,
-          child: _HomeUtilityRail(
-            unread: widget.unread,
-            reminders: widget.reminders,
-            reminderCount: widget.reminders.length,
-            onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
-            onAgendaTap: () => _openMiniApp(_HomeMiniApp.agenda),
+        if (_secondaryToolsOpen) ...[
+          const SizedBox(width: 16),
+          SizedBox(
+            width: legacyRailWidth,
+            child: _HomeUtilityRail(
+              unread: widget.unread,
+              reminders: widget.reminders,
+              reminderCount: widget.reminders.length,
+              onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+              onAgendaTap: () => _openMiniApp(_HomeMiniApp.agenda),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -4425,6 +4442,7 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
   static const String _miniAppTapRegionGroup = 'home-mini-app-stacked';
   _HomeMiniApp? _selectedMiniApp;
   Class? _selectedClassPreview;
+  bool _secondaryToolsOpen = false;
 
   void _closeMiniApp() {
     if (_selectedMiniApp != null) {
@@ -4463,6 +4481,16 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
     });
   }
 
+  void _toggleSecondaryTools() {
+    setState(() {
+      _secondaryToolsOpen = !_secondaryToolsOpen;
+      if (!_secondaryToolsOpen) {
+        _selectedMiniApp = null;
+        _selectedClassPreview = null;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final stageHeight = widget.width < 700 ? 404.0 : 448.0;
@@ -4481,84 +4509,93 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
           onThemeTap: widget.onThemeTap,
           onWallpaperTap: widget.onWallpaperTap,
         ),
-        const SizedBox(height: 18),
-        SizedBox(
-          height: stageHeight,
-          child: _HomeStagePanel(
-            teacherName: widget.teacherName,
-            schoolName: widget.schoolName,
-            primaryClass: widget.primaryClass,
-            primaryReminder: widget.primaryReminder,
-            classCount: widget.classes.length,
-            totalStudents: widget.totalStudents,
-            unread: widget.unread,
-            reminderCount: widget.reminders.length,
-            now: widget.now,
-            compact: true,
-            onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
-            onPlannerTap: () => _openMiniApp(_HomeMiniApp.agenda),
-            onClassesTap: () => _openMiniApp(_HomeMiniApp.classes),
-            onInboxTap: () => context.go(AppRoutes.osInbox),
+        const SizedBox(height: 14),
+        TeacherHomeIntegrationPanel(
+          primaryClass: widget.primaryClass,
+          classes: widget.classes,
+          primaryReminder: widget.primaryReminder,
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: _toggleSecondaryTools,
+            icon: Icon(
+              _secondaryToolsOpen
+                  ? Icons.expand_less_rounded
+                  : Icons.tune_rounded,
+            ),
+            label: Text(
+              _secondaryToolsOpen
+                  ? 'Hide Home tools'
+                  : 'More Home tools',
+            ),
           ),
         ),
-        const SizedBox(height: 14),
-        _HomeWorkspaceFolderStrip(
-          selected: _folderForMiniApp(_selectedMiniApp),
-          classCount: widget.classes.length,
-          reminderCount: widget.reminders.length,
-          unread: widget.unread,
-          onSelected: _toggleFolder,
-        ),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 240),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInOut,
-          transitionBuilder: _homeFolderTransition,
-          child: _selectedMiniApp == null
-              ? Padding(
-                  key: const ValueKey('workspace-closed'),
-                  padding: const EdgeInsets.only(top: 14),
-                  child: TeacherHomeIntegrationPanel(
-                    primaryClass: widget.primaryClass,
-                    classes: widget.classes,
-                    primaryReminder: widget.primaryReminder,
-                  ),
-                )
-              : TapRegion(
-                  groupId: _miniAppTapRegionGroup,
-                  onTapOutside: (_) => _closeMiniApp(),
-                  child: Padding(
-                    key: ValueKey(_selectedMiniApp),
-                    padding: const EdgeInsets.only(top: 14),
-                    child: _HomeMiniAppWindow(
-                      app: _selectedMiniApp!,
-                      primaryClass: widget.primaryClass,
-                      classes: widget.classes,
-                      reminders: widget.reminders,
-                      unread: widget.unread,
-                      totalStudents: widget.totalStudents,
-                      classStudentCounts: widget.classStudentCounts,
-                      now: widget.now,
-                      selectedClass: _selectedClassPreview,
-                      onClose: _closeMiniApp,
-                    ),
-                  ),
-                ),
-        ),
-        const SizedBox(height: 16),
-        _HomeShortcutShelf(
-          unread: widget.unread,
-          onLauncherTap: widget.onLauncherTap,
-          onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
-        ),
-        const SizedBox(height: 16),
-        _HomeUtilityRail(
-          unread: widget.unread,
-          reminders: widget.reminders,
-          reminderCount: widget.reminders.length,
-          onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
-          onAgendaTap: () => _openMiniApp(_HomeMiniApp.agenda),
-        ),
+        if (_secondaryToolsOpen) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            height: stageHeight,
+            child: _HomeStagePanel(
+              teacherName: widget.teacherName,
+              schoolName: widget.schoolName,
+              primaryClass: widget.primaryClass,
+              primaryReminder: widget.primaryReminder,
+              classCount: widget.classes.length,
+              totalStudents: widget.totalStudents,
+              unread: widget.unread,
+              reminderCount: widget.reminders.length,
+              now: widget.now,
+              compact: true,
+              onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+              onPlannerTap: () => _openMiniApp(_HomeMiniApp.agenda),
+              onClassesTap: () => _openMiniApp(_HomeMiniApp.classes),
+              onInboxTap: () => context.go(AppRoutes.osInbox),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _HomeWorkspaceFolderStrip(
+            selected: _folderForMiniApp(_selectedMiniApp),
+            classCount: widget.classes.length,
+            reminderCount: widget.reminders.length,
+            unread: widget.unread,
+            onSelected: _toggleFolder,
+          ),
+          if (_selectedMiniApp != null) ...[
+            const SizedBox(height: 14),
+            TapRegion(
+              groupId: _miniAppTapRegionGroup,
+              onTapOutside: (_) => _closeMiniApp(),
+              child: _HomeMiniAppWindow(
+                key: ValueKey(_selectedMiniApp),
+                app: _selectedMiniApp!,
+                primaryClass: widget.primaryClass,
+                classes: widget.classes,
+                reminders: widget.reminders,
+                unread: widget.unread,
+                totalStudents: widget.totalStudents,
+                classStudentCounts: widget.classStudentCounts,
+                now: widget.now,
+                selectedClass: _selectedClassPreview,
+                onClose: _closeMiniApp,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          _HomeShortcutShelf(
+            unread: widget.unread,
+            onLauncherTap: widget.onLauncherTap,
+            onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+          ),
+          const SizedBox(height: 16),
+          _HomeUtilityRail(
+            unread: widget.unread,
+            reminders: widget.reminders,
+            reminderCount: widget.reminders.length,
+            onMessagesTap: () => _openMiniApp(_HomeMiniApp.messages),
+            onAgendaTap: () => _openMiniApp(_HomeMiniApp.agenda),
+          ),
+        ],
         const SizedBox(height: 112),
       ],
     );
