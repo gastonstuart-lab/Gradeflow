@@ -50,6 +50,7 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
           _IntegrationHeader(
             hasClass: classItem != null,
             className: classItem?.className,
+            classCount: classes.length,
           ),
           const SizedBox(height: 14),
           LayoutBuilder(
@@ -181,8 +182,6 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 16),
-          _ClassStrip(classes: classes),
         ],
       ),
     );
@@ -278,10 +277,12 @@ class _IntegrationHeader extends StatelessWidget {
   const _IntegrationHeader({
     required this.hasClass,
     required this.className,
+    required this.classCount,
   });
 
   final bool hasClass;
   final String? className;
+  final int classCount;
 
   @override
   Widget build(BuildContext context) {
@@ -606,72 +607,6 @@ class _DestinationCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ClassStrip extends StatelessWidget {
-  const _ClassStrip({required this.classes});
-
-  final List<Class> classes;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final visible = classes.take(4).toList();
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: OSColors.panelSurface(dark).withValues(alpha: 0.68),
-        borderRadius: OSRadius.lgBr,
-        border: Border.all(color: OSColors.panelBorder(dark)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Classes',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              color: OSColors.text(dark),
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            classes.isEmpty
-                ? 'No active classes are loaded.'
-                : 'Open any active class workspace.',
-            style: TextStyle(
-              fontSize: 11.5,
-              color: OSColors.textSecondary(dark),
-            ),
-          ),
-          if (visible.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final item in visible)
-                  ActionChip(
-                    avatar: const Icon(Icons.class_outlined, size: 16),
-                    label: Text(item.className),
-                    onPressed: () =>
-                        context.go(AppRoutes.osClassWorkspace(item.classId)),
-                  ),
-                if (classes.length > visible.length)
-                  ActionChip(
-                    avatar: const Icon(Icons.more_horiz_rounded, size: 16),
-                    label: Text('${classes.length - visible.length} more'),
-                    onPressed: () => context.go(AppRoutes.classes),
-                  ),
-              ],
-            ),
-          ],
-        ],
       ),
     );
   }
