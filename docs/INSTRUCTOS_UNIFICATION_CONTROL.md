@@ -767,3 +767,243 @@ Purpose:
 - prepare later class-to-course and lesson-progress integration.
 
 Do not begin this milestone until explicitly instructed to continue.
+
+
+## 22. Connected Destinations Contract — 2026-10-01
+
+Status: **APPROVED**
+
+Branch:
+- `integration/instructos-unification`
+
+Primary validation run:
+- GitHub Actions run `36876311163`
+- validated commit `4ded33e2e7d5c7ebdb6614b4e9fc4f3b9f96f096`
+- overall job conclusion: `success`
+
+### Purpose
+
+Replace ad-hoc cross-system URL coupling with one small typed reference contract.
+
+The contract does not merge applications, Firebase projects, identities, or content stores.
+
+Implementation:
+- added `lib/integrations/connected_destinations.dart`;
+- Home now resolves IED/Science through the registry;
+- `GradeFlowProductConfig` no longer owns IED/Science URLs;
+- external launching is handled through `ConnectedDestinationLauncher`;
+- launcher failures are converted to safe result states instead of throwing through Home;
+- unavailable destinations cannot be launched.
+
+### Canonical destination identities
+
+#### `ied-studio`
+Owner:
+- IED
+
+Production URL:
+- `https://ied-hub.web.app/admin`
+
+Status:
+- production
+
+Authentication:
+- expected / protected by IED
+
+Purpose:
+- department/hub publishing and IED Studio administration.
+
+#### `ied-science-hub`
+Owner:
+- IED
+
+Production URL:
+- `https://ied-hub.web.app/esl/science`
+
+Status:
+- production
+
+Authentication:
+- public destination
+
+Purpose:
+- current deployed Science Hub and shared Science content.
+
+#### `science-lessons`
+Owner:
+- Science teacher/courseware layer
+
+Production URL:
+- none
+
+Status:
+- deferred / not deployed
+
+Purpose:
+- reserved stable identity for the private Science Lessons teacher workspace that already exists in the IED codebase.
+
+Rule:
+- it must not appear as a normal production Home destination until an approved deployment exists.
+
+### Launch contract
+
+`ConnectedDestinationLauncher` returns:
+- `opened`
+- `unavailable`
+- `invalid`
+- `failed`
+
+Rules:
+- deferred destinations are rejected before any browser launch;
+- invalid/non-http(s) destinations are rejected;
+- browser launch failures do not throw through the teacher UI;
+- Home remains in InstructOS and shows a small error message when a live external destination cannot open.
+
+### Security boundary
+
+Production destination URLs:
+- contain no class ID;
+- contain no student ID;
+- contain no teacher ID;
+- contain no grade data;
+- contain no private query payload.
+
+This milestone:
+- did not merge Firebase projects;
+- did not create cross-project writes;
+- did not assume shared Firebase UIDs;
+- did not transmit private InstructOS academic data to IED.
+
+### Resource-reference audit
+
+Existing systems already have useful resource identities:
+
+InstructOS:
+- class schedule items preserve a generic `Link` detail;
+- existing Drive integrations remain separate.
+
+Science:
+- stable lesson ID;
+- unit ID;
+- `LessonResource.id`;
+- resource type;
+- format;
+- href;
+- Drive file ID;
+- source ID;
+- teacher-only flag;
+- `LessonSourceReference`.
+
+IED:
+- `ContentItem.id`;
+- section ID;
+- link URL;
+- content/resource type;
+- publication state.
+
+PowerPoint:
+- protected artifact/file identity and authority remain in the native PowerPoint system.
+
+Decision:
+- **do not create a new generic InstructOS resource-reference model yet**.
+
+Reason:
+- there is no current consumer requiring a fourth representation;
+- adding one now would duplicate existing Science/IED resource metadata without solving a live workflow.
+
+Future rule:
+- when class/course/lesson integration needs a resource reference, create the smallest reference-only adapter using stable IDs/locators;
+- never copy resource bodies into InstructOS.
+
+### Naming cleanup
+
+Removed misleading production coupling:
+- `GradeFlowProductConfig.iedStudioUrl`
+- `GradeFlowProductConfig.scienceLessonsUrl`
+
+Home now uses:
+- `ConnectedDestinations.iedStudio`
+- `ConnectedDestinations.iedScienceHub`
+
+The live Science Hub is no longer represented internally as “Science Lessons.”
+
+### Validation
+
+PASS:
+- full repository analyze baseline;
+- focused touched-code analyze;
+- `test/connected_destinations_test.dart`;
+- `test/teacher_home_integration_panel_test.dart`;
+- `test/os_shell_surfaces_test.dart`;
+- release web build;
+- Chromium Home regression;
+- desktop Home;
+- Surface-like Home;
+- live IED Studio protected-route check;
+- live deployed Science Hub check.
+
+Contract tests prove:
+- approved production URLs;
+- stable destination IDs;
+- owner identities;
+- deferred `science-lessons` has no production URL;
+- deferred destination cannot launch;
+- invalid URL cannot launch;
+- failed browser launch is reported safely;
+- launch exceptions are contained;
+- production destination URLs contain no private class/student/grade context.
+
+### Drift check
+
+Changes in this milestone were limited to:
+- destination contract;
+- Home connection wiring only;
+- removal of duplicate URL config;
+- focused tests;
+- validation workflow.
+
+No Home visual redesign occurred.
+
+### Preserved
+
+Untouched:
+- approved Home composition;
+- Classroom behavior;
+- seating persistence;
+- Planner behavior/storage;
+- Gradebook calculations;
+- categories;
+- exams;
+- results;
+- exports;
+- student models;
+- Firebase schemas;
+- IED Firebase/security;
+- IED public design;
+- Science curriculum content;
+- PowerPoint/courseware.
+
+### Next decision
+
+The Integration Blueprint previously suggested:
+- Science Class Mapping + Real Lesson Progress.
+
+That is now **one step too early**.
+
+Reason:
+- the private Science Lessons teacher workspace exists in source;
+- it has stable lesson/resource identities;
+- but it is not deployed on the production IED host;
+- current Home Science therefore correctly opens the public Science Hub.
+
+Next milestone:
+- **Science Teacher Workspace Production Readiness**
+
+Goal:
+- establish one approved, secure, deployable teacher Science workspace destination first;
+- preserve IED security/auth;
+- reconcile the relevant Science branch with the production-ready IED platform;
+- validate the teacher workspace route;
+- only after that create InstructOS class → Science course/lesson mapping and durable progress.
+
+Do not begin that milestone until explicitly instructed to continue.
