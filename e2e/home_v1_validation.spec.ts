@@ -132,7 +132,7 @@ test('@home-v1 live Science destination resolves through deployed IED Science Hu
     { waitUntil: 'domcontentloaded' },
   );
 
-  expect(response, 'Science Lessons should return a document response').not.toBeNull();
+  expect(response, 'Science Hub should return a document response').not.toBeNull();
   expect(response!.status()).toBeLessThan(400);
 
   await page.waitForTimeout(2_500);
