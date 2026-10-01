@@ -30,6 +30,7 @@ import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/surfaces/home_surface.dart';
 import 'package:gradeflow/os/surfaces/planner_surface.dart';
 import 'package:gradeflow/os/surfaces/class_surface.dart';
+import 'package:gradeflow/os/surfaces/classroom_surface.dart';
 import 'package:gradeflow/os/surfaces/teach_surface.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 
@@ -186,6 +187,19 @@ class AppRouter {
             surface: OSSurface.classWorkspace,
             classId: classId,
             child: GradebookScreen(classId: classId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '${AppRoutes.osClass}/:classId/classroom',
+        name: 'osClassroom',
+        pageBuilder: (context, state) {
+          final classId = state.pathParameters['classId']!;
+          return _osPage(
+            state,
+            surface: OSSurface.classWorkspace,
+            classId: classId,
+            child: ClassroomSurface(classId: classId),
           );
         },
       ),
@@ -440,6 +454,8 @@ class AppRoutes {
       '$osClass/$classId/students/trash';
   static String osClassGradebook(String classId) =>
       osClassTool(classId, 'gradebook');
+  static String osClassroom(String classId) =>
+      osClassTool(classId, 'classroom');
   static String osClassSeating(String classId) =>
       osClassTool(classId, 'seating');
   static String osClassCategories(String classId) =>
