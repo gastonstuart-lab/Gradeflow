@@ -509,3 +509,26 @@ Next required action:
 4. visually compare Classroom against the approved 1 October Classroom Planner;
 5. fix only C1 defects;
 6. approve C1 before adding attendance or any later feature.
+
+
+## 19. Whole-system integration blueprint — 2026-10-01
+
+Authoritative whole-system audit:
+- `docs/INSTRUCTOS_INTEGRATION_BLUEPRINT.md`
+
+This blueprint maps:
+- InstructOS / GradeFlow;
+- IED public and IED Studio;
+- Science lesson/courseware web system;
+- native PowerPoint authority;
+- Classroom;
+- Firebase/auth boundaries;
+- identity/data contracts;
+- duplication/retirement candidates;
+- shared teacher UX language;
+- recommended implementation sequence.
+
+Current next milestone:
+- **Teacher Home Integration — Vertical Slice 1**
+
+Do not begin that milestone until explicitly instructed to continue.
