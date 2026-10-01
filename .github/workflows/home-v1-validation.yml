@@ -63,6 +63,7 @@ jobs:
       - name: Required widget tests
         run: >
           flutter test
+          test/connected_destinations_test.dart
           test/teacher_home_integration_panel_test.dart
           test/os_shell_surfaces_test.dart
 
