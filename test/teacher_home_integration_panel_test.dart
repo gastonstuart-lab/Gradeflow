@@ -13,7 +13,7 @@ void main() {
     return Class(
       classId: 'j2-science',
       className: 'J2 Science',
-      subject: 'Science',
+      subject: 'General Science',
       schoolYear: '2026-2027',
       term: 'Fall',
       teacherId: 'teacher-1',
@@ -88,18 +88,21 @@ void main() {
 
     router.go('/test-home');
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Planner'));
     await tester.tap(find.text('Planner'));
     await tester.pumpAndSettle();
     expect(find.text('PLANNER ROUTE'), findsOneWidget);
 
     router.go('/test-home');
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Grades'));
     await tester.tap(find.text('Grades'));
     await tester.pumpAndSettle();
     expect(find.text('GRADES ROUTE'), findsOneWidget);
 
     router.go('/test-home');
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Students'));
     await tester.tap(find.text('Students'));
     await tester.pumpAndSettle();
     expect(find.text('STUDENTS ROUTE'), findsOneWidget);
