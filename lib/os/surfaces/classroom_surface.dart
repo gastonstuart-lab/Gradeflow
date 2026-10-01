@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/classroom/classroom_tools_drawer.dart';
 import 'package:gradeflow/components/seating/seating_designer_view.dart';
+import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/services/auth_service.dart';
@@ -374,7 +376,7 @@ class _ClassroomMapPanel extends StatelessWidget {
   });
 
   final String classId;
-  final List<dynamic> students;
+  final List<Student> students;
   final bool setupMode;
 
   @override
@@ -391,14 +393,14 @@ class _ClassroomMapPanel extends StatelessWidget {
       ),
       child: SeatingDesignerView(
         classId: classId,
-        students: students.cast(),
+        students: students,
         autoLoad: false,
         editRoomMode: setupMode,
         showToolbar: setupMode,
         showStudentPanel: setupMode,
         showFullScreenButton: false,
         showUseHint: setupMode,
-        webMode: true,
+        webMode: kIsWeb,
       ),
     );
   }
@@ -485,7 +487,7 @@ class _ClassroomPresentationView extends StatelessWidget {
                     showStudentPanel: false,
                     showFullScreenButton: false,
                     showUseHint: false,
-                    webMode: true,
+                    webMode: kIsWeb,
                   ),
                 ),
               ),
