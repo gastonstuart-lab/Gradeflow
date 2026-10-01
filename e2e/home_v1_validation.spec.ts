@@ -55,7 +55,7 @@ test('@home-v1 Home is clear at desktop and Surface-like landscape sizes', async
   expect(body).not.toContain('Continue last lesson');
   expect(body).not.toContain('Last opened at slide');
   expect(body).not.toMatch(/\b42%\b/);
-  expect(body).not.toContain('Next class');
+  expect(body).not.toContain('Next class');\n  expect(body).not.toContain('PINNED APPS');\n  expect(body).not.toContain('DAILY SIGNALS');\n  expect(body).not.toContain('COMMAND CENTER');
 
   await expectNoHorizontalOverflow(page);
 
@@ -125,10 +125,10 @@ test('@home-v1 live IED Studio signed-out route is reachable and protected', asy
   });
 });
 
-test('@home-v1 live Science Lessons destination resolves', async ({ page }) => {
+test('@home-v1 live Science destination resolves through deployed IED Science Hub', async ({ page }) => {
   test.setTimeout(120_000);
   const response = await page.goto(
-    'https://ied-hub.web.app/science-lessons.html',
+    'https://ied-hub.web.app/esl/science',
     { waitUntil: 'domcontentloaded' },
   );
 
