@@ -14,6 +14,7 @@ class SeatingDesignerView extends StatefulWidget {
   final List<Student> students;
   final bool autoLoad;
   final bool presentationMode;
+  final bool interactive;
   final bool editRoomMode;
   final bool showToolbar;
   final bool showStudentPanel;
@@ -31,6 +32,7 @@ class SeatingDesignerView extends StatefulWidget {
     required this.students,
     this.autoLoad = true,
     this.presentationMode = false,
+    this.interactive = true,
     this.editRoomMode = false,
     this.showToolbar = true,
     this.showStudentPanel = true,
@@ -263,7 +265,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
           layout: active,
           studentsById: studentsById,
           designMode: widget.editRoomMode || _designMode,
-          interactive: true,
+          interactive: widget.interactive,
           presentationMode: widget.presentationMode,
           onMoveTable: (tableId, delta) =>
               service.moveTable(widget.classId, tableId, delta.dx, delta.dy),
