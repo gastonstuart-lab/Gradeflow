@@ -77,7 +77,7 @@ jobs:
         env:
           E2E_WEB_SERVER_COMMAND: npx serve build/web -s -l 7357
           PLAYWRIGHT_WORKERS: '1'
-        run: npx playwright test e2e/home_v1_validation.spec.ts --workers=1
+        run: npx playwright test e2e/home_v1_validation.spec.ts --workers=1 --retries=0
 
       - name: Upload Home V1 validation artifacts
         if: always()
