@@ -532,3 +532,91 @@ Current next milestone:
 - **Teacher Home Integration — Vertical Slice 1**
 
 Do not begin that milestone until explicitly instructed to continue.
+
+
+## 20. Teacher Home Integration — Vertical Slice 1 — 2026-10-01
+
+Status: **IMPLEMENTED IN BRANCH, RUNTIME / VISUAL VALIDATION REQUIRED**
+
+Branch:
+- `integration/instructos-unification`
+
+Purpose:
+- make the existing InstructOS Home the clean front door into systems already built;
+- do not create another dashboard or another backend.
+
+Implementation:
+- added `lib/components/home/teacher_home_integration_panel.dart`;
+- kept the existing `HomeSurface` and replaced only its default empty/calm floor;
+- desktop and stacked Home layouts both use the same integration panel;
+- configured connected IED Studio and Science destinations in `GradeFlowProductConfig`;
+- added focused Teacher Home route tests;
+- updated the existing OS Home regression test.
+
+Teacher Home now exposes:
+- real current teaching context from the existing active class data;
+- Classroom;
+- Planner;
+- Grades;
+- Students;
+- IED Studio;
+- Science;
+- existing pending reminder signal.
+
+Data-safety corrections made during self-review:
+- removed unsupported `Next class` wording because Home does not yet have a trustworthy timetable-derived next-class resolver;
+- changed the language to `Teaching context`;
+- no Science progress percentage / last-slide / continue state is displayed;
+- persistent Science progress remains deferred;
+- IED and Science remain separate connected systems;
+- no cross-Firebase writes or identity assumptions were added.
+
+Home simplification:
+- the former default decorative/calm floor was retired;
+- weather/audio were removed from the permanent priority utility rail;
+- Planner reminders and Messages remain the persistent daily signals;
+- duplicate class-chip listing was removed from the new integration panel;
+- existing secondary mini-app code remains preserved.
+
+Connected destinations:
+- IED Studio: `https://ied-hub.web.app/admin`
+- Science Lessons: `https://ied-hub.web.app/science-lessons.html`
+
+Preserved and untouched:
+- Classroom internals;
+- Gradebook calculations;
+- exams;
+- results;
+- export;
+- Planner internals;
+- student data models;
+- repository/Firebase architecture;
+- IED Firestore/security;
+- Science lesson data;
+- PowerPoint/courseware.
+
+Verification completed in this environment:
+- Git diff/scope audit;
+- route/helper review;
+- source-level delimiter/syntax-shape checks;
+- confirmed no fake Science progress strings in the new panel;
+- confirmed old `_HomeCalmWorkspaceFloor` is no longer referenced;
+- confirmed desktop and stacked Home both mount the same integration panel.
+
+Verification limitation:
+- Flutter SDK is not installed in the current execution environment;
+- Dart SDK is not installed;
+- no GitHub Actions workflow run is available for this branch checkpoint;
+- therefore `flutter analyze`, widget tests, browser render QA, and Surface Pro visual QA have not been executed here.
+
+Required next gate:
+1. run `flutter analyze`;
+2. run `flutter test test/teacher_home_integration_panel_test.dart test/os_shell_surfaces_test.dart`;
+3. run the web app;
+4. inspect Home at desktop and Surface Pro widths;
+5. verify Classroom / Planner / Grades / Students routes;
+6. verify IED Studio and Science links;
+7. fix only Home V1 defects;
+8. approve Home V1 before moving to the connected-destinations contract.
+
+Do not proceed to Science progress persistence, Firebase migration, IED redesign, Classroom feature work, or identity/SSO until this gate is passed.
