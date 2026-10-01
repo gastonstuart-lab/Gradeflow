@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:gradeflow/components/home/teacher_home_integration_panel.dart';
+import 'package:gradeflow/integrations/connected_destinations.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/theme.dart';
@@ -140,8 +141,8 @@ void main() {
 
     expect(find.text('TEACHER HOME'), findsOneWidget);
     expect(find.text('J2 Science'), findsWidgets);
-    expect(find.text('IED Studio'), findsOneWidget);
-    expect(find.text('Science'), findsOneWidget);
+    expect(find.text(ConnectedDestinations.iedStudio.label), findsOneWidget);
+    expect(find.text(ConnectedDestinations.iedScienceHub.label), findsOneWidget);
 
     expect(find.textContaining('42%'), findsNothing);
     expect(find.textContaining('Continue last lesson'), findsNothing);
