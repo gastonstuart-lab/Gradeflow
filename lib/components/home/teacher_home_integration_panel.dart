@@ -76,7 +76,7 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
               }
 
               return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(flex: 3, child: teaching),
                   const SizedBox(width: 12),
@@ -396,7 +396,6 @@ class _TeachingContextCard extends StatelessWidget {
               color: OSColors.textSecondary(dark),
             ),
           ),
-          const Spacer(),
           const SizedBox(height: 14),
           Wrap(
             spacing: 8,
@@ -494,7 +493,6 @@ class _ReminderCard extends StatelessWidget {
               color: OSColors.textSecondary(dark),
             ),
           ),
-          const Spacer(),
           const SizedBox(height: 12),
           TextButton.icon(
             onPressed: onOpenPlanner,
