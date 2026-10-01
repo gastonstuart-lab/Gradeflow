@@ -1,0 +1,61 @@
+name: InstructOS Integration Preview
+
+on:
+  push:
+    branches:
+      - integration/instructos-unification
+    paths:
+      - 'lib/**'
+      - 'web/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'firebase.json'
+      - '.firebaserc'
+      - '.github/workflows/instructos-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: instructos-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.10'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+
+      - name: Build InstructOS web preview
+        run: flutter build web --release
+
+      - name: Deploy Firebase preview channel
+        id: firebase_preview
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          projectId: gradeflow-20260113
+          channelId: instructos-unification
+          expires: 30d
+
+      - name: Print preview URL
+        run: |
+          echo "Preview URL: ${{ steps.firebase_preview.outputs.details_url }}"
+          echo "All URLs: ${{ steps.firebase_preview.outputs.urls }}"
