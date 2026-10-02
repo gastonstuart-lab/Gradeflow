@@ -9,6 +9,8 @@ on:
       - 'web/**'
       - 'assets/**'
       - 'review-hub/**'
+      - 'test/os_app_registry_test.dart'
+      - 'test/classroom_surface_test.dart'
       - 'pubspec.yaml'
       - '.github/workflows/instructos-pages-preview.yml'
   workflow_dispatch:
