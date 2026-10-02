@@ -1039,3 +1039,109 @@ Next decision:
 - Stuart reviews the capability map by teacher job.
 - only after that review should the product hierarchy and Shell/Home simplification be defined.
 - do not begin shell redesign automatically.
+
+
+## 24. Teacher-job review and shell hierarchy — 2026-10-02
+
+Status: **DECISION LOCKED — SHELL SIMPLIFICATION MAY PROCEED IN SMALL SLICES**
+
+The capability inventory was reviewed by teacher job rather than by code ownership.
+
+### Canonical teacher jobs
+
+1. **Start / continue the day** — Home
+   - teaching context;
+   - reminders / attention;
+   - compact communication signal;
+   - direct launch into the current working area.
+
+2. **Plan** — Planner
+   - teacher-wide reminders, timetable, calendar import;
+   - class-specific schedules remain attached to class context until a later durable lesson-history model exists.
+
+3. **Teach** — Classroom inside a selected class
+   - Classroom is the canonical live-teaching surface;
+   - seating/map is the primary composition;
+   - useful tools from Teach Surface and the legacy Teacher Dashboard are migration sources, not separate future destinations.
+
+4. **Manage / review a class** — Classes / Class workspace
+   - roster;
+   - schedule;
+   - Classroom;
+   - students;
+   - assessment;
+   - results;
+   - export.
+
+5. **Assess** — class context
+   - Gradebook, categories, exams, results and export stay mature, protected subsystems;
+   - they are not global top-level apps.
+
+6. **Review a student** — Student Profile from class/student context
+   - no new duplicate student identity is introduced.
+
+7. **Publish / share school content** — connected IED / Science systems
+   - IED Studio, public hubs, Science web and native PowerPoint keep their existing ownership boundaries;
+   - InstructOS connects to them rather than absorbing them.
+
+8. **Utilities / operations** — secondary tools
+   - Messages;
+   - School Data Inbox / Knowledge Hub;
+   - Whiteboard;
+   - Ask InstructOS;
+   - Connected/admin entry while its final placement remains under review.
+
+### Global navigation decision
+
+Keep the existing dock hierarchy:
+- Home;
+- Planner;
+- Classes;
+- All Apps.
+
+Do not redesign the approved Home during this slice.
+
+The global launcher is now a curated list of standalone/cross-class tools only:
+- Classes;
+- Planner;
+- Whiteboard;
+- Messages;
+- Knowledge Hub / School Data Inbox;
+- Assistant;
+- Connected.
+
+The following remain registered and reachable through contextual workflows, but are no longer advertised as competing top-level apps:
+- Teach;
+- Seating;
+- Gradebook;
+- Export;
+- Attendance;
+- Files;
+- Reports.
+
+Reason:
+- Gradebook/Seating/Export/etc. require class context and already belong in the class workspace;
+- Attendance does not yet have a canonical modern service;
+- Files/Reports currently map onto other class tools rather than independent mature destinations;
+- Teach is a legacy live-teaching environment whose useful capabilities must be merged into Classroom before retirement.
+
+### Preservation rule
+
+This is visibility simplification, not feature retirement.
+
+No routes, services, data models, repositories, grading logic, Classroom behavior, Planner behavior, IED behavior, Science content, Firebase schema, or PowerPoint authority are deleted or rewritten by this decision.
+
+Legacy surfaces remain available until parity is proven.
+
+### Shell Simplification S1
+
+First implementation slice:
+- curate the global launcher only;
+- add a regression test proving class-context apps remain registered but are not globally promoted;
+- make no Home visual redesign;
+- make no dock redesign;
+- make no route deletion.
+
+Next gate after S1 validation:
+- inspect the remaining Home secondary/legacy navigation surfaces and remove only duplicated presentation, not capability;
+- then begin controlled migration of live-teaching utilities into Classroom.
