@@ -1007,3 +1007,35 @@ Goal:
 - only after that create InstructOS class → Science course/lesson mapping and durable progress.
 
 Do not begin that milestone until explicitly instructed to continue.
+
+
+## 23. Whole-System Capability Inventory — 2026-10-02
+
+Status: **COMPLETED — REVIEW REQUIRED BEFORE SHELL SIMPLIFICATION**
+
+Supporting inventory:
+- `docs/INSTRUCTOS_CAPABILITY_INVENTORY.md`
+
+Purpose:
+- reconstruct the capabilities already built across InstructOS / GradeFlow, Classroom, Planner, IED, Science web, and native Science PowerPoint;
+- identify duplicate implementations and hidden/forgotten capabilities;
+- classify capabilities provisionally as KEEP / MERGE / MOVE / DUPLICATE / RETIRE CANDIDATE / UNCERTAIN;
+- prevent useful functionality from being lost during visual simplification.
+
+Key finding:
+- the system is primarily suffering from **overlap and competing presentation layers**, not from a lack of functionality.
+- current Home visibly combines several generations of navigation/dashboard concepts.
+- Classroom, Teach Surface, and the legacy Teacher Dashboard each contain meaningful live-teaching capabilities.
+- Planner, dashboard timetable/reminders, class schedules, and class notes overlap but are not identical.
+- IED production security/admin, bilingual lifecycle work, and Science courseware remain separate subsystem authority streams.
+- Science web presentation has multiple generations; native PowerPoint remains an independent authority.
+- Ask InstructOS is a real callable/server implementation, but a small grounding branch remains diverged and requires later review.
+
+No-change rule:
+- this milestone changed documentation only;
+- no application behavior, routes, Firebase data, IED behavior, Science content, Classroom behavior, Planner behavior, grade logic, or PowerPoint artifacts were modified.
+
+Next decision:
+- Stuart reviews the capability map by teacher job.
+- only after that review should the product hierarchy and Shell/Home simplification be defined.
+- do not begin shell redesign automatically.
