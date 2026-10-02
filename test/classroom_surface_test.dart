@@ -77,6 +77,30 @@ void main() {
     expect(find.textContaining('Setup Room'), findsWidgets);
   });
 
+  testWidgets('random student reuses the existing seating picker',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final services = await _buildServices('classroom-random');
+    await tester.pumpWidget(_harness(services, 'classroom-random'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Random student'), findsOneWidget);
+
+    await tester.tap(find.text('Random student'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pick a student'), findsOneWidget);
+    expect(find.text('Alex Student'), findsOneWidget);
+    expect(find.text('Seat 1'), findsOneWidget);
+    expect(find.text('Avoid repeats'), findsOneWidget);
+  });
+
   testWidgets('presentation hides private classroom drawer and setup controls',
       (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
@@ -99,6 +123,7 @@ void main() {
     expect(find.text('Classroom tools'), findsNothing);
     expect(find.text('Setup room'), findsNothing);
     expect(find.text('Open student records'), findsNothing);
+    expect(find.text('Random student'), findsNothing);
     expect(find.byType(InteractiveViewer), findsWidgets);
 
     await tester.tap(find.byIcon(Icons.person).first);
