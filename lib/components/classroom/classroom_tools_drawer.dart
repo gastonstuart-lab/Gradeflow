@@ -18,6 +18,7 @@ class ClassroomToolsDrawer extends StatefulWidget {
     required this.setupMode,
     required this.onClose,
     required this.onSetupModeChanged,
+    required this.onPickStudent,
     required this.onOpenStudents,
     required this.onOpenGradebook,
     required this.onOpenSchedule,
@@ -32,6 +33,7 @@ class ClassroomToolsDrawer extends StatefulWidget {
   final bool setupMode;
   final VoidCallback onClose;
   final ValueChanged<bool> onSetupModeChanged;
+  final VoidCallback onPickStudent;
   final VoidCallback onOpenStudents;
   final VoidCallback onOpenGradebook;
   final VoidCallback onOpenSchedule;
@@ -94,6 +96,7 @@ class _ClassroomToolsDrawerState extends State<ClassroomToolsDrawer> {
           placedSeatCount: widget.placedSeatCount,
           seatCount: widget.seatCount,
           tableCount: widget.tableCount,
+          onPickStudent: widget.onPickStudent,
         );
       case ClassroomToolsSection.students:
         return _StudentsSection(
@@ -219,12 +222,14 @@ class _TodaySection extends StatelessWidget {
     required this.placedSeatCount,
     required this.seatCount,
     required this.tableCount,
+    required this.onPickStudent,
   });
 
   final int studentCount;
   final int placedSeatCount;
   final int seatCount;
   final int tableCount;
+  final VoidCallback onPickStudent;
 
   @override
   Widget build(BuildContext context) {
@@ -249,6 +254,12 @@ class _TodaySection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
+        _ActionButton(
+          icon: Icons.casino_rounded,
+          label: 'Random student',
+          onPressed: onPickStudent,
+        ),
+        const SizedBox(height: 8),
         _InfoCard(
           icon: Icons.event_seat_outlined,
           title: '$seatCount seats in the active room',
