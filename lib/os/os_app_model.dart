@@ -259,9 +259,22 @@ class OSAppRegistry {
         findById(OSAppId.classes)!,
       ];
 
-  /// Apps visible in the launcher (everything except purely internal OS apps).
-  static List<OSApp> get launcherApps =>
-      all.where((a) => a.id != OSAppId.home).toList();
+  /// Standalone, cross-class tools exposed in the global launcher.
+  ///
+  /// Class-context workflows such as Classroom/Seating, Gradebook, Export,
+  /// Attendance, Files, and Reports remain registered but are intentionally
+  /// reached from Home or the selected class workspace instead of competing
+  /// as top-level apps. The legacy Teach surface also remains registered while
+  /// its useful tools are migrated into Classroom.
+  static List<OSApp> get launcherApps => [
+        findById(OSAppId.classes)!,
+        findById(OSAppId.planner)!,
+        findById(OSAppId.whiteboard)!,
+        findById(OSAppId.messages)!,
+        findById(OSAppId.schoolDataInbox)!,
+        findById(OSAppId.assistant)!,
+        findById(OSAppId.connected)!,
+      ];
 
   /// Apps safe to show inside TeachSurface.
   static List<OSApp> get teachModeApps =>
