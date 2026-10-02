@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Classroom Seating Planner</title>
+<style>
+:root{
+  --bg:#eef3f7;--panel:#ffffff;--ink:#16202a;--muted:#667085;--line:#d7dee6;
+  --navy:#123b5d;--navy2:#1d4f73;--accent:#f2b632;--accent-soft:#fff5d7;
+  --blue-soft:#eaf4ff;--seat:#f9fbfd;--seat-border:#aebdca;--danger:#b42318;
+  --success:#247a46;--success-soft:#eaf7ef;--late:#a56508;--late-soft:#fff1d6;
+  --shadow:0 10px 28px rgba(16,24,40,.08)
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:none;border-radius:9px;padding:9px 12px;font-weight:750}
+button:disabled{opacity:.45;cursor:not-allowed}
+#app{min-height:100vh;display:flex;flex-direction:column}
+header{background:var(--navy);color:#fff;padding:11px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);z-index:5;min-height:66px}
+.brand{font-weight:900;font-size:19px;white-space:nowrap}
+.class-picker{display:flex;align-items:center;gap:7px;min-width:260px}
+.class-picker label{font-size:12px;font-weight:800;opacity:.75;text-transform:uppercase;letter-spacing:.08em}
+header select{min-width:180px;border:0;border-radius:9px;padding:9px 10px;background:#fff;color:#152331;font-weight:700}
+.header-actions{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.btn-primary{background:var(--accent);color:#17202a}.btn-ghost{background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.2)}.btn-soft{background:#edf2f6;color:#22384b}.btn-danger{background:#fee8e7;color:var(--danger)}
+main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;padding:14px;flex:1;min-height:0;transition:grid-template-columns .24s ease,gap .24s ease}
+body.sidebar-closed main{grid-template-columns:minmax(0,1fr) 0;gap:0}
+#roomWrap{background:#fff;border-radius:16px;box-shadow:var(--shadow);position:relative;overflow:auto;min-height:calc(100vh - 94px)}
+#room{width:100%;min-width:0;min-height:720px;padding:20px 20px 34px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:38px clamp(14px,2.2vw,34px);align-content:start}
+.room-head{grid-column:1/-1;text-align:center;margin-bottom:0}.room-class{font-size:29px;font-weight:950;color:var(--navy)}.room-front{font-size:13px;font-weight:900;letter-spacing:3px;color:#7890a4;padding:9px 0 12px;border-bottom:3px solid #d9e3eb}.room-meta{margin-top:7px;font-size:12px;color:#7d8b99;font-weight:700}
+.table-card{display:flex;flex-direction:column;align-items:center;min-width:0;min-height:220px}.table-layout{width:100%;min-width:0;display:grid;grid-template-columns:clamp(44px,5.2vw,64px) minmax(0,1fr) clamp(44px,5.2vw,64px);grid-template-rows:auto auto;grid-template-areas:'left desk right' '. bottom .';justify-items:center;align-items:center;row-gap:14px}.layout-bottom3{grid-template-areas:'. desk .' '. bottom .'}.layout-left3{grid-template-areas:'left desk .' '. bottom .'}.layout-right3{grid-template-areas:'. desk right' '. bottom .'}
+.table-top{grid-area:desk;width:100%;max-width:230px;min-width:0;min-height:104px;background:#f8fafc;border:3px solid #8fa8bf;border-radius:19px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(16,24,40,.05);padding:8px}.table-title{font-size:clamp(29px,2.5vw,35px);font-weight:950;color:var(--navy);line-height:1}.seat-circle{width:clamp(52px,4.4vw,62px);height:clamp(52px,4.4vw,62px);border-radius:50%;background:var(--seat);border:2px dashed var(--seat-border);display:flex;align-items:center;justify-content:center;padding:2px;transition:.14s;position:relative}.seat-circle.drag-over{border-color:var(--success);background:var(--success-soft);transform:scale(1.05)}.side-left{grid-area:left}.side-right{grid-area:right}.bottom-row{grid-area:bottom;display:flex;gap:clamp(6px,1vw,13px);justify-content:center;min-width:0}
+.student{width:100%;height:100%;border-radius:50%;background:#dceeff;border:2px solid #78a7d1;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:850;font-size:12px;line-height:1.05;padding:5px;user-select:none;touch-action:none;box-shadow:0 2px 6px rgba(16,24,40,.09);overflow:hidden;position:relative}.student:hover{filter:brightness(.98)}.student.dragging{opacity:.45}.student.absent{background:#f0f1f3;border-color:#c8cdd2;color:#8d959d;filter:grayscale(.65);opacity:.68}.student.late{background:var(--late-soft);border-color:#dda74f}.student.chosen{animation:winnerPulse .7s ease-in-out 0s 5 alternate;box-shadow:0 0 0 7px rgba(242,182,50,.32),0 0 30px rgba(242,182,50,.8);z-index:2}
+@keyframes winnerPulse{from{transform:scale(1)}to{transform:scale(1.16)}}
+.seat-lock-badge{position:absolute;right:14px;top:14px;background:#fff;border:1px solid #d8e0e7;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:850;color:#52616f;box-shadow:0 4px 12px rgba(16,24,40,.08)}
+#unseatZone{display:none;position:sticky;bottom:12px;margin:0 auto 12px;width:min(420px,80%);padding:12px;border:2px dashed #d2a24c;background:#fff7e7;border-radius:12px;text-align:center;font-weight:800;color:#82550d;z-index:3}#unseatZone.drag-over{background:#ffedbc;border-color:#a86a00}#unseatZone.show{display:block}
+.table-card>.row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:9px}.table-card>.row button{font-size:11px;padding:6px 8px;background:#eef3f7;color:#355065}
+aside{width:360px;background:#f7f9fb;border-radius:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:calc(100vh - 94px);overflow:hidden;border:1px solid #e4e9ee;transition:width .24s ease,opacity .18s ease,transform .24s ease,border-width .18s ease;transform-origin:right center}
+body.sidebar-closed aside{width:0;opacity:0;transform:translateX(18px);pointer-events:none;border-width:0}.side-head{background:#fff;padding:14px 14px 10px;border-bottom:1px solid #e7ebef}.side-head h2{font-size:17px;margin:0}.side-head p{margin:4px 0 0;font-size:12px;color:var(--muted)}
+.side-tabs{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-bottom:1px solid #e7ebef;padding:0 8px}.side-tab{background:transparent;color:#667687;padding:11px 4px 9px;border-radius:0;border-bottom:3px solid transparent;font-size:12px}.side-tab.active{color:var(--navy);border-bottom-color:var(--accent)}
+.side-body{padding:12px;overflow:auto;flex:1}.side-pane{display:none}.side-pane.active{display:block}.card{background:#fff;border:1px solid #e4e9ee;border-radius:13px;padding:12px;margin-bottom:11px}.card h3{font-size:14px;margin:0 0 8px}.card p{font-size:12px;color:var(--muted);line-height:1.4;margin:5px 0}.label{display:block;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#687785;margin:9px 0 5px}.field-row{display:flex;gap:7px;align-items:center}.field-row>*{flex:1}.full{width:100%}
+textarea,input[type=text],input[type=date],select.side-select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:#fff;color:var(--ink)}textarea{resize:vertical;line-height:1.35}.small-area{height:88px}.roster-area{height:170px}.toolbar-row{display:flex;gap:7px;flex-wrap:wrap}.toolbar-row button{background:#edf2f6;color:#274154}.toolbar-row .btn-danger{background:#fee8e7;color:var(--danger)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:10px}.stat{background:#fff;border:1px solid #e3e8ed;border-radius:12px;padding:9px;text-align:center}.stat strong{display:block;font-size:22px;color:var(--navy)}.stat span{font-size:10px;color:#72808c;text-transform:uppercase;font-weight:800;letter-spacing:.04em}
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.quick-grid button{min-height:46px;background:#eef3f7;color:#274154}.quick-grid button.primary-mini{background:var(--accent-soft);color:#644700;border:1px solid #f1d77c}.quick-grid button.active-toggle{background:#e3f3eb;color:#155b34;border:1px solid #b4dfc8}
+.attendance-list{display:flex;flex-direction:column;gap:7px;max-height:370px;overflow:auto}.attendance-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px;border:1px solid #e5e9ed;border-radius:10px;background:#fff}.attendance-name{font-weight:800;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.status-group{display:flex;gap:3px}.status-btn{padding:5px 7px;border-radius:7px;font-size:10px;background:#edf1f4;color:#536371}.status-btn.present.on{background:var(--success-soft);color:var(--success)}.status-btn.absent.on{background:#fee8e7;color:var(--danger)}.status-btn.late.on{background:var(--late-soft);color:var(--late)}
+.student-pool{background:#fff8e8;border:2px dashed #e7b35f;border-radius:11px;padding:9px;display:flex;flex-wrap:wrap;gap:7px;min-height:54px}.student-pool.drag-over{background:#fff0c7}.student-pool .student{width:auto;height:auto;min-width:104px;min-height:38px;border-radius:10px;font-size:13px;padding:8px 10px}
+.disclosure{border:1px solid #e3e8ed;border-radius:11px;background:#fff;margin-bottom:10px}.disclosure summary{cursor:pointer;padding:11px 12px;font-weight:850;font-size:13px;color:#314a5d}.disclosure-content{padding:0 12px 12px}
+.log-list{display:flex;flex-direction:column;gap:7px;max-height:245px;overflow:auto;margin-top:9px}.log-item{border:1px solid #e4e7ec;border-radius:9px;padding:8px;background:#fafafa}.log-date{font-size:10px;font-weight:900;color:#667085}.log-text{font-size:12px;margin-top:3px;white-space:pre-wrap}.log-del{float:right;background:transparent;color:var(--danger);padding:0 3px;font-size:12px}
+.note-preview{white-space:pre-wrap;font-size:12px;line-height:1.4;color:#40505f;background:#fafcfd;border:1px solid #e7ebef;border-radius:9px;padding:9px;min-height:46px}
+.save-note{font-size:11px;color:#7b8793;margin-top:6px}
+#pickerOverlay{position:fixed;inset:0;background:radial-gradient(circle at center,#183e5a 0,#071521 72%);z-index:70;display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff;padding:20px;text-align:center}#pickerOverlay.show{display:flex}.picker-label{font-size:16px;letter-spacing:4px;text-transform:uppercase;opacity:.65}.picker-name{font-size:clamp(52px,8vw,120px);font-weight:950;line-height:.95;margin:20px 0;max-width:90vw}.picker-sub{font-size:18px;opacity:.8}.picker-actions{display:flex;gap:8px;margin-top:28px}.picker-actions button{background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.28)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.36);display:flex;align-items:center;justify-content:center;z-index:80}.modal{width:min(540px,92vw);background:#fff;border-radius:16px;padding:18px;box-shadow:0 24px 55px rgba(0,0,0,.28)}.modal h3{margin:0 0 10px}.modal label{display:block;font-size:12px;font-weight:800;margin:10px 0 5px}.modal input,.modal textarea,.modal select{width:100%;border:1px solid var(--line);padding:9px;border-radius:8px}.modal .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+body.present header,body.present aside{display:none!important}body.present main{display:block;padding:0}body.present #roomWrap{height:100vh;min-height:100vh;border-radius:0;box-shadow:none;background:linear-gradient(180deg,#f9fcff,#eef5fa);overflow:auto}body.present #room{min-height:100vh;min-width:100%;padding:22px 42px 38px;gap:42px 50px;align-content:center}body.present .room-class{font-size:44px}body.present .room-front{font-size:16px;border-bottom:4px solid #c3d3df}body.present .room-meta{font-size:13px}body.present .table-top{width:min(280px,100%);min-height:128px;border-width:4px;background:#fff;box-shadow:0 10px 22px rgba(18,59,93,.07)}body.present .table-title{font-size:48px}body.present .seat-circle{width:86px;height:86px;border-style:solid;border-width:2px;background:#fff}body.present .student{font-size:18px;border-width:3px;box-shadow:0 4px 12px rgba(16,24,40,.10)}body.present .table-card>.row,body.present #unseatZone,body.present .seat-lock-badge{display:none!important}
+#presentExit{display:none;position:fixed;right:14px;bottom:14px;z-index:60;background:var(--navy);color:#fff;opacity:.22}body.present #presentExit{display:block}#presentExit:hover{opacity:1}
+.hidden{display:none!important}
+@media(max-width:1180px){#room{grid-template-columns:repeat(3,minmax(220px,1fr));overflow-x:auto}.student{font-size:11px}}@media(max-width:900px){main{grid-template-columns:minmax(0,1fr)!important;gap:0}aside{position:fixed;z-index:20;right:10px;top:80px;bottom:10px;width:min(380px,calc(100vw - 20px));min-height:0;transform:translateX(0)}body.sidebar-closed aside{width:min(380px,calc(100vw - 20px));transform:translateX(calc(100% + 24px));opacity:0}#room{min-width:760px}.side-body{max-height:none}}@media(max-width:700px){header{align-items:flex-start}.brand{width:100%}.class-picker{min-width:0;flex:1}.header-actions{width:100%;justify-content:flex-start}.side-tabs{position:sticky;top:0;z-index:2}.stats{grid-template-columns:1fr 1fr 1fr}}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="brand">Classroom Planner</div>
+  <div class="class-picker"><label>Class</label><select id="classSelect"></select></div>
+  <div class="header-actions">
+    <button id="pickStudent" class="btn-ghost">Pick Student</button>
+    <button id="lockSeats" class="btn-ghost">Lock Seats</button>
+    <button id="toggleSidebar" class="btn-ghost" aria-expanded="true">Hide Tools</button>
+    <button id="present" class="btn-primary">Present</button>
+  </div>
+</header>
+<main>
+  <section id="roomWrap">
+    <div id="lockBadge" class="seat-lock-badge hidden">Seats locked</div>
+    <div id="room"></div>
+    <div id="unseatZone">Drop here to remove a student from a seat</div>
+  </section>
+  <aside>
+    <div class="side-head"><h2 id="sideClassName">My Class</h2><p id="sideDate"></p></div>
+    <div class="side-tabs">
+      <button class="side-tab active" data-pane="today">Today</button>
+      <button class="side-tab" data-pane="students">Students</button>
+      <button class="side-tab" data-pane="class">Class</button>
+      <button class="side-tab" data-pane="setup">Setup</button>
+    </div>
+    <div class="side-body">
+      <section id="pane-today" class="side-pane active">
+        <div class="stats">
+          <div class="stat"><strong id="statSeated">0</strong><span>Seated</span></div>
+          <div class="stat"><strong id="statAbsent">0</strong><span>Absent</span></div>
+          <div class="stat"><strong id="statLate">0</strong><span>Late</span></div>
+        </div>
+        <div class="card">
+          <h3>Quick actions</h3>
+          <div class="quick-grid">
+            <button id="todayPick" class="primary-mini">Pick Student</button>
+            <button id="pickTable">Pick Table</button>
+            <button id="todayAttendance">Attendance</button>
+            <button id="todayLock">Lock Seats</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Today's lesson</h3>
+          <textarea id="todayLesson" class="small-area" placeholder="What are we doing today? Reminders, page numbers, homework..."></textarea>
+          <div class="save-note">Saved automatically for this class and date.</div>
+        </div>
+        <div class="card">
+          <h3>Quick class note</h3>
+          <textarea id="quickClassNote" class="small-area" placeholder="Something to remember after this lesson..."></textarea>
+          <div class="toolbar-row"><button id="saveQuickLog">Add to dated log</button></div>
+        </div>
+      </section>
+
+      <section id="pane-students" class="side-pane">
+        <div class="card" id="attendanceCard">
+          <h3>Attendance</h3>
+          <p>Attendance is stored by date. Absent students are excluded from random selection.</p>
+          <div class="field-row"><input type="date" id="attendanceDate"><button id="markAllPresent" class="btn-soft">All present</button></div>
+          <div id="attendanceList" class="attendance-list" style="margin-top:9px"></div>
+        </div>
+        <div class="card">
+          <h3>Student notes</h3>
+          <label class="label">Student</label><select id="studentNoteSelect" class="side-select"></select>
+          <textarea id="studentNotes" class="small-area" placeholder="Private notes for this student..." style="margin-top:8px"></textarea>
+          <div class="save-note">Saved automatically.</div>
+        </div>
+        <details class="disclosure" id="poolDisclosure"><summary id="poolSummary">Unseated students</summary><div class="disclosure-content"><div id="pool" class="student-pool"></div></div></details>
+      </section>
+
+      <section id="pane-class" class="side-pane">
+        <div class="card">
+          <h3>Class notes</h3>
+          <textarea id="classNotes" class="small-area" placeholder="General reminders, seating issues, strengths, things to revisit..."></textarea>
+          <div class="save-note">Saved automatically.</div>
+        </div>
+        <div class="card">
+          <h3>Lesson planner / dated log</h3>
+          <div class="field-row"><input type="date" id="logDate"><button id="useToday">Today</button></div>
+          <textarea id="logText" class="small-area" placeholder="Plan a future lesson or record what happened..." style="margin-top:8px"></textarea>
+          <div class="toolbar-row"><button id="addLog">Save entry</button></div>
+          <div id="logList" class="log-list"></div>
+        </div>
+      </section>
+
+      <section id="pane-setup" class="side-pane">
+        <details class="disclosure" open><summary>Class roster</summary><div class="disclosure-content">
+          <p>One student per line. You only need this when the roster changes.</p>
+          <textarea id="studentNames" class="roster-area" placeholder="Amy Chen&#10;Brian Wu&#10;Chloe Lin"></textarea>
+          <div class="toolbar-row"><button id="updateNames">Update roster</button><button id="sortNames">A–Z</button></div>
+        </div></details>
+        <details class="disclosure"><summary>Seating tools</summary><div class="disclosure-content">
+          <div class="toolbar-row"><button id="randomize">Random seating</button><button id="resetSeats">Clear seats</button><button id="addTable">Add table</button></div>
+          <p>Use each table's Shape button to switch between 3 bottom seats, left-side + 3, or right-side + 3.</p>
+        </div></details>
+        <details class="disclosure"><summary>Class management</summary><div class="disclosure-content">
+          <div class="toolbar-row"><button id="addClass">Add class</button><button id="renameClass">Rename</button><button id="deleteClass" class="btn-danger">Delete</button></div>
+        </div></details>
+        <details class="disclosure"><summary>Backup & restore</summary><div class="disclosure-content">
+          <p>Your data saves in this browser. Export a backup occasionally, especially after setting up your classes.</p>
+          <div class="toolbar-row"><button id="exportData">Export backup</button><button id="importData">Import backup</button><input id="importFile" type="file" accept="application/json,.json" class="hidden"></div>
+        </div></details>
+      </section>
+    </div>
+  </aside>
+</main>
+<button id="presentExit">Exit presentation</button>
+</div>
+
+<div id="pickerOverlay">
+  <div class="picker-label" id="pickerLabel">Random Student</div>
+  <div class="picker-name" id="pickerName">Ready?</div>
+  <div class="picker-sub" id="pickerSub"></div>
+  <div class="picker-actions"><button id="pickerAgain">Pick again</button><button id="pickerClose">Close</button></div>
+</div>
+<div id="modalHost"></div>
+<script>
+const KEY='classroomSeatingPlanner_v2';
+const UI_KEY='classroomSeatingPlanner_sidebarOpen';
+const TODAY=()=>new Date().toISOString().slice(0,10);
+let sidebarOpen=localStorage.getItem(UI_KEY)!=='false';
+function makeTable(id,name,layout){return {id,name,layout,seats:Array(layout==='bottom3'?3:4).fill(null)}}
+function defaultTables(){return [makeTable('t1','1','left3'),makeTable('t2','2','bottom3'),makeTable('t3','3','right3'),makeTable('t4','4','bottom3'),makeTable('t5','5','bottom3'),makeTable('t6','6','bottom3')]}
+const defaultState={currentClassId:'class1',classes:{class1:{name:'My Class',students:[],tables:defaultTables(),classNotes:'',studentNotes:{},logs:[],attendance:{},dailyLessons:{},locked:false}}};
+let state=load(),dragName=null,lastWinner=null,lastTableWinner=null,pickTimer=null;
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function uid(p){return p+Math.random().toString(36).slice(2,9)}
+function ensureTable(t,i){const layouts=['left3','bottom3','right3','bottom3','bottom3','bottom3'];if(!t.layout)t.layout=layouts[i]||'bottom3';if(!t.name)t.name=String(i+1);if(!Array.isArray(t.seats))t.seats=[];const need=t.layout==='bottom3'?3:4;while(t.seats.length<need)t.seats.push(null);if(t.seats.length>need)t.seats=t.seats.slice(0,need);return t}
+function ensureClass(c){if(!Array.isArray(c.students))c.students=[];if(!Array.isArray(c.tables)||!c.tables.length)c.tables=defaultTables();if(typeof c.classNotes!=='string')c.classNotes='';if(!c.studentNotes)c.studentNotes={};if(!Array.isArray(c.logs))c.logs=[];if(!c.attendance)c.attendance={};if(!c.dailyLessons)c.dailyLessons={};if(typeof c.locked!=='boolean')c.locked=false}
+function migrate(s){if(!s||!s.classes)return clone(defaultState);Object.values(s.classes).forEach(c=>{ensureClass(c);c.tables=c.tables.map((t,i)=>ensureTable(t,i))});if(!s.currentClassId||!s.classes[s.currentClassId])s.currentClassId=Object.keys(s.classes)[0];return s}
+function load(){try{const raw=localStorage.getItem(KEY);return raw?migrate(JSON.parse(raw)):clone(defaultState)}catch(e){return clone(defaultState)}}
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function cur(){return state.classes[state.currentClassId]}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function statusFor(name,date=attendanceDate()){return ((cur().attendance||{})[date]||{})[name]||'present'}
+function attendanceDate(){return document.getElementById('attendanceDate').value||TODAY()}
+function seatedNames(){const a=[];cur().tables.forEach(t=>t.seats.forEach(n=>{if(n)a.push(n)}));return [...new Set(a)]}
+function unseatedNames(){const s=new Set(seatedNames());return cur().students.filter(n=>!s.has(n))}
+function setPane(name){document.querySelectorAll('.side-tab').forEach(b=>b.classList.toggle('active',b.dataset.pane===name));document.querySelectorAll('.side-pane').forEach(p=>p.classList.toggle('active',p.id==='pane-'+name));if(!sidebarOpen){sidebarOpen=true;applySidebar()}}
+function applySidebar(){document.body.classList.toggle('sidebar-closed',!sidebarOpen);const b=document.getElementById('toggleSidebar');if(b){b.textContent=sidebarOpen?'Hide Tools':'Show Tools';b.setAttribute('aria-expanded',String(sidebarOpen))}localStorage.setItem(UI_KEY,String(sidebarOpen))}
+function toggleSidebar(){sidebarOpen=!sidebarOpen;applySidebar()}
+function render(){ensureClass(cur());renderClassSelect();renderRoom();renderPool();renderStudentNotes();renderAttendance();renderLogs();renderDashboard();document.getElementById('studentNames').value=cur().students.join('\n');document.getElementById('classNotes').value=cur().classNotes||'';document.getElementById('todayLesson').value=(cur().dailyLessons||{})[TODAY()]||'';document.getElementById('sideClassName').textContent=cur().name;document.getElementById('sideDate').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'short',day:'numeric'});syncLockButtons();save()}
+function renderClassSelect(){const s=document.getElementById('classSelect');s.innerHTML='';Object.entries(state.classes).forEach(([id,c])=>{const o=document.createElement('option');o.value=id;o.textContent=c.name;o.selected=id===state.currentClassId;s.appendChild(o)})}
+function renderDashboard(){const date=attendanceDate();const statuses=(cur().attendance||{})[date]||{};document.getElementById('statSeated').textContent=seatedNames().length;document.getElementById('statAbsent').textContent=cur().students.filter(n=>(statuses[n]||'present')==='absent').length;document.getElementById('statLate').textContent=cur().students.filter(n=>(statuses[n]||'present')==='late').length}
+function studentEl(name){const d=document.createElement('div');d.className='student';d.textContent=name;d.dataset.name=name;const st=statusFor(name,TODAY());if(st==='absent')d.classList.add('absent');if(st==='late')d.classList.add('late');d.draggable=!cur().locked;d.title=cur().locked?'Seats are locked':'Drag to move. Click for student notes.';d.onclick=e=>{if(e.detail===1){document.getElementById('studentNoteSelect').value=name;loadStudentNote();setPane('students')}};
+ if(!cur().locked){d.addEventListener('dragstart',e=>{dragName=name;d.classList.add('dragging');e.dataTransfer.setData('text/plain',name);document.getElementById('unseatZone').classList.add('show')});d.addEventListener('dragend',()=>{dragName=null;d.classList.remove('dragging');document.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over'));document.getElementById('unseatZone').classList.remove('show')});let ghost=null,lastTarget=null;d.addEventListener('touchstart',e=>{dragName=name;ghost=d.cloneNode(true);ghost.style.position='fixed';ghost.style.pointerEvents='none';ghost.style.zIndex='999';ghost.style.width=d.getBoundingClientRect().width+'px';ghost.style.height=d.getBoundingClientRect().height+'px';ghost.style.opacity='.85';document.body.appendChild(ghost);move(e.touches[0]);document.getElementById('unseatZone').classList.add('show')},{passive:true});d.addEventListener('touchmove',e=>{if(!ghost)return;e.preventDefault();move(e.touches[0]);const el=document.elementFromPoint(e.touches[0].clientX,e.touches[0].clientY),t=el&&el.closest('.seat-circle,#pool,#unseatZone');if(lastTarget&&lastTarget!==t)lastTarget.classList.remove('drag-over');if(t){t.classList.add('drag-over');lastTarget=t}},{passive:false});d.addEventListener('touchend',()=>{if(ghost){ghost.remove();ghost=null}if(lastTarget){lastTarget.classList.remove('drag-over');handleDrop(lastTarget,name);lastTarget=null}dragName=null;document.getElementById('unseatZone').classList.remove('show')});function move(t){ghost.style.left=t.clientX+10+'px';ghost.style.top=t.clientY+10+'px'}}return d}
+function seatEl(tableId,index,name,cls=''){const s=document.createElement('div');s.className='seat-circle '+cls;s.dataset.table=tableId;s.dataset.seat=index;if(!cur().locked)setupDrop(s);if(name)s.appendChild(studentEl(name));return s}
+function renderRoom(){const r=document.getElementById('room');r.innerHTML='';const head=document.createElement('div');head.className='room-head';const att=cur().students.length?`${cur().students.length} students`:'Add students in Setup';head.innerHTML=`<div class="room-class">${esc(cur().name)}</div><div class="room-front">FRONT OF CLASS</div><div class="room-meta">${esc(att)}</div>`;r.appendChild(head);cur().tables.forEach((t,i)=>{ensureTable(t,i);const c=document.createElement('div');c.className='table-card';const l=document.createElement('div');l.className='table-layout layout-'+t.layout;const top=document.createElement('div');top.className='table-top';const h=document.createElement('div');h.className='table-title';h.textContent=t.name;h.ondblclick=()=>{if(!cur().locked)promptRenameTable(t.id)};top.appendChild(h);if(t.layout==='left3')l.appendChild(seatEl(t.id,0,t.seats[0],'side-left'));if(t.layout==='right3')l.appendChild(seatEl(t.id,3,t.seats[3],'side-right'));l.appendChild(top);const b=document.createElement('div');b.className='bottom-row';const idx=t.layout==='left3'?[1,2,3]:[0,1,2];idx.forEach(x=>b.appendChild(seatEl(t.id,x,t.seats[x])));l.appendChild(b);c.appendChild(l);const controls=document.createElement('div');controls.className='row';controls.innerHTML='<button data-a="shape">Shape</button><button data-a="rename">Rename</button><button data-a="delete">Delete</button>';controls.querySelector('[data-a="shape"]').onclick=()=>cycleLayout(t.id);controls.querySelector('[data-a="rename"]').onclick=()=>promptRenameTable(t.id);controls.querySelector('[data-a="delete"]').onclick=()=>{if(confirm(`Delete table ${t.name}?`)){cur().tables=cur().tables.filter(x=>x.id!==t.id);render()}};if(cur().locked)controls.classList.add('hidden');c.appendChild(controls);r.appendChild(c)});document.getElementById('lockBadge').classList.toggle('hidden',!cur().locked)}
+function renderPool(){const p=document.getElementById('pool');p.innerHTML='';if(!cur().locked)setupDrop(p);const u=unseatedNames();document.getElementById('poolSummary').textContent=`Unseated students (${u.length})`;u.forEach(n=>p.appendChild(studentEl(n)));if(!u.length)p.innerHTML='<span style="font-size:12px;color:#7c8791">Everyone is seated.</span>'}
+function setupDrop(el){el.ondragover=e=>{e.preventDefault();el.classList.add('drag-over')};el.ondragleave=()=>el.classList.remove('drag-over');el.ondrop=e=>{e.preventDefault();el.classList.remove('drag-over');handleDrop(el,e.dataTransfer.getData('text/plain')||dragName)}}
+setupDrop(document.getElementById('unseatZone'));
+function handleDrop(target,name){if(!name||cur().locked)return;removeNameFromSeats(name);if(target.id==='pool'||target.id==='unseatZone'){render();return}const t=cur().tables.find(x=>x.id===target.dataset.table),i=Number(target.dataset.seat);if(!t)return;const displaced=t.seats[i];t.seats[i]=name;if(displaced&&displaced!==name){/* displaced automatically returns to pool */}render()}
+function removeNameFromSeats(name){cur().tables.forEach(t=>t.seats=t.seats.map(n=>n===name?null:n))}
+function cycleLayout(id){if(cur().locked)return;const t=cur().tables.find(x=>x.id===id);const order=['bottom3','left3','right3'],next=order[(order.indexOf(t.layout)+1)%order.length],names=t.seats.filter(Boolean);t.layout=next;t.seats=Array(next==='bottom3'?3:4).fill(null);if(next==='left3'){[1,2,3].forEach((p,i)=>{if(names[i])t.seats[p]=names[i]});if(names[3])t.seats[0]=names[3]}else if(next==='right3'){[0,1,2].forEach((p,i)=>{if(names[i])t.seats[p]=names[i]});if(names[3])t.seats[3]=names[3]}else [0,1,2].forEach((p,i)=>{if(names[i])t.seats[p]=names[i]});render()}
+function promptRenameTable(id){if(cur().locked)return;const t=cur().tables.find(x=>x.id===id);modalPrompt('Rename table','Table name / number',t.name,v=>{if(v.trim()){t.name=v.trim();render()}})}
+function renderStudentNotes(){const s=document.getElementById('studentNoteSelect'),keep=s.value;s.innerHTML='<option value="">Choose student…</option>';cur().students.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;s.appendChild(o)});if(cur().students.includes(keep))s.value=keep;else if(cur().students.length)s.value=cur().students[0];loadStudentNote()}
+function loadStudentNote(){const n=document.getElementById('studentNoteSelect').value;document.getElementById('studentNotes').value=n?(cur().studentNotes[n]||''):''}
+function renderAttendance(){const list=document.getElementById('attendanceList');list.innerHTML='';const date=attendanceDate();if(!cur().attendance[date])cur().attendance[date]={};cur().students.forEach(n=>{const st=cur().attendance[date][n]||'present';const row=document.createElement('div');row.className='attendance-row';row.innerHTML=`<div class="attendance-name">${esc(n)}</div><div class="status-group"><button class="status-btn present ${st==='present'?'on':''}" data-s="present">P</button><button class="status-btn absent ${st==='absent'?'on':''}" data-s="absent">A</button><button class="status-btn late ${st==='late'?'on':''}" data-s="late">L</button></div>`;row.querySelectorAll('.status-btn').forEach(b=>b.onclick=()=>setAttendance(n,b.dataset.s));list.appendChild(row)});renderDashboard()}
+function setAttendance(name,status){const d=attendanceDate();if(!cur().attendance[d])cur().attendance[d]={};cur().attendance[d][name]=status;save();renderAttendance();renderRoom()}
+function renderLogs(){const b=document.getElementById('logList');b.innerHTML='';[...(cur().logs||[])].sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{const d=document.createElement('div');d.className='log-item';d.innerHTML=`<button class="log-del">×</button><div class="log-date">${esc(e.date)}</div><div class="log-text">${esc(e.text)}</div>`;d.querySelector('.log-del').onclick=()=>{cur().logs=cur().logs.filter(x=>x.id!==e.id);renderLogs();save()};b.appendChild(d)})}
+function syncLockButtons(){const locked=cur().locked;document.getElementById('lockSeats').textContent=locked?'Unlock Seats':'Lock Seats';document.getElementById('todayLock').textContent=locked?'Unlock Seats':'Lock Seats';document.getElementById('todayLock').classList.toggle('active-toggle',locked)}
+function toggleLock(){cur().locked=!cur().locked;render()}
+function eligibleStudents(){let names=seatedNames();if(!names.length)names=[...cur().students];names=names.filter(n=>statusFor(n,TODAY())!=='absent');return [...new Set(names)]}
+function pickStudent(){let names=eligibleStudents();if(!names.length){alert('There are no available students to pick.');return}if(names.length>1&&lastWinner)names=names.filter(n=>n!==lastWinner);runPicker('Random Student',names,w=>{lastWinner=w;highlightWinner(w)})}
+function pickTable(){let tables=cur().tables.filter(t=>t.seats.some(n=>n&&statusFor(n,TODAY())!=='absent')).map(t=>'Table '+t.name);if(!tables.length)tables=cur().tables.map(t=>'Table '+t.name);if(tables.length>1&&lastTableWinner)tables=tables.filter(t=>t!==lastTableWinner);runPicker('Random Table',tables,w=>{lastTableWinner=w})}
+function runPicker(label,items,onWinner){const o=document.getElementById('pickerOverlay'),name=document.getElementById('pickerName'),sub=document.getElementById('pickerSub');document.getElementById('pickerLabel').textContent=label;o.classList.add('show');sub.textContent='';let ticks=0,max=26+Math.floor(Math.random()*10);clearInterval(pickTimer);pickTimer=setInterval(()=>{name.textContent=items[Math.floor(Math.random()*items.length)];ticks++;if(ticks>=max){clearInterval(pickTimer);const w=items[Math.floor(Math.random()*items.length)];name.textContent=w;sub.textContent='Selected';onWinner(w)}},80)}
+function highlightWinner(name){document.querySelectorAll('.student').forEach(el=>el.classList.toggle('chosen',el.dataset.name===name));setTimeout(()=>document.querySelectorAll('.student.chosen').forEach(el=>el.classList.remove('chosen')),4500)}
+function modalPrompt(title,label,value,onSave){const h=document.getElementById('modalHost');h.innerHTML='';const b=document.createElement('div');b.className='modal-backdrop';b.innerHTML=`<div class="modal"><h3>${esc(title)}</h3><label>${esc(label)}</label><input id="modalInput" value="${esc(value||'')}"><div class="actions"><button id="cancelModal">Cancel</button><button id="saveModal" class="btn-primary">Save</button></div></div>`;h.appendChild(b);const i=b.querySelector('#modalInput');setTimeout(()=>{i.focus();i.select()},0);b.querySelector('#cancelModal').onclick=()=>h.innerHTML='';b.querySelector('#saveModal').onclick=()=>{const v=i.value;h.innerHTML='';onSave(v)};i.onkeydown=e=>{if(e.key==='Enter')b.querySelector('#saveModal').click();if(e.key==='Escape')h.innerHTML=''}}
+function exportBackup(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='classroom-planner-backup-'+TODAY()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function importBackup(file){const r=new FileReader();r.onload=()=>{try{const data=migrate(JSON.parse(r.result));state=data;render();alert('Backup imported successfully.')}catch(e){alert('That backup file could not be read.')}};r.readAsText(file)}
+function enterPresent(){document.body.classList.add('present');if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{})}
+function exitPresent(){document.body.classList.remove('present');if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{})}
+
+document.querySelectorAll('.side-tab').forEach(b=>b.onclick=()=>setPane(b.dataset.pane));
+document.getElementById('classSelect').onchange=e=>{state.currentClassId=e.target.value;render()};
+document.getElementById('pickStudent').onclick=pickStudent;document.getElementById('todayPick').onclick=pickStudent;document.getElementById('pickTable').onclick=pickTable;document.getElementById('lockSeats').onclick=toggleLock;document.getElementById('todayLock').onclick=toggleLock;document.getElementById('todayAttendance').onclick=()=>setPane('students');document.getElementById('toggleSidebar').onclick=toggleSidebar;
+document.getElementById('present').onclick=enterPresent;document.getElementById('presentExit').onclick=exitPresent;
+document.getElementById('pickerAgain').onclick=()=>{document.getElementById('pickerOverlay').classList.remove('show');setTimeout(()=>document.getElementById('pickerLabel').textContent==='Random Table'?pickTable():pickStudent(),60)};document.getElementById('pickerClose').onclick=()=>document.getElementById('pickerOverlay').classList.remove('show');
+document.getElementById('studentNoteSelect').onchange=loadStudentNote;document.getElementById('studentNotes').oninput=e=>{const n=document.getElementById('studentNoteSelect').value;if(n){cur().studentNotes[n]=e.target.value;save()}};
+document.getElementById('classNotes').oninput=e=>{cur().classNotes=e.target.value;save()};
+document.getElementById('todayLesson').oninput=e=>{cur().dailyLessons[TODAY()]=e.target.value;save()};
+document.getElementById('saveQuickLog').onclick=()=>{const t=document.getElementById('quickClassNote').value.trim();if(!t)return;cur().logs.push({id:uid('log'),date:TODAY(),text:t});document.getElementById('quickClassNote').value='';renderLogs();save()};
+document.getElementById('attendanceDate').value=TODAY();document.getElementById('attendanceDate').onchange=renderAttendance;document.getElementById('markAllPresent').onclick=()=>{const d=attendanceDate();cur().attendance[d]={};cur().students.forEach(n=>cur().attendance[d][n]='present');renderAttendance();renderRoom();save()};
+document.getElementById('logDate').value=TODAY();document.getElementById('useToday').onclick=()=>document.getElementById('logDate').value=TODAY();document.getElementById('addLog').onclick=()=>{const d=document.getElementById('logDate').value,t=document.getElementById('logText').value.trim();if(!d||!t)return;cur().logs.push({id:uid('log'),date:d,text:t});document.getElementById('logText').value='';renderLogs();save()};
+document.getElementById('updateNames').onclick=()=>{const names=[...new Set(document.getElementById('studentNames').value.split(/\n+/).map(x=>x.trim()).filter(Boolean))];cur().students=names;cur().tables.forEach((t,i)=>{ensureTable(t,i);t.seats=t.seats.map(n=>n&&names.includes(n)?n:null)});Object.keys(cur().studentNotes).forEach(n=>{if(!names.includes(n))delete cur().studentNotes[n]});render()};
+document.getElementById('sortNames').onclick=()=>{cur().students.sort((a,b)=>a.localeCompare(b));render()};
+document.getElementById('randomize').onclick=()=>{if(cur().locked){alert('Unlock seats first.');return}let students=[...cur().students];for(let i=students.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[students[i],students[j]]=[students[j],students[i]]}cur().tables.forEach(t=>t.seats=t.seats.map(()=>null));let k=0;for(const t of cur().tables){for(let i=0;i<t.seats.length&&k<students.length;i++)t.seats[i]=students[k++]}render()};
+document.getElementById('resetSeats').onclick=()=>{if(cur().locked){alert('Unlock seats first.');return}if(confirm('Clear all seats for this class?')){cur().tables.forEach(t=>t.seats=t.seats.map(()=>null));render()}};
+document.getElementById('addTable').onclick=()=>{if(cur().locked){alert('Unlock seats first.');return}const l=['bottom3','left3','right3'][cur().tables.length%3];cur().tables.push({id:uid('t'),name:String(cur().tables.length+1),layout:l,seats:Array(l==='bottom3'?3:4).fill(null)});render()};
+document.getElementById('addClass').onclick=()=>modalPrompt('Add class','Class name','',v=>{if(!v.trim())return;const id=uid('c');state.classes[id]={name:v.trim(),students:[],tables:defaultTables().map((t,i)=>({id:uid('t'),name:String(i+1),layout:t.layout,seats:Array(t.layout==='bottom3'?3:4).fill(null)})),classNotes:'',studentNotes:{},logs:[],attendance:{},dailyLessons:{},locked:false};state.currentClassId=id;render()});
+document.getElementById('renameClass').onclick=()=>modalPrompt('Rename class','Class name',cur().name,v=>{if(v.trim()){cur().name=v.trim();render()}});
+document.getElementById('deleteClass').onclick=()=>{if(Object.keys(state.classes).length===1){alert('You need at least one class.');return}if(confirm(`Delete ${cur().name}?`)){delete state.classes[state.currentClassId];state.currentClassId=Object.keys(state.classes)[0];render()}};
+document.getElementById('exportData').onclick=exportBackup;document.getElementById('importData').onclick=()=>document.getElementById('importFile').click();document.getElementById('importFile').onchange=e=>{if(e.target.files[0])importBackup(e.target.files[0]);e.target.value=''};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.getElementById('pickerOverlay').classList.remove('show');if(document.body.classList.contains('present'))document.body.classList.remove('present')}});window.addEventListener('beforeunload',save);
+applySidebar();
+render();
+</script>
+</body>
+</html>

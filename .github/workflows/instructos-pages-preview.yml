@@ -8,6 +8,7 @@ on:
       - 'lib/**'
       - 'web/**'
       - 'assets/**'
+      - 'review-hub/**'
       - 'pubspec.yaml'
       - '.github/workflows/instructos-pages-preview.yml'
   workflow_dispatch:
@@ -46,6 +47,11 @@ jobs:
 
       - name: Build GitHub Pages preview
         run: flutter build web --release --base-href "/Gradeflow/"
+
+      - name: Add reviewer hub
+        run: |
+          mkdir -p build/web/review
+          cp -R review-hub/. build/web/review/
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
