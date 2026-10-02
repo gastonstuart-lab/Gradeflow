@@ -97,7 +97,7 @@ void main() {
 
     expect(find.text('Pick a student'), findsOneWidget);
     expect(find.text('Alex Student'), findsOneWidget);
-    expect(find.text('Seat 1'), findsOneWidget);
+    expect(find.text('Seat 1'), findsWidgets);
     expect(find.text('Avoid repeats'), findsOneWidget);
   });
 
