@@ -1145,3 +1145,31 @@ First implementation slice:
 Next gate after S1 validation:
 - inspect the remaining Home secondary/legacy navigation surfaces and remove only duplicated presentation, not capability;
 - then begin controlled migration of live-teaching utilities into Classroom.
+
+
+### Shell Simplification S1 validation — 2026-10-02
+
+Status: **APPROVED**
+
+Validated workflow:
+- GitHub Actions run `36969485735`;
+- exact shell code head: `b45e7a263e0255b4634e3fa86c88a6b0d92dd37d`.
+
+PASS:
+- full Flutter analyze;
+- shell hierarchy regression test;
+- Flutter release web build;
+- GitHub Pages artifact/deployment.
+
+Validated behavior:
+- the global launcher now promotes only standalone/cross-class tools;
+- class-context and legacy live-teaching apps remain registered for existing routes;
+- no route, service, model, repository, grading logic, Classroom behavior, Planner behavior, IED behavior, Science content, Firebase schema, or PowerPoint authority was removed.
+
+Post-validation review:
+- legacy Home tools are already gated behind `More Home tools`;
+- no further Home deletion is justified yet because those preserved surfaces still contain capabilities awaiting migration.
+
+Next controlled slice:
+- migrate **Random Student** into the canonical Classroom surface using the existing seating-based `StudentPickerSheet`;
+- do not add Random Table, participation, groups, timer, poll, QR, or whiteboard in the same slice.
