@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Science Teacher Workspace & Progress — Review</title>
+<style>
+:root{--navy:#0b2238;--navy2:#102f49;--blue:#2e70df;--cyan:#17a8c4;--green:#29a36a;--amber:#d99a25;--purple:#7956c5;--ink:#172431;--muted:#687785;--bg:#f3f6f8;--card:#fff;--line:#dfe7ec;--shadow:0 12px 30px rgba(18,45,66,.09)}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}button,a{font:inherit}.app{min-height:100vh;display:grid;grid-template-columns:210px 1fr}
+aside{background:var(--navy);color:white;padding:22px 14px;display:flex;flex-direction:column;gap:18px}.brand{display:flex;gap:10px;align-items:center}.mark{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#1ab6d0,#3489e5);display:grid;place-items:center;font-weight:900}.brand strong{font-size:16px}.brand small{display:block;color:#93b5c9;margin-top:2px}
+.nav{display:flex;flex-direction:column;gap:5px}.nav button,.nav a{border:0;background:transparent;color:#c7d8e4;padding:10px 11px;border-radius:9px;text-align:left;text-decoration:none;font-size:13px}.nav .active{background:#173d5c;color:#fff}.nav .progress{margin-top:6px;color:#b9a3ff}.user{margin-top:auto;border-top:1px solid #25445c;padding-top:15px;font-size:12px;color:#b7cad7}
+main{min-width:0}.top{background:white;border-bottom:1px solid var(--line);padding:17px 24px;display:flex;align-items:center;gap:16px}.top h1{font-size:20px;margin:0}.top p{margin:3px 0 0;font-size:12px;color:var(--muted)}.badge{margin-left:auto;background:#fff4d6;color:#865c00;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:800}
+.content{padding:22px;max-width:1220px;margin:auto}.notice{background:#fff8e8;border:1px solid #ecd394;border-radius:14px;padding:13px 15px;margin-bottom:16px;font-size:12.5px;line-height:1.45;color:#695016}.notice strong{color:#563d06}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.stat{background:white;border:1px solid var(--line);border-radius:15px;padding:15px;box-shadow:var(--shadow)}.stat small{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:800}.stat strong{display:block;font-size:25px;margin-top:5px}.stat span{font-size:11px;color:var(--muted)}
+.workspace{display:grid;grid-template-columns:310px minmax(0,1fr) 285px;gap:14px}.panel{background:white;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}.panel-head{padding:15px;border-bottom:1px solid var(--line)}.panel-head h2{margin:0;font-size:17px}.panel-head p{margin:4px 0 0;color:var(--muted);font-size:11px}
+.switch{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px}.switch button{border:1px solid var(--line);background:white;padding:9px;border-radius:9px;font-weight:800;color:#506171}.switch button.active{background:var(--navy2);color:white;border-color:var(--navy2)}
+.units{padding:4px 10px 12px;display:flex;flex-direction:column;gap:8px}.unit{border:1px solid var(--line);border-radius:12px;padding:11px;cursor:pointer}.unit.active{border-color:#9d87dd;background:#f5f1ff}.unit small{font-size:10px;color:var(--muted)}.unit strong{display:block;margin:3px 0 7px;font-size:13px}.bar{height:6px;background:#edf1f4;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--purple);border-radius:99px}.unit-meta{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--muted)}
+.lesson-table{padding:10px}.lesson-row{display:grid;grid-template-columns:52px minmax(0,1fr) 95px;gap:8px;align-items:center;padding:11px 8px;border-bottom:1px solid #edf1f4}.lesson-row:last-child{border-bottom:0}.code{font-size:11px;font-weight:900;color:#71808c}.lesson-title{font-size:13px;font-weight:750}.status{text-align:right;font-size:10px;font-weight:800}.done{color:var(--green)}.doing{color:var(--purple)}.ready{color:#8895a1}.mini-progress{height:4px;width:65px;background:#e7ebef;border-radius:20px;display:inline-block;margin-right:5px;vertical-align:middle}.mini-progress i{display:block;height:100%;background:var(--purple);width:55%;border-radius:20px}
+.continue{padding:14px}.hero{height:135px;border-radius:13px;background:linear-gradient(135deg,#142e47,#2e5f78);display:flex;align-items:flex-end;padding:14px;color:white;margin-bottom:12px}.hero small{display:block;color:#b8d6e5}.hero strong{font-size:18px}.continue h3{margin:0 0 6px;font-size:17px}.continue p{font-size:12px;color:var(--muted);line-height:1.45}.continue .btn{display:block;text-align:center;text-decoration:none;background:var(--purple);color:white;border-radius:9px;padding:10px;margin-top:10px;font-size:12px;font-weight:850}.resource{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #eef1f3;font-size:11px}.resource:last-child{border:0}.tiny{font-size:10px;color:var(--muted)}
+.footer-note{margin-top:16px;background:white;border:1px solid var(--line);border-radius:14px;padding:15px;color:var(--muted);font-size:12px;line-height:1.5}
+@media(max-width:950px){.app{grid-template-columns:1fr}aside{display:none}.summary{grid-template-columns:1fr 1fr}.workspace{grid-template-columns:1fr}.content{padding:14px}}@media(max-width:560px){.summary{grid-template-columns:1fr}.lesson-row{grid-template-columns:44px 1fr}.status{grid-column:2;text-align:left}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div class="brand"><div class="mark">IED</div><div><strong>Science Lessons</strong><small>Teacher workspace</small></div></div>
+  <div class="nav">
+    <button>Dashboard</button><button>My Lessons</button><button class="active">J1 Science</button><button>J2 Science</button><button>Resources</button><button>My Notes</button><button>Quizzes & Tests</button><button>Messages</button><button class="progress">My Progress</button>
+  </div>
+  <div class="user">Historical Science teacher-management layer<br>Review reconstruction</div>
+</aside>
+<main>
+  <header class="top"><div><h1>Science Teacher Workspace & Progress</h1><p>Course organisation, lesson status, continue-teaching context and teacher resources</p></div><span class="badge">REVIEW RECONSTRUCTION</span></header>
+  <div class="content">
+    <div class="notice"><strong>This is the Science layer you were remembering.</strong> The original Science Lessons project had this teacher-management direction plus a working lesson library/viewer/editor. The exact progress values below are demo state for review. Full cloud-synced teacher/class progress was never finished; a later prototype did save class/page state locally in the browser. The obsolete August presentation graphics have been deliberately removed from this review.</div>
+    <section class="summary">
+      <div class="stat"><small>Selected course</small><strong id="courseStat">J1</strong><span>Science</span></div>
+      <div class="stat"><small>Course progress</small><strong id="progressStat">56%</strong><span>sample review state</span></div>
+      <div class="stat"><small>Lessons complete</small><strong id="doneStat">4 / 8</strong><span>plus one in progress</span></div>
+      <div class="stat"><small>Current position</small><strong id="positionStat">2.4</strong><span>Continue from here</span></div>
+    </section>
+    <section class="workspace">
+      <div class="panel">
+        <div class="panel-head"><h2>Course structure</h2><p>Choose a year and see teaching progress by unit/section.</p></div>
+        <div class="switch"><button id="j1Btn" class="active">J1 Science</button><button id="j2Btn">J2 Science</button></div>
+        <div class="units" id="units"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2 id="unitTitle">Current unit</h2><p>Lesson status and progress</p></div>
+        <div class="lesson-table" id="lessons"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Continue teaching</h2><p>Teacher context and resources</p></div>
+        <div class="continue">
+          <div class="hero"><div><small id="heroMeta">J1 · current section</small><strong id="heroTitle">Continue current lesson</strong></div></div>
+          <h3 id="currentLesson">Current lesson</h3>
+          <p>Return to the class's teaching point, then open the relevant presentation and supporting materials.</p>
+          <a class="btn" href="./courseware.html">Open current native PowerPoints →</a>
+          <div style="margin-top:14px"><strong style="font-size:12px">Teacher resources</strong>
+            <div class="resource"><span>Presentation</span><span class="tiny">PPTX</span></div>
+            <div class="resource"><span>Teacher notes</span><span class="tiny">Private</span></div>
+            <div class="resource"><span>Worksheet / homework</span><span class="tiny">Resource</span></div>
+            <div class="resource"><span>Quiz / check</span><span class="tiny">Assessment</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div class="footer-note"><strong>What was really built:</strong> J1/J2 → semester → unit → ordered lesson library; lesson statuses; Continue teaching UI; teacher slide viewer; notes, resources, objectives and source references; English/Bilingual/繁體中文; fullscreen presentation; editor entry. <strong>What was not completed:</strong> a durable cloud progress model shared across devices/classes. This distinction is important when reviewing the project.</div>
+  </div>
+</main>
+</div>
+<script>
+const data={
+ J1:{progress:'56%',done:'4 / 8',position:'2.4',units:[
+  {name:'Chapter 1 · Living Things and the Environment',p:100,meta:'Opening courseware',lessons:[['1.1','Opening lesson','done'],['1.2','Teaching sequence','done'],['1.3','Review / consolidation','done']]},
+  {name:'Biomes · real pilot',p:55,meta:'13-slide teacher workspace',lessons:[['2.1','Biome introduction','done'],['2.2','Climate determines the biome','done'],['2.3','Six major land biomes','doing'],['2.4','Rainfall and ecosystems','ready'],['2.5','Exit check','ready']]}
+ ]},
+ J2:{progress:'42%',done:'2 / 7',position:'1.2',units:[
+  {name:'Chapter 1 · Elements and Atoms',p:70,meta:'Current native courseware family',lessons:[['1.1','Elements and atoms','done'],['1.2','Atomic models','doing'],['1.3','Next section','ready']]},
+  {name:'Aquatic Ecosystems · pilot',p:25,meta:'Lesson workspace content',lessons:[['2.1','Aquatic habitats','done'],['2.2','Food webs','ready'],['2.3','Ecosystem relationships','ready'],['2.4','Review','ready']]}
+ ]}
+};
+let year='J1',unit=0;
+const statusLabel={done:'✓ Complete',doing:'In progress',ready:'Not started'};
+function render(){
+ const d=data[year]; document.getElementById('courseStat').textContent=year;document.getElementById('progressStat').textContent=d.progress;document.getElementById('doneStat').textContent=d.done;document.getElementById('positionStat').textContent=d.position;
+ document.getElementById('j1Btn').classList.toggle('active',year==='J1');document.getElementById('j2Btn').classList.toggle('active',year==='J2');
+ const u=document.getElementById('units');u.innerHTML='';d.units.forEach((x,i)=>{const el=document.createElement('div');el.className='unit'+(i===unit?' active':'');el.innerHTML='<small>'+x.meta+'</small><strong>'+x.name+'</strong><div class="bar"><i style="width:'+x.p+'%"></i></div><div class="unit-meta"><span>'+x.lessons.length+' lessons</span><span>'+x.p+'%</span></div>';el.onclick=()=>{unit=i;render()};u.appendChild(el)});
+ const selected=d.units[unit];document.getElementById('unitTitle').textContent=selected.name;const l=document.getElementById('lessons');l.innerHTML='';selected.lessons.forEach(x=>{const row=document.createElement('div');row.className='lesson-row';row.innerHTML='<div class="code">'+x[0]+'</div><div class="lesson-title">'+x[1]+'</div><div class="status '+x[2]+'">'+(x[2]==='doing'?'<span class="mini-progress"><i></i></span>':'')+statusLabel[x[2]]+'</div>';l.appendChild(row)});
+ const current=selected.lessons.find(x=>x[2]==='doing')||selected.lessons[selected.lessons.length-1];document.getElementById('heroMeta').textContent=year+' · '+selected.name;document.getElementById('heroTitle').textContent=current[1];document.getElementById('currentLesson').textContent=current[0]+' · '+current[1];
+}
+document.getElementById('j1Btn').onclick=()=>{year='J1';unit=0;render()};document.getElementById('j2Btn').onclick=()=>{year='J2';unit=0;render()};render();
+</script>
+</body></html>
