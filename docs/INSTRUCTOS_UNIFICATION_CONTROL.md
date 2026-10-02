@@ -1173,3 +1173,49 @@ Post-validation review:
 Next controlled slice:
 - migrate **Random Student** into the canonical Classroom surface using the existing seating-based `StudentPickerSheet`;
 - do not add Random Table, participation, groups, timer, poll, QR, or whiteboard in the same slice.
+
+
+## 25. Classroom consolidation slice C2 — Random Student — 2026-10-02
+
+Status: **APPROVED**
+
+Purpose:
+- begin moving proven live-teaching utilities into the canonical Classroom surface one capability at a time;
+- reuse existing behavior instead of rebuilding the legacy Teacher Dashboard or Teach Surface.
+
+Implementation:
+- Classroom Today now exposes `Random student`;
+- the action reuses the existing `StudentPickerSheet`;
+- the picker uses the real current class roster;
+- students with active seat assignments receive the existing ordered-seat label;
+- unseated students remain eligible and are shown as not currently seated;
+- existing picker animation, avoid-repeats behavior, and reset-round behavior are preserved;
+- no new random-selection persistence or parallel service was created.
+
+Privacy / presentation:
+- the action lives in the private Classroom tools drawer;
+- Presentation mode continues to hide the teacher drawer and Random Student action.
+
+Validation:
+- GitHub Actions run `36969995531`;
+- validated head: `d97895e222a1c6a1a39a79b21c89270701520264`;
+- full Flutter analyze: PASS;
+- shell hierarchy regression: PASS;
+- Classroom widget regression suite: PASS;
+- release web build: PASS;
+- GitHub Pages deployment: PASS.
+
+Validation note:
+- the first run correctly caught an over-specific test assertion because the reused picker shows a seat label in both its selected card and roster row;
+- product behavior was correct;
+- the assertion was fixed to reflect the existing picker UI and the full gate then passed.
+
+Preserved:
+- legacy Teacher Dashboard picker remains untouched;
+- Teach Surface remains untouched;
+- seating persistence and room setup remain untouched;
+- no Random Table, groups, participation, timer, poll, QR, whiteboard, attendance, notes, Planner, Gradebook, IED, Science, Firebase, or PowerPoint behavior changed.
+
+Next candidate:
+- **Random Table** is the next small approved Classroom utility because it is tied directly to the active seating layout and has no durable data requirement.
+- implement it only from occupied/eligible classroom tables and keep it private to teacher mode.
