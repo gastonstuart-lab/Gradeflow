@@ -45,8 +45,11 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-warnings --no-fatal-infos
 
-      - name: Shell hierarchy regression test
-        run: flutter test test/os_app_registry_test.dart
+      - name: Integration regression tests
+        run: >
+          flutter test
+          test/os_app_registry_test.dart
+          test/classroom_surface_test.dart
 
       - name: Build GitHub Pages preview
         run: flutter build web --release --base-href "/Gradeflow/"
