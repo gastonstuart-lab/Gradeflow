@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/classroom/classroom_tools_drawer.dart';
 import 'package:gradeflow/components/seating/seating_designer_view.dart';
+import 'package:gradeflow/components/seating/student_picker_sheet.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_palette.dart';
@@ -80,6 +81,46 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
 
   void _backToClass() {
     context.go(AppRoutes.osClassWorkspace(widget.classId));
+  }
+
+  Future<void> _openStudentPicker({
+    required List<Student> students,
+    required SeatingService seatingService,
+  }) async {
+    if (students.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No students are available to pick.')),
+      );
+      return;
+    }
+
+    final seatLabels = <String, String>{};
+    final layout = seatingService.activeLayout(widget.classId);
+    if (layout != null) {
+      final orderedSeats = seatingService.orderedSeatsForLayout(layout);
+      for (var index = 0; index < orderedSeats.length; index++) {
+        final studentId = orderedSeats[index].studentId;
+        if (studentId != null && studentId.isNotEmpty) {
+          seatLabels[studentId] = 'Seat ${index + 1}';
+        }
+      }
+    }
+
+    final entries = students
+        .map(
+          (student) => StudentPickerEntry(
+            student: student,
+            seatLabel: seatLabels[student.studentId],
+          ),
+        )
+        .toList(growable: false);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => StudentPickerSheet(entries: entries),
+    );
   }
 
   void _openPresentation({
@@ -157,6 +198,14 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
               onClose: () => setState(() => _toolsOpen = false),
               onSetupModeChanged: (value) =>
                   setState(() => _setupMode = value),
+              onPickStudent: () {
+                unawaited(
+                  _openStudentPicker(
+                    students: students,
+                    seatingService: seatingService,
+                  ),
+                );
+              },
               onOpenStudents: () =>
                   context.go(AppRoutes.osClassStudents(widget.classId)),
               onOpenGradebook: () =>
