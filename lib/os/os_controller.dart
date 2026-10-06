@@ -38,7 +38,28 @@ enum OSSurface {
 class GradeFlowOSController extends ChangeNotifier {
   GradeFlowOSController();
 
-  final PageStorageBucket pageStorageBucket = PageStorageBucket();
+  PageStorageBucket _pageStorageBucket = PageStorageBucket();
+  PageStorageBucket get pageStorageBucket => _pageStorageBucket;
+
+  String? _teacherId;
+  bool _teacherIdentityResolved = false;
+
+  /// Observe identity without changing authentication or persistence behavior.
+  /// Loading/restoration is not a logout. Only a resolved identity change
+  /// releases the previous teacher's in-memory working context.
+  void syncTeacherIdentity(String? teacherId, {required bool isResolved}) {
+    if (!isResolved) return;
+    if (_teacherIdentityResolved && _teacherId == teacherId) return;
+    _teacherIdentityResolved = true;
+    _teacherId = teacherId;
+    _activeClassId = null;
+    _homePageIndex = 0;
+    _pageStorageBucket = PageStorageBucket();
+    _closeAllOverlays();
+    _idleTimer?.cancel();
+    _idleActive = false;
+    notifyListeners();
+  }
 
   // ── OS surface ────────────────────────────────────────────────────────────
 
@@ -48,10 +69,28 @@ class GradeFlowOSController extends ChangeNotifier {
   OSSurface get activeSurface => _activeSurface;
   String? get activeClassId => _activeClassId;
 
+  /// Explicitly select a working class without navigating to another surface.
+  void selectWorkingClass(String classId) {
+    final normalized = classId.trim();
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(classId, 'classId', 'Must not be empty');
+    }
+    if (_activeClassId == normalized) return;
+    _activeClassId = normalized;
+    _closeAllOverlays();
+    notifyListeners();
+  }
+
+  /// Deliberate release of class context; surface navigation never does this.
+  void clearWorkingClass() {
+    if (_activeClassId == null) return;
+    _activeClassId = null;
+    _closeAllOverlays();
+    notifyListeners();
+  }
+
   void setSurface(OSSurface surface, {String? classId}) {
-    final nextClassId = surface == OSSurface.teach && classId == null
-        ? _activeClassId
-        : classId;
+    final nextClassId = classId ?? _activeClassId;
     if (_activeSurface == surface && _activeClassId == nextClassId) return;
     _activeSurface = surface;
     _activeClassId = nextClassId;
