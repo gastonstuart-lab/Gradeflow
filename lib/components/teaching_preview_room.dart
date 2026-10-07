@@ -66,14 +66,26 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
               child: Text(
                   _arranging
                       ? 'Drag a student, or tap a student then a seat.'
-                      : 'Seats locked for teaching',
-                  style:
-                      const TextStyle(color: Color(0xff657975), fontSize: 12))),
+                      : 'Seating is locked while you teach',
+                  style: const TextStyle(
+                      color: Color(0xff60758c),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12))),
           const SizedBox(width: 8),
           FilterChip(
             selected: _arranging,
+            showCheckmark: false,
+            backgroundColor: Colors.white,
+            selectedColor: const Color(0xffe2f3f1),
+            side: BorderSide(
+                color: _arranging
+                    ? const Color(0xff8fcfc7)
+                    : const Color(0xffd7e3ed)),
             avatar: Icon(_arranging ? Icons.lock_open : Icons.lock_outline,
-                size: 16),
+                size: 16,
+                color: _arranging
+                    ? const Color(0xff148b88)
+                    : const Color(0xff60758c)),
             label: Text(_arranging ? 'Lock seats' : 'Arrange seats'),
             onSelected: widget.choosing
                 ? null
@@ -111,21 +123,31 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
     final lit = widget.spotlightTable == table;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 110),
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
       decoration: BoxDecoration(
-          color: lit
-              ? const Color(0xfffff2ce)
-              : Colors.white.withValues(alpha: 0.75),
+          gradient: lit
+              ? const LinearGradient(
+                  colors: [Color(0xfffff7dd), Color(0xffffefd0)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight)
+              : const LinearGradient(
+                  colors: [Colors.white, Color(0xfff7fbfd)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-              color: lit ? const Color(0xffe3ac3c) : const Color(0xffe4e9e0),
-              width: 2),
-          boxShadow: lit
-              ? [
-                  const BoxShadow(
-                      color: Color(0x44e3ac3c), blurRadius: 22, spreadRadius: 2)
-                ]
-              : null),
+              color: lit ? const Color(0xffe3ac3c) : const Color(0xffdbe6ee),
+              width: lit ? 2 : 1),
+          boxShadow: [
+            if (lit)
+              const BoxShadow(
+                  color: Color(0x44e3ac3c), blurRadius: 22, spreadRadius: 2)
+            else
+              const BoxShadow(
+                  color: Color(0x10163f65),
+                  blurRadius: 18,
+                  offset: Offset(0, 7)),
+          ]),
       child: Column(children: [
         Row(children: [
           SizedBox(width: 62, child: sideLeft ? _seat(table * 4 + 3) : null),
@@ -134,18 +156,30 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
             height: 88,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                  colors: [Color(0xffe6ede5), Color(0xffd5e2d8)],
+                  colors: [Color(0xffe9f4f6), Color(0xffdceae8)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xff9eb5a8), width: 2),
+              border: Border.all(color: const Color(0xff9fc4c2), width: 1.5),
             ),
             child: Center(
-                child: Text('${table + 1}',
-                    style: const TextStyle(
-                        fontSize: 30,
-                        color: Color(0xff36564c),
-                        fontWeight: FontWeight.w600))),
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                  Text('${table + 1}',
+                      style: const TextStyle(
+                          fontSize: 30,
+                          height: 1,
+                          color: Color(0xff285b5a),
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 5),
+                  const Text('TABLE',
+                      style: TextStyle(
+                          fontSize: 8,
+                          letterSpacing: 1.4,
+                          color: Color(0xff6b8987),
+                          fontWeight: FontWeight.w800)),
+                ])),
           )),
           SizedBox(width: 62, child: sideRight ? _seat(table * 4 + 3) : null),
         ]),
@@ -160,7 +194,10 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                     ))),
         const SizedBox(height: 8),
         Text('Table ${table + 1}',
-            style: const TextStyle(fontSize: 11, color: Color(0xff657975))),
+            style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xff60758c))),
       ]),
     );
   }
@@ -174,25 +211,29 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
     final lit = id != null && widget.spotlightStudent == id;
     final name = widget.students[id] ?? 'Empty';
     final color = widget.checking && done
-        ? const Color(0xffdceee2)
-        : const Color(0xffe4eef0);
+        ? const Color(0xffdff3e7)
+        : const Color(0xffeaf3f5);
 
     Widget token({bool feedback = false}) => Material(
           color: lit
               ? const Color(0xffffe49a)
               : id == null
-                  ? Colors.white
+                  ? const Color(0xfffbfdff)
                   : color,
-          elevation: lit ? 9 : 0,
-          shadowColor: const Color(0xffdfad3e),
+          elevation: lit ? 9 : selected ? 4 : 0,
+          shadowColor: lit
+              ? const Color(0xffdfad3e)
+              : const Color(0x331769ce),
           shape: CircleBorder(
               side: BorderSide(
                   color: lit
                       ? const Color(0xffc38b20)
                       : selected
-                          ? const Color(0xff23675c)
-                          : const Color(0xffa6b9b5),
-                  width: selected || lit ? 3 : 1.5)),
+                          ? const Color(0xff1769ce)
+                          : id == null
+                              ? const Color(0xffc5d3de)
+                              : const Color(0xff9fb9bb),
+                  width: selected || lit ? 2.5 : 1.25)),
           child: SizedBox(
               width: 60,
               height: 60,
@@ -214,8 +255,8 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                                       Text(widget.studentNumbers[id]!,
                                           style: const TextStyle(
                                               fontSize: 9,
-                                              color: Color(0xff58756b),
-                                              fontWeight: FontWeight.w700)),
+                                              color: Color(0xff5c768c),
+                                              fontWeight: FontWeight.w800)),
                                     Text(name,
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
@@ -225,7 +266,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                                             fontWeight: id == null
                                                 ? FontWeight.w400
                                                 : FontWeight.w600,
-                                            color: const Color(0xff203c39))),
+                                            color: const Color(0xff173f4f))),
                                   ]))),
                     )),
         );
