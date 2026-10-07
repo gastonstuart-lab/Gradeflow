@@ -97,13 +97,24 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   final Map<String, String> _notes = {};
   final Set<String> _followUps = {};
+  final Map<String, int> _participation = {};
+  final Map<String, int> _behaviour = {};
+  final Map<String, int> _classwork = {};
+  final Map<String, String> _attendance = {};
+  final Map<String, int> _groups = {};
+  final List<String> _lessonLog = [];
   final _note = TextEditingController();
+  final _classNote = TextEditingController();
   final _continuation = TextEditingController();
   bool _teaching = false;
   bool _started = false;
   bool _finished = false;
   bool _checking = false;
   bool _quizzing = false;
+  bool _attendanceMode = false;
+  bool _groupMode = false;
+  bool _presentationMode = false;
+  List<int>? _lastSeatSwap;
   final _quiz = PreviewQuizBook();
   final _desktop = PreviewDesktopBook();
   String? _panel;
@@ -203,6 +214,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
     _ticker?.cancel();
     _chooserTimer?.cancel();
     _note.dispose();
+    _classNote.dispose();
     _continuation.dispose();
     super.dispose();
   }
@@ -210,6 +222,59 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   String get _clock =>
       '${(_seconds ~/ 60).toString().padLeft(2, '0')}:${(_seconds % 60).toString().padLeft(2, '0')}';
   int get _checked => _homework.values.where((v) => v != 'Unchecked').length;
+  int get _presentCount =>
+      _attendance.values.where((v) => v == 'Present').length;
+  List<String> get _unseatedStudents => _students.keys
+      .where((id) => !_seats.contains(id))
+      .toList(growable: false);
+
+  void _log(String message) {
+    final now = DateTime.now();
+    final time =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    _lessonLog.insert(0, '$time · $message');
+    if (_lessonLog.length > 20) _lessonLog.removeLast();
+  }
+
+  void _adjustMetric(Map<String, int> metric, String id, int amount, String label) {
+    setState(() {
+      metric[id] = (metric[id] ?? 0) + amount;
+      _log('${_students[id]} · $label ${amount > 0 ? '+' : ''}$amount');
+    });
+  }
+
+  void _setAttendance(String id, String status) {
+    setState(() {
+      _attendance[id] = status;
+      _log('${_students[id]} · attendance: $status');
+    });
+  }
+
+  void _makeGroups() {
+    final ids = _seats.whereType<String>().toList()..shuffle(_random);
+    setState(() {
+      _groups.clear();
+      for (var i = 0; i < ids.length; i++) {
+        _groups[ids[i]] = i % 3 + 1;
+      }
+      _groupMode = true;
+      _log('Made 3 quick groups');
+    });
+  }
+
+  void _undoSeatSwap() {
+    final swap = _lastSeatSwap;
+    if (swap == null) return;
+    setState(() {
+      final from = swap[0];
+      final to = swap[1];
+      final displaced = _seats[to];
+      _seats[to] = _seats[from];
+      _seats[from] = displaced;
+      _lastSeatSwap = null;
+      _log('Undid last seat move');
+    });
+  }
 
   void _openStudent(String id) {
     setState(() {
