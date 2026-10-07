@@ -166,33 +166,24 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
     ]);
   }
 
-  static const _tableAccents = [
-    Color(0xff7c4dff),
-    Color(0xff14a870),
-    Color(0xff2584ff),
-    Color(0xffff982f),
-    Color(0xffff5265),
-    Color(0xffe7bf00),
-  ];
-
-  Color _accentFor(int table) => _tableAccents[table % _tableAccents.length];
-
   Widget _table(int table) {
     final lit = widget.spotlightTable == table;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final accent = _accentFor(table);
-    final tableFill = Color.alphaBlend(
-      accent.withValues(alpha: dark ? .34 : .16),
-      dark ? const Color(0xff102333) : Colors.white,
-    );
+    final tableSurface = lit
+        ? (dark ? const Color(0xff302b1f) : const Color(0xfffff8e7))
+        : (dark ? const Color(0xff142536) : const Color(0xfff9fbfd));
+    final tableLine = lit
+        ? const Color(0xffd5a13a)
+        : (dark ? const Color(0xff385066) : const Color(0xffcbd8e3));
 
-    // Source-of-truth room geometry from the original Classroom.html:
-    // three seats behind/below each table, with the extra side seat only
-    // where the physical room actually has one.
+    // Preserve the original Classroom.html geometry exactly: three seats
+    // behind/below each table, with the physical side seats only where the
+    // room actually has them.
     final showLeftSide = !widget.allSideSeats && table == 0;
     final showRightSide = widget.allSideSeats || table == 2;
     final sideSeat = _seat(table * 4 + 3);
-    final sidePlaceholder = const SizedBox(width: 54, height: 54);
+    final sideSize = widget.presentation ? 72.0 : 64.0;
+    final sidePlaceholder = SizedBox(width: sideSize, height: sideSize);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -203,13 +194,10 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
       decoration: BoxDecoration(
         color: lit
             ? (dark
-                ? const Color(0xff2d2819)
-                : const Color(0xfffff7dd))
+                ? const Color(0x2239a0ff)
+                : const Color(0x143b82f6))
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(22),
-        border: lit
-            ? Border.all(color: const Color(0xffe3ac3c), width: 2)
-            : null,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         mainAxisAlignment: widget.presentation
@@ -224,49 +212,40 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
               Expanded(
                 child: Center(
                   child: FractionallySizedBox(
-                    widthFactor: widget.presentation ? .70 : .66,
+                    widthFactor: widget.presentation ? .72 : .68,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
-                      height: widget.presentation ? 82 : 72,
+                      height: widget.presentation ? 88 : 74,
                       decoration: BoxDecoration(
-                        color: tableFill,
-                        borderRadius: BorderRadius.circular(18),
+                        color: tableSurface,
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color:
-                                accent.withValues(alpha: dark ? .98 : .78),
-                            width: dark ? 1.9 : 1.5),
-                        boxShadow: dark
-                            ? [
-                                BoxShadow(
-                                    color: accent.withValues(alpha: .12),
-                                    blurRadius: 14,
-                                    spreadRadius: 1)
-                              ]
-                            : null,
+                          color: tableLine,
+                          width: lit ? 2 : 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: dark
+                                ? Colors.black.withValues(alpha: .18)
+                                : const Color(0x15173f62),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
                       child: Center(
-                          child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                            Text('${table + 1}',
-                                style: TextStyle(
-                                    fontSize:
-                                        widget.presentation ? 30 : 27,
-                                    height: 1,
-                                    color: dark
-                                        ? const Color(0xfff2f7fb)
-                                        : const Color(0xff173f4f),
-                                    fontWeight: FontWeight.w900)),
-                            const SizedBox(height: 3),
-                            Text('TABLE',
-                                style: TextStyle(
-                                    fontSize: 8,
-                                    letterSpacing: 1.4,
-                                    color: dark
-                                        ? const Color(0xffb6c7d6)
-                                        : const Color(0xff60758c),
-                                    fontWeight: FontWeight.w800)),
-                          ])),
+                        child: Text(
+                          'TABLE ${table + 1}',
+                          style: TextStyle(
+                            fontSize: widget.presentation ? 14 : 11,
+                            letterSpacing: 1.45,
+                            color: dark
+                                ? const Color(0xffd8e4ee)
+                                : const Color(0xff4c657b),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -275,7 +254,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
               showRightSide ? sideSeat : sidePlaceholder,
             ],
           ),
-          SizedBox(height: widget.presentation ? 16 : 10),
+          SizedBox(height: widget.presentation ? 18 : 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -291,170 +270,240 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
 
   Widget _seat(int slot) {
     final id = widget.seats[slot];
-    final table = slot ~/ 4;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final accent = _accentFor(table);
     final status = widget.homework[id] ?? 'Unchecked';
     final done = status == 'Done';
     final selected =
-        id != null && id == widget.selectedStudent || _moving == slot;
+        (id != null && id == widget.selectedStudent) || _moving == slot;
     final lit = id != null && widget.spotlightStudent == id;
     final name = widget.students[id] ?? 'Empty';
-    final color = widget.checking && done
-        ? (dark ? const Color(0xff183c2c) : const Color(0xffdff3e7))
-        : (dark ? const Color(0xff14293a) : const Color(0xfff8fbfd));
+    final slotWidth = widget.presentation ? 72.0 : 64.0;
+    final chairWidth = widget.presentation ? 56.0 : 48.0;
+    final chairHeight = widget.presentation ? 46.0 : 40.0;
+
+    final baseFill = id == null
+        ? (dark ? const Color(0xff0e1c29) : const Color(0xfff5f8fb))
+        : (dark ? const Color(0xff172a3a) : Colors.white);
+    final borderColor = lit
+        ? const Color(0xffd5a13a)
+        : selected
+            ? const Color(0xff2584ff)
+            : done && widget.checking
+                ? const Color(0xff4f9b73)
+                : (dark
+                    ? const Color(0xff385066)
+                    : const Color(0xffcbd8e3));
 
     Widget token({bool feedback = false}) => Material(
-          color: lit
-              ? (dark ? const Color(0xff5c4715) : const Color(0xffffe49a))
-              : id == null
-                  ? (dark ? const Color(0xff0c1b29) : const Color(0xfffbfdff))
-                  : color,
-          elevation: lit ? 9 : selected ? 4 : 0,
-          shadowColor: lit
-              ? const Color(0xffdfad3e)
-              : const Color(0x331769ce),
-          shape: CircleBorder(
-              side: BorderSide(
-                  color: lit
-                      ? const Color(0xffc38b20)
-                      : selected
-                          ? const Color(0xff28a9ff)
-                          : id == null
-                              ? accent.withValues(alpha: dark ? .52 : .34)
-                              : accent.withValues(alpha: dark ? .92 : .72),
-                  width: selected || lit ? 2.5 : 1.25)),
+          color: Colors.transparent,
           child: SizedBox(
-              width: 54,
-              height: 54,
-              child: feedback
-                  ? Center(
-                      child: Text(name, style: const TextStyle(fontSize: 11)))
-                  : InkWell(
-                      key: id == null ? null : ValueKey('student-$id'),
-                      customBorder: const CircleBorder(),
-                      onTap: () => _choose(slot),
-                      child: Center(
-                          child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (id != null &&
-                                        widget.studentNumbers.containsKey(id))
-                                      Text(widget.studentNumbers[id]!,
-                                          style: TextStyle(
-                                              fontSize: 9,
-                                              color: dark
-                                                  ? const Color(0xff9fb4c7)
-                                                  : const Color(0xff5c768c),
-                                              fontWeight: FontWeight.w800)),
-                                    Text(name,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: id == null
-                                                ? FontWeight.w400
-                                                : FontWeight.w600,
-                                            color: dark
-                                                ? const Color(0xffedf5fb)
-                                                : const Color(0xff173f4f))),
-                                  ]))),
-                    )),
+            width: slotWidth,
+            child: InkWell(
+              key: id == null ? null : ValueKey('student-$id'),
+              borderRadius: BorderRadius.circular(13),
+              onTap: feedback ? null : () => _choose(slot),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      width: chairWidth,
+                      height: chairHeight,
+                      decoration: BoxDecoration(
+                        color: lit
+                            ? (dark
+                                ? const Color(0xff4b3c1c)
+                                : const Color(0xffffedbd))
+                            : baseFill,
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(
+                          color: borderColor,
+                          width: selected || lit ? 2 : 1.2,
+                        ),
+                        boxShadow: selected || lit
+                            ? [
+                                BoxShadow(
+                                  color: (lit
+                                          ? const Color(0xffd5a13a)
+                                          : const Color(0xff2584ff))
+                                      .withValues(alpha: .18),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Stack(children: [
+                        Center(
+                          child: Icon(
+                            id == null
+                                ? Icons.event_seat_outlined
+                                : Icons.event_seat_rounded,
+                            size: widget.presentation ? 25 : 21,
+                            color: id == null
+                                ? (dark
+                                    ? const Color(0xff60758c)
+                                    : const Color(0xffa4b2bf))
+                                : (dark
+                                    ? const Color(0xffdce7f0)
+                                    : const Color(0xff536d83)),
+                          ),
+                        ),
+                        if (id != null &&
+                            widget.studentNumbers.containsKey(id))
+                          Positioned(
+                            right: 4,
+                            top: 3,
+                            child: Text(
+                              widget.studentNumbers[id]!,
+                              style: TextStyle(
+                                fontSize: widget.presentation ? 9 : 8,
+                                height: 1,
+                                color: dark
+                                    ? const Color(0xff9fb4c7)
+                                    : const Color(0xff60758c),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        if (done && widget.checking && id != null)
+                          const Positioned(
+                            left: 4,
+                            top: 4,
+                            child: Icon(Icons.check_circle_rounded,
+                                size: 10, color: Color(0xff4f9b73)),
+                          ),
+                      ]),
+                    ),
+                    const SizedBox(height: 4),
+                    if (id != null)
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: widget.presentation ? 12 : 10.5,
+                          height: 1.1,
+                          fontWeight: selected || lit
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                          color: dark
+                              ? const Color(0xffedf5fb)
+                              : const Color(0xff29465d),
+                        ),
+                      )
+                    else
+                      const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            ),
+          ),
         );
 
     return SizedBox(
-        width: 54,
-        child: Column(children: [
-          DragTarget<int>(
-            key: ValueKey('seat-$slot'),
-            onWillAcceptWithDetails: (details) =>
-                _arranging && !widget.choosing && details.data != slot,
-            onAcceptWithDetails: (details) {
-              widget.onMove(details.data, slot);
-              setState(() => _moving = null);
-            },
-            builder: (context, candidates, rejected) => DecoratedBox(
-              decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: candidates.isEmpty
-                      ? null
-                      : [
-                          const BoxShadow(
-                              color: Color(0xff8dbbad),
-                              blurRadius: 8,
-                              spreadRadius: 3)
-                        ]),
-              child: _arranging && !widget.choosing && id != null
-                  ? Draggable<int>(
-                      data: slot,
-                      feedback: token(feedback: true),
-                      childWhenDragging: Opacity(opacity: 0.3, child: token()),
-                      child: token(),
-                    )
-                  : token(),
+      width: slotWidth,
+      child: Column(children: [
+        DragTarget<int>(
+          key: ValueKey('seat-$slot'),
+          onWillAcceptWithDetails: (details) =>
+              _arranging && !widget.choosing && details.data != slot,
+          onAcceptWithDetails: (details) {
+            widget.onMove(details.data, slot);
+            setState(() => _moving = null);
+          },
+          builder: (context, candidates, rejected) => DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: candidates.isEmpty
+                  ? null
+                  : [
+                      const BoxShadow(
+                        color: Color(0x662584ff),
+                        blurRadius: 9,
+                        spreadRadius: 2,
+                      ),
+                    ],
+            ),
+            child: _arranging && !widget.choosing && id != null
+                ? Draggable<int>(
+                    data: slot,
+                    feedback: token(feedback: true),
+                    childWhenDragging:
+                        Opacity(opacity: .28, child: token()),
+                    child: token(),
+                  )
+                : token(),
+          ),
+        ),
+        if (widget.quizMarks != null && id != null && !_arranging) ...[
+          const SizedBox(height: 5),
+          Text(widget.quizMarks![id]!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 10)),
+        ],
+        if (widget.groupMode && id != null && !_arranging) ...[
+          const SizedBox(height: 5),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+                color: dark
+                    ? const Color(0xff17334f)
+                    : const Color(0xffe8f2ff),
+                borderRadius: BorderRadius.circular(999)),
+            child: Text('Group ${widget.groups[id] ?? '-'}',
+                style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: dark
+                        ? const Color(0xffb8d7ff)
+                        : const Color(0xff1769ce))),
+          ),
+        ],
+        if (widget.attendanceMode && id != null && !_arranging) ...[
+          const SizedBox(height: 5),
+          SizedBox(
+            height: 30,
+            child: TextButton(
+              key: ValueKey('present-$id'),
+              style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size(slotWidth, 28),
+                  textStyle: const TextStyle(fontSize: 9.5)),
+              onPressed: widget.onPresent == null
+                  ? null
+                  : () => widget.onPresent!(id),
+              child: Text(widget.attendance[id] == 'Present'
+                  ? '✓ Present'
+                  : widget.attendance[id] ?? 'Present'),
             ),
           ),
-          if (widget.quizMarks != null && id != null && !_arranging) ...[
-            const SizedBox(height: 6),
-            Text(widget.quizMarks![id]!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 10)),
-          ],
-          if (widget.groupMode && id != null && !_arranging) ...[
-            const SizedBox(height: 5),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                  color: const Color(0xffe6f1ff),
-                  borderRadius: BorderRadius.circular(999)),
-              child: Text('Group ${widget.groups[id] ?? '-'}',
-                  style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xff1769ce))),
-            ),
-          ],
-          if (widget.attendanceMode && id != null && !_arranging) ...[
-            const SizedBox(height: 5),
-            SizedBox(
+        ],
+        if (widget.checking && id != null && !_arranging) ...[
+          const SizedBox(height: 5),
+          Tooltip(
+            message: done ? '$name: Done' : 'Mark $name done',
+            child: SizedBox(
               height: 30,
               child: TextButton(
-                key: ValueKey('present-$id'),
+                key: ValueKey('done-$id'),
                 style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
-                    minimumSize: const Size(54, 28),
+                    minimumSize: Size(slotWidth, 28),
                     textStyle: const TextStyle(fontSize: 9.5)),
-                onPressed: widget.onPresent == null
-                    ? null
-                    : () => widget.onPresent!(id),
-                child: Text(
-                    widget.attendance[id] == 'Present'
-                        ? '✓ Present'
-                        : widget.attendance[id] ?? 'Present'),
+                onPressed: () => widget.onDone(id),
+                child: Text(done ? '✓ Done' : 'Done'),
               ),
             ),
-          ],
-          if (widget.checking && id != null && !_arranging) ...[
-            const SizedBox(height: 6),
-            Tooltip(
-                message: done ? '$name: Done' : 'Mark $name done',
-                child: SizedBox(
-                    height: 32,
-                    child: TextButton(
-                      key: ValueKey('done-$id'),
-                      style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(54, 30),
-                          textStyle: const TextStyle(fontSize: 10)),
-                      onPressed: () => widget.onDone(id),
-                      child: Text(done ? '✓ Done' : 'Done'),
-                    ))),
-            if (status != 'Done' && status != 'Unchecked')
-              Text(status, style: const TextStyle(fontSize: 10)),
-          ],
-        ]));
+          ),
+          if (status != 'Done' && status != 'Unchecked')
+            Text(status, style: const TextStyle(fontSize: 9.5)),
+        ],
+      ]),
+    );
   }
+
 }
