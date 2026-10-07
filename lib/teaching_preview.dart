@@ -896,6 +896,22 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                   label: const Text('Lesson focus'),
                   avatar: const Icon(Icons.menu_book_outlined, size: 18),
                   onPressed: () => setState(() => _panel = 'lesson')),
+              ActionChip(
+                  label: const Text('Class tools'),
+                  avatar: const Icon(Icons.tune_rounded, size: 18),
+                  onPressed: () => setState(() => _panel = 'tools')),
+              ActionChip(
+                  label: const Text('Present'),
+                  avatar: const Icon(Icons.present_to_all_rounded, size: 18),
+                  onPressed: () => setState(() {
+                        _panel = null;
+                        _presentationMode = true;
+                      })),
+              if (_lastSeatSwap != null)
+                ActionChip(
+                    label: const Text('Undo move'),
+                    avatar: const Icon(Icons.undo_rounded, size: 18),
+                    onPressed: _undoSeatSwap),
             ]),
           ),
           const SizedBox(height: 16),
