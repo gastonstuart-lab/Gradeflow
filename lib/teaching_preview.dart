@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gradeflow/components/teaching_preview_room.dart';
+import 'package:gradeflow/components/teaching_preview_quiz.dart';
 
 void main() => runApp(const TeachingPreview());
 
@@ -70,6 +71,8 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   bool _started = false;
   bool _finished = false;
   bool _checking = false;
+  bool _quizzing = false;
+  final _quiz = PreviewQuizBook();
   String? _panel;
   String? _student;
   DateTime? _timerEnd;
@@ -79,6 +82,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   @override
   void initState() {
     super.initState();
+    _quiz.addListener(_quizChanged);
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_timerEnd == null) return;
       setState(() {
@@ -93,6 +97,8 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   @override
   void dispose() {
+    _quiz.removeListener(_quizChanged);
+    _quiz.dispose();
     _ticker?.cancel();
     _note.dispose();
     _continuation.dispose();
@@ -107,8 +113,12 @@ class _TeachingJourneyState extends State<TeachingJourney> {
     setState(() {
       _student = id;
       _note.text = _notes[id] ?? '';
-      _panel = 'student';
+      _panel = _quizzing ? 'quiz-student' : 'student';
     });
+  }
+
+  void _quizChanged() {
+    if (mounted) setState(() {});
   }
 
   void _start() => setState(() {
@@ -321,7 +331,17 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 avatar: const Icon(Icons.assignment_outlined, size: 18),
                 onSelected: (value) => setState(() {
                       _checking = value;
+                      _quizzing = false;
                       _panel = null;
+                    })),
+            FilterChip(
+                label: const Text('Quiz scores'),
+                selected: _quizzing,
+                avatar: const Icon(Icons.edit_note, size: 18),
+                onSelected: (value) => setState(() {
+                      _quizzing = value;
+                      _checking = false;
+                      _panel = value ? 'quiz' : null;
                     })),
             ActionChip(
                 label: Text(_timerEnd != null ? _clock : 'Timer'),
@@ -337,8 +357,18 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             const Text('Food web worksheet',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
             Text(
-                '$_checked of 12 checked · Choose a student to mark Done, Missing or Absent.',
+                '$_checked of 12 checked · Tap Done at a seat. Select a student for other statuses.',
                 style: const TextStyle(color: _muted, height: 1.5)),
+          ] else if (_quizzing) ...[
+            Text(_quiz.selected.name,
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+            Text(
+                'Out of ${_quiz.maximumLabel} · ${_quiz.entered(_students.keys)} of 12 entered',
+                style: const TextStyle(color: _muted)),
+            TextButton(
+                onPressed: () => setState(() => _panel = 'quiz'),
+                child: const Text('Open full class entry')),
           ] else
             const Text('Your classroom. Select a student when you need them.',
                 style: TextStyle(color: _muted, height: 1.5)),
@@ -359,8 +389,18 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             students: _students,
             seats: _seats,
             homework: _homework,
+            quizMarks: _quizzing
+                ? {
+                    for (final id in _students.keys)
+                      id: _quiz.mark(id) == null
+                          ? 'Not entered'
+                          : '${_quiz.mark(id)} / ${_quiz.maximumLabel}'
+                  }
+                : null,
             checking: _checking,
-            selectedStudent: _panel == 'student' ? _student : null,
+            selectedStudent: _panel == 'student' || _panel == 'quiz-student'
+                ? _student
+                : null,
             onStudent: _openStudent,
             onDone: (id) => setState(() => _homework[id] = 'Done'),
             onMove: (from, to) => setState(() {
@@ -395,6 +435,20 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               ]),
               const SizedBox(height: 14),
               if (_panel == 'student') ..._studentPanel(),
+              if (_panel == 'quiz' || _panel == 'quiz-student') ...[
+                if (_panel == 'quiz-student')
+                  TextButton(
+                      onPressed: () => setState(() => _panel = 'quiz'),
+                      child: const Text('All students')),
+                PreviewQuizPanel(
+                  key: ValueKey(
+                      _panel == 'quiz' ? 'quiz-roster' : 'quiz-$_student'),
+                  book: _quiz,
+                  students: _panel == 'quiz'
+                      ? _students
+                      : {_student!: _students[_student]!},
+                ),
+              ],
               if (_panel == 'timer') ..._timerPanel(),
               if (_panel == 'lesson') ...[
                 const Text('Food webs',
@@ -505,7 +559,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 fontSize: 28, height: 1.2, fontWeight: FontWeight.w600)),
         const SizedBox(height: 24),
         Text(
-            '$_checked of 12 homework checks\n${_notes.values.where((n) => n.trim().isNotEmpty).length} private notes\n${_followUps.length} student follow-ups',
+            '${_quiz.selected.name}: ${_quiz.entered(_students.keys)} of 12 marks\n$_checked of 12 homework checks\n${_notes.values.where((n) => n.trim().isNotEmpty).length} private notes\n${_followUps.length} student follow-ups',
             style: const TextStyle(fontSize: 16, height: 2)),
         const SizedBox(height: 22),
         TextField(

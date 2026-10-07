@@ -6,6 +6,7 @@ class TeachingPreviewRoom extends StatefulWidget {
   final Map<String, String> students;
   final List<String?> seats;
   final Map<String, String> homework;
+  final Map<String, String>? quizMarks;
   final bool checking;
   final String? selectedStudent;
   final ValueChanged<String> onStudent;
@@ -17,6 +18,7 @@ class TeachingPreviewRoom extends StatefulWidget {
     required this.students,
     required this.seats,
     required this.homework,
+    this.quizMarks,
     required this.checking,
     required this.selectedStudent,
     required this.onStudent,
@@ -207,6 +209,12 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                   : token(),
             ),
           ),
+          if (widget.quizMarks != null && id != null && !_arranging) ...[
+            const SizedBox(height: 6),
+            Text(widget.quizMarks![id]!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 10)),
+          ],
           if (widget.checking && id != null && !_arranging) ...[
             const SizedBox(height: 6),
             Tooltip(
