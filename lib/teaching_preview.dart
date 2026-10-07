@@ -503,18 +503,13 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   Widget _classCard() => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(34),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
             gradient: const LinearGradient(colors: [
               Color(0xff103553),
               Color(0xff1a5875),
               Color(0xff148b88)
             ], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            image: const DecorationImage(
-                image: AssetImage('assets/images/dashboard_world.jpg'),
-                fit: BoxFit.cover,
-                alignment: Alignment.centerRight,
-                opacity: .13),
             borderRadius: BorderRadius.circular(28),
             boxShadow: const [
               BoxShadow(
@@ -523,103 +518,149 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                   offset: Offset(0, 14))
             ],
             border: Border.all(color: const Color(0xff3a8093))),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(
-              child: _heroLabel(_finished
-                  ? 'LESSON WRAPPED UP'
-                  : _started
-                      ? 'YOUR CLASS IS STILL HERE'
-                      : 'UP NEXT · 10:10–11:00'),
+        child: Stack(children: [
+          Positioned(
+            right: -18,
+            top: -22,
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: .15,
+                child: SizedBox(
+                  width: 330,
+                  height: 250,
+                  child: Stack(children: [
+                    Positioned(
+                      right: 18,
+                      top: 16,
+                      child: Icon(Icons.eco_rounded,
+                          size: 150, color: Colors.white),
+                    ),
+                    Positioned(
+                      right: 130,
+                      top: 78,
+                      child: Icon(Icons.water_drop_rounded,
+                          size: 88, color: Colors.white),
+                    ),
+                    Positioned(
+                      right: 72,
+                      top: 138,
+                      child: Icon(Icons.hub_rounded,
+                          size: 112, color: Colors.white),
+                    ),
+                  ]),
+                ),
+              ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .11),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: .18))),
-              child: const Text('ECOSYSTEMS',
-                  style: TextStyle(
-                      color: Color(0xffd7f3ee),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.15)),
-            ),
-          ]),
-          const SizedBox(height: 18),
-          const Text('J2 Science',
-              style: TextStyle(
-                  fontSize: 48,
-                  height: 1,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1.4)),
-          const SizedBox(height: 9),
-          const Text('Room 204 · 12 students · Ecosystems',
-              style: TextStyle(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xffd6e6ef))),
-          const SizedBox(height: 28),
-          Text(_finished ? 'Ready for next time' : 'Pick up where you left off',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 17,
-                  color: Colors.white)),
-          const SizedBox(height: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 650),
-            child: Text(
-                _finished && _continuation.text.trim().isNotEmpty
-                    ? _continuation.text.trim()
-                    : 'Continue food webs. Ask students what happens when one species disappears.',
-                style: const TextStyle(
-                    height: 1.55,
-                    fontSize: 15.5,
-                    color: Color(0xffe0edf3))),
           ),
-          const SizedBox(height: 22),
-          Wrap(spacing: 20, runSpacing: 12, children: [
-            _signal(
-                Icons.assignment_outlined,
-                _finished
-                    ? '$_checked of 12 homework checks'
-                    : 'Food web worksheet · Homework'),
-            _signal(Icons.chat_bubble_outline,
-                '${_followUps.length} student follow-ups'),
-          ]),
-          const SizedBox(height: 30),
-          Wrap(spacing: 10, runSpacing: 10, children: [
-            FilledButton.icon(
-                style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xff164f72),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 16)),
-                onPressed: _start,
-                icon: const Icon(Icons.arrow_forward_rounded),
-                label: Text(_finished
-                    ? 'Reopen demo lesson'
-                    : _started
-                        ? 'Return to class'
-                        : 'Start class')),
-            OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: BorderSide(
-                        color: Colors.white.withValues(alpha: .42)),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 16)),
-                onPressed: _startQuiz,
-                icon: const Icon(Icons.edit_note),
-                label: const Text('Enter quiz scores')),
-          ]),
-          if (_finished) ...[
-            const SizedBox(height: 16),
-            const Text('Lesson summary kept in this preview session only.',
-                style: TextStyle(color: Color(0xffd6e6ef), fontSize: 12)),
-          ],
+          Padding(
+            padding: const EdgeInsets.all(34),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Expanded(
+                      child: _heroLabel(_finished
+                          ? 'LESSON WRAPPED UP'
+                          : _started
+                              ? 'YOUR CLASS IS STILL HERE'
+                              : 'UP NEXT · 10:10–11:00'),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: .11),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: .18))),
+                      child: const Text('ECOSYSTEMS',
+                          style: TextStyle(
+                              color: Color(0xffd7f3ee),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.15)),
+                    ),
+                  ]),
+                  const SizedBox(height: 18),
+                  const Text('J2 Science',
+                      style: TextStyle(
+                          fontSize: 48,
+                          height: 1,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1.4)),
+                  const SizedBox(height: 9),
+                  const Text('Room 204 · 12 students · Ecosystems',
+                      style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xffd6e6ef))),
+                  const SizedBox(height: 28),
+                  Text(_finished
+                      ? 'Ready for next time'
+                      : 'Pick up where you left off',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          color: Colors.white)),
+                  const SizedBox(height: 8),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 650),
+                    child: Text(
+                        _finished && _continuation.text.trim().isNotEmpty
+                            ? _continuation.text.trim()
+                            : 'Continue food webs. Ask students what happens when one species disappears.',
+                        style: const TextStyle(
+                            height: 1.55,
+                            fontSize: 15.5,
+                            color: Color(0xffe0edf3))),
+                  ),
+                  const SizedBox(height: 22),
+                  Wrap(spacing: 20, runSpacing: 12, children: [
+                    _signal(
+                        Icons.assignment_outlined,
+                        _finished
+                            ? '$_checked of 12 homework checks'
+                            : 'Food web worksheet · Homework'),
+                    _signal(Icons.chat_bubble_outline,
+                        '${_followUps.length} student follow-ups'),
+                  ]),
+                  const SizedBox(height: 30),
+                  Wrap(spacing: 10, runSpacing: 10, children: [
+                    FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xff164f72),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 16)),
+                        onPressed: _start,
+                        icon: const Icon(Icons.arrow_forward_rounded),
+                        label: Text(_finished
+                            ? 'Reopen demo lesson'
+                            : _started
+                                ? 'Return to class'
+                                : 'Start class')),
+                    OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(
+                                color:
+                                    Colors.white.withValues(alpha: .42)),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 16)),
+                        onPressed: _startQuiz,
+                        icon: const Icon(Icons.edit_note),
+                        label: const Text('Enter quiz scores')),
+                  ]),
+                  if (_finished) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                        'Lesson summary kept in this preview session only.',
+                        style: TextStyle(
+                            color: Color(0xffd6e6ef), fontSize: 12)),
+                  ],
+                ]),
+          ),
         ]),
       );
 
