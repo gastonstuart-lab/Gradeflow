@@ -137,7 +137,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
     final lit = widget.spotlightTable == table;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 110),
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
           gradient: lit
               ? const LinearGradient(
@@ -164,10 +164,10 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
           ]),
       child: Column(children: [
         Row(children: [
-          SizedBox(width: 62, child: sideLeft ? _seat(table * 4 + 3) : null),
+          SizedBox(width: 56, child: sideLeft ? _seat(table * 4 + 3) : null),
           Expanded(
               child: Container(
-            height: 88,
+            height: 70,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                   colors: [Color(0xffe9f4f6), Color(0xffdceae8)],
@@ -182,11 +182,11 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                     children: [
                   Text('${table + 1}',
                       style: const TextStyle(
-                          fontSize: 30,
+                          fontSize: 27,
                           height: 1,
                           color: Color(0xff285b5a),
                           fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 3),
                   const Text('TABLE',
                       style: TextStyle(
                           fontSize: 8,
@@ -195,18 +195,18 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                           fontWeight: FontWeight.w800)),
                 ])),
           )),
-          SizedBox(width: 62, child: sideRight ? _seat(table * 4 + 3) : null),
+          SizedBox(width: 56, child: sideRight ? _seat(table * 4 + 3) : null),
         ]),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
                 3,
                 (seat) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: _seat(table * 4 + seat),
                     ))),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Text('Table ${table + 1}',
             style: const TextStyle(
                 fontSize: 10.5,
@@ -249,8 +249,8 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                               : const Color(0xff9fb9bb),
                   width: selected || lit ? 2.5 : 1.25)),
           child: SizedBox(
-              width: 60,
-              height: 60,
+              width: 54,
+              height: 54,
               child: feedback
                   ? Center(
                       child: Text(name, style: const TextStyle(fontSize: 11)))
@@ -286,7 +286,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
         );
 
     return SizedBox(
-        width: 60,
+        width: 54,
         child: Column(children: [
           DragTarget<int>(
             key: ValueKey('seat-$slot'),
@@ -345,7 +345,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                 key: ValueKey('present-$id'),
                 style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
-                    minimumSize: const Size(60, 30),
+                    minimumSize: const Size(54, 28),
                     textStyle: const TextStyle(fontSize: 9.5)),
                 onPressed: widget.onPresent == null
                     ? null
@@ -367,7 +367,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                       key: ValueKey('done-$id'),
                       style: TextButton.styleFrom(
                           padding: EdgeInsets.zero,
-                          minimumSize: const Size(60, 32),
+                          minimumSize: const Size(54, 30),
                           textStyle: const TextStyle(fontSize: 10)),
                       onPressed: () => widget.onDone(id),
                       child: Text(done ? '✓ Done' : 'Done'),
