@@ -145,14 +145,15 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
       ]),
       const SizedBox(height: 14),
       LayoutBuilder(builder: (context, constraints) {
-        final available = constraints.maxWidth >= 780
+        final available = constraints.maxWidth >= 940
             ? 3
-            : constraints.maxWidth >= 500
+            : constraints.maxWidth >= 620
                 ? 2
                 : 1;
         final columns =
             widget.tableColumns < available ? widget.tableColumns : available;
-        final width = (constraints.maxWidth - (columns - 1) * 22) / columns;
+        final canvasWidth = constraints.maxWidth.clamp(0.0, 1180.0);
+        final width = (canvasWidth - (columns - 1) * 22) / columns;
         return Wrap(
             spacing: 22,
             runSpacing: 24,
@@ -181,114 +182,61 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
     final lit = widget.spotlightTable == table;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final accent = _accentFor(table);
-    final tableFill = Color.alphaBlend(
-      accent.withValues(alpha: dark ? .34 : .16),
-      dark ? const Color(0xff102333) : Colors.white,
-    );
-
-    // Source-of-truth room geometry from the original Classroom.html:
-    // three seats behind/below each table, with the extra side seat only
-    // where the physical room actually has one.
+    // Original room: three seats below, side seats only at tables 1 and 3.
     final showLeftSide = !widget.allSideSeats && table == 0;
     final showRightSide = widget.allSideSeats || table == 2;
-    final sideSeat = _seat(table * 4 + 3);
-    final sidePlaceholder = const SizedBox(width: 54, height: 54);
-
+    const sidePlaceholder = SizedBox(width: 72, height: 68);
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      padding: EdgeInsets.symmetric(
-          vertical: widget.presentation ? 10 : 4,
-          horizontal: widget.presentation ? 8 : 2),
+      key: ValueKey('table-group-$table'),
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero : const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
       decoration: BoxDecoration(
-        color: lit
-            ? (dark
-                ? const Color(0xff2d2819)
-                : const Color(0xfffff7dd))
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(22),
-        border: lit
-            ? Border.all(color: const Color(0xffe3ac3c), width: 2)
-            : null,
+        color: lit ? accent.withValues(alpha: .12) : Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: lit ? accent : Colors.transparent),
       ),
       child: Column(
-        mainAxisAlignment: widget.presentation
-            ? MainAxisAlignment.center
-            : MainAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              showLeftSide ? sideSeat : sidePlaceholder,
-              const SizedBox(width: 10),
-              Expanded(
-                child: Center(
-                  child: FractionallySizedBox(
-                    widthFactor: widget.presentation ? .70 : .66,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      height: widget.presentation ? 82 : 72,
-                      decoration: BoxDecoration(
-                        color: tableFill,
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                            color:
-                                accent.withValues(alpha: dark ? .98 : .78),
-                            width: dark ? 1.9 : 1.5),
-                        boxShadow: dark
-                            ? [
-                                BoxShadow(
-                                    color: accent.withValues(alpha: .12),
-                                    blurRadius: 14,
-                                    spreadRadius: 1)
-                              ]
-                            : null,
-                      ),
-                      child: Center(
-                          child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                            Text('${table + 1}',
-                                style: TextStyle(
-                                    fontSize:
-                                        widget.presentation ? 30 : 27,
-                                    height: 1,
-                                    color: dark
-                                        ? const Color(0xfff2f7fb)
-                                        : const Color(0xff173f4f),
-                                    fontWeight: FontWeight.w900)),
-                            const SizedBox(height: 3),
-                            Text('TABLE',
-                                style: TextStyle(
-                                    fontSize: 8,
-                                    letterSpacing: 1.4,
-                                    color: dark
-                                        ? const Color(0xffb6c7d6)
-                                        : const Color(0xff60758c),
-                                    fontWeight: FontWeight.w800)),
-                          ])),
-                    ),
-                  ),
+          Row(children: [
+            showLeftSide ? _seat(table * 4 + 3) : sidePlaceholder,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Container(
+                key: ValueKey('table-surface-$table'),
+                height: 80,
+                decoration: BoxDecoration(
+                  color: dark ? const Color(0xff203443) : const Color(0xffedf2f5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: dark ? const Color(0xff405565) : const Color(0xffccd7df)),
+                  boxShadow: [BoxShadow(
+                    color: Colors.black.withValues(alpha: dark ? .18 : .05),
+                    blurRadius: 10, offset: const Offset(0, 5))],
                 ),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Container(width: 24, height: 3,
+                    decoration: BoxDecoration(color: accent,
+                      borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 10),
+                  Text('Table ${table + 1}',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
+                      color: dark ? const Color(0xffe3ebf0) : const Color(0xff334d60))),
+                ]),
               ),
-              const SizedBox(width: 10),
-              showRightSide ? sideSeat : sidePlaceholder,
-            ],
-          ),
-          SizedBox(height: widget.presentation ? 16 : 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _seat(table * 4),
-              _seat(table * 4 + 1),
-              _seat(table * 4 + 2),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            showRightSide ? _seat(table * 4 + 3) : sidePlaceholder,
+          ]),
+          const SizedBox(height: 16),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            _seat(table * 4), _seat(table * 4 + 1), _seat(table * 4 + 2),
+          ]),
         ],
       ),
     );
   }
-
   Widget _seat(int slot) {
     final id = widget.seats[slot];
     final table = slot ~/ 4;
@@ -314,25 +262,25 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
           shadowColor: lit
               ? const Color(0xffdfad3e)
               : const Color(0x331769ce),
-          shape: CircleBorder(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),
               side: BorderSide(
                   color: lit
                       ? const Color(0xffc38b20)
                       : selected
                           ? const Color(0xff28a9ff)
                           : id == null
-                              ? accent.withValues(alpha: dark ? .52 : .34)
-                              : accent.withValues(alpha: dark ? .92 : .72),
+                              ? (dark ? const Color(0xff253948) : const Color(0xffdce4ea))
+                              : accent.withValues(alpha: dark ? .40 : .32),
                   width: selected || lit ? 2.5 : 1.25)),
           child: SizedBox(
-              width: 54,
-              height: 54,
+              width: 72,
+              height: 68,
               child: feedback
                   ? Center(
                       child: Text(name, style: const TextStyle(fontSize: 11)))
                   : InkWell(
                       key: id == null ? null : ValueKey('student-$id'),
-                      customBorder: const CircleBorder(),
+                      borderRadius: BorderRadius.circular(12),
                       onTap: () => _choose(slot),
                       child: Center(
                           child: Padding(
@@ -344,7 +292,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                                         widget.studentNumbers.containsKey(id))
                                       Text(widget.studentNumbers[id]!,
                                           style: TextStyle(
-                                              fontSize: 9,
+                                              fontSize: 10,
                                               color: dark
                                                   ? const Color(0xff9fb4c7)
                                                   : const Color(0xff5c768c),
@@ -354,7 +302,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                                         overflow: TextOverflow.ellipsis,
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             fontWeight: id == null
                                                 ? FontWeight.w400
                                                 : FontWeight.w600,
@@ -366,7 +314,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
         );
 
     return SizedBox(
-        width: 54,
+        width: 72,
         child: Column(children: [
           DragTarget<int>(
             key: ValueKey('seat-$slot'),
@@ -378,7 +326,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
             },
             builder: (context, candidates, rejected) => DecoratedBox(
               decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: candidates.isEmpty
                       ? null
                       : [
@@ -412,7 +360,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                   borderRadius: BorderRadius.circular(999)),
               child: Text('Group ${widget.groups[id] ?? '-'}',
                   style: const TextStyle(
-                      fontSize: 9,
+                      fontSize: 10,
                       fontWeight: FontWeight.w800,
                       color: Color(0xff1769ce))),
             ),

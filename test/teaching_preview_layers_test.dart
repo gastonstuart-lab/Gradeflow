@@ -4,8 +4,8 @@ import 'package:gradeflow/teaching_preview.dart';
 import 'package:gradeflow/components/teaching_preview_room.dart';
 
 void main() {
-  for (final width in [390.0, 1400.0]) {
-    testWidgets('one right overlay preserves room at $width', (tester) async {
+  for (final width in [390.0, 1100.0, 1536.0]) {
+    testWidgets('secondary area never covers the room at $width', (tester) async {
       tester.view.physicalSize = Size(width, 1100);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -22,9 +22,18 @@ void main() {
       openTools();
       await tester.pumpAndSettle();
       final sheet = find.byKey(const ValueKey('class-tools'));
-      expect(tester.getRect(sheet).right, width);
-      expect(tester.getSize(sheet).width, lessThanOrEqualTo(340));
-      expect(tester.getSize(room), roomSize);
+      final roomSpace = find.byKey(const ValueKey('classroom-room-space'));
+      final panelSpace = find.byKey(const ValueKey('classroom-secondary-space'));
+      void expectSeparateSpaces() {
+        expect(tester.getRect(roomSpace).overlaps(tester.getRect(panelSpace)), isFalse);
+      }
+      expectSeparateSpaces();
+      if (width >= 1360) {
+        expect(tester.getRect(sheet).right, width);
+        expect(tester.getSize(sheet).width, 340);
+      } else {
+        expect(tester.getRect(sheet).top, tester.getRect(roomSpace).bottom);
+      }
       expect(tester.widget<TeachingPreviewRoom>(room).seats, seats);
       tester.widget<TeachingPreviewRoom>(room).onStudent('s1');
       await tester.pump(const Duration(milliseconds: 100));
@@ -44,12 +53,10 @@ void main() {
       expect(tester.getSize(room), roomSize);
       openTools();
       await tester.pumpAndSettle();
-      final barrier = find.byKey(const ValueKey('classroom-layer-dismiss'));
-      await tester.tapAt(tester.getTopLeft(barrier) + const Offset(5, 5));
+      await tester.tap(find.byTooltip('Close class tools'));
       await tester.pumpAndSettle();
       expect(sheet, findsNothing);
       expect(tester.takeException(), isNull);
     });
   }
 }
-

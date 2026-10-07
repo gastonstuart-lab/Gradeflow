@@ -1108,73 +1108,61 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   Widget _classroom() => LayoutBuilder(builder: (context, size) {
         final open = _toolsDrawerOpen || _panel != null;
+        final beside = size.maxWidth >= 1360;
+        final extent = beside ? 340.0 : min(360.0, size.maxHeight * .44);
         final motion = MediaQuery.disableAnimationsOf(context)
             ? Duration.zero
             : const Duration(milliseconds: 260);
-        return Stack(children: [
-          Positioned.fill(child: _map()),
-          Positioned.fill(
-            child: IgnorePointer(
-              ignoring: !open,
-              child: AnimatedOpacity(
-                duration: motion,
-                opacity: open ? .16 : 0,
-                child: GestureDetector(
-                  key: const ValueKey('classroom-layer-dismiss'),
-                  onTap: () => setState(() {
-                    _toolsDrawerOpen = false;
-                    _panel = null;
-                  }),
-                  child: Container(color: Colors.black),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: min(340.0, size.maxWidth * .92),
-            child: IgnorePointer(
-              ignoring: !open,
-              child: ExcludeSemantics(
-                excluding: !open,
-                child: AnimatedSwitcher(
-                  duration: motion,
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  // Replacements share one slot; never paint two private layers.
-                  layoutBuilder: (current, outgoing) => Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (current != null) current
-                      else if (outgoing.isNotEmpty) outgoing.last,
-                    ],
-                  ),
-                  transitionBuilder: (child, animation) => SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(1, 0),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                  child: !open
-                      ? null
-                      : KeyedSubtree(
-                          key: ValueKey<String>(_toolsDrawerOpen ? 'class-tools' : _panel!),
-                          child: _toolsDrawerOpen ? _toolsDrawer() : _panelBody(),
+        // The panel owns layout space: it never paints over the room.
+        final layer = AnimatedContainer(
+          key: const ValueKey('classroom-secondary-space'),
+          duration: motion,
+          curve: Curves.easeOutCubic,
+          width: beside ? (open ? extent : 0) : size.maxWidth,
+          height: beside ? size.maxHeight : (open ? extent : 0),
+          child: ClipRect(
+            child: OverflowBox(
+              alignment: beside ? Alignment.centerLeft : Alignment.topCenter,
+              minWidth: beside ? extent : size.maxWidth,
+              maxWidth: beside ? extent : size.maxWidth,
+              minHeight: beside ? size.maxHeight : extent,
+              maxHeight: beside ? size.maxHeight : extent,
+              child: open
+                  ? DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(color: _line),
+                          top: BorderSide(color: _line),
                         ),
-                ),
-              ),
+                      ),
+                      child: KeyedSubtree(
+                        key: ValueKey<String>(
+                            _toolsDrawerOpen ? 'class-tools' : _panel!),
+                        child: _toolsDrawerOpen ? _toolsDrawer() : _panelBody(),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
           ),
-        ]);
+        );
+        return Flex(
+          direction: beside ? Axis.horizontal : Axis.vertical,
+          children: [
+            Expanded(
+              child: ClipRect(
+                key: const ValueKey('classroom-room-space'),
+                child: _map(),
+              ),
+            ),
+            layer,
+          ],
+        );
       });
   Widget _toolsDrawer() => Material(
         color: widget.darkMode
             ? const Color(0xff0b1b2a)
             : const Color(0xfffbfdff),
-        elevation: 12,
+        elevation: 0,
         shadowColor: Colors.black26,
         child: SafeArea(
           left: false,
