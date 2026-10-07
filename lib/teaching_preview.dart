@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:gradeflow/components/teaching_preview_room.dart';
 import 'package:gradeflow/components/teaching_preview_quiz.dart';
+import 'package:gradeflow/components/teaching_preview_room_builder.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const TeachingPreview());
@@ -66,6 +67,32 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   final List<String?> _seats = List.generate(
       24, (i) => i % 4 < 2 ? 's${(i ~/ 4) * 2 + i % 4 + 1}' : null);
   final Map<String, String> _homework = {};
+  int _tableColumns = 3;
+  bool _customRoom = false;
+  int _roomRevision = 0;
+
+  Future<void> _buildRoom() async {
+    setState(_cancelChooser);
+    final layout = await showDialog<PreviewRoomLayout>(
+        context: context,
+        builder: (_) => PreviewRoomBuilder(
+            initial: PreviewRoomLayout(_seats.length ~/ 4, _tableColumns),
+            students: _students.length));
+    if (!mounted || layout == null) return;
+    setState(() {
+      final occupants = _seats.whereType<String>().toList();
+      _seats.clear();
+      _seats.addAll(List<String?>.filled(layout.tables * 4, null));
+      for (var i = 0; i < occupants.length; i++) {
+        _seats[(i % layout.tables) * 4 + i ~/ layout.tables] = occupants[i];
+      }
+      _tableColumns = layout.columns;
+      _customRoom = true;
+      _roomRevision++;
+      _panel = null;
+    });
+  }
+
   final Map<String, String> _notes = {};
   final Set<String> _followUps = {};
   final _note = TextEditingController();
@@ -105,7 +132,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
     _cancelChooser();
     final candidates = table
         ? [
-            for (var i = 0; i < 6; i++)
+            for (var i = 0; i < _seats.length ~/ 4; i++)
               if (_seats.skip(i * 4).take(4).any((id) => id != null)) '$i'
           ]
         : _seats.whereType<String>().toList();
@@ -428,6 +455,11 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           const SizedBox(height: 22),
           Wrap(spacing: 10, runSpacing: 10, children: [
             ActionChip(
+                label: const Text('Room setup'),
+                avatar:
+                    const Icon(Icons.dashboard_customize_outlined, size: 18),
+                onPressed: _buildRoom),
+            ActionChip(
                 label: const Text('Pick student'),
                 avatar: const Icon(Icons.person_search_outlined, size: 18),
                 onPressed: _choosing ? null : () => _pick(false)),
@@ -521,6 +553,9 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                           fontSize: 10, letterSpacing: 2, color: _muted)))),
           const SizedBox(height: 22),
           TeachingPreviewRoom(
+            key: ValueKey('room-$_roomRevision'),
+            tableColumns: _tableColumns,
+            allSideSeats: _customRoom,
             studentNumbers: _numbers,
             spotlightStudent: _spotlightStudent,
             spotlightTable: _spotlightTable,

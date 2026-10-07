@@ -13,6 +13,8 @@ class TeachingPreviewRoom extends StatefulWidget {
   final String? spotlightStudent;
   final int? spotlightTable;
   final bool choosing;
+  final int tableColumns;
+  final bool allSideSeats;
   final ValueChanged<String> onStudent;
   final ValueChanged<String> onDone;
   final void Function(int from, int to) onMove;
@@ -29,6 +31,8 @@ class TeachingPreviewRoom extends StatefulWidget {
     this.spotlightStudent,
     this.spotlightTable,
     this.choosing = false,
+    this.tableColumns = 3,
+    this.allSideSeats = false,
     required this.onStudent,
     required this.onDone,
     required this.onMove,
@@ -81,17 +85,19 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
         ]),
         const SizedBox(height: 20),
         LayoutBuilder(builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 780
+          final available = constraints.maxWidth >= 780
               ? 3
               : constraints.maxWidth >= 500
                   ? 2
                   : 1;
+          final columns =
+              widget.tableColumns < available ? widget.tableColumns : available;
           final width = (constraints.maxWidth - (columns - 1) * 18) / columns;
           return Wrap(
               spacing: 18,
               runSpacing: 26,
               children: List.generate(
-                  6,
+                  widget.seats.length ~/ 4,
                   (table) => SizedBox(
                         width: width,
                         child: _table(table),
@@ -100,8 +106,8 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
       ]);
 
   Widget _table(int table) {
-    final sideLeft = table == 0;
-    final sideRight = table == 2;
+    final sideLeft = widget.allSideSeats ? table.isEven : table == 0;
+    final sideRight = widget.allSideSeats ? table.isOdd : table == 2;
     final lit = widget.spotlightTable == table;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 110),

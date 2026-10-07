@@ -1,8 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/teaching_preview.dart';
+import 'package:gradeflow/components/teaching_preview_room.dart';
 
 void main() {
+  testWidgets(
+      'room setup is a draft and applying preserves every student record',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 1300);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const TeachingPreview());
+    await tester.tap(find.text('Start class'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Homework check'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('done-s1')));
+    await tester.tap(find.byKey(const ValueKey('student-s1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Keep Alex record');
+    await tester.tap(find.byTooltip('Close panel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Room setup'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1 across'));
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<TeachingPreviewRoom>(find.byType(TeachingPreviewRoom))
+            .tableColumns,
+        3);
+    await tester.tap(find.text('Room setup'));
+    await tester.pumpAndSettle();
+    final slider = find.byKey(const ValueKey('builder-tables'));
+    await tester.tapAt(tester.getTopLeft(slider) +
+        Offset(24, tester.getSize(slider).height / 2));
+    await tester.pumpAndSettle();
+    expect(find.text('3 tables · 12 seats'), findsOneWidget);
+    await tester.tap(find.text('2 across'));
+    await tester.tap(find.text('Apply room layout'));
+    await tester.pumpAndSettle();
+    final room =
+        tester.widget<TeachingPreviewRoom>(find.byType(TeachingPreviewRoom));
+    expect(room.seats.whereType<String>().toSet().length, 12);
+    expect(room.seats.length, 12);
+    expect(room.tableColumns, 2);
+    expect(room.allSideSeats, isTrue);
+    await tester.tap(find.byKey(const ValueKey('student-s1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Keep Alex record'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Done'), findsOneWidget);
+    expect(find.text('Student no. 01 · J2 Science'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close panel'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Arrange seats'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('student-s1')));
+    await tester.tap(find.text('Room setup'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Apply room layout'));
+    await tester.pumpAndSettle();
+    expect(find.text('Seats locked for teaching'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('homework, private note and continuation survive the lesson flow',
       (tester) async {
     tester.view.physicalSize = const Size(1400, 1100);
