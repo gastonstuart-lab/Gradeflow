@@ -369,6 +369,17 @@ class _TeachingJourneyState extends State<TeachingJourney> {
         _panel = null;
       });
 
+  Color get _surface =>
+      widget.darkMode ? const Color(0xff0b1b2a) : const Color(0xfffbfdff);
+  Color get _surfaceSoft =>
+      widget.darkMode ? const Color(0xff102334) : const Color(0xfff6f9fc);
+  Color get _line =>
+      widget.darkMode ? const Color(0xff29445e) : const Color(0xffdce7ef);
+  Color get _primaryText =>
+      widget.darkMode ? const Color(0xffeef6ff) : const Color(0xff173457);
+  Color get _secondaryText =>
+      widget.darkMode ? const Color(0xff9fb4c7) : const Color(0xff60758c);
+
   Widget _label(String text) => Text(text,
       style: TextStyle(
           fontSize: 12,
@@ -463,28 +474,32 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 child: Column(children: [
                   Container(
                     width: double.infinity,
-                    color: const Color(0xffe4eef8),
+                    color: widget.darkMode
+                        ? const Color(0xff091724)
+                        : const Color(0xffe4eef8),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 7),
-                    child: const Text(
+                    child: Text(
                         'INTERACTIVE PREVIEW  ·  Fictional class · Changes last until you refresh',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 10.5,
                             letterSpacing: .25,
                             fontWeight: FontWeight.w600,
-                            color: _muted)),
+                            color: _secondaryText)),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 26, vertical: 12),
-                    decoration: const BoxDecoration(
-                      color: Color(0xfffbfdff),
+                    decoration: BoxDecoration(
+                      color: _surface,
                       boxShadow: [
                         BoxShadow(
-                            color: Color(0x0b123a62),
+                            color: widget.darkMode
+                                ? Colors.black.withValues(alpha: .28)
+                                : const Color(0x0b123a62),
                             blurRadius: 18,
-                            offset: Offset(0, 4))
+                            offset: const Offset(0, 4))
                       ],
                     ),
                     child: Row(children: [
@@ -509,7 +524,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                           child: const Icon(Icons.layers_rounded,
                               color: Colors.white, size: 23)),
                       const SizedBox(width: 11),
-                      const Column(
+                      Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('InstructOS',
@@ -517,12 +532,12 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: -.35,
                                     fontSize: 20,
-                                    color: Color(0xff123a62))),
+                                    color: _primaryText)),
                             Text('Teacher workspace',
                                 style: TextStyle(
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w600,
-                                    color: _muted)),
+                                    color: _secondaryText)),
                           ]),
                       const Spacer(),
                       if (MediaQuery.sizeOf(context).width >= 720)
@@ -531,14 +546,20 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 7),
                           decoration: BoxDecoration(
-                              color: _teaching
-                                  ? const Color(0xffe2f4f1)
-                                  : const Color(0xffeaf3ff),
+                              color: widget.darkMode
+                                  ? (_teaching
+                                      ? const Color(0xff103c39)
+                                      : const Color(0xff102b45))
+                                  : (_teaching
+                                      ? const Color(0xffe2f4f1)
+                                      : const Color(0xffeaf3ff)),
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
-                                  color: _teaching
-                                      ? const Color(0xffbfe4dd)
-                                      : const Color(0xffcfe1f4))),
+                                  color: widget.darkMode
+                                      ? const Color(0xff28536c)
+                                      : (_teaching
+                                          ? const Color(0xffbfe4dd)
+                                          : const Color(0xffcfe1f4)))),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             Icon(
                                 _teaching
@@ -622,14 +643,16 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: _surface,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xffd9e5f1)),
-                    boxShadow: const [
+                    border: Border.all(color: _line),
+                    boxShadow: [
                       BoxShadow(
-                          color: Color(0x181b416a),
+                          color: widget.darkMode
+                              ? Colors.black.withValues(alpha: .35)
+                              : const Color(0x181b416a),
                           blurRadius: 24,
-                          offset: Offset(0, 6))
+                          offset: const Offset(0, 6))
                     ]),
                 child: Wrap(
                     alignment: WrapAlignment.center,
@@ -667,15 +690,21 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                       ),
                       TextButton.icon(
                           style: TextButton.styleFrom(
-                              backgroundColor:
-                                  !_teaching ? const Color(0xffe9f2ff) : null),
+                              backgroundColor: !_teaching
+                                  ? (widget.darkMode
+                                      ? const Color(0xff17395d)
+                                      : const Color(0xffe9f2ff))
+                                  : null),
                           onPressed: _leaveToToday,
                           icon: const Icon(Icons.home_outlined, size: 20),
                           label: const Text('Home')),
                       TextButton.icon(
                           style: TextButton.styleFrom(
-                              backgroundColor:
-                                  _teaching ? const Color(0xffe9f2ff) : null),
+                              backgroundColor: _teaching
+                                  ? (widget.darkMode
+                                      ? const Color(0xff17395d)
+                                      : const Color(0xffe9f2ff))
+                                  : null),
                           onPressed: () => _openTool('class'),
                           icon: const Icon(Icons.groups_outlined, size: 20),
                           label: const Text('Classroom')),
@@ -1235,9 +1264,11 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .92),
+                color: widget.darkMode
+                    ? const Color(0xff0d1f2f)
+                    : Colors.white.withValues(alpha: .92),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xffdbe7f0)),
+                border: Border.all(color: _line),
                 boxShadow: const [
                   BoxShadow(
                       color: Color(0x0c163f65),
@@ -1458,15 +1489,17 @@ class _TeachingJourneyState extends State<TeachingJourney> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
-            color: const Color(0xfff7fbfd),
+            color: _surfaceSoft,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xffdbe8ef))),
+            border: Border.all(color: _line)),
         child: Row(children: [
           Container(
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-                color: const Color(0xffe4f1f2),
+                color: widget.darkMode
+                    ? const Color(0xff14394a)
+                    : const Color(0xffe4f1f2),
                 borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: const Color(0xff176a74), size: 20),
           ),
@@ -1476,14 +1509,14 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                 Text(title,
-                    style: const TextStyle(
-                        color: Color(0xff173457),
+                    style: TextStyle(
+                        color: _primaryText,
                         fontWeight: FontWeight.w800,
                         fontSize: 14)),
                 const SizedBox(height: 2),
                 Text(detail,
-                    style: const TextStyle(
-                        color: _muted, fontSize: 11.5, height: 1.35)),
+                    style: TextStyle(
+                        color: _secondaryText, fontSize: 11.5, height: 1.35)),
               ])),
           if (action != null) ...[
             const SizedBox(width: 10),
@@ -1493,7 +1526,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       );
 
   Widget _panelBody() => Material(
-        color: const Color(0xfffbfdff),
+        color: _surface,
         elevation: 8,
         shadowColor: const Color(0x26163f65),
         child: SingleChildScrollView(
@@ -1506,7 +1539,9 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                      color: const Color(0xffedf4fa),
+                      color: widget.darkMode
+                          ? const Color(0xff13283b)
+                          : const Color(0xffedf4fa),
                       borderRadius: BorderRadius.circular(999)),
                   child: Text(
                     _panel == 'student'
@@ -1514,18 +1549,18 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                         : _panel == 'tools'
                             ? 'CLASSROOM TOOLS'
                             : 'IN THIS LESSON',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 10,
                         letterSpacing: 1.45,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xff60758c)),
+                        color: _secondaryText),
                   ),
                 )),
                 const SizedBox(width: 10),
                 IconButton(
                     tooltip: 'Close panel',
                     style: IconButton.styleFrom(
-                        backgroundColor: const Color(0xfff1f5f8)),
+                        backgroundColor: _surfaceSoft),
                     onPressed: () => setState(() => _panel = null),
                     icon: const Icon(Icons.close_rounded))
               ]),
@@ -1798,7 +1833,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
     required VoidCallback? onTap,
   }) =>
       Material(
-        color: Colors.white,
+        color: _surfaceSoft,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -1807,13 +1842,15 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xffdfe9f0))),
+                border: Border.all(color: _line)),
             child: Row(children: [
               Container(
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                    color: const Color(0xffe8f2f8),
+                    color: widget.darkMode
+                        ? const Color(0xff15364a)
+                        : const Color(0xffe8f2f8),
                     borderRadius: BorderRadius.circular(12)),
                 child: Icon(icon,
                     color: onTap == null
@@ -1830,13 +1867,13 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                         style: TextStyle(
                             color: onTap == null
                                 ? const Color(0xff8797a6)
-                                : const Color(0xff173457),
+                                : _primaryText,
                             fontWeight: FontWeight.w800,
                             fontSize: 12.5)),
                     const SizedBox(height: 2),
                     Text(subtitle,
-                        style: const TextStyle(
-                            color: _muted, fontSize: 10.5, height: 1.3)),
+                        style: TextStyle(
+                            color: _secondaryText, fontSize: 10.5, height: 1.3)),
                   ])),
               const Icon(Icons.chevron_right_rounded,
                   color: Color(0xff8da0b1), size: 18),
