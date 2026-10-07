@@ -1627,7 +1627,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               subtitle: _timerEnd == null
                   ? 'Open the classroom timer'
                   : 'Running · $_clock',
-              onTap: () => setState(() => _panel = 'timer')),
+              onTap: () => _showPanel('timer')),
           const SizedBox(height: 9),
           _toolAction(
               icon: Icons.assignment_outlined,
@@ -1650,7 +1650,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               icon: Icons.menu_book_outlined,
               title: 'Lesson focus',
               subtitle: 'Keep the lesson thread beside the room',
-              onTap: () => setState(() => _panel = 'lesson')),
+              onTap: () => _showPanel('lesson')),
         ],
         if (_toolsSection == 'Students') ...[
           SwitchListTile(
@@ -1677,7 +1677,10 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               title: 'Pick student',
               subtitle: 'Animated random student chooser',
               onTap: () {
-                setState(() => _panel = null);
+                setState(() {
+                  _toolsDrawerOpen = false;
+                  _panel = null;
+                });
                 _pick(false);
               }),
           const SizedBox(height: 9),
@@ -1720,7 +1723,10 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               title: 'Pick table',
               subtitle: 'Animated random table chooser',
               onTap: () {
-                setState(() => _panel = null);
+                setState(() {
+                  _toolsDrawerOpen = false;
+                  _panel = null;
+                });
                 _pick(true);
               }),
           const SizedBox(height: 18),
@@ -1787,6 +1793,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               title: 'Presentation mode',
               subtitle: 'Clean projector-safe classroom view',
               onTap: () => setState(() {
+                    _toolsDrawerOpen = false;
                     _panel = null;
                     _presentationMode = true;
                   })),
