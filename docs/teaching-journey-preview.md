@@ -10,6 +10,8 @@ Release: `flutter build web --release --no-wasm-dry-run --target lib/teaching_pr
 
 Serve that output with a local HTTP server. This is a separate entry point: normal main.dart, authentication, routes and deployment remain unchanged. No Firebase or repository services are imported by the preview.
 
+An optional `--dart-define=SCHOOL_ATTENDANCE_URL=<school attendance URL>` enables a School attendance shortcut in the classroom toolbar. It opens a new browser tab through the existing url_launcher dependency. The teacher completes attendance in the school's signed-in browser session; this preview does not read, submit or synchronize attendance. The personal school URL is supplied to the local build rather than committed to source. Today also provides Enter quiz scores as a direct entry to the roster.
+
 ## Review the journey
 
 1. Today gives one next-class action and an example continuation prompt.

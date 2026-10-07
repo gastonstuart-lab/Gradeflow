@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gradeflow/components/teaching_preview_room.dart';
 import 'package:gradeflow/components/teaching_preview_quiz.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const TeachingPreview());
 
@@ -9,6 +10,7 @@ const _ink = Color(0xff203c39);
 const _muted = Color(0xff657975);
 const _paper = Color(0xfff4f5ef);
 const _green = Color(0xff23675c);
+const _schoolAttendanceUrl = String.fromEnvironment('SCHOOL_ATTENDANCE_URL');
 
 /// Isolated interaction preview. No services, accounts or durable writes.
 class TeachingPreview extends StatelessWidget {
@@ -119,6 +121,30 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   void _quizChanged() {
     if (mounted) setState(() {});
+  }
+
+  Future<void> _openAttendance() async {
+    try {
+      final opened = await launchUrl(Uri.parse(_schoolAttendanceUrl),
+          mode: LaunchMode.externalApplication, webOnlyWindowName: '_blank');
+      if (opened) return;
+    } catch (_) {
+      // Keep the teaching context when a browser blocks a new tab.
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Could not open attendance. Allow the new tab and try again.')));
+    }
+  }
+
+  void _startQuiz() {
+    _start();
+    setState(() {
+      _quizzing = true;
+      _checking = false;
+      _panel = 'quiz';
+    });
   }
 
   void _start() => setState(() {
@@ -255,6 +281,11 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                             : _started
                                 ? 'Return to class'
                                 : 'Start class')),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                        onPressed: _startQuiz,
+                        icon: const Icon(Icons.edit_note),
+                        label: const Text('Enter quiz scores')),
                     if (_finished) ...[
                       const SizedBox(height: 14),
                       const Text(
@@ -343,6 +374,15 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                       _checking = false;
                       _panel = value ? 'quiz' : null;
                     })),
+            if (_schoolAttendanceUrl.isNotEmpty)
+              Tooltip(
+                message: 'School attendance · opens a new tab',
+                child: ActionChip(
+                  label: const Text('School attendance'),
+                  avatar: const Icon(Icons.open_in_new, size: 18),
+                  onPressed: _openAttendance,
+                ),
+              ),
             ActionChip(
                 label: Text(_timerEnd != null ? _clock : 'Timer'),
                 avatar: const Icon(Icons.timer_outlined, size: 18),
