@@ -1752,9 +1752,10 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                   : 'Open the school attendance system',
               onTap: _schoolAttendanceUrl.isEmpty ? null : _openAttendance),
           const SizedBox(height: 14),
-          const Text(
+          Text(
               'Participation, classwork and behaviour are available in each student card.',
-              style: TextStyle(color: _muted, fontSize: 11.5, height: 1.45)),
+              style: TextStyle(
+                  color: _secondaryText, fontSize: 11.5, height: 1.45)),
         ],
         if (_toolsSection == 'Class') ...[
           _toolAction(
@@ -1790,9 +1791,9 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 _pick(true);
               }),
           const SizedBox(height: 18),
-          const Text('Class note',
+          Text('Class note',
               style: TextStyle(
-                  color: Color(0xff173457),
+                  color: _primaryText,
                   fontWeight: FontWeight.w900,
                   fontSize: 14)),
           const SizedBox(height: 8),
@@ -1823,22 +1824,24 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             ),
           ),
           const SizedBox(height: 18),
-          const Text('Lesson log',
+          Text('Lesson log',
               style: TextStyle(
-                  color: Color(0xff173457),
+                  color: _primaryText,
                   fontWeight: FontWeight.w900,
                   fontSize: 14)),
           const SizedBox(height: 8),
           if (_lessonLog.isEmpty)
-            const Text('No lesson events recorded yet.',
-                style: TextStyle(color: _muted, fontSize: 11.5))
+            Text('No lesson events recorded yet.',
+                style: TextStyle(color: _secondaryText, fontSize: 11.5))
           else
             for (final entry in _lessonLog.take(8))
               Padding(
                 padding: const EdgeInsets.only(bottom: 7),
                 child: Text(entry,
-                    style: const TextStyle(
-                        color: _muted, fontSize: 11.5, height: 1.35)),
+                    style: TextStyle(
+                        color: _secondaryText,
+                        fontSize: 11.5,
+                        height: 1.35)),
               ),
         ],
         if (_toolsSection == 'Setup') ...[
@@ -1870,12 +1873,12 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-                color: const Color(0xfff6f9fc),
+                color: _surfaceSoft,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xffe0e9f0))),
+                border: Border.all(color: _line)),
             child: Row(children: [
-              const Icon(Icons.event_seat_outlined,
-                  color: Color(0xff60758c), size: 20),
+              Icon(Icons.event_seat_outlined,
+                  color: _secondaryText, size: 20),
               const SizedBox(width: 10),
               Expanded(
                   child: Text(
@@ -1887,9 +1890,10 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             ]),
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
               'Seat editing stays locked during teaching. Use Arrange seats above the map only when you need it.',
-              style: TextStyle(color: _muted, fontSize: 11.5, height: 1.45)),
+              style: TextStyle(
+                  color: _secondaryText, fontSize: 11.5, height: 1.45)),
         ],
       ];
 
