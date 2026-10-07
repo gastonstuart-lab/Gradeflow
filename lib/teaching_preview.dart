@@ -1742,7 +1742,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             decoration: InputDecoration(
                 hintText: 'Something worth remembering about the class…',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: _surfaceSoft,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14))),
           ),
@@ -1919,9 +1919,9 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                         letterSpacing: -.7,
                         fontWeight: FontWeight.w900)),
                 const SizedBox(height: 7),
-                const Text('J2 Science · Room 204',
+                Text('J2 Science · Room 204',
                     style: TextStyle(
-                        color: _muted,
+                        color: _secondaryText,
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600)),
               ])),
@@ -1931,13 +1931,13 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-              color: const Color(0xfff6f9fc),
+              color: _surfaceSoft,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xffe0e9f0))),
+              border: Border.all(color: _line)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Quick classroom actions',
+            Text('Quick classroom actions',
                 style: TextStyle(
-                    color: Color(0xff173457),
+                    color: _primaryText,
                     fontWeight: FontWeight.w800,
                     fontSize: 13)),
             const SizedBox(height: 10),
@@ -1956,18 +1956,18 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-              color: Colors.white,
+              color: _surfaceSoft,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xffdce7ef))),
+              border: Border.all(color: _line)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Row(children: [
-              Icon(Icons.how_to_reg_rounded,
+            Row(children: [
+              const Icon(Icons.how_to_reg_rounded,
                   size: 18, color: Color(0xff176a74)),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text('Attendance',
                   style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: Color(0xff173457))),
+                      color: _primaryText)),
             ]),
             const SizedBox(height: 10),
             Wrap(
@@ -1989,19 +1989,19 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-              color: Colors.white,
+              color: _surfaceSoft,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xffdce7ef))),
+              border: Border.all(color: _line)),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Row(children: [
-              Icon(Icons.assignment_outlined,
+            Row(children: [
+              const Icon(Icons.assignment_outlined,
                   size: 18, color: Color(0xff176a74)),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text('Food web worksheet',
                   style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: Color(0xff173457))),
+                      color: _primaryText)),
             ]),
             const SizedBox(height: 12),
             Wrap(
@@ -2017,8 +2017,8 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                         ))
                     .toList()),
             const SizedBox(height: 9),
-            const Text('Preview check only. Does not change a grade.',
-                style: TextStyle(color: _muted, fontSize: 11.5)),
+            Text('Preview check only. Does not change a grade.',
+                style: TextStyle(color: _secondaryText, fontSize: 11.5)),
           ]),
         ),
         const SizedBox(height: 16),
@@ -2029,16 +2029,16 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 labelText: 'Private note',
                 hintText: 'Something to remember next time…',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: _surfaceSoft,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16))),
             onChanged: (text) => setState(() => _notes[_student!] = text)),
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
-              color: const Color(0xfff6f9fc),
+              color: _surfaceSoft,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xffe0e9f0))),
+              border: Border.all(color: _line)),
           child: CheckboxListTile(
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
@@ -2056,9 +2056,9 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                   })),
         ),
         const SizedBox(height: 14),
-        const Text(
+        Text(
             'Notes stay while you explore this preview. Refreshing clears them.',
-            style: TextStyle(color: _muted, fontSize: 11.5, height: 1.5)),
+            style: TextStyle(color: _secondaryText, fontSize: 11.5, height: 1.5)),
       ];
 
   Widget _metricRow(
@@ -2068,7 +2068,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
     IconData icon,
   ) =>
       Row(children: [
-        Icon(icon, size: 17, color: const Color(0xff60758c)),
+        Icon(icon, size: 17, color: _secondaryText),
         const SizedBox(width: 8),
         Expanded(
             child: Text(label,
@@ -2083,9 +2083,9 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           width: 34,
           alignment: Alignment.center,
           child: Text('${metric[studentId] ?? 0}',
-              style: const TextStyle(
+              style: TextStyle(
                   fontWeight: FontWeight.w900,
-                  color: Color(0xff173457))),
+                  color: _primaryText)),
         ),
         IconButton(
             visualDensity: VisualDensity.compact,
