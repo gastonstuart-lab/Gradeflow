@@ -1082,18 +1082,41 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                     onPressed: _undoSeatSwap),
             ]),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           if (_choiceResult != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Semantics(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Semantics(
                   liveRegion: !_choosing,
-                  child: Text(_choiceResult!,
-                      key: const ValueKey('chooser-result'),
-                      style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xff95691f)))),
+                  child: Container(
+                    key: const ValueKey('chooser-result'),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xfffff4d8),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xffe7bf66)),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(
+                        _choosing
+                            ? Icons.casino_outlined
+                            : Icons.check_circle_outline_rounded,
+                        size: 15,
+                        color: const Color(0xff95691f),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(_choiceResult!,
+                          style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xff95691f))),
+                    ]),
+                  ),
+                ),
+              ),
             ),
           if (_checking)
             _modeNotice(
@@ -1116,7 +1139,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 title: 'Teaching view',
                 detail:
                     'Select a student for private notes, homework status, or follow-up.'),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Center(
               child: Container(
                   width: 230,
@@ -1139,7 +1162,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                                 fontWeight: FontWeight.w800,
                                 color: _muted)),
                       ]))),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           TeachingPreviewRoom(
             key: ValueKey('room-$_roomRevision'),
             tableColumns: _tableColumns,
