@@ -96,11 +96,19 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
         decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: .9),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xffdde5dc))),
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0x0c284d78),
+                  blurRadius: 24,
+                  offset: Offset(0, 8))
+            ],
+            border: Border.all(color: const Color(0xffdce8f3))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title,
-              style:
-                  const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+              style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -.5)),
           const SizedBox(height: 18),
           child
         ]),
@@ -109,7 +117,14 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
       listenable: widget.book,
-      builder: (context, _) => SingleChildScrollView(
+      builder: (context, _) => DecoratedBox(
+          decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [
+            Color(0xffe5eff9),
+            Color(0xfff6f9fc),
+            Color(0xffeaf5f3)
+          ], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Center(
                 child: ConstrainedBox(
@@ -122,26 +137,30 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                               style: TextStyle(
                                   fontSize: 11,
                                   letterSpacing: 2,
-                                  color: Color(0xff657975))),
+                                  color: Color(0xff60758c))),
                           const SizedBox(height: 12),
-                          const Text('A little less to carry.',
+                          Text('Teaching, in focus.',
                               style: TextStyle(
-                                  fontSize: 38,
+                                  fontSize:
+                                      MediaQuery.sizeOf(context).width < 600
+                                          ? 38
+                                          : 52,
                                   letterSpacing: -1.2,
-                                  fontWeight: FontWeight.w500)),
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xff133c67))),
                           const SizedBox(height: 8),
                           Text(
                               '${_date(DateTime.now())} · Your classroom and the rest of your day, together.',
                               style: const TextStyle(
-                                  color: Color(0xff657975), height: 1.5)),
+                                  color: Color(0xff60758c), height: 1.5)),
                           const SizedBox(height: 26),
                           LayoutBuilder(builder: (context, size) {
                             final main = Column(children: [
                               widget.classCard,
                               const SizedBox(height: 20),
-                              _schedule(),
+                              _shortcuts(),
                               const SizedBox(height: 20),
-                              _shortcuts()
+                              _schedule()
                             ]);
                             final side = Column(children: [
                               _calendar(),
@@ -166,15 +185,15 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                           const Text(
                               'Example schedule and reminders · No school calendar connected · Refresh clears edits',
                               style: TextStyle(
-                                  fontSize: 12, color: Color(0xff657975))),
+                                  fontSize: 12, color: Color(0xff60758c))),
                         ]))),
-          ));
+          )));
 
   Widget _schedule() => _card(
       'Day plan · ${_date(widget.book.selected)}',
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Example schedule for the selected day',
-            style: TextStyle(color: Color(0xff657975), fontSize: 12)),
+            style: TextStyle(color: Color(0xff60758c), fontSize: 12)),
         const SizedBox(height: 14),
         if (widget.book.selected.weekday > 5)
           const Padding(
@@ -253,7 +272,7 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                   child: Text(day,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                          color: Color(0xff657975), fontSize: 12)))
+                          color: Color(0xff60758c), fontSize: 12)))
           ]),
           const SizedBox(height: 8),
           for (var row = 0; row < total ~/ 7; row++)
@@ -276,9 +295,9 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
           style: TextButton.styleFrom(
               minimumSize: const Size(0, 40),
               padding: EdgeInsets.zero,
-              backgroundColor: selected ? const Color(0xff23675c) : null,
+              backgroundColor: selected ? const Color(0xff1769ce) : null,
               foregroundColor:
-                  selected ? Colors.white : const Color(0xff203c39)),
+                  selected ? Colors.white : const Color(0xff173457)),
           onPressed: () => widget.book.select(date),
           child: Text('$day'),
         ));

@@ -10,10 +10,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const TeachingPreview());
 
-const _ink = Color(0xff203c39);
-const _muted = Color(0xff657975);
-const _paper = Color(0xfff4f5ef);
-const _green = Color(0xff23675c);
+const _ink = Color(0xff173457);
+const _muted = Color(0xff60758c);
+const _paper = Color(0xfff0f5fa);
+const _green = Color(0xff1769ce);
 const _schoolAttendanceUrl = String.fromEnvironment('SCHOOL_ATTENDANCE_URL');
 
 /// Isolated interaction preview. No services, accounts or durable writes.
@@ -270,7 +270,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 child: Column(children: [
                   Container(
                     width: double.infinity,
-                    color: const Color(0xffe5ebe2),
+                    color: const Color(0xffe3edf7),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                     child: const Text(
@@ -282,8 +282,17 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 14),
                     child: Row(children: [
-                      const Icon(Icons.blur_on_rounded,
-                          color: _green, size: 30),
+                      Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                              gradient: const LinearGradient(colors: [
+                                Color(0xff1769ce),
+                                Color(0xff158d8a)
+                              ]),
+                              borderRadius: BorderRadius.circular(12)),
+                          child: const Icon(Icons.layers_rounded,
+                              color: Colors.white, size: 22)),
                       const SizedBox(width: 10),
                       const Expanded(
                           child: Text('InstructOS',
@@ -338,43 +347,75 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   Widget _dock() => SafeArea(
       top: false,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: const BoxDecoration(
-            color: Color(0xffe5ebe2),
-            border: Border(top: BorderSide(color: Color(0xffd5dfd3)))),
-        child: Wrap(
-            alignment: WrapAlignment.center,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              PopupMenuButton<String>(
-                tooltip: 'Start menu',
-                onSelected: _openTool,
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'home', child: Text('Teacher desktop')),
-                  PopupMenuItem(value: 'class', child: Text('Demo classroom')),
-                  PopupMenuItem(value: 'quiz', child: Text('Quiz entry')),
-                  PopupMenuItem(value: 'timer', child: Text('Focus timer')),
-                  PopupMenuItem(value: 'room', child: Text('Room builder'))
-                ],
-                child: const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.apps, size: 20),
-                      SizedBox(width: 6),
-                      Text('Start')
-                    ])),
-              ),
-              TextButton.icon(
-                  onPressed: _leaveToToday,
-                  icon: const Icon(Icons.home_outlined, size: 20),
-                  label: const Text('Home')),
-              TextButton.icon(
-                  onPressed: () => _openTool('class'),
-                  icon: const Icon(Icons.groups_outlined, size: 20),
-                  label: const Text('Classroom')),
-            ]),
-      ));
+      child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Container(
+                margin:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xffd9e5f1)),
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Color(0x181b416a),
+                          blurRadius: 24,
+                          offset: Offset(0, 6))
+                    ]),
+                child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      PopupMenuButton<String>(
+                        tooltip: 'Start menu',
+                        onSelected: _openTool,
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                              value: 'home', child: Text('Teacher desktop')),
+                          PopupMenuItem(
+                              value: 'class', child: Text('Demo classroom')),
+                          PopupMenuItem(
+                              value: 'quiz', child: Text('Quiz entry')),
+                          PopupMenuItem(
+                              value: 'timer', child: Text('Focus timer')),
+                          PopupMenuItem(
+                              value: 'room', child: Text('Room builder'))
+                        ],
+                        child: Container(
+                            decoration: BoxDecoration(
+                                color: const Color(0xff153858),
+                                borderRadius: BorderRadius.circular(16)),
+                            padding: const EdgeInsets.all(12),
+                            child:
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.apps, size: 20, color: Colors.white),
+                              SizedBox(width: 6),
+                              Text('Start',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600))
+                            ])),
+                      ),
+                      TextButton.icon(
+                          style: TextButton.styleFrom(
+                              backgroundColor:
+                                  !_teaching ? const Color(0xffe9f2ff) : null),
+                          onPressed: _leaveToToday,
+                          icon: const Icon(Icons.home_outlined, size: 20),
+                          label: const Text('Home')),
+                      TextButton.icon(
+                          style: TextButton.styleFrom(
+                              backgroundColor:
+                                  _teaching ? const Color(0xffe9f2ff) : null),
+                          onPressed: () => _openTool('class'),
+                          icon: const Icon(Icons.groups_outlined, size: 20),
+                          label: const Text('Classroom')),
+                    ]),
+              ))));
 
   Widget _today() => TeachingPreviewDesktop(
         book: _desktop,
@@ -386,15 +427,32 @@ class _TeachingJourneyState extends State<TeachingJourney> {
         onAttendance: _schoolAttendanceUrl.isEmpty ? null : _openAttendance,
       );
 
+  Widget _heroLabel(String text) => Text(text,
+      style: const TextStyle(
+          color: Color(0xffaee3e1),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.8));
+
   Widget _classCard() => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(30),
         decoration: BoxDecoration(
-            color: Colors.white,
+            gradient: const LinearGradient(colors: [
+              Color(0xff123653),
+              Color(0xff1c5674),
+              Color(0xff178b89)
+            ], begin: Alignment.topLeft, end: Alignment.bottomRight),
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: const Color(0xffdde5dc))),
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0x30234b74),
+                  blurRadius: 28,
+                  offset: Offset(0, 12))
+            ],
+            border: Border.all(color: const Color(0xff33798e))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _label(_finished
+          _heroLabel(_finished
               ? 'LESSON WRAPPED UP'
               : _started
                   ? 'YOUR CLASS IS STILL HERE'
@@ -402,22 +460,26 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           const SizedBox(height: 18),
           const Text('J2 Science',
               style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 44,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: -1)),
           const SizedBox(height: 8),
           const Text('Room 204 · 12 students · Ecosystems',
-              style: TextStyle(fontSize: 16, color: _muted)),
+              style: TextStyle(fontSize: 16, color: Color(0xffd6e6ef))),
           const SizedBox(height: 26),
           Text(_finished ? 'Ready for next time' : 'Pick up where you left off',
-              style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 17,
+                  color: Colors.white)),
           const SizedBox(height: 8),
           Text(
               _finished && _continuation.text.trim().isNotEmpty
                   ? _continuation.text.trim()
                   : 'Continue food webs. Ask students what happens when one species disappears.',
-              style: const TextStyle(height: 1.6, fontSize: 16)),
+              style: const TextStyle(
+                  height: 1.6, fontSize: 16, color: Color(0xffd6e6ef))),
           const SizedBox(height: 22),
           Wrap(spacing: 20, runSpacing: 12, children: [
             _signal(
@@ -430,6 +492,9 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           ]),
           const SizedBox(height: 30),
           FilledButton.icon(
+              style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xff164f72)),
               onPressed: _start,
               icon: const Icon(Icons.arrow_forward_rounded),
               label: Text(_finished
@@ -439,22 +504,25 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                       : 'Start class')),
           const SizedBox(height: 8),
           TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
               onPressed: _startQuiz,
               icon: const Icon(Icons.edit_note),
               label: const Text('Enter quiz scores')),
           if (_finished) ...[
             const SizedBox(height: 14),
             const Text('Lesson summary kept in this preview session only.',
-                style: TextStyle(color: _muted, fontSize: 12)),
+                style: TextStyle(color: Color(0xffd6e6ef), fontSize: 12)),
           ],
         ]),
       );
 
   Widget _signal(IconData icon, String text) =>
       Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 18, color: _green),
+        Icon(icon, size: 18, color: Color(0xffaee3e1)),
         const SizedBox(width: 8),
-        Flexible(child: Text(text, style: const TextStyle(color: _muted))),
+        Flexible(
+            child:
+                Text(text, style: const TextStyle(color: Color(0xffd6e6ef)))),
       ]);
 
   Widget _classroom() => LayoutBuilder(builder: (context, size) {
