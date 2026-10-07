@@ -7,7 +7,11 @@ class TeachingPreviewRoom extends StatefulWidget {
   final List<String?> seats;
   final Map<String, String> homework;
   final Map<String, String>? quizMarks;
+  final Map<String, String> attendance;
+  final Map<String, int> groups;
   final bool checking;
+  final bool attendanceMode;
+  final bool groupMode;
   final String? selectedStudent;
   final Map<String, String> studentNumbers;
   final String? spotlightStudent;
@@ -17,6 +21,7 @@ class TeachingPreviewRoom extends StatefulWidget {
   final bool allSideSeats;
   final ValueChanged<String> onStudent;
   final ValueChanged<String> onDone;
+  final ValueChanged<String>? onPresent;
   final void Function(int from, int to) onMove;
 
   const TeachingPreviewRoom({
@@ -25,7 +30,11 @@ class TeachingPreviewRoom extends StatefulWidget {
     required this.seats,
     required this.homework,
     this.quizMarks,
+    this.attendance = const {},
+    this.groups = const {},
     required this.checking,
+    this.attendanceMode = false,
+    this.groupMode = false,
     required this.selectedStudent,
     this.studentNumbers = const {},
     this.spotlightStudent,
@@ -35,6 +44,7 @@ class TeachingPreviewRoom extends StatefulWidget {
     this.allSideSeats = false,
     required this.onStudent,
     required this.onDone,
+    this.onPresent,
     required this.onMove,
   });
 
@@ -308,6 +318,40 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
             Text(widget.quizMarks![id]!,
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 10)),
+          ],
+          if (widget.groupMode && id != null && !_arranging) ...[
+            const SizedBox(height: 5),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                  color: const Color(0xffe6f1ff),
+                  borderRadius: BorderRadius.circular(999)),
+              child: Text('Group ${widget.groups[id] ?? '-'}',
+                  style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xff1769ce))),
+            ),
+          ],
+          if (widget.attendanceMode && id != null && !_arranging) ...[
+            const SizedBox(height: 5),
+            SizedBox(
+              height: 30,
+              child: TextButton(
+                key: ValueKey('present-$id'),
+                style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(60, 30),
+                    textStyle: const TextStyle(fontSize: 9.5)),
+                onPressed: widget.onPresent == null
+                    ? null
+                    : () => widget.onPresent!(id),
+                child: Text(
+                    widget.attendance[id] == 'Present'
+                        ? '✓ Present'
+                        : widget.attendance[id] ?? 'Present'),
+              ),
+            ),
           ],
           if (widget.checking && id != null && !_arranging) ...[
             const SizedBox(height: 6),
