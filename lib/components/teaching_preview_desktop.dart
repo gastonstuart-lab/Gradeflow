@@ -125,10 +125,15 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
             Color(0xffeaf5f3)
           ], begin: Alignment.topLeft, end: Alignment.bottomRight)),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.fromLTRB(
+              MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
+              30,
+              MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
+              118,
+            ),
             child: Center(
                 child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1240),
+                    constraints: const BoxConstraints(maxWidth: 1380),
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -143,24 +148,23 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                               style: TextStyle(
                                   fontSize:
                                       MediaQuery.sizeOf(context).width < 600
-                                          ? 38
-                                          : 52,
-                                  letterSpacing: -1.2,
-                                  fontWeight: FontWeight.w800,
+                                          ? 40
+                                          : 58,
+                                  height: .98,
+                                  letterSpacing: -2,
+                                  fontWeight: FontWeight.w900,
                                   color: const Color(0xff133c67))),
                           const SizedBox(height: 8),
                           Text(
-                              '${_date(DateTime.now())} · Your classroom and the rest of your day, together.',
+                              '${_date(DateTime.now())} · Your classroom, your next move, and the rest of your day.',
                               style: const TextStyle(
                                   color: Color(0xff60758c), height: 1.5)),
                           const SizedBox(height: 26),
                           LayoutBuilder(builder: (context, size) {
                             final main = Column(children: [
                               widget.classCard,
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 18),
                               _shortcuts(),
-                              const SizedBox(height: 20),
-                              _schedule()
                             ]);
                             final side = Column(children: [
                               _calendar(),
@@ -181,6 +185,8 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                                   Expanded(flex: 2, child: side)
                                 ]);
                           }),
+                          const SizedBox(height: 22),
+                          _schedule(),
                           const SizedBox(height: 24),
                           const Text(
                               'Example schedule and reminders · No school calendar connected · Refresh clears edits',
@@ -192,56 +198,252 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
   Widget _schedule() => _card(
       'Day plan · ${_date(widget.book.selected)}',
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(
+            child: Text('TODAY’S TEACHING',
+                style: TextStyle(
+                    color: Color(0xff148c8a),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.6)),
+          ),
+          if (!DateUtils.isSameDay(widget.book.selected, DateTime.now()))
+            TextButton.icon(
+                onPressed: widget.book.today,
+                icon: const Icon(Icons.today_outlined, size: 16),
+                label: const Text('Today')),
+        ]),
+        const SizedBox(height: 4),
         const Text('Example schedule for the selected day',
             style: TextStyle(color: Color(0xff60758c), fontSize: 12)),
-        const SizedBox(height: 14),
+        const SizedBox(height: 18),
         if (widget.book.selected.weekday > 5)
           const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
+              padding: EdgeInsets.symmetric(vertical: 18),
               child: Text('No demo lessons scheduled.'))
-        else ...[
-          ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Text('10:10'),
-              title: const Text('J2 Science'),
-              subtitle: const Text('Room 204 · Food webs · Demo class'),
-              trailing: const Icon(Icons.arrow_forward),
-              onTap: widget.onClass),
-          const Divider(),
-          const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Text('11:10'),
-              title: Text('Preparation time'),
-              subtitle: Text('Review work and plan the next lesson')),
-          const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Text('13:00'),
-              title: Text('Planning block'),
-              subtitle: Text('An example space for teacher tasks')),
-        ],
+        else
+          LayoutBuilder(builder: (context, size) {
+            final items = <Widget>[
+              _planTile(
+                  time: '10:10',
+                  title: 'J2 Science',
+                  subtitle: 'Room 204 · Food webs',
+                  badge: 'CURRENT',
+                  active: true,
+                  onTap: widget.onClass),
+              _planTile(
+                  time: '11:10',
+                  title: 'Preparation time',
+                  subtitle: 'Review work and plan the next lesson',
+                  badge: 'NEXT'),
+              _planTile(
+                  time: '13:00',
+                  title: 'Planning block',
+                  subtitle: 'A protected space for teacher tasks',
+                  badge: 'LATER'),
+            ];
+            if (size.maxWidth < 820) {
+              return Column(children: [
+                for (var i = 0; i < items.length; i++) ...[
+                  items[i],
+                  if (i != items.length - 1) const SizedBox(height: 10),
+                ]
+              ]);
+            }
+            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (var i = 0; i < items.length; i++) ...[
+                Expanded(child: items[i]),
+                if (i != items.length - 1) const SizedBox(width: 10),
+              ]
+            ]);
+          }),
       ]));
+
+  Widget _planTile({
+    required String time,
+    required String title,
+    required String subtitle,
+    required String badge,
+    bool active = false,
+    VoidCallback? onTap,
+  }) =>
+      Material(
+        color: active ? const Color(0xffedf6ff) : const Color(0xfff7f9fc),
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                  color: active
+                      ? const Color(0xffbed9f3)
+                      : const Color(0xffe2ebf3)),
+            ),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Text(time,
+                    style: TextStyle(
+                        color: active
+                            ? const Color(0xff1769ce)
+                            : const Color(0xff60758c),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        letterSpacing: -.35)),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: active
+                          ? const Color(0xffd8ebff)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xffdce7f0))),
+                  child: Text(badge,
+                      style: TextStyle(
+                          fontSize: 9,
+                          letterSpacing: 1,
+                          fontWeight: FontWeight.w900,
+                          color: active
+                              ? const Color(0xff1769ce)
+                              : const Color(0xff60758c))),
+                ),
+              ]),
+              const SizedBox(height: 16),
+              Text(title,
+                  style: const TextStyle(
+                      color: Color(0xff133c67),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(height: 5),
+              Text(subtitle,
+                  style: const TextStyle(
+                      color: Color(0xff60758c),
+                      fontSize: 12,
+                      height: 1.4)),
+              if (onTap != null) ...[
+                const SizedBox(height: 14),
+                const Row(children: [
+                  Text('Open classroom',
+                      style: TextStyle(
+                          color: Color(0xff1769ce),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12)),
+                  SizedBox(width: 5),
+                  Icon(Icons.arrow_forward_rounded,
+                      color: Color(0xff1769ce), size: 15),
+                ]),
+              ],
+            ]),
+          ),
+        ),
+      );
 
   Widget _shortcuts() => _card(
       'Within reach',
-      Wrap(spacing: 10, runSpacing: 10, children: [
-        OutlinedButton.icon(
-            onPressed: widget.onQuiz,
-            icon: const Icon(Icons.edit_note),
-            label: const Text('Quiz entry')),
-        OutlinedButton.icon(
-            onPressed: widget.onTimer,
-            icon: const Icon(Icons.timer_outlined),
-            label: const Text('Focus timer')),
-        OutlinedButton.icon(
-            onPressed: widget.onRoom,
-            icon: const Icon(Icons.dashboard_customize_outlined),
-            label: const Text('Classroom layout')),
-        if (widget.onAttendance != null)
-          OutlinedButton.icon(
-              onPressed: widget.onAttendance,
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('School attendance')),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Open what you need without losing the teaching thread.',
+            style: TextStyle(color: Color(0xff60758c), fontSize: 12)),
+        const SizedBox(height: 14),
+        LayoutBuilder(builder: (context, size) {
+          final tools = <Widget>[
+            _quickTool(
+                icon: Icons.edit_note_rounded,
+                title: 'Quiz entry',
+                subtitle: 'Enter marks quickly',
+                onTap: widget.onQuiz),
+            _quickTool(
+                icon: Icons.timer_outlined,
+                title: 'Focus timer',
+                subtitle: 'Keep the room moving',
+                onTap: widget.onTimer),
+            _quickTool(
+                icon: Icons.dashboard_customize_outlined,
+                title: 'Classroom layout',
+                subtitle: 'Adjust tables and seats',
+                onTap: widget.onRoom),
+            if (widget.onAttendance != null)
+              _quickTool(
+                  icon: Icons.open_in_new_rounded,
+                  title: 'School attendance',
+                  subtitle: 'Open the school system',
+                  onTap: widget.onAttendance!),
+          ];
+          if (size.maxWidth < 520) {
+            return Column(children: [
+              for (var i = 0; i < tools.length; i++) ...[
+                tools[i],
+                if (i != tools.length - 1) const SizedBox(height: 10),
+              ]
+            ]);
+          }
+          return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final tool in tools)
+                  SizedBox(width: (size.maxWidth - 10) / 2, child: tool),
+              ]);
+        }),
       ]));
+
+  Widget _quickTool({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) =>
+      Material(
+        color: const Color(0xfff6f9fc),
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xffdfebf4))),
+            child: Row(children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [Color(0xff1769ce), Color(0xff168c8a)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight),
+                    borderRadius: BorderRadius.circular(14)),
+                child: Icon(icon, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: const TextStyle(
+                              color: Color(0xff133c67),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14)),
+                      const SizedBox(height: 3),
+                      Text(subtitle,
+                          style: const TextStyle(
+                              color: Color(0xff60758c),
+                              fontSize: 11.5,
+                              height: 1.25)),
+                    ]),
+              ),
+              const Icon(Icons.arrow_forward_rounded,
+                  color: Color(0xff7690a8), size: 17),
+            ]),
+          ),
+        ),
+      );
 
   Widget _calendar() {
     final book = widget.book;
