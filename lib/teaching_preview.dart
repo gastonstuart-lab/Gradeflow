@@ -918,43 +918,43 @@ class _TeachingJourneyState extends State<TeachingJourney> {
         child: SafeArea(
           child: Column(children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 10),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 5),
               child: Row(children: [
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
                       gradient: const LinearGradient(
                           colors: [Color(0xff1769ce), Color(0xff158d8a)]),
-                      borderRadius: BorderRadius.circular(13)),
+                      borderRadius: BorderRadius.circular(10)),
                   child: const Icon(Icons.science_rounded,
-                      color: Colors.white, size: 23),
+                      color: Colors.white, size: 19),
                 ),
-                const SizedBox(width: 11),
+                const SizedBox(width: 9),
                 Expanded(
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('J2 Science',
                             style: TextStyle(
-                                fontSize: 24,
+                                fontSize: 19,
                                 height: 1,
                                 fontWeight: FontWeight.w900,
                                 color: _primaryText)),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text('Ecosystems · Room 204',
                             style: TextStyle(
                                 color: _secondaryText,
-                                fontSize: 11.5,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.w600)),
                       ]),
                 ),
                 _themeToggle(),
                 if (_timerEnd != null) ...[
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 13, vertical: 8),
+                        horizontal: 11, vertical: 7),
                     decoration: BoxDecoration(
                         color: widget.darkMode
                             ? const Color(0xff163754)
@@ -963,56 +963,31 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                     child: Text(_clock,
                         style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w900)),
                   ),
                 ],
               ]),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(children: [
-                Expanded(
-                  child: Container(
-                    height: 1,
-                    color: widget.darkMode
-                        ? const Color(0xff29445e)
-                        : const Color(0xffd5e2eb),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                  decoration: BoxDecoration(
-                      color: widget.darkMode
-                          ? const Color(0xff102c33)
-                          : const Color(0xffddeae7),
-                      borderRadius: BorderRadius.circular(999)),
-                  child: Text('FRONT OF CLASSROOM',
-                      style: TextStyle(
-                          color: widget.darkMode
-                              ? const Color(0xffb7d2cb)
-                              : const Color(0xff58736e),
-                          fontSize: 9,
-                          letterSpacing: 1.7,
-                          fontWeight: FontWeight.w800)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    height: 1,
-                    color: widget.darkMode
-                        ? const Color(0xff29445e)
-                        : const Color(0xffd5e2eb),
-                  ),
-                ),
+                Expanded(child: Container(height: 1, color: _line)),
+                const SizedBox(width: 10),
+                Text('FRONT OF CLASSROOM',
+                    style: TextStyle(
+                        color: _secondaryText,
+                        fontSize: 8.5,
+                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(width: 10),
+                Expanded(child: Container(height: 1, color: _line)),
               ]),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 5),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 3),
                 child: TeachingPreviewRoom(
                   tableColumns: 3,
                   allSideSeats: false,
@@ -1041,40 +1016,39 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               ),
             ),
             Container(
-              margin: const EdgeInsets.fromLTRB(18, 6, 18, 14),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              margin: const EdgeInsets.fromLTRB(10, 3, 10, 8),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
               decoration: BoxDecoration(
                   color: _surface,
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: _line),
                   boxShadow: [
                     BoxShadow(
                         color: widget.darkMode
-                            ? Colors.black.withValues(alpha: .30)
-                            : const Color(0x24163f65),
-                        blurRadius: 22,
-                        offset: const Offset(0, 7))
+                            ? Colors.black.withValues(alpha: .24)
+                            : const Color(0x1a163f65),
+                        blurRadius: 16,
+                        offset: const Offset(0, 5))
                   ]),
               child: Wrap(
-                  spacing: 2,
-                  runSpacing: 2,
+                  spacing: 1,
+                  runSpacing: 1,
                   alignment: WrapAlignment.center,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     TextButton.icon(
                         onPressed: () =>
                             setState(() => _timerExpanded = true),
-                        icon: const Icon(Icons.timer_outlined, size: 17),
+                        icon: const Icon(Icons.timer_outlined, size: 16),
                         label: Text(_timerEnd == null ? 'Timer' : _clock)),
                     TextButton.icon(
                         onPressed: _choosing ? null : () => _pick(false),
                         icon:
-                            const Icon(Icons.person_search_outlined, size: 17),
+                            const Icon(Icons.person_search_outlined, size: 16),
                         label: const Text('Student')),
                     TextButton.icon(
                         onPressed: _choosing ? null : () => _pick(true),
-                        icon: const Icon(Icons.groups_outlined, size: 17),
+                        icon: const Icon(Icons.groups_outlined, size: 16),
                         label: const Text('Table')),
                     TextButton.icon(
                         onPressed: () {
@@ -1084,7 +1058,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                             setState(() => _groupMode = !_groupMode);
                           }
                         },
-                        icon: const Icon(Icons.groups_2_outlined, size: 17),
+                        icon: const Icon(Icons.groups_2_outlined, size: 16),
                         label: const Text('Groups')),
                     TextButton.icon(
                         onPressed: () => setState(() {
@@ -1092,13 +1066,16 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                           _quizzing = false;
                         }),
                         icon:
-                            const Icon(Icons.assignment_outlined, size: 17),
+                            const Icon(Icons.assignment_outlined, size: 16),
                         label: const Text('Check')),
                     FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 15, vertical: 11)),
                         onPressed: () =>
                             setState(() => _presentationMode = false),
                         icon:
-                            const Icon(Icons.fullscreen_exit_rounded, size: 17),
+                            const Icon(Icons.fullscreen_exit_rounded, size: 16),
                         label: const Text('Exit presentation')),
                   ]),
             ),
