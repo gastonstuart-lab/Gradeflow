@@ -44,8 +44,12 @@ Thirteen tests cover clock rereading across midnight and disposal, desktop calen
 
 Rollback: remove the standalone entry point, its tests and this document. No data migration or production rollback is necessary.
 
-## Right-side secondary layer revision
+## Room-first secondary layer revision
 
-Class tools now uses a compact right overlay (340px maximum, 92% of narrow viewports), sharing a single slot with student/private panels. The room retains its full size at every breakpoint. Replacing a layer removes its predecessor immediately; opening and closing slide over 260ms, or immediately with reduced motion. Close controls and tapping the dimmed room dismiss the layer. Original seat geometry, presentation mode and light/dark themes remain intact. Narrow headings wrap; the compact phone header keeps theme controls and omits the desktop brand text and clock.
+Class tools now opens as a compact bottom workspace rather than a left or right drawer. It is laid out outside the classroom viewport so it does not paint over seats; the room content keeps its original seating geometry and width-driven table sizing. Student/private details remain the only right-side secondary layer. Opening a student closes Class tools, and opening Class tools closes the student/private layer, so only one secondary layer is active at a time.
 
-Verification for this revision: seven focused layer, quiz and clock tests pass. Layer tests cover 390px and 1400px widths, unchanged room dimensions/seats, right alignment, exclusive replacement during animation, dark mode, close and outside-tap dismissal. Release web compilation passes. Targeted analysis reports four existing unused declarations in teaching_preview.dart. The broader legacy desktop/journey suite still has outdated text selectors and tap-target failures; it is not a clean suite. Surface visual review of motion, room occlusion and presentation is still required before integration. No merge or deployment is authorized.
+The classroom furniture has been restyled from bright per-table colours and circular button-like seats to restrained neutral table surfaces and compact chair markers with names and student numbers. Original table/seat placement and student identity remain unchanged.
+
+Presentation mode now reduces header/footer chrome and outer padding so the classroom receives substantially more of the viewport. Light/dark controls remain visible in presentation, and the Class tools bottom workspace uses theme-aware text, surfaces and borders.
+
+Focused layer tests were updated for bottom tools, right-side student details, exclusivity, dark mode and the expanded presentation canvas. This revision was written through GitHub without a runnable Flutter workspace in this chat, and this repository reported no workflow runs for the new head commit. A local Flutter test/build pass and Surface visual review are still required before approval. Keep this PR in draft; do not merge or deploy.
