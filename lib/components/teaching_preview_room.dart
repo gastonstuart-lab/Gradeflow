@@ -132,12 +132,10 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
       ]);
 
   Widget _table(int table) {
-    final sideLeft = widget.allSideSeats ? table.isEven : table == 0;
-    final sideRight = widget.allSideSeats ? table.isOdd : table == 2;
     final lit = widget.spotlightTable == table;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 110),
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
       decoration: BoxDecoration(
           gradient: lit
               ? const LinearGradient(
@@ -163,55 +161,60 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                   offset: Offset(0, 7)),
           ]),
       child: Column(children: [
-        Row(children: [
-          SizedBox(width: 56, child: sideLeft ? _seat(table * 4 + 3) : null),
-          Expanded(
-              child: Container(
-            height: 70,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [Color(0xffe9f4f6), Color(0xffdceae8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xff9fc4c2), width: 1.5),
-            ),
-            child: Center(
-                child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                  Text('${table + 1}',
-                      style: const TextStyle(
-                          fontSize: 27,
-                          height: 1,
-                          color: Color(0xff285b5a),
-                          fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 3),
-                  const Text('TABLE',
-                      style: TextStyle(
-                          fontSize: 8,
-                          letterSpacing: 1.4,
-                          color: Color(0xff6b8987),
-                          fontWeight: FontWeight.w800)),
-                ])),
-          )),
-          SizedBox(width: 56, child: sideRight ? _seat(table * 4 + 3) : null),
-        ]),
-        const SizedBox(height: 8),
         Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-                3,
-                (seat) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: _seat(table * 4 + seat),
-                    ))),
-        const SizedBox(height: 4),
-        Text('Table ${table + 1}',
-            style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: Color(0xff60758c))),
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _seat(table * 4 + 2),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Center(
+                child: FractionallySizedBox(
+                  widthFactor: .80,
+                  child: Container(
+                    height: 66,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                          colors: [Color(0xffe9f4f6), Color(0xffdceae8)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                          color: const Color(0xff9fc4c2), width: 1.5),
+                    ),
+                    child: Center(
+                        child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                          Text('${table + 1}',
+                              style: const TextStyle(
+                                  fontSize: 27,
+                                  height: 1,
+                                  color: Color(0xff285b5a),
+                                  fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 3),
+                          const Text('TABLE',
+                              style: TextStyle(
+                                  fontSize: 8,
+                                  letterSpacing: 1.4,
+                                  color: Color(0xff6b8987),
+                                  fontWeight: FontWeight.w800)),
+                        ])),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            _seat(table * 4 + 3),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _seat(table * 4),
+            _seat(table * 4 + 1),
+          ],
+        ),
       ]),
     );
   }
