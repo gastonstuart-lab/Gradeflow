@@ -554,6 +554,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               ))));
 
   Widget _today() => TeachingPreviewDesktop(
+        teacherName: 'Stuart',
         book: _desktop,
         classCard: _classCard(),
         onClass: _start,
