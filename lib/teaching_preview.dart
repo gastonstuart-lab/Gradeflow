@@ -1621,7 +1621,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             const SizedBox(height: 8),
           ],
           _classroomEnvironment(
-            TeachingPreviewRoom(
+            child: TeachingPreviewRoom(
               key: ValueKey('room-$_roomRevision'),
               tableColumns: _tableColumns,
               allSideSeats: _customRoom,
