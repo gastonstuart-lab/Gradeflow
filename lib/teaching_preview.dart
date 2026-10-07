@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:gradeflow/components/teaching_preview_room.dart';
 
 void main() => runApp(const TeachingPreview());
 
@@ -58,6 +59,8 @@ class _TeachingJourneyState extends State<TeachingJourney> {
     's11': 'Kai',
     's12': 'Lena',
   };
+  final List<String?> _seats = List.generate(
+      24, (i) => i % 4 < 2 ? 's${(i ~/ 4) * 2 + i % 4 + 1}' : null);
   final Map<String, String> _homework = {};
   final Map<String, String> _notes = {};
   final Set<String> _followUps = {};
@@ -352,53 +355,20 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                       style: TextStyle(
                           fontSize: 10, letterSpacing: 2, color: _muted)))),
           const SizedBox(height: 22),
-          LayoutBuilder(
-              builder: (context, size) => GridView.count(
-                    crossAxisCount: size.maxWidth < 540 ? 3 : 4,
-                    childAspectRatio: size.maxWidth < 540 ? 0.92 : 1.5,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: _students.entries.map((student) {
-                      final status = _homework[student.key] ?? 'Unchecked';
-                      final selected =
-                          _student == student.key && _panel == 'student';
-                      return Material(
-                        color: _checking && status == 'Done'
-                            ? const Color(0xffdceee2)
-                            : Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                                color:
-                                    selected ? _green : const Color(0xffdce3d9),
-                                width: selected ? 2 : 1)),
-                        child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => _openStudent(student.key),
-                            child: Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(student.value,
-                                          style: const TextStyle(
-                                              fontSize: 17,
-                                              fontWeight: FontWeight.w600)),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                          _checking
-                                              ? status
-                                              : _followUps.contains(student.key)
-                                                  ? 'Follow-up noted'
-                                                  : 'Tap for actions',
-                                          style: const TextStyle(
-                                              fontSize: 11, color: _muted)),
-                                    ]))),
-                      );
-                    }).toList(),
-                  )),
+          TeachingPreviewRoom(
+            students: _students,
+            seats: _seats,
+            homework: _homework,
+            checking: _checking,
+            selectedStudent: _panel == 'student' ? _student : null,
+            onStudent: _openStudent,
+            onDone: (id) => setState(() => _homework[id] = 'Done'),
+            onMove: (from, to) => setState(() {
+              final displaced = _seats[to];
+              _seats[to] = _seats[from];
+              _seats[from] = displaced;
+            }),
+          ),
           const SizedBox(height: 20),
           const Text(
               'Teacher workspace · Private notes stay here. This is not a projected classroom display.',

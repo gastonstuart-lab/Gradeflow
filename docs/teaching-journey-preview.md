@@ -13,8 +13,8 @@ Serve that output with a local HTTP server. This is a separate entry point: norm
 ## Review the journey
 
 1. Today gives one next-class action and an example continuation prompt.
-2. Start class opens a fictional twelve-student seating map.
-3. Homework check changes the same tiles. Selecting a student exposes explicit Done, Missing, Absent and Unchecked actions for one named example assignment.
+2. Start class opens six numbered tables with circular seats, adapted from the standalone Classroom.html interaction. Twelve fictional students occupy twenty available seats. Seats lock during teaching. Arrange seats supports dragging or selecting a student and then a destination; occupied destinations swap students.
+3. Homework check changes the same seats. Done is available directly below each student. Selecting a student exposes explicit Done, Missing, Absent and Unchecked actions for one named example assignment.
 4. A contextual private panel retains notes and follow-up flags by synthetic student ID.
 5. A timer continues while its panel is closed. Finishing pauses it.
 6. Finish collects a continuation draft and returns to Today with the session summary. Reopening retains the same lesson; it does not create a new session.
@@ -27,6 +27,8 @@ Participation controls await the unresolved policy decision from proposal #65. T
 
 ## Acceptance and validation
 
-The interaction tests cover homework/note/continuation retention through Finish and reopen, plus timer-panel continuity and 390px layout. Review the visual hierarchy and tap flow on Surface Pro before integrating into the app shell. It is a teacher workspace, not a public classroom display.
+The interaction tests cover homework/note/continuation retention through Finish and reopen, idempotent direct Done, student-note/status ownership after dragging to an occupied seat, plus timer-panel continuity and 390px layout. Review the visual hierarchy and tap flow on Surface Pro before integrating into the app shell. It is a teacher workspace, not a public classroom display.
+
+The reference HTML remains untouched. Only its table/seat geometry and interaction logic informed this change; no browser storage or school data was read or migrated. This is an adaptation of those interactions, not the complete original application. The room builder, attendance and random picker still need separate reuse decisions.
 
 Rollback: remove the standalone entry point, its tests and this document. No data migration or production rollback is necessary.
