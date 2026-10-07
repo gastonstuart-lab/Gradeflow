@@ -826,6 +826,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                     checking: _checking,
                     attendanceMode: false,
                     groupMode: _groupMode,
+                    presentation: true,
                     selectedStudent: null,
                     onStudent: (id) =>
                         setState(() => _spotlightStudent = id),
@@ -861,7 +862,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                     children: [
                       TextButton.icon(
                           onPressed: () =>
-                              setState(() => _panel = 'timer'),
+                              setState(() => _timerExpanded = true),
                           icon: const Icon(Icons.timer_outlined, size: 18),
                           label: Text(_timerEnd == null ? 'Timer' : _clock)),
                       TextButton.icon(
@@ -874,10 +875,13 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                           icon: const Icon(Icons.groups_outlined, size: 18),
                           label: const Text('Table')),
                       TextButton.icon(
-                          onPressed: () => setState(() {
-                            if (_groups.isEmpty) _makeGroups();
-                            _groupMode = !_groupMode;
-                          }),
+                          onPressed: () {
+                            if (_groups.isEmpty) {
+                              _makeGroups();
+                            } else {
+                              setState(() => _groupMode = !_groupMode);
+                            }
+                          },
                           icon: const Icon(Icons.groups_2_outlined, size: 18),
                           label: const Text('Groups')),
                       TextButton.icon(
