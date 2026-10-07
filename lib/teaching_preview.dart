@@ -975,16 +975,26 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                           : '${_quiz.mark(id)} / ${_quiz.maximumLabel}'
                   }
                 : null,
+            attendance: _attendance,
+            groups: _groups,
             checking: _checking,
+            attendanceMode: _attendanceMode,
+            groupMode: _groupMode,
             selectedStudent: _panel == 'student' || _panel == 'quiz-student'
                 ? _student
                 : null,
             onStudent: _openStudent,
-            onDone: (id) => setState(() => _homework[id] = 'Done'),
+            onDone: (id) => setState(() {
+              _homework[id] = 'Done';
+              _log('${_students[id]} · homework done');
+            }),
+            onPresent: (id) => _setAttendance(id, 'Present'),
             onMove: (from, to) => setState(() {
               final displaced = _seats[to];
               _seats[to] = _seats[from];
               _seats[from] = displaced;
+              _lastSeatSwap = [from, to];
+              _log('Moved seat assignment');
             }),
           ),
           const SizedBox(height: 20),
