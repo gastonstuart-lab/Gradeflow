@@ -311,11 +311,11 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                                     if (id != null &&
                                         widget.studentNumbers.containsKey(id))
                                       Text(widget.studentNumbers[id]!,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                               fontSize: 9,
                                               color: dark
-                                                  ? Color(0xff9fb4c7)
-                                                  : Color(0xff5c768c),
+                                                  ? const Color(0xff9fb4c7)
+                                                  : const Color(0xff5c768c),
                                               fontWeight: FontWeight.w800)),
                                     Text(name,
                                         maxLines: 2,
