@@ -17,34 +17,68 @@ const _green = Color(0xff1769ce);
 const _schoolAttendanceUrl = String.fromEnvironment('SCHOOL_ATTENDANCE_URL');
 
 /// Isolated interaction preview. No services, accounts or durable writes.
-class TeachingPreview extends StatelessWidget {
+class TeachingPreview extends StatefulWidget {
   const TeachingPreview({super.key});
+
+  @override
+  State<TeachingPreview> createState() => _TeachingPreviewState();
+}
+
+class _TeachingPreviewState extends State<TeachingPreview> {
+  bool _darkMode = false;
+
+  ThemeData _theme(Brightness brightness) {
+    final dark = brightness == Brightness.dark;
+    final scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xff1769ce),
+      brightness: brightness,
+    );
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      scaffoldBackgroundColor:
+          dark ? const Color(0xff07131f) : const Color(0xfff0f5fa),
+      colorScheme: scheme,
+      textTheme: (dark ? ThemeData.dark() : ThemeData.light()).textTheme.apply(
+            bodyColor:
+                dark ? const Color(0xffe7f0f8) : const Color(0xff173457),
+            displayColor:
+                dark ? const Color(0xfff2f7fb) : const Color(0xff173457),
+          ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor:
+              dark ? const Color(0xff1b8cff) : const Color(0xff1769ce),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'InstructOS · Teaching preview',
-        theme: ThemeData(
-          useMaterial3: true,
-          scaffoldBackgroundColor: _paper,
-          colorScheme: ColorScheme.fromSeed(seedColor: _green),
-          textTheme: ThemeData.light().textTheme.apply(
-                bodyColor: _ink,
-                displayColor: _ink,
-              ),
-          filledButtonTheme: FilledButtonThemeData(
-            style: FilledButton.styleFrom(
-              backgroundColor: _green,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            ),
-          ),
+        theme: _theme(Brightness.light),
+        darkTheme: _theme(Brightness.dark),
+        themeMode: _darkMode ? ThemeMode.dark : ThemeMode.light,
+        home: TeachingJourney(
+          darkMode: _darkMode,
+          onDarkModeChanged: (value) => setState(() => _darkMode = value),
         ),
-        home: const TeachingJourney(),
       );
 }
 
 class TeachingJourney extends StatefulWidget {
-  const TeachingJourney({super.key});
+  final bool darkMode;
+  final ValueChanged<bool> onDarkModeChanged;
+
+  const TeachingJourney({
+    super.key,
+    this.darkMode = false,
+    required this.onDarkModeChanged,
+  });
 
   @override
   State<TeachingJourney> createState() => _TeachingJourneyState();
