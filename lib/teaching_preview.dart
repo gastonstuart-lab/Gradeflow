@@ -1236,11 +1236,11 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       );
 
   Widget _map() => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 22, 24, 32),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xff123a62), Color(0xff17666f)],
@@ -1270,7 +1270,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                     const Text('J2 Science',
                         style: TextStyle(
                             color: Colors.white,
-                            fontSize: 30,
+                            fontSize: 27,
                             height: 1,
                             letterSpacing: -.7,
                             fontWeight: FontWeight.w900)),
@@ -1299,10 +1299,10 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                   label: const Text('Finish class')),
             ]),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
                 color: widget.darkMode
                     ? const Color(0xff0d1f2f)
@@ -1426,51 +1426,65 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 ),
               ),
             ),
-          if (_checking)
+          if (_checking) ...[
             _modeNotice(
                 icon: Icons.assignment_turned_in_outlined,
                 title: 'Food web worksheet',
                 detail:
-                    '$_checked of 12 checked · Tap Done at a seat. Select a student for other statuses.')
-          else if (_quizzing)
+                    '$_checked of 12 checked · Tap Done at a seat. Select a student for other statuses.'),
+            const SizedBox(height: 8),
+          ] else if (_quizzing) ...[
             _modeNotice(
                 icon: Icons.edit_note_rounded,
                 title: _quiz.selected.name,
                 detail:
                     'Out of ${_quiz.maximumLabel} · ${_quiz.entered(_students.keys)} of 12 entered',
                 action: TextButton(
-                    onPressed: () => setState(() => _panel = 'quiz'),
-                    child: const Text('Open full class entry')))
-          else
+                    onPressed: () => _showPanel('quiz'),
+                    child: const Text('Open full class entry'))),
+            const SizedBox(height: 8),
+          ] else if (_attendanceMode) ...[
             _modeNotice(
-                icon: Icons.touch_app_outlined,
-                title: 'Teaching view',
+                icon: Icons.how_to_reg_rounded,
+                title: 'Attendance',
                 detail:
-                    'Select a student for private notes, homework status, or follow-up.'),
-          const SizedBox(height: 12),
+                    'Tap Present at a seat, or open a student for Late / Absent.'),
+            const SizedBox(height: 8),
+          ] else if (_groupMode) ...[
+            _modeNotice(
+                icon: Icons.groups_2_outlined,
+                title: 'Groups',
+                detail: 'Group labels are shown at each occupied seat.'),
+            const SizedBox(height: 8),
+          ],
           Center(
               child: Container(
-                  width: 230,
+                  width: 210,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
-                      color: const Color(0xffe6efec),
+                      color: widget.darkMode
+                          ? const Color(0xff102c33)
+                          : const Color(0xffe6efec),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xffd4e3df))),
-                  child: const Row(
+                      border: Border.all(
+                          color: widget.darkMode
+                              ? const Color(0xff29445e)
+                              : const Color(0xffd4e3df))),
+                  child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.present_to_all_rounded,
-                            size: 14, color: Color(0xff60758c)),
-                        SizedBox(width: 8),
+                            size: 13, color: _secondaryText),
+                        const SizedBox(width: 7),
                         Text('FRONT OF CLASSROOM',
                             style: TextStyle(
-                                fontSize: 9.5,
-                                letterSpacing: 1.7,
+                                fontSize: 9,
+                                letterSpacing: 1.6,
                                 fontWeight: FontWeight.w800,
-                                color: _muted)),
+                                color: _secondaryText)),
                       ]))),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           TeachingPreviewRoom(
             key: ValueKey('room-$_roomRevision'),
             tableColumns: _tableColumns,
