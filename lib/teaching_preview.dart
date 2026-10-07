@@ -532,7 +532,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                               ]),
                           child: const Icon(Icons.layers_rounded,
                               color: Colors.white, size: 23)),
-                      const SizedBox(width: 11),
+                      const SizedBox(width: 9),
                       Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -540,7 +540,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                                 style: TextStyle(
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: -.35,
-                                    fontSize: 20,
+                                    fontSize: 18,
                                     color: _primaryText)),
                             Text('Teacher workspace',
                                 style: TextStyle(
@@ -1115,12 +1115,12 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             AnimatedContainer(
               duration: motion,
               curve: curve,
-              width: _toolsDrawerOpen ? 318 : 0,
+              width: _toolsDrawerOpen ? 278 : 0,
               child: ClipRect(
                 child: Align(
                   alignment: Alignment.centerLeft,
                   widthFactor: _toolsDrawerOpen ? 1 : 0,
-                  child: SizedBox(width: 318, child: _leftToolsDrawer()),
+                  child: SizedBox(width: 278, child: _leftToolsDrawer()),
                 ),
               ),
             ),
@@ -1159,10 +1159,10 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           AnimatedPositioned(
             duration: motion,
             curve: curve,
-            left: _toolsDrawerOpen ? 0 : -340,
+            left: _toolsDrawerOpen ? 0 : -300,
             top: 0,
             bottom: 0,
-            width: min(330.0, size.maxWidth * .88),
+            width: min(286.0, size.maxWidth * .86),
             child: _leftToolsDrawer(),
           ),
           AnimatedPositioned(
@@ -1186,21 +1186,21 @@ class _TeachingJourneyState extends State<TeachingJourney> {
         child: SafeArea(
           right: false,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(22, 22, 22, 30),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(children: [
                     Container(
-                      width: 38,
-                      height: 38,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                             colors: [Color(0xff1769ce), Color(0xff158d8a)]),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.tune_rounded,
-                          color: Colors.white, size: 20),
+                          color: Colors.white, size: 18),
                     ),
                     const SizedBox(width: 11),
                     Expanded(
@@ -1218,17 +1218,17 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                       icon: const Icon(Icons.close_rounded),
                     ),
                   ]),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
-                    'Everything you need, without leaving the room.',
+                    'Tools stay out of the way until you need them.',
                     style: TextStyle(
                         color: widget.darkMode
                             ? const Color(0xff9fb4c7)
                             : _muted,
-                        fontSize: 12,
-                        height: 1.4),
+                        fontSize: 11,
+                        height: 1.35),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   ..._toolsPanel(),
                 ]),
           ),
@@ -1526,7 +1526,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               _log('Moved seat assignment');
             }),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
           const Text(
               'Teacher workspace · Private notes stay here. This is not a projected classroom display.',
               style: TextStyle(fontSize: 11.5, color: _muted)),
@@ -1662,8 +1662,8 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   List<Widget> _toolsPanel() => [
         Wrap(
-          spacing: 7,
-          runSpacing: 7,
+          spacing: 5,
+          runSpacing: 5,
           children: ['Today', 'Students', 'Class', 'Setup']
               .map((section) => ChoiceChip(
                     label: Text(section),
@@ -1900,14 +1900,14 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.all(13),
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: _line)),
             child: Row(children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                     color: widget.darkMode
                         ? const Color(0xff15364a)
@@ -1917,7 +1917,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                     color: onTap == null
                         ? const Color(0xffa7b5c1)
                         : const Color(0xff176a74),
-                    size: 19),
+                    size: 17),
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -1930,11 +1930,11 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                                 ? const Color(0xff8797a6)
                                 : _primaryText,
                             fontWeight: FontWeight.w800,
-                            fontSize: 12.5)),
+                            fontSize: 12)),
                     const SizedBox(height: 2),
                     Text(subtitle,
                         style: TextStyle(
-                            color: _secondaryText, fontSize: 10.5, height: 1.3)),
+                            color: _secondaryText, fontSize: 10, height: 1.25)),
                   ])),
               const Icon(Icons.chevron_right_rounded,
                   color: Color(0xff8da0b1), size: 18),
