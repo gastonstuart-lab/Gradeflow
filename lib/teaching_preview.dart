@@ -1107,124 +1107,160 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       );
 
   Widget _classroom() => LayoutBuilder(builder: (context, size) {
-        final open = _toolsDrawerOpen || _panel != null;
+        final panelOpen = _panel != null;
         final motion = MediaQuery.disableAnimationsOf(context)
             ? Duration.zero
-            : const Duration(milliseconds: 260);
-        return Stack(children: [
-          Positioned.fill(child: _map()),
-          Positioned.fill(
-            child: IgnorePointer(
-              ignoring: !open,
-              child: AnimatedOpacity(
-                duration: motion,
-                opacity: open ? .16 : 0,
-                child: GestureDetector(
-                  key: const ValueKey('classroom-layer-dismiss'),
-                  onTap: () => setState(() {
-                    _toolsDrawerOpen = false;
-                    _panel = null;
-                  }),
-                  child: Container(color: Colors.black),
+            : const Duration(milliseconds: 240);
+        final toolsHeight =
+            (size.maxHeight * (size.maxWidth >= 900 ? .31 : .40))
+                .clamp(220.0, 320.0)
+                .toDouble();
+
+        return Column(children: [
+          Expanded(
+            child: Stack(children: [
+              Positioned.fill(child: _map()),
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: !panelOpen,
+                  child: AnimatedOpacity(
+                    duration: motion,
+                    opacity: panelOpen ? .16 : 0,
+                    child: GestureDetector(
+                      key: const ValueKey('classroom-layer-dismiss'),
+                      onTap: () => setState(() => _panel = null),
+                      child: Container(color: Colors.black),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: min(340.0, size.maxWidth * .92),
+                child: IgnorePointer(
+                  ignoring: !panelOpen,
+                  child: ExcludeSemantics(
+                    excluding: !panelOpen,
+                    child: AnimatedSwitcher(
+                      duration: motion,
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      layoutBuilder: (current, outgoing) => Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (current != null)
+                            current
+                          else if (outgoing.isNotEmpty)
+                            outgoing.last,
+                        ],
+                      ),
+                      transitionBuilder: (child, animation) => SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(1, 0),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                      child: !panelOpen
+                          ? null
+                          : KeyedSubtree(
+                              key: ValueKey<String>(_panel!),
+                              child: _panelBody(),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ]),
           ),
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            width: min(340.0, size.maxWidth * .92),
-            child: IgnorePointer(
-              ignoring: !open,
-              child: ExcludeSemantics(
-                excluding: !open,
-                child: AnimatedSwitcher(
-                  duration: motion,
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  // Replacements share one slot; never paint two private layers.
-                  layoutBuilder: (current, outgoing) => Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (current != null) current
-                      else if (outgoing.isNotEmpty) outgoing.last,
-                    ],
-                  ),
-                  transitionBuilder: (child, animation) => SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(1, 0),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                  child: !open
-                      ? null
-                      : KeyedSubtree(
-                          key: ValueKey<String>(_toolsDrawerOpen ? 'class-tools' : _panel!),
-                          child: _toolsDrawerOpen ? _toolsDrawer() : _panelBody(),
-                        ),
-                ),
-              ),
-            ),
+          AnimatedSize(
+            duration: motion,
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.bottomCenter,
+            child: _toolsDrawerOpen
+                ? SizedBox(
+                    key: const ValueKey('class-tools'),
+                    width: double.infinity,
+                    height: toolsHeight,
+                    child: _toolsDrawer(),
+                  )
+                : const SizedBox.shrink(),
           ),
         ]);
       });
+
   Widget _toolsDrawer() => Material(
-        color: widget.darkMode
-            ? const Color(0xff0b1b2a)
-            : const Color(0xfffbfdff),
+        color: _surface,
         elevation: 12,
         shadowColor: Colors.black26,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(24)),
         child: SafeArea(
-          left: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                            colors: [Color(0xff1769ce), Color(0xff158d8a)]),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.tune_rounded,
-                          color: Colors.white, size: 18),
-                    ),
-                    const SizedBox(width: 11),
-                    Expanded(
-                      child: Text('Class tools',
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: widget.darkMode
-                                  ? const Color(0xffeef6ff)
-                                  : const Color(0xff173457))),
-                    ),
-                    IconButton(
-                      tooltip: 'Close class tools',
-                      onPressed: _closeToolsDrawer,
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ]),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Tools stay out of the way until you need them.',
-                    style: TextStyle(
-                        color: widget.darkMode
-                            ? const Color(0xff9fb4c7)
-                            : _muted,
-                        fontSize: 11,
-                        height: 1.35),
+          top: false,
+          child: Column(children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: widget.darkMode
+                    ? const Color(0xff36516a)
+                    : const Color(0xffc9d7e2),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 9, 10, 8),
+              child: Row(children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: widget.darkMode
+                        ? const Color(0xff15364a)
+                        : const Color(0xffe8f2f8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(height: 14),
-                  ..._toolsPanel(),
-                ]),
-          ),
+                  child: const Icon(Icons.tune_rounded,
+                      color: Color(0xff176a74), size: 17),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Class tools',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: _primaryText)),
+                      Text('Bottom workspace · classroom stays clear',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: _secondaryText)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Close class tools',
+                  onPressed: _closeToolsDrawer,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                ),
+              ]),
+            ),
+            Divider(height: 1, color: _line),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _toolsPanel()),
+              ),
+            ),
+          ]),
         ),
       );
 
