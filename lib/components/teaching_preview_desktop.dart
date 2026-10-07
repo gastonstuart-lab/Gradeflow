@@ -159,7 +159,9 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                               '${_date(DateTime.now())} · Your classroom, your next move, and the rest of your day.',
                               style: const TextStyle(
                                   color: Color(0xff60758c), height: 1.5)),
-                          const SizedBox(height: 26),
+                          const SizedBox(height: 18),
+                          _schedule(),
+                          const SizedBox(height: 18),
                           LayoutBuilder(builder: (context, size) {
                             final main = Column(children: [
                               widget.classCard,
@@ -186,8 +188,6 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                                 ]);
                           }),
                           const SizedBox(height: 22),
-                          _schedule(),
-                          const SizedBox(height: 24),
                           const Text(
                               'Example schedule and reminders · No school calendar connected · Refresh clears edits',
                               style: TextStyle(
@@ -195,32 +195,43 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                         ]))),
           )));
 
-  Widget _schedule() => _card(
-      'Day plan · ${_date(widget.book.selected)}',
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget _schedule() {
+    final selectedToday =
+        DateUtils.isSameDay(widget.book.selected, DateTime.now());
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .9),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xffdce8f3)),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x0c284d78),
+              blurRadius: 20,
+              offset: Offset(0, 7))
+        ],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Expanded(
-            child: Text('TODAY’S TEACHING',
-                style: TextStyle(
-                    color: Color(0xff148c8a),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.6)),
-          ),
-          if (!DateUtils.isSameDay(widget.book.selected, DateTime.now()))
-            TextButton.icon(
+          const Icon(Icons.calendar_view_day_rounded,
+              size: 18, color: Color(0xff148c8a)),
+          const SizedBox(width: 8),
+          Text('Day plan · ${_date(widget.book.selected)}',
+              style: const TextStyle(
+                  color: Color(0xff133c67),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15)),
+          const Spacer(),
+          if (!selectedToday)
+            TextButton(
                 onPressed: widget.book.today,
-                icon: const Icon(Icons.today_outlined, size: 16),
-                label: const Text('Today')),
+                child: const Text('Back to today')),
         ]),
-        const SizedBox(height: 4),
-        const Text('Example schedule for the selected day',
-            style: TextStyle(color: Color(0xff60758c), fontSize: 12)),
-        const SizedBox(height: 18),
+        const SizedBox(height: 10),
         if (widget.book.selected.weekday > 5)
-          const Padding(
-              padding: EdgeInsets.symmetric(vertical: 18),
-              child: Text('No demo lessons scheduled.'))
+          const Text('No demo lessons scheduled.',
+              style: TextStyle(color: Color(0xff60758c)))
         else
           LayoutBuilder(builder: (context, size) {
             final items = <Widget>[
@@ -233,31 +244,33 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                   onTap: widget.onClass),
               _planTile(
                   time: '11:10',
-                  title: 'Preparation time',
-                  subtitle: 'Review work and plan the next lesson',
+                  title: 'Preparation',
+                  subtitle: 'Review and reset',
                   badge: 'NEXT'),
               _planTile(
                   time: '13:00',
                   title: 'Planning block',
-                  subtitle: 'A protected space for teacher tasks',
+                  subtitle: 'Teacher tasks',
                   badge: 'LATER'),
             ];
-            if (size.maxWidth < 820) {
+            if (size.maxWidth < 760) {
               return Column(children: [
                 for (var i = 0; i < items.length; i++) ...[
                   items[i],
-                  if (i != items.length - 1) const SizedBox(height: 10),
+                  if (i != items.length - 1) const SizedBox(height: 8),
                 ]
               ]);
             }
-            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            return Row(children: [
               for (var i = 0; i < items.length; i++) ...[
                 Expanded(child: items[i]),
-                if (i != items.length - 1) const SizedBox(width: 10),
+                if (i != items.length - 1) const SizedBox(width: 8),
               ]
             ]);
           }),
-      ]));
+      ]),
+    );
+  }
 
   Widget _planTile({
     required String time,
@@ -274,7 +287,7 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
           borderRadius: BorderRadius.circular(18),
           onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
@@ -291,8 +304,8 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                             ? const Color(0xff1769ce)
                             : const Color(0xff60758c),
                         fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                        letterSpacing: -.35)),
+                        fontSize: 15,
+                        letterSpacing: -.25)),
                 const Spacer(),
                 Container(
                   padding:
@@ -313,29 +326,29 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                               : const Color(0xff60758c))),
                 ),
               ]),
-              const SizedBox(height: 16),
+              const SizedBox(height: 7),
               Text(title,
                   style: const TextStyle(
                       color: Color(0xff133c67),
-                      fontSize: 16,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w800)),
-              const SizedBox(height: 5),
+              const SizedBox(height: 2),
               Text(subtitle,
                   style: const TextStyle(
                       color: Color(0xff60758c),
-                      fontSize: 12,
-                      height: 1.4)),
+                      fontSize: 10.5,
+                      height: 1.25)),
               if (onTap != null) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 5),
                 const Row(children: [
-                  Text('Open classroom',
+                  Text('Open',
                       style: TextStyle(
                           color: Color(0xff1769ce),
                           fontWeight: FontWeight.w800,
-                          fontSize: 12)),
-                  SizedBox(width: 5),
+                          fontSize: 10.5)),
+                  SizedBox(width: 4),
                   Icon(Icons.arrow_forward_rounded,
-                      color: Color(0xff1769ce), size: 15),
+                      color: Color(0xff1769ce), size: 13),
                 ]),
               ],
             ]),
@@ -347,8 +360,8 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
       'Within reach',
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Open what you need without losing the teaching thread.',
-            style: TextStyle(color: Color(0xff60758c), fontSize: 12)),
-        const SizedBox(height: 14),
+            style: TextStyle(color: Color(0xff60758c), fontSize: 11.5)),
+        const SizedBox(height: 10),
         LayoutBuilder(builder: (context, size) {
           final tools = <Widget>[
             _quickTool(
@@ -381,12 +394,16 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
               ]
             ]);
           }
+          final columns = size.maxWidth >= 590 ? 3 : 2;
+          final gaps = 10.0 * (columns - 1);
           return Wrap(
               spacing: 10,
               runSpacing: 10,
               children: [
                 for (final tool in tools)
-                  SizedBox(width: (size.maxWidth - 10) / 2, child: tool),
+                  SizedBox(
+                      width: (size.maxWidth - gaps) / columns,
+                      child: tool),
               ]);
         }),
       ]));
