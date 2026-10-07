@@ -68,4 +68,29 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets('presentation expands the room and keeps theme controls',
+      (tester) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const TeachingPreview());
+    await tester.tap(find.text('Start class'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ActionChip, 'Present'));
+    await tester.pumpAndSettle();
+
+    final room = find.byType(TeachingPreviewRoom);
+    expect(room, findsOneWidget);
+    expect(tester.getSize(room).width, greaterThan(1300));
+    expect(find.byTooltip('Dark mode'), findsOneWidget);
+    expect(find.text('Exit presentation'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Dark mode'));
+    await tester.pumpAndSettle();
+    expect(Theme.of(tester.element(room)).brightness, Brightness.dark);
+    expect(tester.takeException(), isNull);
+  });
+
 }
