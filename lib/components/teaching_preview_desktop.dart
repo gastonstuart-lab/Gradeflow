@@ -50,6 +50,7 @@ class TeachingPreviewDesktop extends StatefulWidget {
   final VoidCallback onTimer;
   final VoidCallback onRoom;
   final VoidCallback? onAttendance;
+  final String teacherName;
   const TeachingPreviewDesktop(
       {super.key,
       required this.book,
@@ -58,7 +59,8 @@ class TeachingPreviewDesktop extends StatefulWidget {
       required this.onQuiz,
       required this.onTimer,
       required this.onRoom,
-      this.onAttendance});
+      this.onAttendance,
+      this.teacherName = 'Teacher'});
   @override
   State<TeachingPreviewDesktop> createState() => _TeachingPreviewDesktopState();
 }
@@ -85,7 +87,18 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
     'November',
     'December'
   ];
+  static const _weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+  ];
   String _date(DateTime date) => '${date.day} ${_months[date.month - 1]}';
+  String _fullDate(DateTime date) =>
+      '${_weekdays[date.weekday - 1]} · ${_date(date)}';
   void _add() {
     widget.book.add(_reminder.text);
     _reminder.clear();
@@ -137,29 +150,47 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 18),
-                          const Text('YOUR DESKTOP / DEMO ORGANIZER',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  letterSpacing: 2,
-                                  color: Color(0xff60758c))),
-                          const SizedBox(height: 12),
-                          Text('Teaching, in focus.',
-                              style: TextStyle(
-                                  fontSize:
-                                      MediaQuery.sizeOf(context).width < 600
-                                          ? 40
-                                          : 58,
-                                  height: .98,
-                                  letterSpacing: -2,
-                                  fontWeight: FontWeight.w900,
-                                  color: const Color(0xff133c67))),
                           const SizedBox(height: 8),
-                          Text(
-                              '${_date(DateTime.now())} · Your classroom, your next move, and the rest of your day.',
-                              style: const TextStyle(
-                                  color: Color(0xff60758c), height: 1.5)),
-                          const SizedBox(height: 18),
+                          LayoutBuilder(builder: (context, size) {
+                            final greeting = Text(
+                              'Welcome, ${widget.teacherName}.',
+                              style: TextStyle(
+                                  fontSize: size.maxWidth < 600 ? 28 : 34,
+                                  height: 1,
+                                  letterSpacing: -.8,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(0xff133c67)),
+                            );
+                            final date = Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: .72),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                      color: const Color(0xffdce8f3))),
+                              child: Text(_fullDate(DateTime.now()),
+                                  style: const TextStyle(
+                                      color: Color(0xff60758c),
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700)),
+                            );
+                            if (size.maxWidth < 620) {
+                              return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    greeting,
+                                    const SizedBox(height: 9),
+                                    date
+                                  ]);
+                            }
+                            return Row(children: [
+                              Expanded(child: greeting),
+                              date,
+                            ]);
+                          }),
+                          const SizedBox(height: 14),
                           _schedule(),
                           const SizedBox(height: 18),
                           LayoutBuilder(builder: (context, size) {
