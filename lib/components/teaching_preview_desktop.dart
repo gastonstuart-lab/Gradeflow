@@ -104,21 +104,36 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
     _reminder.clear();
   }
 
+  bool get _dark => Theme.of(context).brightness == Brightness.dark;
+  Color get _surface =>
+      _dark ? const Color(0xff0d1d2c) : Colors.white.withValues(alpha: .9);
+  Color get _surfaceSoft =>
+      _dark ? const Color(0xff122536) : const Color(0xfff6f9fc);
+  Color get _line =>
+      _dark ? const Color(0xff29445e) : const Color(0xffdce8f3);
+  Color get _text =>
+      _dark ? const Color(0xffeef6ff) : const Color(0xff133c67);
+  Color get _subtle =>
+      _dark ? const Color(0xff9fb4c7) : const Color(0xff60758c);
+
   Widget _card(String title, Widget child) => Container(
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .9),
+            color: _surface,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                  color: Color(0x0c284d78),
+                  color: _dark
+                      ? Colors.black.withValues(alpha: .24)
+                      : const Color(0x0c284d78),
                   blurRadius: 24,
-                  offset: Offset(0, 8))
+                  offset: const Offset(0, 8))
             ],
-            border: Border.all(color: const Color(0xffdce8f3))),
+            border: Border.all(color: _line)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title,
-              style: const TextStyle(
+              style: TextStyle(
+                  color: _text,
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -.5)),
@@ -131,12 +146,21 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
   Widget build(BuildContext context) => ListenableBuilder(
       listenable: widget.book,
       builder: (context, _) => DecoratedBox(
-          decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [
-            Color(0xffe5eff9),
-            Color(0xfff6f9fc),
-            Color(0xffeaf5f3)
-          ], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+          decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: _dark
+                      ? const [
+                          Color(0xff07131f),
+                          Color(0xff0a1724),
+                          Color(0xff0c1d29)
+                        ]
+                      : const [
+                          Color(0xffe5eff9),
+                          Color(0xfff6f9fc),
+                          Color(0xffeaf5f3)
+                        ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight)),
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
               MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
@@ -159,19 +183,20 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                                   height: 1,
                                   letterSpacing: -.8,
                                   fontWeight: FontWeight.w900,
-                                  color: const Color(0xff133c67)),
+                                  color: _text),
                             );
                             final date = Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 7),
                               decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: .72),
+                                  color: _dark
+                                      ? const Color(0xff102334)
+                                      : Colors.white.withValues(alpha: .72),
                                   borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                      color: const Color(0xffdce8f3))),
+                                  border: Border.all(color: _line)),
                               child: Text(_fullDate(DateTime.now()),
-                                  style: const TextStyle(
-                                      color: Color(0xff60758c),
+                                  style: TextStyle(
+                                      color: _subtle,
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w700)),
                             );
@@ -219,10 +244,10 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                                 ]);
                           }),
                           const SizedBox(height: 22),
-                          const Text(
+                          Text(
                               'Example schedule and reminders · No school calendar connected · Refresh clears edits',
                               style: TextStyle(
-                                  fontSize: 12, color: Color(0xff60758c))),
+                                  fontSize: 12, color: _subtle)),
                         ]))),
           )));
 
@@ -233,14 +258,16 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .9),
+        color: _surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xffdce8f3)),
-        boxShadow: const [
+        border: Border.all(color: _line),
+        boxShadow: [
           BoxShadow(
-              color: Color(0x0c284d78),
+              color: _dark
+                  ? Colors.black.withValues(alpha: .20)
+                  : const Color(0x0c284d78),
               blurRadius: 20,
-              offset: Offset(0, 7))
+              offset: const Offset(0, 7))
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -249,8 +276,8 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
               size: 18, color: Color(0xff148c8a)),
           const SizedBox(width: 8),
           Text('Day plan · ${_date(widget.book.selected)}',
-              style: const TextStyle(
-                  color: Color(0xff133c67),
+              style: TextStyle(
+                  color: _text,
                   fontWeight: FontWeight.w900,
                   fontSize: 15)),
           const Spacer(),
@@ -261,8 +288,8 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
         ]),
         const SizedBox(height: 10),
         if (widget.book.selected.weekday > 5)
-          const Text('No demo lessons scheduled.',
-              style: TextStyle(color: Color(0xff60758c)))
+          Text('No demo lessons scheduled.',
+              style: TextStyle(color: _subtle))
         else
           LayoutBuilder(builder: (context, size) {
             final items = <Widget>[
@@ -312,7 +339,9 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
     VoidCallback? onTap,
   }) =>
       Material(
-        color: active ? const Color(0xffedf6ff) : const Color(0xfff7f9fc),
+        color: _dark
+            ? (active ? const Color(0xff102f4c) : const Color(0xff122536))
+            : (active ? const Color(0xffedf6ff) : const Color(0xfff7f9fc)),
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
@@ -322,9 +351,13 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                  color: active
-                      ? const Color(0xffbed9f3)
-                      : const Color(0xffe2ebf3)),
+                  color: _dark
+                      ? (active
+                          ? const Color(0xff285e8e)
+                          : const Color(0xff29445e))
+                      : (active
+                          ? const Color(0xffbed9f3)
+                          : const Color(0xffe2ebf3))),
             ),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -332,8 +365,8 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                 Text(time,
                     style: TextStyle(
                         color: active
-                            ? const Color(0xff1769ce)
-                            : const Color(0xff60758c),
+                            ? const Color(0xff4da3ff)
+                            : _subtle,
                         fontWeight: FontWeight.w900,
                         fontSize: 15,
                         letterSpacing: -.25)),
@@ -342,31 +375,35 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                      color: active
-                          ? const Color(0xffd8ebff)
-                          : Colors.white,
+                      color: _dark
+                          ? (active
+                              ? const Color(0xff173d63)
+                              : const Color(0xff0f2030))
+                          : (active
+                              ? const Color(0xffd8ebff)
+                              : Colors.white),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xffdce7f0))),
+                      border: Border.all(color: _line)),
                   child: Text(badge,
                       style: TextStyle(
                           fontSize: 9,
                           letterSpacing: 1,
                           fontWeight: FontWeight.w900,
                           color: active
-                              ? const Color(0xff1769ce)
-                              : const Color(0xff60758c))),
+                              ? const Color(0xff4da3ff)
+                              : _subtle)),
                 ),
               ]),
               const SizedBox(height: 7),
               Text(title,
-                  style: const TextStyle(
-                      color: Color(0xff133c67),
+                  style: TextStyle(
+                      color: _text,
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800)),
               const SizedBox(height: 2),
               Text(subtitle,
-                  style: const TextStyle(
-                      color: Color(0xff60758c),
+                  style: TextStyle(
+                      color: _subtle,
                       fontSize: 10.5,
                       height: 1.25)),
               if (onTap != null) ...[
@@ -390,8 +427,8 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
   Widget _shortcuts() => _card(
       'Within reach',
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Open what you need without losing the teaching thread.',
-            style: TextStyle(color: Color(0xff60758c), fontSize: 11.5)),
+        Text('Open what you need without losing the teaching thread.',
+            style: TextStyle(color: _subtle, fontSize: 11.5)),
         const SizedBox(height: 10),
         LayoutBuilder(builder: (context, size) {
           final tools = <Widget>[
@@ -446,7 +483,7 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
     required VoidCallback onTap,
   }) =>
       Material(
-        color: const Color(0xfff6f9fc),
+        color: _surfaceSoft,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
@@ -455,7 +492,7 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xffdfebf4))),
+                border: Border.all(color: _line)),
             child: Row(children: [
               Container(
                 width: 42,
@@ -474,14 +511,14 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title,
-                          style: const TextStyle(
-                              color: Color(0xff133c67),
+                          style: TextStyle(
+                              color: _text,
                               fontWeight: FontWeight.w800,
                               fontSize: 14)),
                       const SizedBox(height: 3),
                       Text(subtitle,
-                          style: const TextStyle(
-                              color: Color(0xff60758c),
+                          style: TextStyle(
+                              color: _subtle,
                               fontSize: 11.5,
                               height: 1.25)),
                     ]),
@@ -521,8 +558,8 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
               Expanded(
                   child: Text(day,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          color: Color(0xff60758c), fontSize: 12)))
+                      style: TextStyle(
+                          color: _subtle, fontSize: 12)))
           ]),
           const SizedBox(height: 8),
           for (var row = 0; row < total ~/ 7; row++)
@@ -547,7 +584,7 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
               padding: EdgeInsets.zero,
               backgroundColor: selected ? const Color(0xff1769ce) : null,
               foregroundColor:
-                  selected ? Colors.white : const Color(0xff173457)),
+                  selected ? Colors.white : _text),
           onPressed: () => widget.book.select(date),
           child: Text('$day'),
         ));
