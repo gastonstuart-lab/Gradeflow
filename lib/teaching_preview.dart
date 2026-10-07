@@ -328,6 +328,11 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   void _closeToolsDrawer() => setState(() => _toolsDrawerOpen = false);
 
+  void _showPanel(String panel) => setState(() {
+        _toolsDrawerOpen = false;
+        _panel = panel;
+      });
+
   void _quizChanged() {
     if (mounted) setState(() {});
   }
@@ -350,6 +355,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   void _startQuiz() {
     _start();
     setState(() {
+      _toolsDrawerOpen = false;
       _quizzing = true;
       _checking = false;
       _panel = 'quiz';
@@ -364,11 +370,86 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       });
 
   Widget _label(String text) => Text(text,
-      style: const TextStyle(
+      style: TextStyle(
           fontSize: 12,
           letterSpacing: 1.6,
           fontWeight: FontWeight.w700,
-          color: _muted));
+          color: widget.darkMode ? const Color(0xff9fb4c7) : _muted));
+
+  Widget _themeToggle() => Container(
+        height: 38,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: widget.darkMode
+              ? const Color(0xff102235)
+              : const Color(0xffedf4fa),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: widget.darkMode
+                ? const Color(0xff29445e)
+                : const Color(0xffd7e4ee),
+          ),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          _themeChoice(
+            icon: Icons.light_mode_rounded,
+            selected: !widget.darkMode,
+            tooltip: 'Light mode',
+            onTap: () => widget.onDarkModeChanged(false),
+          ),
+          _themeChoice(
+            icon: Icons.dark_mode_rounded,
+            selected: widget.darkMode,
+            tooltip: 'Dark mode',
+            onTap: () => widget.onDarkModeChanged(true),
+          ),
+        ]),
+      );
+
+  Widget _themeChoice({
+    required IconData icon,
+    required bool selected,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) =>
+      Tooltip(
+        message: tooltip,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            width: 34,
+            height: 30,
+            decoration: BoxDecoration(
+              color: selected
+                  ? (widget.darkMode
+                      ? const Color(0xff1d4f86)
+                      : Colors.white)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: selected
+                  ? const [
+                      BoxShadow(
+                          color: Color(0x181b416a),
+                          blurRadius: 8,
+                          offset: Offset(0, 2))
+                    ]
+                  : null,
+            ),
+            child: Icon(
+              icon,
+              size: 17,
+              color: selected
+                  ? (widget.darkMode
+                      ? const Color(0xffdceeff)
+                      : const Color(0xff1769ce))
+                  : const Color(0xff8295a8),
+            ),
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -484,8 +565,13 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                           icon: const Icon(Icons.arrow_back_rounded, size: 18),
                           label: const Text('Today'),
                         ),
+                      const SizedBox(width: 8),
+                      _themeToggle(),
                       const SizedBox(width: 10),
                       TeachingPreviewClock(
+                          color: widget.darkMode
+                              ? const Color(0xffdce9f4)
+                              : const Color(0xff173457),
                           showDate: MediaQuery.sizeOf(context).width >= 600),
                     ]),
                   ),
@@ -521,7 +607,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       _buildRoom();
       return;
     }
-    if (tool == 'timer') setState(() => _panel = 'timer');
+    if (tool == 'timer') _showPanel('timer');
   }
 
   Widget _dock() => SafeArea(
@@ -1139,7 +1225,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                       foregroundColor: const Color(0xff164f72),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 18, vertical: 15)),
-                  onPressed: () => setState(() => _panel = 'finish'),
+                  onPressed: () => _showPanel('finish'),
                   icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
                   label: const Text('Finish class')),
             ]),
@@ -1210,11 +1296,11 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               ActionChip(
                   label: Text(_timerEnd != null ? _clock : 'Timer'),
                   avatar: const Icon(Icons.timer_outlined, size: 18),
-                  onPressed: () => setState(() => _panel = 'timer')),
+                  onPressed: () => _showPanel('timer')),
               ActionChip(
                   label: const Text('Lesson focus'),
                   avatar: const Icon(Icons.menu_book_outlined, size: 18),
-                  onPressed: () => setState(() => _panel = 'lesson')),
+                  onPressed: () => _showPanel('lesson')),
               ActionChip(
                   label: const Text('Class tools'),
                   avatar: const Icon(Icons.tune_rounded, size: 18),
@@ -1486,17 +1572,6 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       );
 
   List<Widget> _toolsPanel() => [
-        const Text('Classroom tools',
-            style: TextStyle(
-                fontSize: 28,
-                height: 1,
-                letterSpacing: -.6,
-                fontWeight: FontWeight.w900)),
-        const SizedBox(height: 8),
-        const Text(
-            'Keep the room quiet. Open only the tools you need.',
-            style: TextStyle(color: _muted, height: 1.4)),
-        const SizedBox(height: 16),
         Wrap(
           spacing: 7,
           runSpacing: 7,
