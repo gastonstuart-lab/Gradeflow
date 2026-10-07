@@ -1084,7 +1084,9 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                   child: Text(
                     _panel == 'student'
                         ? 'STUDENT / PRIVATE'
-                        : 'IN THIS LESSON',
+                        : _panel == 'tools'
+                            ? 'CLASSROOM TOOLS'
+                            : 'IN THIS LESSON',
                     style: const TextStyle(
                         fontSize: 10,
                         letterSpacing: 1.45,
@@ -1102,6 +1104,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               ]),
               const SizedBox(height: 18),
               if (_panel == 'student') ..._studentPanel(),
+              if (_panel == 'tools') ..._toolsPanel(),
               if (_panel == 'quiz' || _panel == 'quiz-student') ...[
                 if (_panel == 'quiz-student')
                   TextButton(
@@ -1139,6 +1142,291 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               ],
               if (_panel == 'finish') ..._finishPanel(),
             ])),
+      );
+
+  List<Widget> _toolsPanel() => [
+        const Text('Classroom tools',
+            style: TextStyle(
+                fontSize: 28,
+                height: 1,
+                letterSpacing: -.6,
+                fontWeight: FontWeight.w900)),
+        const SizedBox(height: 8),
+        const Text(
+            'Keep the room quiet. Open only the tools you need.',
+            style: TextStyle(color: _muted, height: 1.4)),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 7,
+          runSpacing: 7,
+          children: ['Today', 'Students', 'Class', 'Setup']
+              .map((section) => ChoiceChip(
+                    label: Text(section),
+                    selected: _toolsSection == section,
+                    onSelected: (_) =>
+                        setState(() => _toolsSection = section),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 20),
+        if (_toolsSection == 'Today') ...[
+          _toolAction(
+              icon: Icons.timer_outlined,
+              title: 'Timer',
+              subtitle: _timerEnd == null
+                  ? 'Open the classroom timer'
+                  : 'Running · $_clock',
+              onTap: () => setState(() => _panel = 'timer')),
+          const SizedBox(height: 9),
+          _toolAction(
+              icon: Icons.assignment_outlined,
+              title: 'Homework check',
+              subtitle: 'Mark the normal case quickly at each seat',
+              onTap: () => setState(() {
+                    _checking = true;
+                    _quizzing = false;
+                    _attendanceMode = false;
+                    _panel = null;
+                  })),
+          const SizedBox(height: 9),
+          _toolAction(
+              icon: Icons.edit_note_rounded,
+              title: 'Quiz scores',
+              subtitle: 'Open class score entry',
+              onTap: _startQuiz),
+          const SizedBox(height: 9),
+          _toolAction(
+              icon: Icons.menu_book_outlined,
+              title: 'Lesson focus',
+              subtitle: 'Keep the lesson thread beside the room',
+              onTap: () => setState(() => _panel = 'lesson')),
+        ],
+        if (_toolsSection == 'Students') ...[
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Attendance mode',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text(
+                '$_presentCount of 12 marked present · tap Present under a seat',
+                style: const TextStyle(fontSize: 11.5)),
+            value: _attendanceMode,
+            onChanged: (value) => setState(() {
+              _attendanceMode = value;
+              if (value) {
+                _checking = false;
+                _quizzing = false;
+                _groupMode = false;
+                _panel = null;
+              }
+            }),
+          ),
+          const SizedBox(height: 8),
+          _toolAction(
+              icon: Icons.person_search_outlined,
+              title: 'Pick student',
+              subtitle: 'Animated random student chooser',
+              onTap: () {
+                setState(() => _panel = null);
+                _pick(false);
+              }),
+          const SizedBox(height: 9),
+          _toolAction(
+              icon: Icons.how_to_reg_rounded,
+              title: 'School attendance',
+              subtitle: _schoolAttendanceUrl.isEmpty
+                  ? 'Not connected in this preview build'
+                  : 'Open the school attendance system',
+              onTap: _schoolAttendanceUrl.isEmpty ? null : _openAttendance),
+          const SizedBox(height: 14),
+          const Text(
+              'Participation, classwork and behaviour are available in each student card.',
+              style: TextStyle(color: _muted, fontSize: 11.5, height: 1.45)),
+        ],
+        if (_toolsSection == 'Class') ...[
+          _toolAction(
+              icon: Icons.groups_2_outlined,
+              title: 'Make 3 quick groups',
+              subtitle: 'Randomly group the students currently seated',
+              onTap: () {
+                _makeGroups();
+                setState(() => _panel = null);
+              }),
+          const SizedBox(height: 9),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Show group labels',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: const Text('Display the current group at each seat',
+                style: TextStyle(fontSize: 11.5)),
+            value: _groupMode,
+            onChanged: _groups.isEmpty
+                ? null
+                : (value) => setState(() => _groupMode = value),
+          ),
+          const SizedBox(height: 8),
+          _toolAction(
+              icon: Icons.groups_outlined,
+              title: 'Pick table',
+              subtitle: 'Animated random table chooser',
+              onTap: () {
+                setState(() => _panel = null);
+                _pick(true);
+              }),
+          const SizedBox(height: 18),
+          const Text('Class note',
+              style: TextStyle(
+                  color: Color(0xff173457),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _classNote,
+            maxLines: 3,
+            decoration: InputDecoration(
+                hintText: 'Something worth remembering about the class…',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14))),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: () {
+                final text = _classNote.text.trim();
+                if (text.isEmpty) return;
+                setState(() {
+                  _log('Class note · $text');
+                  _classNote.clear();
+                });
+              },
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Add to lesson log'),
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text('Lesson log',
+              style: TextStyle(
+                  color: Color(0xff173457),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14)),
+          const SizedBox(height: 8),
+          if (_lessonLog.isEmpty)
+            const Text('No lesson events recorded yet.',
+                style: TextStyle(color: _muted, fontSize: 11.5))
+          else
+            for (final entry in _lessonLog.take(8))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Text(entry,
+                    style: const TextStyle(
+                        color: _muted, fontSize: 11.5, height: 1.35)),
+              ),
+        ],
+        if (_toolsSection == 'Setup') ...[
+          _toolAction(
+              icon: Icons.dashboard_customize_outlined,
+              title: 'Room setup',
+              subtitle: 'Change table count and room layout',
+              onTap: _buildRoom),
+          const SizedBox(height: 9),
+          _toolAction(
+              icon: Icons.present_to_all_rounded,
+              title: 'Presentation mode',
+              subtitle: 'Clean projector-safe classroom view',
+              onTap: () => setState(() {
+                    _panel = null;
+                    _presentationMode = true;
+                  })),
+          const SizedBox(height: 9),
+          _toolAction(
+              icon: Icons.undo_rounded,
+              title: 'Undo last seat move',
+              subtitle: _lastSeatSwap == null
+                  ? 'No seat move to undo'
+                  : 'Restore the previous seating swap',
+              onTap: _lastSeatSwap == null ? null : _undoSeatSwap),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+                color: const Color(0xfff6f9fc),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xffe0e9f0))),
+            child: Row(children: [
+              const Icon(Icons.event_seat_outlined,
+                  color: Color(0xff60758c), size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: Text(
+                      _unseatedStudents.isEmpty
+                          ? 'All 12 students are seated'
+                          : '${_unseatedStudents.length} students are unseated',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 12.5))),
+            ]),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+              'Seat editing stays locked during teaching. Use Arrange seats above the map only when you need it.',
+              style: TextStyle(color: _muted, fontSize: 11.5, height: 1.45)),
+        ],
+      ];
+
+  Widget _toolAction({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback? onTap,
+  }) =>
+      Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xffdfe9f0))),
+            child: Row(children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                    color: const Color(0xffe8f2f8),
+                    borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon,
+                    color: onTap == null
+                        ? const Color(0xffa7b5c1)
+                        : const Color(0xff176a74),
+                    size: 19),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(title,
+                        style: TextStyle(
+                            color: onTap == null
+                                ? const Color(0xff8797a6)
+                                : const Color(0xff173457),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12.5)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            color: _muted, fontSize: 10.5, height: 1.3)),
+                  ])),
+              const Icon(Icons.chevron_right_rounded,
+                  color: Color(0xff8da0b1), size: 18),
+            ]),
+          ),
+        ),
       );
 
   List<Widget> _studentPanel() => [
