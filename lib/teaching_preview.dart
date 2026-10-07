@@ -100,8 +100,13 @@ class _TeachingJourneyState extends State<TeachingJourney> {
     's11': 'Kai',
     's12': 'Lena',
   };
-  final List<String?> _seats = List.generate(
-      24, (i) => i % 4 < 2 ? 's${(i ~/ 4) * 2 + i % 4 + 1}' : null);
+  final List<String?> _seats = List.generate(24, (i) {
+    final table = i ~/ 4;
+    final slot = i % 4;
+    if (slot == 0) return 's${table * 2 + 1}';
+    if (slot == 2) return 's${table * 2 + 2}';
+    return null;
+  });
   final Map<String, String> _homework = {};
   int _tableColumns = 3;
   bool _customRoom = false;
@@ -119,8 +124,12 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       final occupants = _seats.whereType<String>().toList();
       _seats.clear();
       _seats.addAll(List<String?>.filled(layout.tables * 4, null));
+      const preferredSlots = [0, 2, 1, 3];
       for (var i = 0; i < occupants.length; i++) {
-        _seats[(i % layout.tables) * 4 + i ~/ layout.tables] = occupants[i];
+        final table = i % layout.tables;
+        final layer = i ~/ layout.tables;
+        if (layer >= preferredSlots.length) break;
+        _seats[table * 4 + preferredSlots[layer]] = occupants[i];
       }
       _tableColumns = layout.columns;
       _customRoom = true;
@@ -902,164 +911,195 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       ]);
 
   Widget _presentationClassroom() => Material(
-        color: const Color(0xffeef5f8),
+        color: widget.darkMode
+            ? const Color(0xff07131f)
+            : const Color(0xffeef5f8),
         child: SafeArea(
-          child: Stack(children: [
-            Positioned.fill(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(28, 24, 28, 110),
-                child: Column(children: [
-                  Row(children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                              colors: [Color(0xff1769ce), Color(0xff158d8a)]),
-                          borderRadius: BorderRadius.circular(14)),
-                      child: const Icon(Icons.science_rounded,
-                          color: Colors.white, size: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('J2 Science',
-                                style: TextStyle(
-                                    fontSize: 27,
-                                    height: 1,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xff173457))),
-                            SizedBox(height: 5),
-                            Text('Ecosystems · Room 204',
-                                style: TextStyle(
-                                    color: _muted,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600)),
-                          ]),
-                    ),
-                    if (_timerEnd != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 15, vertical: 9),
-                        decoration: BoxDecoration(
-                            color: const Color(0xff173457),
-                            borderRadius: BorderRadius.circular(999)),
-                        child: Text(_clock,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900)),
-                      ),
-                  ]),
-                  const SizedBox(height: 22),
+          child: Column(children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 10),
+              child: Row(children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                          colors: [Color(0xff1769ce), Color(0xff158d8a)]),
+                      borderRadius: BorderRadius.circular(13)),
+                  child: const Icon(Icons.science_rounded,
+                      color: Colors.white, size: 23),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('J2 Science',
+                            style: TextStyle(
+                                fontSize: 24,
+                                height: 1,
+                                fontWeight: FontWeight.w900,
+                                color: _primaryText)),
+                        const SizedBox(height: 4),
+                        Text('Ecosystems · Room 204',
+                            style: TextStyle(
+                                color: _secondaryText,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600)),
+                      ]),
+                ),
+                _themeToggle(),
+                if (_timerEnd != null) ...[
+                  const SizedBox(width: 10),
                   Container(
-                    width: 235,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 13, vertical: 8),
                     decoration: BoxDecoration(
-                        color: const Color(0xffddeae7),
+                        color: widget.darkMode
+                            ? const Color(0xff163754)
+                            : const Color(0xff173457),
                         borderRadius: BorderRadius.circular(999)),
-                    child: const Text('FRONT OF CLASSROOM',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: Color(0xff58736e),
-                            fontSize: 10,
-                            letterSpacing: 1.8,
-                            fontWeight: FontWeight.w800)),
+                    child: Text(_clock,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900)),
                   ),
-                  const SizedBox(height: 20),
-                  TeachingPreviewRoom(
-                    tableColumns: _tableColumns,
-                    allSideSeats: _customRoom,
-                    studentNumbers: _numbers,
-                    spotlightStudent: _spotlightStudent,
-                    spotlightTable: _spotlightTable,
-                    choosing: _choosing,
-                    students: _students,
-                    seats: _seats,
-                    homework: _homework,
-                    attendance: _attendance,
-                    groups: _groups,
-                    checking: _checking,
-                    attendanceMode: false,
-                    groupMode: _groupMode,
-                    presentation: true,
-                    selectedStudent: null,
-                    onStudent: (id) =>
-                        setState(() => _spotlightStudent = id),
-                    onDone: (id) => setState(() {
-                      _homework[id] = 'Done';
-                      _log('${_students[id]} · homework done');
-                    }),
-                    onMove: (_, __) {},
+                ],
+              ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(children: [
+                Expanded(
+                  child: Container(
+                    height: 1,
+                    color: widget.darkMode
+                        ? const Color(0xff29445e)
+                        : const Color(0xffd5e2eb),
                   ),
-                ]),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                  decoration: BoxDecoration(
+                      color: widget.darkMode
+                          ? const Color(0xff102c33)
+                          : const Color(0xffddeae7),
+                      borderRadius: BorderRadius.circular(999)),
+                  child: Text('FRONT OF CLASSROOM',
+                      style: TextStyle(
+                          color: widget.darkMode
+                              ? const Color(0xffb7d2cb)
+                              : const Color(0xff58736e),
+                          fontSize: 9,
+                          letterSpacing: 1.7,
+                          fontWeight: FontWeight.w800)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    height: 1,
+                    color: widget.darkMode
+                        ? const Color(0xff29445e)
+                        : const Color(0xffd5e2eb),
+                  ),
+                ),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                child: TeachingPreviewRoom(
+                  tableColumns: 3,
+                  allSideSeats: false,
+                  studentNumbers: _numbers,
+                  spotlightStudent: _spotlightStudent,
+                  spotlightTable: _spotlightTable,
+                  choosing: _choosing,
+                  students: _students,
+                  seats: _seats,
+                  homework: _homework,
+                  attendance: _attendance,
+                  groups: _groups,
+                  checking: _checking,
+                  attendanceMode: false,
+                  groupMode: _groupMode,
+                  presentation: true,
+                  selectedStudent: null,
+                  onStudent: (id) =>
+                      setState(() => _spotlightStudent = id),
+                  onDone: (id) => setState(() {
+                    _homework[id] = 'Done';
+                    _log('${_students[id]} · homework done');
+                  }),
+                  onMove: (_, __) {},
+                ),
               ),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xffd7e4ed)),
-                    boxShadow: const [
-                      BoxShadow(
-                          color: Color(0x24163f65),
-                          blurRadius: 24,
-                          offset: Offset(0, 8))
-                    ]),
-                child: Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      TextButton.icon(
-                          onPressed: () =>
-                              setState(() => _timerExpanded = true),
-                          icon: const Icon(Icons.timer_outlined, size: 18),
-                          label: Text(_timerEnd == null ? 'Timer' : _clock)),
-                      TextButton.icon(
-                          onPressed: _choosing ? null : () => _pick(false),
-                          icon:
-                              const Icon(Icons.person_search_outlined, size: 18),
-                          label: const Text('Random')),
-                      TextButton.icon(
-                          onPressed: _choosing ? null : () => _pick(true),
-                          icon: const Icon(Icons.groups_outlined, size: 18),
-                          label: const Text('Table')),
-                      TextButton.icon(
-                          onPressed: () {
-                            if (_groups.isEmpty) {
-                              _makeGroups();
-                            } else {
-                              setState(() => _groupMode = !_groupMode);
-                            }
-                          },
-                          icon: const Icon(Icons.groups_2_outlined, size: 18),
-                          label: const Text('Groups')),
-                      TextButton.icon(
-                          onPressed: () => setState(() {
-                            _checking = !_checking;
-                            _quizzing = false;
-                          }),
-                          icon:
-                              const Icon(Icons.assignment_outlined, size: 18),
-                          label: const Text('Check')),
-                      const SizedBox(width: 4),
-                      FilledButton.icon(
-                          onPressed: () =>
-                              setState(() => _presentationMode = false),
-                          icon:
-                              const Icon(Icons.fullscreen_exit_rounded, size: 18),
-                          label: const Text('Exit presentation')),
-                    ]),
-              ),
+            Container(
+              margin: const EdgeInsets.fromLTRB(18, 6, 18, 14),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                  color: _surface,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: _line),
+                  boxShadow: [
+                    BoxShadow(
+                        color: widget.darkMode
+                            ? Colors.black.withValues(alpha: .30)
+                            : const Color(0x24163f65),
+                        blurRadius: 22,
+                        offset: const Offset(0, 7))
+                  ]),
+              child: Wrap(
+                  spacing: 2,
+                  runSpacing: 2,
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    TextButton.icon(
+                        onPressed: () =>
+                            setState(() => _timerExpanded = true),
+                        icon: const Icon(Icons.timer_outlined, size: 17),
+                        label: Text(_timerEnd == null ? 'Timer' : _clock)),
+                    TextButton.icon(
+                        onPressed: _choosing ? null : () => _pick(false),
+                        icon:
+                            const Icon(Icons.person_search_outlined, size: 17),
+                        label: const Text('Student')),
+                    TextButton.icon(
+                        onPressed: _choosing ? null : () => _pick(true),
+                        icon: const Icon(Icons.groups_outlined, size: 17),
+                        label: const Text('Table')),
+                    TextButton.icon(
+                        onPressed: () {
+                          if (_groups.isEmpty) {
+                            _makeGroups();
+                          } else {
+                            setState(() => _groupMode = !_groupMode);
+                          }
+                        },
+                        icon: const Icon(Icons.groups_2_outlined, size: 17),
+                        label: const Text('Groups')),
+                    TextButton.icon(
+                        onPressed: () => setState(() {
+                          _checking = !_checking;
+                          _quizzing = false;
+                        }),
+                        icon:
+                            const Icon(Icons.assignment_outlined, size: 17),
+                        label: const Text('Check')),
+                    FilledButton.icon(
+                        onPressed: () =>
+                            setState(() => _presentationMode = false),
+                        icon:
+                            const Icon(Icons.fullscreen_exit_rounded, size: 17),
+                        label: const Text('Exit presentation')),
+                  ]),
             ),
           ]),
         ),
