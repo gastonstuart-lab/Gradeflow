@@ -270,42 +270,109 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 child: Column(children: [
                   Container(
                     width: double.infinity,
-                    color: const Color(0xffe3edf7),
+                    color: const Color(0xffe4eef8),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
+                        horizontal: 20, vertical: 7),
                     child: const Text(
                         'INTERACTIVE PREVIEW  ·  Fictional class · Changes last until you refresh',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: _ink)),
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            letterSpacing: .25,
+                            fontWeight: FontWeight.w600,
+                            color: _muted)),
                   ),
-                  Padding(
+                  Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 14),
+                        horizontal: 26, vertical: 12),
+                    decoration: const BoxDecoration(
+                      color: Color(0xfffbfdff),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Color(0x0b123a62),
+                            blurRadius: 18,
+                            offset: Offset(0, 4))
+                      ],
+                    ),
                     child: Row(children: [
                       Container(
-                          width: 36,
-                          height: 36,
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
-                              gradient: const LinearGradient(colors: [
-                                Color(0xff1769ce),
-                                Color(0xff158d8a)
+                              gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xff1769ce),
+                                    Color(0xff158d8a)
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight),
+                              borderRadius: BorderRadius.circular(13),
+                              boxShadow: const [
+                                BoxShadow(
+                                    color: Color(0x251769ce),
+                                    blurRadius: 14,
+                                    offset: Offset(0, 5))
                               ]),
-                              borderRadius: BorderRadius.circular(12)),
                           child: const Icon(Icons.layers_rounded,
-                              color: Colors.white, size: 22)),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                          child: Text('InstructOS',
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 21))),
+                              color: Colors.white, size: 23)),
+                      const SizedBox(width: 11),
+                      const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('InstructOS',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -.35,
+                                    fontSize: 20,
+                                    color: Color(0xff123a62))),
+                            Text('Teacher workspace',
+                                style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: _muted)),
+                          ]),
+                      const Spacer(),
+                      if (MediaQuery.sizeOf(context).width >= 720)
+                        Container(
+                          margin: const EdgeInsets.only(right: 14),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                              color: _teaching
+                                  ? const Color(0xffe2f4f1)
+                                  : const Color(0xffeaf3ff),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                  color: _teaching
+                                      ? const Color(0xffbfe4dd)
+                                      : const Color(0xffcfe1f4))),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(
+                                _teaching
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.home_rounded,
+                                size: 13,
+                                color: _teaching
+                                    ? const Color(0xff148c8a)
+                                    : const Color(0xff1769ce)),
+                            const SizedBox(width: 6),
+                            Text(_teaching ? 'LIVE CLASS' : 'TODAY',
+                                style: TextStyle(
+                                    fontSize: 9.5,
+                                    letterSpacing: 1.1,
+                                    fontWeight: FontWeight.w900,
+                                    color: _teaching
+                                        ? const Color(0xff148c8a)
+                                        : const Color(0xff1769ce))),
+                          ]),
+                        ),
                       if (_teaching)
                         TextButton.icon(
                           onPressed: _leaveToToday,
                           icon: const Icon(Icons.arrow_back_rounded, size: 18),
                           label: const Text('Today'),
                         ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       TeachingPreviewClock(
                           showDate: MediaQuery.sizeOf(context).width >= 600),
                     ]),
@@ -436,50 +503,82 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   Widget _classCard() => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(30),
+        padding: const EdgeInsets.all(34),
         decoration: BoxDecoration(
             gradient: const LinearGradient(colors: [
-              Color(0xff123653),
-              Color(0xff1c5674),
-              Color(0xff178b89)
+              Color(0xff103553),
+              Color(0xff1a5875),
+              Color(0xff148b88)
             ], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            borderRadius: BorderRadius.circular(26),
+            image: const DecorationImage(
+                image: AssetImage('assets/images/dashboard_world.jpg'),
+                fit: BoxFit.cover,
+                alignment: Alignment.centerRight,
+                opacity: .13),
+            borderRadius: BorderRadius.circular(28),
             boxShadow: const [
               BoxShadow(
-                  color: Color(0x30234b74),
-                  blurRadius: 28,
-                  offset: Offset(0, 12))
+                  color: Color(0x35234b74),
+                  blurRadius: 34,
+                  offset: Offset(0, 14))
             ],
-            border: Border.all(color: const Color(0xff33798e))),
+            border: Border.all(color: const Color(0xff3a8093))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _heroLabel(_finished
-              ? 'LESSON WRAPPED UP'
-              : _started
-                  ? 'YOUR CLASS IS STILL HERE'
-                  : 'UP NEXT · 10:10–11:00'),
+          Row(children: [
+            Expanded(
+              child: _heroLabel(_finished
+                  ? 'LESSON WRAPPED UP'
+                  : _started
+                      ? 'YOUR CLASS IS STILL HERE'
+                      : 'UP NEXT · 10:10–11:00'),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .11),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                      color: Colors.white.withValues(alpha: .18))),
+              child: const Text('ECOSYSTEMS',
+                  style: TextStyle(
+                      color: Color(0xffd7f3ee),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.15)),
+            ),
+          ]),
           const SizedBox(height: 18),
           const Text('J2 Science',
               style: TextStyle(
-                  fontSize: 44,
+                  fontSize: 48,
+                  height: 1,
                   color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1)),
-          const SizedBox(height: 8),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.4)),
+          const SizedBox(height: 9),
           const Text('Room 204 · 12 students · Ecosystems',
-              style: TextStyle(fontSize: 16, color: Color(0xffd6e6ef))),
-          const SizedBox(height: 26),
+              style: TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xffd6e6ef))),
+          const SizedBox(height: 28),
           Text(_finished ? 'Ready for next time' : 'Pick up where you left off',
               style: const TextStyle(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w800,
                   fontSize: 17,
                   color: Colors.white)),
           const SizedBox(height: 8),
-          Text(
-              _finished && _continuation.text.trim().isNotEmpty
-                  ? _continuation.text.trim()
-                  : 'Continue food webs. Ask students what happens when one species disappears.',
-              style: const TextStyle(
-                  height: 1.6, fontSize: 16, color: Color(0xffd6e6ef))),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 650),
+            child: Text(
+                _finished && _continuation.text.trim().isNotEmpty
+                    ? _continuation.text.trim()
+                    : 'Continue food webs. Ask students what happens when one species disappears.',
+                style: const TextStyle(
+                    height: 1.55,
+                    fontSize: 15.5,
+                    color: Color(0xffe0edf3))),
+          ),
           const SizedBox(height: 22),
           Wrap(spacing: 20, runSpacing: 12, children: [
             _signal(
@@ -491,25 +590,33 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 '${_followUps.length} student follow-ups'),
           ]),
           const SizedBox(height: 30),
-          FilledButton.icon(
-              style: FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xff164f72)),
-              onPressed: _start,
-              icon: const Icon(Icons.arrow_forward_rounded),
-              label: Text(_finished
-                  ? 'Reopen demo lesson'
-                  : _started
-                      ? 'Return to class'
-                      : 'Start class')),
-          const SizedBox(height: 8),
-          TextButton.icon(
-              style: TextButton.styleFrom(foregroundColor: Colors.white),
-              onPressed: _startQuiz,
-              icon: const Icon(Icons.edit_note),
-              label: const Text('Enter quiz scores')),
+          Wrap(spacing: 10, runSpacing: 10, children: [
+            FilledButton.icon(
+                style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xff164f72),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 16)),
+                onPressed: _start,
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: Text(_finished
+                    ? 'Reopen demo lesson'
+                    : _started
+                        ? 'Return to class'
+                        : 'Start class')),
+            OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(
+                        color: Colors.white.withValues(alpha: .42)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 16)),
+                onPressed: _startQuiz,
+                icon: const Icon(Icons.edit_note),
+                label: const Text('Enter quiz scores')),
+          ]),
           if (_finished) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             const Text('Lesson summary kept in this preview session only.',
                 style: TextStyle(color: Color(0xffd6e6ef), fontSize: 12)),
           ],
