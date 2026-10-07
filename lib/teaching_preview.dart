@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:gradeflow/components/teaching_preview_room.dart';
 import 'package:gradeflow/components/teaching_preview_quiz.dart';
@@ -80,6 +81,73 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   DateTime? _timerEnd;
   int _seconds = 300;
   Timer? _ticker;
+  int _timerDuration = 300;
+  bool _timerExpanded = false;
+  Timer? _chooserTimer;
+  bool _choosing = false;
+  String? _spotlightStudent;
+  int? _spotlightTable;
+  String? _choiceResult;
+  final _random = Random();
+  static final _numbers = {
+    for (var i = 1; i <= 12; i++) 's$i': i.toString().padLeft(2, '0')
+  };
+
+  void _cancelChooser() {
+    _chooserTimer?.cancel();
+    _choosing = false;
+    _spotlightStudent = null;
+    _spotlightTable = null;
+    _choiceResult = null;
+  }
+
+  void _pick(bool table) {
+    _cancelChooser();
+    final candidates = table
+        ? [
+            for (var i = 0; i < 6; i++)
+              if (_seats.skip(i * 4).take(4).any((id) => id != null)) '$i'
+          ]
+        : _seats.whereType<String>().toList();
+    if (candidates.isEmpty) return;
+    final winner = candidates[_random.nextInt(candidates.length)];
+    var tick = 0;
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    void step() {
+      if (!mounted) return;
+      final complete = reduced || tick >= 18;
+      final candidate =
+          complete ? winner : candidates[_random.nextInt(candidates.length)];
+      setState(() {
+        _choosing = !complete;
+        _panel = null;
+        _spotlightStudent = table ? null : candidate;
+        _spotlightTable = table ? int.parse(candidate) : null;
+        final label = table
+            ? 'Table ${int.parse(candidate) + 1}'
+            : '${_numbers[candidate]} · ${_students[candidate]}';
+        _choiceResult = complete ? 'Selected: $label' : 'Choosing… $label';
+      });
+      if (!complete) {
+        tick++;
+        _chooserTimer = Timer(Duration(milliseconds: 75 + tick * 11), step);
+      }
+    }
+
+    step();
+  }
+
+  void _toggleTimer() => setState(() {
+        _timerEnd = _timerEnd == null
+            ? DateTime.now().add(Duration(seconds: _seconds))
+            : null;
+      });
+
+  void _leaveToToday() => setState(() {
+        _cancelChooser();
+        _teaching = false;
+        _panel = null;
+      });
 
   @override
   void initState() {
@@ -102,6 +170,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
     _quiz.removeListener(_quizChanged);
     _quiz.dispose();
     _ticker?.cancel();
+    _chooserTimer?.cancel();
     _note.dispose();
     _continuation.dispose();
     super.dispose();
@@ -163,45 +232,47 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(
-          child: Column(children: [
-            Container(
-              width: double.infinity,
-              color: const Color(0xffe5ebe2),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: const Text(
-                  'INTERACTIVE PREVIEW  ·  Fictional class · Changes last until you refresh',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: _ink)),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              child: Row(children: [
-                const Icon(Icons.blur_on_rounded, color: _green, size: 30),
-                const SizedBox(width: 10),
-                const Expanded(
-                    child: Text('InstructOS',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 21))),
-                if (_teaching)
-                  TextButton.icon(
-                    onPressed: () => setState(() {
-                      _teaching = false;
-                      _panel = null;
-                    }),
-                    icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                    label: const Text('Today'),
-                  )
-                else if (MediaQuery.sizeOf(context).width >= 600)
-                  const Text('Your teaching day',
-                      style: TextStyle(color: _muted)),
-              ]),
-            ),
-            const Divider(height: 1),
-            Expanded(child: _teaching ? _classroom() : _today()),
-          ]),
-        ),
+        body: _timerExpanded
+            ? _timerFocus()
+            : SafeArea(
+                child: Column(children: [
+                  Container(
+                    width: double.infinity,
+                    color: const Color(0xffe5ebe2),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    child: const Text(
+                        'INTERACTIVE PREVIEW  ·  Fictional class · Changes last until you refresh',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: _ink)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 14),
+                    child: Row(children: [
+                      const Icon(Icons.blur_on_rounded,
+                          color: _green, size: 30),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                          child: Text('InstructOS',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 21))),
+                      if (_teaching)
+                        TextButton.icon(
+                          onPressed: _leaveToToday,
+                          icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                          label: const Text('Today'),
+                        )
+                      else if (MediaQuery.sizeOf(context).width >= 600)
+                        const Text('Your teaching day',
+                            style: TextStyle(color: _muted)),
+                    ]),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(child: _teaching ? _classroom() : _today()),
+                ]),
+              ),
       );
 
   Widget _today() => SingleChildScrollView(
@@ -356,6 +427,18 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           ]),
           const SizedBox(height: 22),
           Wrap(spacing: 10, runSpacing: 10, children: [
+            ActionChip(
+                label: const Text('Pick student'),
+                avatar: const Icon(Icons.person_search_outlined, size: 18),
+                onPressed: _choosing ? null : () => _pick(false)),
+            ActionChip(
+                label: const Text('Pick table'),
+                avatar: const Icon(Icons.groups_outlined, size: 18),
+                onPressed: _choosing ? null : () => _pick(true)),
+            if (_choosing)
+              ActionChip(
+                  label: const Text('Stop chooser'),
+                  onPressed: () => setState(_cancelChooser)),
             FilterChip(
                 label: const Text('Homework check'),
                 selected: _checking,
@@ -393,6 +476,18 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 onPressed: () => setState(() => _panel = 'lesson')),
           ]),
           const SizedBox(height: 22),
+          if (_choiceResult != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 18),
+              child: Semantics(
+                  liveRegion: !_choosing,
+                  child: Text(_choiceResult!,
+                      key: const ValueKey('chooser-result'),
+                      style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xff95691f)))),
+            ),
           if (_checking) ...[
             const Text('Food web worksheet',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
@@ -426,6 +521,10 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                           fontSize: 10, letterSpacing: 2, color: _muted)))),
           const SizedBox(height: 22),
           TeachingPreviewRoom(
+            studentNumbers: _numbers,
+            spotlightStudent: _spotlightStudent,
+            spotlightTable: _spotlightTable,
+            choosing: _choosing,
             students: _students,
             seats: _seats,
             homework: _homework,
@@ -513,8 +612,8 @@ class _TeachingJourneyState extends State<TeachingJourney> {
         Text(_students[_student]!,
             style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        const Text('J2 Science · Same student, same classroom',
-            style: TextStyle(color: _muted)),
+        Text('Student no. ${_numbers[_student]} · J2 Science',
+            style: const TextStyle(color: _muted)),
         const SizedBox(height: 26),
         const Text('Food web worksheet',
             style: TextStyle(fontWeight: FontWeight.w600)),
@@ -574,20 +673,19 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                     onPressed: () => setState(() {
                           _timerEnd = null;
                           _seconds = minutes * 60;
+                          _timerDuration = _seconds;
                         }),
                     child: Text('$minutes min')))
                 .toList()),
         const SizedBox(height: 16),
         FilledButton(
-            onPressed: _seconds == 0
-                ? null
-                : () => setState(() {
-                      _timerEnd = _timerEnd == null
-                          ? DateTime.now().add(Duration(seconds: _seconds))
-                          : null;
-                    }),
+            onPressed: _seconds == 0 ? null : _toggleTimer,
             child: Text(_timerEnd == null ? 'Start timer' : 'Pause timer')),
         const SizedBox(height: 24),
+        OutlinedButton.icon(
+            onPressed: () => setState(() => _timerExpanded = true),
+            icon: const Icon(Icons.fullscreen),
+            label: const Text('Fullscreen timer')),
         const Text(
             'Close this panel and keep teaching. The timer keeps running.',
             style: TextStyle(color: _muted, height: 1.5)),
@@ -615,6 +713,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
         const SizedBox(height: 24),
         FilledButton(
             onPressed: () => setState(() {
+                  _cancelChooser();
                   _finished = true;
                   _teaching = false;
                   _panel = null;
@@ -626,4 +725,98 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             onPressed: () => setState(() => _panel = null),
             child: const Text('Keep teaching')),
       ];
+
+  Widget _timerFocus() => Container(
+        decoration: const BoxDecoration(
+            gradient: RadialGradient(
+                colors: [Color(0xff244c48), Color(0xff102725)], radius: 1.1)),
+        child: SafeArea(
+            child: LayoutBuilder(
+                builder: (context, size) => SingleChildScrollView(
+                      child: ConstrainedBox(
+                          constraints:
+                              BoxConstraints(minHeight: size.maxHeight),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text('A MOMENT TO THINK',
+                                      style: TextStyle(
+                                          color: Color(0xffc0d8ca),
+                                          letterSpacing: 3)),
+                                  const SizedBox(height: 32),
+                                  SizedBox(
+                                      width: min(340, size.maxWidth - 48),
+                                      height: min(340, size.maxWidth - 48),
+                                      child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            Positioned.fill(
+                                                child:
+                                                    CircularProgressIndicator(
+                                                        value: _seconds /
+                                                            _timerDuration,
+                                                        strokeWidth: 8,
+                                                        strokeCap:
+                                                            StrokeCap.round,
+                                                        backgroundColor:
+                                                            Colors.white12,
+                                                        color: const Color(
+                                                            0xffb9d4a4))),
+                                            Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(_clock,
+                                                      style: const TextStyle(
+                                                          fontSize: 68,
+                                                          fontWeight:
+                                                              FontWeight.w300,
+                                                          color: Colors.white)),
+                                                  Text(
+                                                      _seconds == 0
+                                                          ? 'Time to come back together'
+                                                          : _timerEnd == null
+                                                              ? 'Ready when you are'
+                                                              : 'Space to focus',
+                                                      style: const TextStyle(
+                                                          color: Color(
+                                                              0xffc0d8ca))),
+                                                ]),
+                                          ])),
+                                  const SizedBox(height: 32),
+                                  Wrap(
+                                      spacing: 12,
+                                      runSpacing: 12,
+                                      alignment: WrapAlignment.center,
+                                      children: [
+                                        FilledButton.icon(
+                                            onPressed: _seconds == 0
+                                                ? null
+                                                : _toggleTimer,
+                                            icon: Icon(_timerEnd == null
+                                                ? Icons.play_arrow
+                                                : Icons.pause),
+                                            label: Text(_timerEnd == null
+                                                ? 'Start timer'
+                                                : 'Pause timer')),
+                                        FilledButton.tonal(
+                                            onPressed: () => setState(() {
+                                                  _timerEnd = null;
+                                                  _seconds = _timerDuration;
+                                                }),
+                                            child: const Text('Reset timer')),
+                                      ]),
+                                  const SizedBox(height: 20),
+                                  TextButton.icon(
+                                      style: TextButton.styleFrom(
+                                          foregroundColor: Colors.white),
+                                      onPressed: () => setState(
+                                          () => _timerExpanded = false),
+                                      icon: const Icon(Icons.fullscreen_exit),
+                                      label: const Text('Return to classroom')),
+                                ]),
+                          )),
+                    ))),
+      );
 }

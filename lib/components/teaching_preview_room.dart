@@ -9,6 +9,10 @@ class TeachingPreviewRoom extends StatefulWidget {
   final Map<String, String>? quizMarks;
   final bool checking;
   final String? selectedStudent;
+  final Map<String, String> studentNumbers;
+  final String? spotlightStudent;
+  final int? spotlightTable;
+  final bool choosing;
   final ValueChanged<String> onStudent;
   final ValueChanged<String> onDone;
   final void Function(int from, int to) onMove;
@@ -21,6 +25,10 @@ class TeachingPreviewRoom extends StatefulWidget {
     this.quizMarks,
     required this.checking,
     required this.selectedStudent,
+    this.studentNumbers = const {},
+    this.spotlightStudent,
+    this.spotlightTable,
+    this.choosing = false,
     required this.onStudent,
     required this.onDone,
     required this.onMove,
@@ -35,6 +43,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
   int? _moving;
 
   void _choose(int slot) {
+    if (widget.choosing) return;
     if (!_arranging) {
       final student = widget.seats[slot];
       if (student != null) widget.onStudent(student);
@@ -62,10 +71,12 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
             avatar: Icon(_arranging ? Icons.lock_open : Icons.lock_outline,
                 size: 16),
             label: Text(_arranging ? 'Lock seats' : 'Arrange seats'),
-            onSelected: (_) => setState(() {
-              _arranging = !_arranging;
-              _moving = null;
-            }),
+            onSelected: widget.choosing
+                ? null
+                : (_) => setState(() {
+                      _arranging = !_arranging;
+                      _moving = null;
+                    }),
           ),
         ]),
         const SizedBox(height: 20),
@@ -91,11 +102,24 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
   Widget _table(int table) {
     final sideLeft = table == 0;
     final sideRight = table == 2;
-    return Container(
+    final lit = widget.spotlightTable == table;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 110),
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.55),
-          borderRadius: BorderRadius.circular(20)),
+          color: lit
+              ? const Color(0xfffff2ce)
+              : Colors.white.withValues(alpha: 0.75),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+              color: lit ? const Color(0xffe3ac3c) : const Color(0xffe4e9e0),
+              width: 2),
+          boxShadow: lit
+              ? [
+                  const BoxShadow(
+                      color: Color(0x44e3ac3c), blurRadius: 22, spreadRadius: 2)
+                ]
+              : null),
       child: Column(children: [
         Row(children: [
           SizedBox(width: 62, child: sideLeft ? _seat(table * 4 + 3) : null),
@@ -103,7 +127,10 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
               child: Container(
             height: 88,
             decoration: BoxDecoration(
-              color: const Color(0xffe9eee7),
+              gradient: const LinearGradient(
+                  colors: [Color(0xffe6ede5), Color(0xffd5e2d8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: const Color(0xff9eb5a8), width: 2),
             ),
@@ -138,19 +165,28 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
     final done = status == 'Done';
     final selected =
         id != null && id == widget.selectedStudent || _moving == slot;
+    final lit = id != null && widget.spotlightStudent == id;
     final name = widget.students[id] ?? 'Empty';
     final color = widget.checking && done
         ? const Color(0xffdceee2)
         : const Color(0xffe4eef0);
 
     Widget token({bool feedback = false}) => Material(
-          color: id == null ? Colors.white : color,
+          color: lit
+              ? const Color(0xffffe49a)
+              : id == null
+                  ? Colors.white
+                  : color,
+          elevation: lit ? 9 : 0,
+          shadowColor: const Color(0xffdfad3e),
           shape: CircleBorder(
               side: BorderSide(
-                  color: selected
-                      ? const Color(0xff23675c)
-                      : const Color(0xffa6b9b5),
-                  width: selected ? 3 : 1.5)),
+                  color: lit
+                      ? const Color(0xffc38b20)
+                      : selected
+                          ? const Color(0xff23675c)
+                          : const Color(0xffa6b9b5),
+                  width: selected || lit ? 3 : 1.5)),
           child: SizedBox(
               width: 60,
               height: 60,
@@ -164,16 +200,27 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                       child: Center(
                           child: Padding(
                               padding: const EdgeInsets.all(4),
-                              child: Text(name,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: id == null
-                                          ? FontWeight.w400
-                                          : FontWeight.w600,
-                                      color: const Color(0xff203c39))))),
+                              child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (id != null &&
+                                        widget.studentNumbers.containsKey(id))
+                                      Text(widget.studentNumbers[id]!,
+                                          style: const TextStyle(
+                                              fontSize: 9,
+                                              color: Color(0xff58756b),
+                                              fontWeight: FontWeight.w700)),
+                                    Text(name,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: id == null
+                                                ? FontWeight.w400
+                                                : FontWeight.w600,
+                                            color: const Color(0xff203c39))),
+                                  ]))),
                     )),
         );
 
@@ -183,7 +230,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
           DragTarget<int>(
             key: ValueKey('seat-$slot'),
             onWillAcceptWithDetails: (details) =>
-                _arranging && details.data != slot,
+                _arranging && !widget.choosing && details.data != slot,
             onAcceptWithDetails: (details) {
               widget.onMove(details.data, slot);
               setState(() => _moving = null);
@@ -199,7 +246,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                               blurRadius: 8,
                               spreadRadius: 3)
                         ]),
-              child: _arranging && id != null
+              child: _arranging && !widget.choosing && id != null
                   ? Draggable<int>(
                       data: slot,
                       feedback: token(feedback: true),
