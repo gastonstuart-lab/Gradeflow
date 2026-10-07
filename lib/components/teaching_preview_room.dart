@@ -72,64 +72,99 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-        if (!widget.presentation) ...[
-          Row(children: [
-            Expanded(
-                child: Text(
-                    _arranging
-                        ? 'Drag a student, or tap a student then a seat.'
-                        : 'Seating is locked while you teach',
-                    style: const TextStyle(
-                        color: Color(0xff60758c),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12))),
-            const SizedBox(width: 8),
-            FilterChip(
-              selected: _arranging,
-              showCheckmark: false,
-              backgroundColor: Colors.white,
-              selectedColor: const Color(0xffe2f3f1),
-              side: BorderSide(
-                  color: _arranging
-                      ? const Color(0xff8fcfc7)
-                      : const Color(0xffd7e3ed)),
-              avatar: Icon(_arranging ? Icons.lock_open : Icons.lock_outline,
-                  size: 16,
-                  color: _arranging
-                      ? const Color(0xff148b88)
-                      : const Color(0xff60758c)),
-              label: Text(_arranging ? 'Lock seats' : 'Arrange seats'),
-              onSelected: widget.choosing
-                  ? null
-                  : (_) => setState(() {
-                        _arranging = !_arranging;
-                        _moving = null;
-                      }),
+  Widget build(BuildContext context) {
+    if (widget.presentation) {
+      return LayoutBuilder(builder: (context, constraints) {
+        const columns = 3;
+        const crossGap = 20.0;
+        const rowGap = 18.0;
+        final width =
+            (constraints.maxWidth - (columns - 1) * crossGap) / columns;
+        final height = constraints.maxHeight.isFinite
+            ? (constraints.maxHeight - rowGap) / 2
+            : 210.0;
+        return Wrap(
+          spacing: crossGap,
+          runSpacing: rowGap,
+          children: List.generate(
+            widget.seats.length ~/ 4,
+            (table) => SizedBox(
+              width: width,
+              height: height,
+              child: _table(table),
             ),
-          ]),
-          const SizedBox(height: 20),
-        ],
-        LayoutBuilder(builder: (context, constraints) {
-          final available = constraints.maxWidth >= 780
-              ? 3
-              : constraints.maxWidth >= 500
-                  ? 2
-                  : 1;
-          final columns =
-              widget.tableColumns < available ? widget.tableColumns : available;
-          final width = (constraints.maxWidth - (columns - 1) * 18) / columns;
-          return Wrap(
-              spacing: 18,
-              runSpacing: 26,
-              children: List.generate(
-                  widget.seats.length ~/ 4,
-                  (table) => SizedBox(
-                        width: width,
-                        child: _table(table),
-                      )));
-        }),
-      ]);
+          ),
+        );
+      });
+    }
+
+    return Column(children: [
+      Row(children: [
+        Expanded(
+            child: Text(
+                _arranging
+                    ? 'Drag a student, or tap a student then a seat.'
+                    : 'Seating is locked while you teach',
+                style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xff9fb4c7)
+                        : const Color(0xff60758c),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12))),
+        const SizedBox(width: 8),
+        FilterChip(
+          selected: _arranging,
+          showCheckmark: false,
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xff102334)
+              : Colors.white,
+          selectedColor: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xff123b3a)
+              : const Color(0xffe2f3f1),
+          side: BorderSide(
+              color: _arranging
+                  ? const Color(0xff8fcfc7)
+                  : Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xff29445e)
+                      : const Color(0xffd7e3ed)),
+          avatar: Icon(_arranging ? Icons.lock_open : Icons.lock_outline,
+              size: 16,
+              color: _arranging
+                  ? const Color(0xff148b88)
+                  : Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xff9fb4c7)
+                      : const Color(0xff60758c)),
+          label: Text(_arranging ? 'Lock seats' : 'Arrange seats'),
+          onSelected: widget.choosing
+              ? null
+              : (_) => setState(() {
+                    _arranging = !_arranging;
+                    _moving = null;
+                  }),
+        ),
+      ]),
+      const SizedBox(height: 14),
+      LayoutBuilder(builder: (context, constraints) {
+        final available = constraints.maxWidth >= 780
+            ? 3
+            : constraints.maxWidth >= 500
+                ? 2
+                : 1;
+        final columns =
+            widget.tableColumns < available ? widget.tableColumns : available;
+        final width = (constraints.maxWidth - (columns - 1) * 22) / columns;
+        return Wrap(
+            spacing: 22,
+            runSpacing: 24,
+            children: List.generate(
+                widget.seats.length ~/ 4,
+                (table) => SizedBox(
+                      width: width,
+                      child: _table(table),
+                    )));
+      }),
+    ]);
+  }
 
   static const _tableAccents = [
     Color(0xff7c4dff),
@@ -146,114 +181,111 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
     final lit = widget.spotlightTable == table;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final accent = _accentFor(table);
-    final cardTop = dark ? const Color(0xff102132) : Colors.white;
-    final cardBottom =
-        dark ? const Color(0xff0c1a28) : const Color(0xfff7fbfd);
     final tableFill = Color.alphaBlend(
-      accent.withValues(alpha: dark ? .34 : .18),
+      accent.withValues(alpha: dark ? .34 : .16),
       dark ? const Color(0xff102333) : Colors.white,
     );
+
+    // Source-of-truth room geometry from the original Classroom.html:
+    // three seats behind/below each table, with the extra side seat only
+    // where the physical room actually has one.
+    final showLeftSide = !widget.allSideSeats && table == 0;
+    final showRightSide = widget.allSideSeats || table == 2;
+    final sideSeat = _seat(table * 4 + 3);
+    final sidePlaceholder = const SizedBox(width: 54, height: 54);
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+      padding: EdgeInsets.symmetric(
+          vertical: widget.presentation ? 10 : 4,
+          horizontal: widget.presentation ? 8 : 2),
       decoration: BoxDecoration(
-          gradient: lit
-              ? LinearGradient(
-                  colors: dark
-                      ? [const Color(0xff4b3d20), const Color(0xff2e2817)]
-                      : [const Color(0xfffff7dd), const Color(0xffffefd0)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight)
-              : LinearGradient(
-                  colors: [cardTop, cardBottom],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-              color: lit
-                  ? const Color(0xffe3ac3c)
-                  : accent.withValues(alpha: dark ? .56 : .32),
-              width: lit ? 2 : 1.25),
-          boxShadow: [
-            if (lit)
-              const BoxShadow(
-                  color: Color(0x44e3ac3c), blurRadius: 22, spreadRadius: 2)
-            else
-              BoxShadow(
-                  color: dark
-                      ? Colors.black.withValues(alpha: .22)
-                      : const Color(0x10163f65),
-                  blurRadius: 18,
-                  offset: const Offset(0, 7)),
-          ]),
-      child: Column(children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _seat(table * 4 + 2),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Center(
-                child: FractionallySizedBox(
-                  widthFactor: .80,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    height: 66,
-                    decoration: BoxDecoration(
-                      color: tableFill,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                          color: accent.withValues(alpha: dark ? .95 : .72),
-                          width: dark ? 1.8 : 1.5),
-                      boxShadow: dark
-                          ? [
-                              BoxShadow(
-                                  color: accent.withValues(alpha: .14),
-                                  blurRadius: 16,
-                                  spreadRadius: 1)
-                            ]
-                          : null,
+        color: lit
+            ? (dark
+                ? const Color(0xff2d2819)
+                : const Color(0xfffff7dd))
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
+        border: lit
+            ? Border.all(color: const Color(0xffe3ac3c), width: 2)
+            : null,
+      ),
+      child: Column(
+        mainAxisAlignment: widget.presentation
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              showLeftSide ? sideSeat : sidePlaceholder,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Center(
+                  child: FractionallySizedBox(
+                    widthFactor: widget.presentation ? .70 : .66,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      height: widget.presentation ? 82 : 72,
+                      decoration: BoxDecoration(
+                        color: tableFill,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                            color:
+                                accent.withValues(alpha: dark ? .98 : .78),
+                            width: dark ? 1.9 : 1.5),
+                        boxShadow: dark
+                            ? [
+                                BoxShadow(
+                                    color: accent.withValues(alpha: .12),
+                                    blurRadius: 14,
+                                    spreadRadius: 1)
+                              ]
+                            : null,
+                      ),
+                      child: Center(
+                          child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                            Text('${table + 1}',
+                                style: TextStyle(
+                                    fontSize:
+                                        widget.presentation ? 30 : 27,
+                                    height: 1,
+                                    color: dark
+                                        ? const Color(0xfff2f7fb)
+                                        : const Color(0xff173f4f),
+                                    fontWeight: FontWeight.w900)),
+                            const SizedBox(height: 3),
+                            Text('TABLE',
+                                style: TextStyle(
+                                    fontSize: 8,
+                                    letterSpacing: 1.4,
+                                    color: dark
+                                        ? const Color(0xffb6c7d6)
+                                        : const Color(0xff60758c),
+                                    fontWeight: FontWeight.w800)),
+                          ])),
                     ),
-                    child: Center(
-                        child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                          Text('${table + 1}',
-                              style: TextStyle(
-                                  fontSize: 27,
-                                  height: 1,
-                                  color: dark
-                                      ? const Color(0xfff2f7fb)
-                                      : const Color(0xff173f4f),
-                                  fontWeight: FontWeight.w900)),
-                          const SizedBox(height: 3),
-                          Text('TABLE',
-                              style: TextStyle(
-                                  fontSize: 8,
-                                  letterSpacing: 1.4,
-                                  color: dark
-                                      ? const Color(0xffb6c7d6)
-                                      : const Color(0xff60758c),
-                                  fontWeight: FontWeight.w800)),
-                        ])),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            _seat(table * 4 + 3),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _seat(table * 4),
-            _seat(table * 4 + 1),
-          ],
-        ),
-      ]),
+              const SizedBox(width: 10),
+              showRightSide ? sideSeat : sidePlaceholder,
+            ],
+          ),
+          SizedBox(height: widget.presentation ? 16 : 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _seat(table * 4),
+              _seat(table * 4 + 1),
+              _seat(table * 4 + 2),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
