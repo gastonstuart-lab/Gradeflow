@@ -5,6 +5,7 @@ import 'package:gradeflow/components/teaching_preview_room.dart';
 import 'package:gradeflow/components/teaching_preview_quiz.dart';
 import 'package:gradeflow/components/teaching_preview_room_builder.dart';
 import 'package:gradeflow/components/teaching_preview_desktop.dart';
+import 'package:gradeflow/components/teaching_preview_clock.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const TeachingPreview());
@@ -294,10 +295,10 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                           onPressed: _leaveToToday,
                           icon: const Icon(Icons.arrow_back_rounded, size: 18),
                           label: const Text('Today'),
-                        )
-                      else if (MediaQuery.sizeOf(context).width >= 600)
-                        const Text('Your teaching day',
-                            style: TextStyle(color: _muted)),
+                        ),
+                      const SizedBox(width: 12),
+                      TeachingPreviewClock(
+                          showDate: MediaQuery.sizeOf(context).width >= 600),
                     ]),
                   ),
                   const Divider(height: 1),
@@ -826,6 +827,9 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                                           color: Color(0xffc0d8ca),
                                           letterSpacing: 3)),
                                   const SizedBox(height: 32),
+                                  const TeachingPreviewClock(
+                                      color: Color(0xffc0d8ca)),
+                                  const SizedBox(height: 20),
                                   SizedBox(
                                       width: min(340, size.maxWidth - 48),
                                       height: min(340, size.maxWidth - 48),
