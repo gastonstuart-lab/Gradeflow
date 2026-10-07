@@ -1241,6 +1241,163 @@ class _TeachingJourneyState extends State<TeachingJourney> {
         ),
       );
 
+
+  Widget _classroomEnvironment({required Widget child}) {
+    final dark = widget.darkMode;
+    final structural =
+        dark ? const Color(0xff385066) : const Color(0xffc8d6e0);
+    final fixture =
+        dark ? const Color(0xff183246) : const Color(0xffe3ebf0);
+    final glass =
+        dark ? const Color(0x332f9bd2) : const Color(0x4039a9df);
+
+    return Column(children: [
+      Container(
+        height: 42,
+        margin: const EdgeInsets.symmetric(horizontal: 26),
+        decoration: BoxDecoration(
+          color: dark ? const Color(0xff10212f) : Colors.white,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: structural),
+          boxShadow: [
+            BoxShadow(
+              color: dark
+                  ? Colors.black.withValues(alpha: .20)
+                  : const Color(0x14163f65),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.videocam_outlined, size: 15, color: _secondaryText),
+          const SizedBox(width: 8),
+          Container(
+            width: 118,
+            height: 22,
+            decoration: BoxDecoration(
+              color: dark ? const Color(0xff0a1722) : const Color(0xfff7fafc),
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: structural),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Text(
+            'PROJECTOR / SCREEN',
+            style: TextStyle(
+              color: _secondaryText,
+              fontSize: 8.5,
+              letterSpacing: 1.35,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 8),
+      Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: dark
+                ? const [Color(0xff0d1b27), Color(0xff102636)]
+                : const [Color(0xfff8fbfd), Color(0xffedf3f6)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: structural),
+          boxShadow: [
+            BoxShadow(
+              color: dark
+                  ? Colors.black.withValues(alpha: .22)
+                  : const Color(0x18163f65),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Stack(children: [
+          Positioned(
+            left: 8,
+            top: 22,
+            bottom: 22,
+            width: 9,
+            child: IgnorePointer(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(
+                  3,
+                  (_) => Container(
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: glass,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: structural.withValues(alpha: .7)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 8,
+            top: 24,
+            width: 9,
+            height: 68,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: fixture,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: structural),
+                ),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    width: 2.5,
+                    height: 2.5,
+                    margin: const EdgeInsets.only(right: 1.5),
+                    decoration: BoxDecoration(
+                      color: _secondaryText,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 22,
+            bottom: 9,
+            width: 116,
+            height: 17,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: fixture.withValues(alpha: .82),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: structural.withValues(alpha: .85)),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'TEACHER / STORAGE',
+                  style: TextStyle(
+                    color: _secondaryText.withValues(alpha: .82),
+                    fontSize: 7,
+                    letterSpacing: 1.0,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          child,
+        ]),
+      ),
+    ]);
+  }
+
   Widget _map() => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1463,74 +1620,48 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 detail: 'Group labels are shown at each occupied seat.'),
             const SizedBox(height: 8),
           ],
-          Center(
-              child: Container(
-                  width: 250,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                      color: widget.darkMode
-                          ? const Color(0xff102c33)
-                          : const Color(0xffe6efec),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                          color: widget.darkMode
-                              ? const Color(0xff29445e)
-                              : const Color(0xffd4e3df))),
-                  child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.present_to_all_rounded,
-                            size: 13, color: _secondaryText),
-                        const SizedBox(width: 7),
-                        Text('FRONT OF CLASSROOM',
-                            style: TextStyle(
-                                fontSize: 9,
-                                letterSpacing: 1.6,
-                                fontWeight: FontWeight.w800,
-                                color: _secondaryText)),
-                      ]))),
-          const SizedBox(height: 8),
-          TeachingPreviewRoom(
-            key: ValueKey('room-$_roomRevision'),
-            tableColumns: _tableColumns,
-            allSideSeats: _customRoom,
-            studentNumbers: _numbers,
-            spotlightStudent: _spotlightStudent,
-            spotlightTable: _spotlightTable,
-            choosing: _choosing,
-            students: _students,
-            seats: _seats,
-            homework: _homework,
-            quizMarks: _quizzing
-                ? {
-                    for (final id in _students.keys)
-                      id: _quiz.mark(id) == null
-                          ? 'Not entered'
-                          : '${_quiz.mark(id)} / ${_quiz.maximumLabel}'
-                  }
-                : null,
-            attendance: _attendance,
-            groups: _groups,
-            checking: _checking,
-            attendanceMode: _attendanceMode,
-            groupMode: _groupMode,
-            selectedStudent: _panel == 'student' || _panel == 'quiz-student'
-                ? _student
-                : null,
-            onStudent: _openStudent,
-            onDone: (id) => setState(() {
-              _homework[id] = 'Done';
-              _log('${_students[id]} · homework done');
-            }),
-            onPresent: (id) => _setAttendance(id, 'Present'),
-            onMove: (from, to) => setState(() {
-              final displaced = _seats[to];
-              _seats[to] = _seats[from];
-              _seats[from] = displaced;
-              _lastSeatSwap = [from, to];
-              _log('Moved seat assignment');
-            }),
+          _classroomEnvironment(
+            TeachingPreviewRoom(
+              key: ValueKey('room-$_roomRevision'),
+              tableColumns: _tableColumns,
+              allSideSeats: _customRoom,
+              studentNumbers: _numbers,
+              spotlightStudent: _spotlightStudent,
+              spotlightTable: _spotlightTable,
+              choosing: _choosing,
+              students: _students,
+              seats: _seats,
+              homework: _homework,
+              quizMarks: _quizzing
+                  ? {
+                      for (final id in _students.keys)
+                        id: _quiz.mark(id) == null
+                            ? 'Not entered'
+                            : '${_quiz.mark(id)} / ${_quiz.maximumLabel}'
+                    }
+                  : null,
+              attendance: _attendance,
+              groups: _groups,
+              checking: _checking,
+              attendanceMode: _attendanceMode,
+              groupMode: _groupMode,
+              selectedStudent: _panel == 'student' || _panel == 'quiz-student'
+                  ? _student
+                  : null,
+              onStudent: _openStudent,
+              onDone: (id) => setState(() {
+                _homework[id] = 'Done';
+                _log('${_students[id]} · homework done');
+              }),
+              onPresent: (id) => _setAttendance(id, 'Present'),
+              onMove: (from, to) => setState(() {
+                final displaced = _seats[to];
+                _seats[to] = _seats[from];
+                _seats[from] = displaced;
+                _lastSeatSwap = [from, to];
+                _log('Moved seat assignment');
+              }),
+            ),
           ),
           const SizedBox(height: 14),
           const Text(
