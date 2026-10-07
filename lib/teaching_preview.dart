@@ -1868,100 +1868,147 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             child: const Text('Keep teaching')),
       ];
 
-  Widget _timerFocus() => Container(
-        decoration: const BoxDecoration(
-            gradient: RadialGradient(
-                colors: [Color(0xff244c48), Color(0xff102725)], radius: 1.1)),
-        child: SafeArea(
-            child: LayoutBuilder(
-                builder: (context, size) => SingleChildScrollView(
-                      child: ConstrainedBox(
-                          constraints:
-                              BoxConstraints(minHeight: size.maxHeight),
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+  Widget _timerFocus() => SizedBox.expand(
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                  center: Alignment(0, -.08),
+                  colors: [Color(0xff245a55), Color(0xff102725)],
+                  radius: 1.15)),
+          child: SafeArea(
+            child: LayoutBuilder(builder: (context, size) {
+              final diameter =
+                  min(430.0, min(size.maxWidth - 72, size.maxHeight * .52));
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                child: SizedBox(
+                  width: size.maxWidth,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: size.maxHeight - 48),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: .08),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: .12))),
+                          child: const Text('PROJECTOR TIMER',
+                              style: TextStyle(
+                                  color: Color(0xffc5e1d7),
+                                  fontSize: 10,
+                                  letterSpacing: 2.2,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                        const SizedBox(height: 18),
+                        const Text('A MOMENT TO THINK',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                letterSpacing: 3.2,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 18),
+                        const TeachingPreviewClock(
+                            color: Color(0xffc0d8ca)),
+                        const SizedBox(height: 22),
+                        SizedBox(
+                          width: diameter,
+                          height: diameter,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Positioned.fill(
+                                child: CircularProgressIndicator(
+                                  value: _timerDuration == 0
+                                      ? 0
+                                      : _seconds / _timerDuration,
+                                  strokeWidth: diameter < 320 ? 7 : 9,
+                                  strokeCap: StrokeCap.round,
+                                  backgroundColor: Colors.white12,
+                                  color: const Color(0xffb9d4a4),
+                                ),
+                              ),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Text('A MOMENT TO THINK',
+                                  Text(_clock,
                                       style: TextStyle(
-                                          color: Color(0xffc0d8ca),
-                                          letterSpacing: 3)),
-                                  const SizedBox(height: 32),
-                                  const TeachingPreviewClock(
-                                      color: Color(0xffc0d8ca)),
-                                  const SizedBox(height: 20),
-                                  SizedBox(
-                                      width: min(340, size.maxWidth - 48),
-                                      height: min(340, size.maxWidth - 48),
-                                      child: Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            Positioned.fill(
-                                                child:
-                                                    CircularProgressIndicator(
-                                                        value: _seconds /
-                                                            _timerDuration,
-                                                        strokeWidth: 8,
-                                                        strokeCap:
-                                                            StrokeCap.round,
-                                                        backgroundColor:
-                                                            Colors.white12,
-                                                        color: const Color(
-                                                            0xffb9d4a4))),
-                                            Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(_clock,
-                                                      style: const TextStyle(
-                                                          fontSize: 68,
-                                                          fontWeight:
-                                                              FontWeight.w300,
-                                                          color: Colors.white)),
-                                                  Text(
-                                                      _seconds == 0
-                                                          ? 'Time to come back together'
-                                                          : _timerEnd == null
-                                                              ? 'Ready when you are'
-                                                              : 'Space to focus',
-                                                      style: const TextStyle(
-                                                          color: Color(
-                                                              0xffc0d8ca))),
-                                                ]),
-                                          ])),
-                                  const SizedBox(height: 32),
-                                  Wrap(
-                                      spacing: 12,
-                                      runSpacing: 12,
-                                      alignment: WrapAlignment.center,
-                                      children: [
-                                        FilledButton.icon(
-                                            onPressed: _seconds == 0
-                                                ? null
-                                                : _toggleTimer,
-                                            icon: Icon(_timerEnd == null
-                                                ? Icons.play_arrow
-                                                : Icons.pause),
-                                            label: Text(_timerEnd == null
-                                                ? 'Start timer'
-                                                : 'Pause timer')),
-                                        FilledButton.tonal(
-                                            onPressed: () => setState(() {
-                                                  _timerEnd = null;
-                                                  _seconds = _timerDuration;
-                                                }),
-                                            child: const Text('Reset timer')),
-                                      ]),
-                                  const SizedBox(height: 20),
-                                  TextButton.icon(
-                                      style: TextButton.styleFrom(
-                                          foregroundColor: Colors.white),
-                                      onPressed: () => setState(
-                                          () => _timerExpanded = false),
-                                      icon: const Icon(Icons.fullscreen_exit),
-                                      label: const Text('Return to classroom')),
-                                ]),
-                          )),
-                    ))),
+                                          fontSize:
+                                              diameter < 320 ? 56 : 78,
+                                          height: 1,
+                                          fontWeight: FontWeight.w300,
+                                          letterSpacing: -2,
+                                          color: Colors.white)),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    _seconds == 0
+                                        ? 'Time to come back together'
+                                        : _timerEnd == null
+                                            ? 'Ready when you are'
+                                            : 'Space to focus',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                        color: Color(0xffc0d8ca),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xff1d73d2),
+                                  foregroundColor: Colors.white),
+                              onPressed:
+                                  _seconds == 0 ? null : _toggleTimer,
+                              icon: Icon(_timerEnd == null
+                                  ? Icons.play_arrow_rounded
+                                  : Icons.pause_rounded),
+                              label: Text(_timerEnd == null
+                                  ? 'Start timer'
+                                  : 'Pause timer'),
+                            ),
+                            FilledButton.tonal(
+                              onPressed: () => setState(() {
+                                _timerEnd = null;
+                                _seconds = _timerDuration;
+                              }),
+                              child: const Text('Reset timer'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                              foregroundColor: Colors.white),
+                          onPressed: () =>
+                              setState(() => _timerExpanded = false),
+                          icon: const Icon(Icons.fullscreen_exit_rounded),
+                          label: Text(_presentationMode
+                              ? 'Return to presentation'
+                              : 'Return to classroom'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       );
+
 }
