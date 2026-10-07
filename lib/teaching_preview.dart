@@ -148,6 +148,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   bool _attendanceMode = false;
   bool _groupMode = false;
   bool _presentationMode = false;
+  bool _toolsDrawerOpen = false;
   String _toolsSection = 'Class';
   List<int>? _lastSeatSwap;
   final _quiz = PreviewQuizBook();
@@ -313,11 +314,19 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   void _openStudent(String id) {
     setState(() {
+      _toolsDrawerOpen = false;
       _student = id;
       _note.text = _notes[id] ?? '';
       _panel = _quizzing ? 'quiz-student' : 'student';
     });
   }
+
+  void _openToolsDrawer() => setState(() {
+        _panel = null;
+        _toolsDrawerOpen = true;
+      });
+
+  void _closeToolsDrawer() => setState(() => _toolsDrawerOpen = false);
 
   void _quizChanged() {
     if (mounted) setState(() {});
@@ -942,27 +951,134 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       );
 
   Widget _classroom() => LayoutBuilder(builder: (context, size) {
-        final wide = size.maxWidth >= 1000;
-        return Stack(children: [
-          Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        final wide = size.maxWidth >= 1050;
+        const motion = Duration(milliseconds: 260);
+        const curve = Curves.easeOutCubic;
+
+        if (wide) {
+          return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            AnimatedContainer(
+              duration: motion,
+              curve: curve,
+              width: _toolsDrawerOpen ? 318 : 0,
+              child: ClipRect(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: _toolsDrawerOpen ? 1 : 0,
+                  child: SizedBox(width: 318, child: _leftToolsDrawer()),
+                ),
+              ),
+            ),
             Expanded(child: _map()),
-            if (wide && _panel != null)
-              SizedBox(width: 360, child: _panelBody()),
-          ]),
-          if (!wide && _panel != null) ...[
+            AnimatedContainer(
+              duration: motion,
+              curve: curve,
+              width: _panel != null ? 372 : 0,
+              child: ClipRect(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  widthFactor: _panel != null ? 1 : 0,
+                  child: SizedBox(width: 372, child: _panelBody()),
+                ),
+              ),
+            ),
+          ]);
+        }
+
+        return Stack(children: [
+          Positioned.fill(child: _map()),
+          if (_toolsDrawerOpen || _panel != null)
             Positioned.fill(
+              child: AnimatedOpacity(
+                duration: motion,
+                opacity: .22,
                 child: GestureDetector(
-                    onTap: () => setState(() => _panel = null),
-                    child: Container(color: Colors.black26))),
-            Align(
-                alignment: Alignment.centerRight,
-                child: SizedBox(
-                    width: size.maxWidth < 420 ? size.maxWidth : 380,
-                    height: double.infinity,
-                    child: _panelBody())),
-          ],
+                  onTap: () => setState(() {
+                    _toolsDrawerOpen = false;
+                    _panel = null;
+                  }),
+                  child: Container(color: Colors.black),
+                ),
+              ),
+            ),
+          AnimatedPositioned(
+            duration: motion,
+            curve: curve,
+            left: _toolsDrawerOpen ? 0 : -340,
+            top: 0,
+            bottom: 0,
+            width: min(330.0, size.maxWidth * .88),
+            child: _leftToolsDrawer(),
+          ),
+          AnimatedPositioned(
+            duration: motion,
+            curve: curve,
+            right: _panel != null ? 0 : -400,
+            top: 0,
+            bottom: 0,
+            width: min(380.0, size.maxWidth * .92),
+            child: _panelBody(),
+          ),
         ]);
       });
+
+  Widget _leftToolsDrawer() => Material(
+        color: widget.darkMode
+            ? const Color(0xff0b1b2a)
+            : const Color(0xfffbfdff),
+        elevation: 12,
+        shadowColor: Colors.black26,
+        child: SafeArea(
+          right: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 30),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                            colors: [Color(0xff1769ce), Color(0xff158d8a)]),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.tune_rounded,
+                          color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Text('Class tools',
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: widget.darkMode
+                                  ? const Color(0xffeef6ff)
+                                  : const Color(0xff173457))),
+                    ),
+                    IconButton(
+                      tooltip: 'Close class tools',
+                      onPressed: _closeToolsDrawer,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ]),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Everything you need, without leaving the room.',
+                    style: TextStyle(
+                        color: widget.darkMode
+                            ? const Color(0xff9fb4c7)
+                            : _muted,
+                        fontSize: 12,
+                        height: 1.4),
+                  ),
+                  const SizedBox(height: 18),
+                  ..._toolsPanel(),
+                ]),
+          ),
+        ),
+      );
 
   Widget _map() => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 22, 24, 32),
@@ -1102,7 +1218,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               ActionChip(
                   label: const Text('Class tools'),
                   avatar: const Icon(Icons.tune_rounded, size: 18),
-                  onPressed: () => setState(() => _panel = 'tools')),
+                  onPressed: _openToolsDrawer),
               ActionChip(
                   label: const Text('Present'),
                   avatar: const Icon(Icons.present_to_all_rounded, size: 18),
