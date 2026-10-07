@@ -1151,7 +1151,65 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                         fontWeight: FontWeight.w600)),
               ])),
         ]),
-        const SizedBox(height: 26),
+        const SizedBox(height: 18),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+              color: const Color(0xfff6f9fc),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xffe0e9f0))),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Quick classroom actions',
+                style: TextStyle(
+                    color: Color(0xff173457),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13)),
+            const SizedBox(height: 10),
+            _metricRow('Participation', _participation, _student!,
+                Icons.record_voice_over_outlined),
+            const SizedBox(height: 8),
+            _metricRow('Classwork', _classwork, _student!,
+                Icons.task_alt_rounded),
+            const SizedBox(height: 8),
+            _metricRow(
+                'Behaviour', _behaviour, _student!, Icons.balance_rounded),
+          ]),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xffdce7ef))),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Row(children: [
+              Icon(Icons.how_to_reg_rounded,
+                  size: 18, color: Color(0xff176a74)),
+              SizedBox(width: 8),
+              Text('Attendance',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xff173457))),
+            ]),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: ['Present', 'Late', 'Absent']
+                  .map((status) => ChoiceChip(
+                        label: Text(status),
+                        selected:
+                            (_attendance[_student] ?? 'Present') == status,
+                        onSelected: (_) => _setAttendance(_student!, status),
+                      ))
+                  .toList(),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 14),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -1227,6 +1285,39 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             'Notes stay while you explore this preview. Refreshing clears them.',
             style: TextStyle(color: _muted, fontSize: 11.5, height: 1.5)),
       ];
+
+  Widget _metricRow(
+    String label,
+    Map<String, int> metric,
+    String studentId,
+    IconData icon,
+  ) =>
+      Row(children: [
+        Icon(icon, size: 17, color: const Color(0xff60758c)),
+        const SizedBox(width: 8),
+        Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 12.5, fontWeight: FontWeight.w700))),
+        IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Decrease $label',
+            onPressed: () => _adjustMetric(metric, studentId, -1, label),
+            icon: const Icon(Icons.remove_circle_outline_rounded, size: 20)),
+        Container(
+          width: 34,
+          alignment: Alignment.center,
+          child: Text('${metric[studentId] ?? 0}',
+              style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xff173457))),
+        ),
+        IconButton(
+            visualDensity: VisualDensity.compact,
+            tooltip: 'Increase $label',
+            onPressed: () => _adjustMetric(metric, studentId, 1, label),
+            icon: const Icon(Icons.add_circle_outline_rounded, size: 20)),
+      ]);
 
   List<Widget> _timerPanel() => [
         const Text('A moment to think',
