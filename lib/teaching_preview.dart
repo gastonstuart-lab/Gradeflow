@@ -114,6 +114,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   bool _attendanceMode = false;
   bool _groupMode = false;
   bool _presentationMode = false;
+  String _toolsSection = 'Class';
   List<int>? _lastSeatSwap;
   final _quiz = PreviewQuizBook();
   final _desktop = PreviewDesktopBook();
