@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:gradeflow/components/teaching_preview_room.dart';
 import 'package:gradeflow/components/teaching_preview_quiz.dart';
 import 'package:gradeflow/components/teaching_preview_room_builder.dart';
+import 'package:gradeflow/components/teaching_preview_desktop.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() => runApp(const TeachingPreview());
@@ -103,6 +104,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   bool _checking = false;
   bool _quizzing = false;
   final _quiz = PreviewQuizBook();
+  final _desktop = PreviewDesktopBook();
   String? _panel;
   String? _student;
   DateTime? _timerEnd;
@@ -196,6 +198,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   void dispose() {
     _quiz.removeListener(_quizChanged);
     _quiz.dispose();
+    _desktop.dispose();
     _ticker?.cancel();
     _chooserTimer?.cancel();
     _note.dispose();
@@ -259,6 +262,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+        bottomNavigationBar: _timerExpanded ? null : _dock(),
         body: _timerExpanded
             ? _timerFocus()
             : SafeArea(
@@ -297,111 +301,152 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                     ]),
                   ),
                   const Divider(height: 1),
-                  Expanded(child: _teaching ? _classroom() : _today()),
+                  Expanded(
+                      child: AnimatedSwitcher(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 180),
+                    layoutBuilder: (current, previous) => Stack(
+                        fit: StackFit.expand,
+                        children: [...previous, if (current != null) current]),
+                    child: KeyedSubtree(
+                        key: ValueKey(_teaching),
+                        child: _teaching ? _classroom() : _today()),
+                  )),
                 ]),
               ),
       );
 
-  Widget _today() => SingleChildScrollView(
-        padding: const EdgeInsets.all(28),
-        child: Center(
-            child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const SizedBox(height: 34),
-            _label('TODAY / DEMO TEACHING DAY'),
-            const SizedBox(height: 16),
-            const Text('A little less to carry.',
-                style: TextStyle(
-                    fontSize: 42,
-                    height: 1.12,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -1.4)),
-            const SizedBox(height: 14),
-            const Text(
-                'Your class, your next step, and the things worth remembering.',
-                style: TextStyle(fontSize: 17, color: _muted)),
-            const SizedBox(height: 38),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(26),
-                  border: Border.all(color: const Color(0xffdde5dc))),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _label(_finished
-                        ? 'LESSON WRAPPED UP'
-                        : _started
-                            ? 'YOUR CLASS IS STILL HERE'
-                            : 'UP NEXT · 10:10–11:00'),
-                    const SizedBox(height: 18),
-                    const Text('J2 Science',
-                        style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -1)),
-                    const SizedBox(height: 8),
-                    const Text('Room 204 · 12 students · Ecosystems',
-                        style: TextStyle(fontSize: 16, color: _muted)),
-                    const SizedBox(height: 26),
-                    Text(
-                        _finished
-                            ? 'Ready for next time'
-                            : 'Pick up where you left off',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 17)),
-                    const SizedBox(height: 8),
-                    Text(
-                        _finished && _continuation.text.trim().isNotEmpty
-                            ? _continuation.text.trim()
-                            : 'Continue food webs. Ask students what happens when one species disappears.',
-                        style: const TextStyle(height: 1.6, fontSize: 16)),
-                    const SizedBox(height: 22),
-                    Wrap(spacing: 20, runSpacing: 12, children: [
-                      _signal(
-                          Icons.assignment_outlined,
-                          _finished
-                              ? '$_checked of 12 homework checks'
-                              : 'Food web worksheet · Homework'),
-                      _signal(Icons.chat_bubble_outline,
-                          '${_followUps.length} student follow-ups'),
-                    ]),
-                    const SizedBox(height: 30),
-                    FilledButton.icon(
-                        onPressed: _start,
-                        icon: const Icon(Icons.arrow_forward_rounded),
-                        label: Text(_finished
-                            ? 'Reopen demo lesson'
-                            : _started
-                                ? 'Return to class'
-                                : 'Start class')),
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                        onPressed: _startQuiz,
-                        icon: const Icon(Icons.edit_note),
-                        label: const Text('Enter quiz scores')),
-                    if (_finished) ...[
-                      const SizedBox(height: 14),
-                      const Text(
-                          'Lesson summary kept in this preview session only.',
-                          style: TextStyle(color: _muted, fontSize: 12)),
-                    ],
-                  ]),
-            ),
-            const SizedBox(height: 30),
-            _label('LATER'),
-            const SizedBox(height: 14),
-            const Text('11:10  ·  Preparation time',
-                style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            const Text('Nothing else needs your attention right now.',
-                style: TextStyle(color: _muted)),
+  void _openTool(String tool) {
+    if (tool == 'home') {
+      _leaveToToday();
+      return;
+    }
+    _cancelChooser();
+    if (tool == 'quiz') {
+      _startQuiz();
+      return;
+    }
+    _start();
+    if (tool == 'room') {
+      _buildRoom();
+      return;
+    }
+    if (tool == 'timer') setState(() => _panel = 'timer');
+  }
+
+  Widget _dock() => SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: const BoxDecoration(
+            color: Color(0xffe5ebe2),
+            border: Border(top: BorderSide(color: Color(0xffd5dfd3)))),
+        child: Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              PopupMenuButton<String>(
+                tooltip: 'Start menu',
+                onSelected: _openTool,
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'home', child: Text('Teacher desktop')),
+                  PopupMenuItem(value: 'class', child: Text('Demo classroom')),
+                  PopupMenuItem(value: 'quiz', child: Text('Quiz entry')),
+                  PopupMenuItem(value: 'timer', child: Text('Focus timer')),
+                  PopupMenuItem(value: 'room', child: Text('Room builder'))
+                ],
+                child: const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.apps, size: 20),
+                      SizedBox(width: 6),
+                      Text('Start')
+                    ])),
+              ),
+              TextButton.icon(
+                  onPressed: _leaveToToday,
+                  icon: const Icon(Icons.home_outlined, size: 20),
+                  label: const Text('Home')),
+              TextButton.icon(
+                  onPressed: () => _openTool('class'),
+                  icon: const Icon(Icons.groups_outlined, size: 20),
+                  label: const Text('Classroom')),
+            ]),
+      ));
+
+  Widget _today() => TeachingPreviewDesktop(
+        book: _desktop,
+        classCard: _classCard(),
+        onClass: _start,
+        onQuiz: _startQuiz,
+        onTimer: () => _openTool('timer'),
+        onRoom: () => _openTool('room'),
+        onAttendance: _schoolAttendanceUrl.isEmpty ? null : _openAttendance,
+      );
+
+  Widget _classCard() => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(30),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: const Color(0xffdde5dc))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _label(_finished
+              ? 'LESSON WRAPPED UP'
+              : _started
+                  ? 'YOUR CLASS IS STILL HERE'
+                  : 'UP NEXT · 10:10–11:00'),
+          const SizedBox(height: 18),
+          const Text('J2 Science',
+              style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -1)),
+          const SizedBox(height: 8),
+          const Text('Room 204 · 12 students · Ecosystems',
+              style: TextStyle(fontSize: 16, color: _muted)),
+          const SizedBox(height: 26),
+          Text(_finished ? 'Ready for next time' : 'Pick up where you left off',
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 17)),
+          const SizedBox(height: 8),
+          Text(
+              _finished && _continuation.text.trim().isNotEmpty
+                  ? _continuation.text.trim()
+                  : 'Continue food webs. Ask students what happens when one species disappears.',
+              style: const TextStyle(height: 1.6, fontSize: 16)),
+          const SizedBox(height: 22),
+          Wrap(spacing: 20, runSpacing: 12, children: [
+            _signal(
+                Icons.assignment_outlined,
+                _finished
+                    ? '$_checked of 12 homework checks'
+                    : 'Food web worksheet · Homework'),
+            _signal(Icons.chat_bubble_outline,
+                '${_followUps.length} student follow-ups'),
           ]),
-        )),
+          const SizedBox(height: 30),
+          FilledButton.icon(
+              onPressed: _start,
+              icon: const Icon(Icons.arrow_forward_rounded),
+              label: Text(_finished
+                  ? 'Reopen demo lesson'
+                  : _started
+                      ? 'Return to class'
+                      : 'Start class')),
+          const SizedBox(height: 8),
+          TextButton.icon(
+              onPressed: _startQuiz,
+              icon: const Icon(Icons.edit_note),
+              label: const Text('Enter quiz scores')),
+          if (_finished) ...[
+            const SizedBox(height: 14),
+            const Text('Lesson summary kept in this preview session only.',
+                style: TextStyle(color: _muted, fontSize: 12)),
+          ],
+        ]),
       );
 
   Widget _signal(IconData icon, String text) =>
