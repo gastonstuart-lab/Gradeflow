@@ -12,6 +12,7 @@ class TeachingPreviewRoom extends StatefulWidget {
   final bool checking;
   final bool attendanceMode;
   final bool groupMode;
+  final bool presentation;
   final String? selectedStudent;
   final Map<String, String> studentNumbers;
   final String? spotlightStudent;
@@ -35,6 +36,7 @@ class TeachingPreviewRoom extends StatefulWidget {
     required this.checking,
     this.attendanceMode = false,
     this.groupMode = false,
+    this.presentation = false,
     required this.selectedStudent,
     this.studentNumbers = const {},
     this.spotlightStudent,
@@ -71,41 +73,43 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
 
   @override
   Widget build(BuildContext context) => Column(children: [
-        Row(children: [
-          Expanded(
-              child: Text(
-                  _arranging
-                      ? 'Drag a student, or tap a student then a seat.'
-                      : 'Seating is locked while you teach',
-                  style: const TextStyle(
-                      color: Color(0xff60758c),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12))),
-          const SizedBox(width: 8),
-          FilterChip(
-            selected: _arranging,
-            showCheckmark: false,
-            backgroundColor: Colors.white,
-            selectedColor: const Color(0xffe2f3f1),
-            side: BorderSide(
-                color: _arranging
-                    ? const Color(0xff8fcfc7)
-                    : const Color(0xffd7e3ed)),
-            avatar: Icon(_arranging ? Icons.lock_open : Icons.lock_outline,
-                size: 16,
-                color: _arranging
-                    ? const Color(0xff148b88)
-                    : const Color(0xff60758c)),
-            label: Text(_arranging ? 'Lock seats' : 'Arrange seats'),
-            onSelected: widget.choosing
-                ? null
-                : (_) => setState(() {
-                      _arranging = !_arranging;
-                      _moving = null;
-                    }),
-          ),
-        ]),
-        const SizedBox(height: 20),
+        if (!widget.presentation) ...[
+          Row(children: [
+            Expanded(
+                child: Text(
+                    _arranging
+                        ? 'Drag a student, or tap a student then a seat.'
+                        : 'Seating is locked while you teach',
+                    style: const TextStyle(
+                        color: Color(0xff60758c),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12))),
+            const SizedBox(width: 8),
+            FilterChip(
+              selected: _arranging,
+              showCheckmark: false,
+              backgroundColor: Colors.white,
+              selectedColor: const Color(0xffe2f3f1),
+              side: BorderSide(
+                  color: _arranging
+                      ? const Color(0xff8fcfc7)
+                      : const Color(0xffd7e3ed)),
+              avatar: Icon(_arranging ? Icons.lock_open : Icons.lock_outline,
+                  size: 16,
+                  color: _arranging
+                      ? const Color(0xff148b88)
+                      : const Color(0xff60758c)),
+              label: Text(_arranging ? 'Lock seats' : 'Arrange seats'),
+              onSelected: widget.choosing
+                  ? null
+                  : (_) => setState(() {
+                        _arranging = !_arranging;
+                        _moving = null;
+                      }),
+            ),
+          ]),
+          const SizedBox(height: 20),
+        ],
         LayoutBuilder(builder: (context, constraints) {
           final available = constraints.maxWidth >= 780
               ? 3
