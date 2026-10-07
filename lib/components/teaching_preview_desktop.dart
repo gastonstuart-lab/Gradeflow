@@ -275,12 +275,11 @@ class _TeachingPreviewDesktopState extends State<TeachingPreviewDesktop> {
           const Icon(Icons.calendar_view_day_rounded,
               size: 18, color: Color(0xff148c8a)),
           const SizedBox(width: 8),
-          Text('Day plan · ${_date(widget.book.selected)}',
+          Expanded(child: Text('Day plan · ${_date(widget.book.selected)}',
               style: TextStyle(
                   color: _text,
                   fontWeight: FontWeight.w900,
-                  fontSize: 15)),
-          const Spacer(),
+                  fontSize: 15))),
           if (!selectedToday)
             TextButton(
                 onPressed: widget.book.today,

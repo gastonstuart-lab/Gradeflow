@@ -533,7 +533,8 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                           child: const Icon(Icons.layers_rounded,
                               color: Colors.white, size: 23)),
                       const SizedBox(width: 9),
-                      Column(
+                      if (MediaQuery.sizeOf(context).width >= 600)
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('InstructOS',
@@ -598,7 +599,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                       const SizedBox(width: 8),
                       _themeToggle(),
                       const SizedBox(width: 10),
-                      TeachingPreviewClock(
+                      if (MediaQuery.sizeOf(context).width >= 600) TeachingPreviewClock(
                           color: widget.darkMode
                               ? const Color(0xffdce9f4)
                               : const Color(0xff173457),
@@ -1106,48 +1107,20 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       );
 
   Widget _classroom() => LayoutBuilder(builder: (context, size) {
-        final wide = size.maxWidth >= 1050;
-        const motion = Duration(milliseconds: 260);
-        const curve = Curves.easeOutCubic;
-
-        if (wide) {
-          return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            AnimatedContainer(
-              duration: motion,
-              curve: curve,
-              width: _toolsDrawerOpen ? 278 : 0,
-              child: ClipRect(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: _toolsDrawerOpen ? 1 : 0,
-                  child: SizedBox(width: 278, child: _leftToolsDrawer()),
-                ),
-              ),
-            ),
-            Expanded(child: _map()),
-            AnimatedContainer(
-              duration: motion,
-              curve: curve,
-              width: _panel != null ? 372 : 0,
-              child: ClipRect(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  widthFactor: _panel != null ? 1 : 0,
-                  child: SizedBox(width: 372, child: _panelBody()),
-                ),
-              ),
-            ),
-          ]);
-        }
-
+        final open = _toolsDrawerOpen || _panel != null;
+        final motion = MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 260);
         return Stack(children: [
           Positioned.fill(child: _map()),
-          if (_toolsDrawerOpen || _panel != null)
-            Positioned.fill(
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: !open,
               child: AnimatedOpacity(
                 duration: motion,
-                opacity: .22,
+                opacity: open ? .16 : 0,
                 child: GestureDetector(
+                  key: const ValueKey('classroom-layer-dismiss'),
                   onTap: () => setState(() {
                     _toolsDrawerOpen = false;
                     _panel = null;
@@ -1156,35 +1129,55 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 ),
               ),
             ),
-          AnimatedPositioned(
-            duration: motion,
-            curve: curve,
-            left: _toolsDrawerOpen ? 0 : -300,
-            top: 0,
-            bottom: 0,
-            width: min(286.0, size.maxWidth * .86),
-            child: _leftToolsDrawer(),
           ),
-          AnimatedPositioned(
-            duration: motion,
-            curve: curve,
-            right: _panel != null ? 0 : -400,
+          Positioned(
+            right: 0,
             top: 0,
             bottom: 0,
-            width: min(380.0, size.maxWidth * .92),
-            child: _panelBody(),
+            width: min(340.0, size.maxWidth * .92),
+            child: IgnorePointer(
+              ignoring: !open,
+              child: ExcludeSemantics(
+                excluding: !open,
+                child: AnimatedSwitcher(
+                  duration: motion,
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  // Replacements share one slot; never paint two private layers.
+                  layoutBuilder: (current, outgoing) => Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (current != null) current
+                      else if (outgoing.isNotEmpty) outgoing.last,
+                    ],
+                  ),
+                  transitionBuilder: (child, animation) => SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(1, 0),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                  child: !open
+                      ? null
+                      : KeyedSubtree(
+                          key: ValueKey<String>(_toolsDrawerOpen ? 'class-tools' : _panel!),
+                          child: _toolsDrawerOpen ? _toolsDrawer() : _panelBody(),
+                        ),
+                ),
+              ),
+            ),
           ),
         ]);
       });
-
-  Widget _leftToolsDrawer() => Material(
+  Widget _toolsDrawer() => Material(
         color: widget.darkMode
             ? const Color(0xff0b1b2a)
             : const Color(0xfffbfdff),
         elevation: 12,
         shadowColor: Colors.black26,
         child: SafeArea(
-          right: false,
+          left: false,
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             child: Column(
@@ -1459,7 +1452,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           ],
           Center(
               child: Container(
-                  width: 210,
+                  width: 250,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
@@ -2052,10 +2045,10 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               const Icon(Icons.assignment_outlined,
                   size: 18, color: Color(0xff176a74)),
               const SizedBox(width: 8),
-              Text('Food web worksheet',
+              Expanded(child: Text('Food web worksheet',
                   style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: _primaryText)),
+                      color: _primaryText))),
             ]),
             const SizedBox(height: 12),
             Wrap(
