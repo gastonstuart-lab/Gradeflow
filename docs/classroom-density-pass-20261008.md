@@ -4,7 +4,7 @@
 
 At the recovery baseline `3fe4f7c`, presentation divided the available viewport
 height between rows while leaving the furniture at fixed size. This created a
-large empty aisle. Commit `828d162` fits the existing room as a single composition
+large empty aisle. Commit `59b81c1` fits the existing room as a single composition
 whose rows take their natural content height. It scales uniformly to the available
 width, centers vertically, and scrolls when the composition is taller than the
 viewport. At 1920×1080, the visible empty band between front-row labels and the
@@ -17,9 +17,12 @@ remain unchanged. Normal light-mode classroom pixels below the header match the
 baseline exactly. Dark mode also matches apart from a transient theme tooltip.
 
 This is an Amber layout refinement on the isolated branch
-`recovery/classroom-density-audit-20261008`, not a claim that the premium visual
+`recovery/classroom-density-review-20261008`, not a claim that the premium visual
 recovery is complete or owner-approved. The original checkout remains on `work`
-at `3b0d930`, clean. There was no merge, push, or deployment.
+at `3b0d930`, clean. The review branch and screenshot evidence are now pushed to GitHub. There was
+no merge or deployment. The original local commits remain on
+`recovery/classroom-density-audit-20261008`; the review copy uses a no-reply
+author address to comply with GitHub email privacy protection.
 
 ## Actual browser evidence
 
@@ -100,6 +103,6 @@ candidate has been treated as visual approval, and no furniture rollback occurre
 
 Review the presentation screenshots and spacing on the owner's display before
 approval. Normal-mode density and all broader styling recovery remain for a
-separate pass. Roll back this layout refinement by reverting `828d162` on the
+separate pass. Roll back this layout refinement by reverting `59b81c1` on the
 isolated branch; the original recovery checkpoint is preserved. No migration or
 production rollback is involved.
