@@ -13,6 +13,7 @@ class TeachingPreviewRoom extends StatefulWidget {
   final bool attendanceMode;
   final bool groupMode;
   final bool presentation;
+  final bool compact;
   final String? selectedStudent;
   final Map<String, String> studentNumbers;
   final String? spotlightStudent;
@@ -37,6 +38,7 @@ class TeachingPreviewRoom extends StatefulWidget {
     this.attendanceMode = false,
     this.groupMode = false,
     this.presentation = false,
+    this.compact = false,
     required this.selectedStudent,
     this.studentNumbers = const {},
     this.spotlightStudent,
@@ -166,7 +168,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                   }),
         ),
       ]),
-      const SizedBox(height: 14),
+      SizedBox(height: widget.compact ? 8 : 14),
       LayoutBuilder(builder: (context, constraints) {
         final available = constraints.maxWidth >= 780
             ? 3
@@ -178,7 +180,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
         final width = (constraints.maxWidth - (columns - 1) * 22) / columns;
         return Wrap(
             spacing: 22,
-            runSpacing: 24,
+            runSpacing: widget.compact ? 18 : 24,
             children: List.generate(
                 widget.seats.length ~/ 4,
                 (table) => SizedBox(

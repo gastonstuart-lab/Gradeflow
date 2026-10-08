@@ -1242,7 +1242,8 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       );
 
 
-  Widget _classroomEnvironment({required Widget child}) {
+  Widget _classroomEnvironment(
+      {required Widget child, bool compact = false}) {
     final dark = widget.darkMode;
     final structural =
         dark ? const Color(0xff385066) : const Color(0xffc8d6e0);
@@ -1253,7 +1254,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
 
     return Column(children: [
       Container(
-        height: 42,
+        height: compact ? 30 : 42,
         margin: const EdgeInsets.symmetric(horizontal: 26),
         decoration: BoxDecoration(
           color: dark ? const Color(0xff10212f) : Colors.white,
@@ -1393,7 +1394,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(bottom: 32),
+            padding: EdgeInsets.only(bottom: compact ? 24 : 32),
             child: child,
           ),
         ]),
@@ -1401,75 +1402,123 @@ class _TeachingJourneyState extends State<TeachingJourney> {
     ]);
   }
 
-  Widget _map() => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 11, 16, 11),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xff123a62), Color(0xff17666f)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+  Widget _classroomHeading(bool compact) {
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'TEACHING · ROOM 204',
+          style: TextStyle(
+            color: Color(0xffbfe8e4),
+            fontSize: 10.5,
+            letterSpacing: 1.8,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        SizedBox(height: compact ? 2 : 4),
+        const Text(
+          'J2 Science',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 23,
+            height: 1,
+            letterSpacing: -.7,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+    final detail = Text(
+      _checking
+          ? 'Homework check · $_checked of 12 checked'
+          : _quizzing
+          ? '${_quiz.selected.name} · ${_quiz.entered(_students.keys)} of 12 entered'
+          : 'Your classroom · Select a student when you need them',
+      style: const TextStyle(
+        color: Color(0xffd8e8ee),
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+    return compact
+        ? Row(
+            children: [
+              title,
+              const SizedBox(width: 24),
+              Expanded(child: detail),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [title, const SizedBox(height: 5), detail],
+          );
+  }
+
+  Widget _map() => LayoutBuilder(
+    builder: (context, viewport) {
+      final compact = viewport.maxWidth >= 900 && viewport.maxHeight < 700;
+      return SingleChildScrollView(
+        key: const ValueKey('classroom-viewport'),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          compact ? 6 : 10,
+          16,
+          compact ? 10 : 20,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(
+                16,
+                compact ? 8 : 11,
+                16,
+                compact ? 8 : 11,
               ),
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: const [
-                BoxShadow(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xff123a62), Color(0xff17666f)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: const [
+                  BoxShadow(
                     color: Color(0x24163f65),
                     blurRadius: 24,
-                    offset: Offset(0, 9))
-              ],
-            ),
-            child: Row(children: [
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    const Text('TEACHING · ROOM 204',
-                        style: TextStyle(
-                            color: Color(0xffbfe8e4),
-                            fontSize: 10.5,
-                            letterSpacing: 1.8,
-                            fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 4),
-                    const Text('J2 Science',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 23,
-                            height: 1,
-                            letterSpacing: -.7,
-                            fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 5),
-                    Text(
-                      _checking
-                          ? 'Homework check · $_checked of 12 checked'
-                          : _quizzing
-                              ? '${_quiz.selected.name} · ${_quiz.entered(_students.keys)} of 12 entered'
-                              : 'Your classroom · Select a student when you need them',
-                      style: const TextStyle(
-                          color: Color(0xffd8e8ee),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ])),
-              const SizedBox(width: 16),
-              FilledButton.icon(
-                  style: FilledButton.styleFrom(
+                    offset: Offset(0, 9),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(child: _classroomHeading(compact)),
+                  const SizedBox(width: 16),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: const Color(0xff164f72),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 11)),
-                  onPressed: () => _showPanel('finish'),
-                  icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
-                  label: const Text('Finish class')),
-            ]),
-          ),
-          const SizedBox(height: 7),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
+                        horizontal: 16,
+                        vertical: 11,
+                      ),
+                    ),
+                    onPressed: () => _showPanel('finish'),
+                    icon: const Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 18,
+                    ),
+                    label: const Text('Finish class'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 7),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
                 color: widget.darkMode
                     ? const Color(0xff0d1f2f)
                     : Colors.white.withValues(alpha: .92),
@@ -1477,201 +1526,239 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 border: Border.all(color: _line),
                 boxShadow: const [
                   BoxShadow(
-                      color: Color(0x0c163f65),
-                      blurRadius: 16,
-                      offset: Offset(0, 5))
-                ]),
-            child: Wrap(spacing: 8, runSpacing: 8, children: [
-              ActionChip(
-                  label: const Text('Room setup'),
-                  avatar:
-                      const Icon(Icons.dashboard_customize_outlined, size: 18),
-                  onPressed: _buildRoom),
-              ActionChip(
-                  label: const Text('Pick student'),
-                  avatar: const Icon(Icons.person_search_outlined, size: 18),
-                  onPressed: _choosing ? null : () => _pick(false)),
-              ActionChip(
-                  label: const Text('Pick table'),
-                  avatar: const Icon(Icons.groups_outlined, size: 18),
-                  onPressed: _choosing ? null : () => _pick(true)),
-              if (_choosing)
-                ActionChip(
-                    label: const Text('Stop chooser'),
-                    onPressed: () => setState(_cancelChooser)),
-              FilterChip(
-                  label: const Text('Homework check'),
-                  selected: _checking,
-                  showCheckmark: false,
-                  selectedColor: const Color(0xffe2f3f1),
-                  avatar: const Icon(Icons.assignment_outlined, size: 18),
-                  onSelected: (value) => setState(() {
-                        _checking = value;
-                        _quizzing = false;
-                        _panel = null;
-                      })),
-              FilterChip(
-                  label: const Text('Quiz scores'),
-                  selected: _quizzing,
-                  showCheckmark: false,
-                  selectedColor: const Color(0xffe8f1ff),
-                  avatar: const Icon(Icons.edit_note, size: 18),
-                  onSelected: (value) => setState(() {
-                        _quizzing = value;
-                        _checking = false;
-                        _panel = value ? 'quiz' : null;
-                      })),
-              if (_schoolAttendanceUrl.isNotEmpty)
-                Tooltip(
-                  message: 'School attendance · opens a new tab',
-                  child: ActionChip(
-                    label: const Text('School attendance'),
-                    avatar: const Icon(Icons.open_in_new, size: 18),
-                    onPressed: _openAttendance,
+                    color: Color(0x0c163f65),
+                    blurRadius: 16,
+                    offset: Offset(0, 5),
                   ),
-                ),
-              ActionChip(
-                  label: Text(_timerEnd != null ? _clock : 'Timer'),
-                  avatar: const Icon(Icons.timer_outlined, size: 18),
-                  onPressed: () => _showPanel('timer')),
-              ActionChip(
-                  label: const Text('Lesson focus'),
-                  avatar: const Icon(Icons.menu_book_outlined, size: 18),
-                  onPressed: () => _showPanel('lesson')),
-              ActionChip(
-                  label: const Text('Class tools'),
-                  avatar: const Icon(Icons.tune_rounded, size: 18),
-                  onPressed: _openToolsDrawer),
-              ActionChip(
-                  label: const Text('Present'),
-                  avatar: const Icon(Icons.present_to_all_rounded, size: 18),
-                  onPressed: () => setState(() {
-                        _panel = null;
-                        _presentationMode = true;
-                      })),
-              if (_lastSeatSwap != null)
-                ActionChip(
-                    label: const Text('Undo move'),
-                    avatar: const Icon(Icons.undo_rounded, size: 18),
-                    onPressed: _undoSeatSwap),
-            ]),
-          ),
-          const SizedBox(height: 10),
-          if (_choiceResult != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Semantics(
-                  liveRegion: !_choosing,
-                  child: Container(
-                    key: const ValueKey('chooser-result'),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xfffff4d8),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xffe7bf66)),
+                ],
+              ),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    label: const Text('Room setup'),
+                    avatar: const Icon(
+                      Icons.dashboard_customize_outlined,
+                      size: 18,
                     ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(
-                        _choosing
-                            ? Icons.casino_outlined
-                            : Icons.check_circle_outline_rounded,
-                        size: 15,
-                        color: const Color(0xff95691f),
+                    onPressed: _buildRoom,
+                  ),
+                  ActionChip(
+                    label: const Text('Pick student'),
+                    avatar: const Icon(Icons.person_search_outlined, size: 18),
+                    onPressed: _choosing ? null : () => _pick(false),
+                  ),
+                  ActionChip(
+                    label: const Text('Pick table'),
+                    avatar: const Icon(Icons.groups_outlined, size: 18),
+                    onPressed: _choosing ? null : () => _pick(true),
+                  ),
+                  if (_choosing)
+                    ActionChip(
+                      label: const Text('Stop chooser'),
+                      onPressed: () => setState(_cancelChooser),
+                    ),
+                  FilterChip(
+                    label: const Text('Homework check'),
+                    selected: _checking,
+                    showCheckmark: false,
+                    selectedColor: const Color(0xffe2f3f1),
+                    avatar: const Icon(Icons.assignment_outlined, size: 18),
+                    onSelected: (value) => setState(() {
+                      _checking = value;
+                      _quizzing = false;
+                      _panel = null;
+                    }),
+                  ),
+                  FilterChip(
+                    label: const Text('Quiz scores'),
+                    selected: _quizzing,
+                    showCheckmark: false,
+                    selectedColor: const Color(0xffe8f1ff),
+                    avatar: const Icon(Icons.edit_note, size: 18),
+                    onSelected: (value) => setState(() {
+                      _quizzing = value;
+                      _checking = false;
+                      _panel = value ? 'quiz' : null;
+                    }),
+                  ),
+                  if (_schoolAttendanceUrl.isNotEmpty)
+                    Tooltip(
+                      message: 'School attendance · opens a new tab',
+                      child: ActionChip(
+                        label: const Text('School attendance'),
+                        avatar: const Icon(Icons.open_in_new, size: 18),
+                        onPressed: _openAttendance,
                       ),
-                      const SizedBox(width: 6),
-                      Text(_choiceResult!,
-                          style: const TextStyle(
+                    ),
+                  ActionChip(
+                    label: Text(_timerEnd != null ? _clock : 'Timer'),
+                    avatar: const Icon(Icons.timer_outlined, size: 18),
+                    onPressed: () => _showPanel('timer'),
+                  ),
+                  ActionChip(
+                    label: const Text('Lesson focus'),
+                    avatar: const Icon(Icons.menu_book_outlined, size: 18),
+                    onPressed: () => _showPanel('lesson'),
+                  ),
+                  ActionChip(
+                    label: const Text('Class tools'),
+                    avatar: const Icon(Icons.tune_rounded, size: 18),
+                    onPressed: _openToolsDrawer,
+                  ),
+                  ActionChip(
+                    label: const Text('Present'),
+                    avatar: const Icon(Icons.present_to_all_rounded, size: 18),
+                    onPressed: () => setState(() {
+                      _panel = null;
+                      _presentationMode = true;
+                    }),
+                  ),
+                  if (_lastSeatSwap != null)
+                    ActionChip(
+                      label: const Text('Undo move'),
+                      avatar: const Icon(Icons.undo_rounded, size: 18),
+                      onPressed: _undoSeatSwap,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (_choiceResult != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Semantics(
+                    liveRegion: !_choosing,
+                    child: Container(
+                      key: const ValueKey('chooser-result'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xfffff4d8),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: const Color(0xffe7bf66)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _choosing
+                                ? Icons.casino_outlined
+                                : Icons.check_circle_outline_rounded,
+                            size: 15,
+                            color: const Color(0xff95691f),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _choiceResult!,
+                            style: const TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xff95691f))),
-                    ]),
+                              color: Color(0xff95691f),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          if (_checking) ...[
-            _modeNotice(
+            if (_checking) ...[
+              _modeNotice(
                 icon: Icons.assignment_turned_in_outlined,
                 title: 'Food web worksheet',
                 detail:
-                    '$_checked of 12 checked · Tap Done at a seat. Select a student for other statuses.'),
-            const SizedBox(height: 8),
-          ] else if (_quizzing) ...[
-            _modeNotice(
+                    '$_checked of 12 checked · Tap Done at a seat. Select a student for other statuses.',
+              ),
+              const SizedBox(height: 8),
+            ] else if (_quizzing) ...[
+              _modeNotice(
                 icon: Icons.edit_note_rounded,
                 title: _quiz.selected.name,
                 detail:
                     'Out of ${_quiz.maximumLabel} · ${_quiz.entered(_students.keys)} of 12 entered',
                 action: TextButton(
-                    onPressed: () => _showPanel('quiz'),
-                    child: const Text('Open full class entry'))),
-            const SizedBox(height: 8),
-          ] else if (_attendanceMode) ...[
-            _modeNotice(
+                  onPressed: () => _showPanel('quiz'),
+                  child: const Text('Open full class entry'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ] else if (_attendanceMode) ...[
+              _modeNotice(
                 icon: Icons.how_to_reg_rounded,
                 title: 'Attendance',
                 detail:
-                    'Tap Present at a seat, or open a student for Late / Absent.'),
-            const SizedBox(height: 8),
-          ] else if (_groupMode) ...[
-            _modeNotice(
+                    'Tap Present at a seat, or open a student for Late / Absent.',
+              ),
+              const SizedBox(height: 8),
+            ] else if (_groupMode) ...[
+              _modeNotice(
                 icon: Icons.groups_2_outlined,
                 title: 'Groups',
-                detail: 'Group labels are shown at each occupied seat.'),
-            const SizedBox(height: 8),
-          ],
-          _classroomEnvironment(
-            child: TeachingPreviewRoom(
-              key: ValueKey('room-$_roomRevision'),
-              tableColumns: _tableColumns,
-              allSideSeats: _customRoom,
-              studentNumbers: _numbers,
-              spotlightStudent: _spotlightStudent,
-              spotlightTable: _spotlightTable,
-              choosing: _choosing,
-              students: _students,
-              seats: _seats,
-              homework: _homework,
-              quizMarks: _quizzing
-                  ? {
-                      for (final id in _students.keys)
-                        id: _quiz.mark(id) == null
-                            ? 'Not entered'
-                            : '${_quiz.mark(id)} / ${_quiz.maximumLabel}'
-                    }
-                  : null,
-              attendance: _attendance,
-              groups: _groups,
-              checking: _checking,
-              attendanceMode: _attendanceMode,
-              groupMode: _groupMode,
-              selectedStudent: _panel == 'student' || _panel == 'quiz-student'
-                  ? _student
-                  : null,
-              onStudent: _openStudent,
-              onDone: (id) => setState(() {
-                _homework[id] = 'Done';
-                _log('${_students[id]} · homework done');
-              }),
-              onPresent: (id) => _setAttendance(id, 'Present'),
-              onMove: (from, to) => setState(() {
-                final displaced = _seats[to];
-                _seats[to] = _seats[from];
-                _seats[from] = displaced;
-                _lastSeatSwap = [from, to];
-                _log('Moved seat assignment');
-              }),
+                detail: 'Group labels are shown at each occupied seat.',
+              ),
+              const SizedBox(height: 8),
+            ],
+            _classroomEnvironment(
+              compact: compact,
+              child: TeachingPreviewRoom(
+                key: ValueKey('room-$_roomRevision'),
+                compact: compact,
+                tableColumns: _tableColumns,
+                allSideSeats: _customRoom,
+                studentNumbers: _numbers,
+                spotlightStudent: _spotlightStudent,
+                spotlightTable: _spotlightTable,
+                choosing: _choosing,
+                students: _students,
+                seats: _seats,
+                homework: _homework,
+                quizMarks: _quizzing
+                    ? {
+                        for (final id in _students.keys)
+                          id: _quiz.mark(id) == null
+                              ? 'Not entered'
+                              : '${_quiz.mark(id)} / ${_quiz.maximumLabel}',
+                      }
+                    : null,
+                attendance: _attendance,
+                groups: _groups,
+                checking: _checking,
+                attendanceMode: _attendanceMode,
+                groupMode: _groupMode,
+                selectedStudent: _panel == 'student' || _panel == 'quiz-student'
+                    ? _student
+                    : null,
+                onStudent: _openStudent,
+                onDone: (id) => setState(() {
+                  _homework[id] = 'Done';
+                  _log('${_students[id]} · homework done');
+                }),
+                onPresent: (id) => _setAttendance(id, 'Present'),
+                onMove: (from, to) => setState(() {
+                  final displaced = _seats[to];
+                  _seats[to] = _seats[from];
+                  _seats[from] = displaced;
+                  _lastSeatSwap = [from, to];
+                  _log('Moved seat assignment');
+                }),
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          const Text(
+            SizedBox(height: compact ? 8 : 14),
+            const Text(
               'Teacher workspace · Private notes stay here. This is not a projected classroom display.',
-              style: TextStyle(fontSize: 11.5, color: _muted)),
-        ]),
+              style: TextStyle(fontSize: 11.5, color: _muted),
+            ),
+          ],
+        ),
       );
+    },
+  );
 
   Widget _modeNotice({
     required IconData icon,
