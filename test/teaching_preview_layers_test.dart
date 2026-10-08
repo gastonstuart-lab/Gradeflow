@@ -93,4 +93,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('presentation respects two-column room configuration',
+      (tester) async {
+    tester.view.physicalSize = const Size(1100, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: TeachingPreviewRoom(
+          students: const {},
+          seats: List<String?>.filled(24, null),
+          homework: const {},
+          checking: false,
+          presentation: true,
+          tableColumns: 2,
+          selectedStudent: null,
+          onStudent: (_) {},
+          onDone: (_) {},
+          onMove: (_, __) {},
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final first = tester.getRect(find.text('TABLE 1'));
+    final second = tester.getRect(find.text('TABLE 2'));
+    final third = tester.getRect(find.text('TABLE 3'));
+    expect((first.top - second.top).abs(), lessThan(2));
+    expect(third.top, greaterThan(first.top));
+    expect((first.left - third.left).abs(), lessThan(2));
+    expect(tester.takeException(), isNull);
+  });
+
 }
