@@ -1399,11 +1399,11 @@ class _TeachingJourneyState extends State<TeachingJourney> {
   }
 
   Widget _map() => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            padding: const EdgeInsets.fromLTRB(16, 11, 16, 11),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xff123a62), Color(0xff17666f)],
@@ -1429,15 +1429,15 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                             fontSize: 10.5,
                             letterSpacing: 1.8,
                             fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 4),
                     const Text('J2 Science',
                         style: TextStyle(
                             color: Colors.white,
-                            fontSize: 27,
+                            fontSize: 23,
                             height: 1,
                             letterSpacing: -.7,
                             fontWeight: FontWeight.w900)),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 5),
                     Text(
                       _checking
                           ? 'Homework check · $_checked of 12 checked'
@@ -1456,16 +1456,16 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                       backgroundColor: Colors.white,
                       foregroundColor: const Color(0xff164f72),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 15)),
+                          horizontal: 16, vertical: 11)),
                   onPressed: () => _showPanel('finish'),
                   icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
                   label: const Text('Finish class')),
             ]),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 7),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
                 color: widget.darkMode
                     ? const Color(0xff0d1f2f)
