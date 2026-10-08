@@ -84,23 +84,38 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                 : 1;
         final columns =
             widget.tableColumns < available ? widget.tableColumns : available;
-        final rows = (widget.seats.length ~/ 4 + columns - 1) ~/ columns;
-        final width =
-            (constraints.maxWidth - (columns - 1) * crossGap) / columns;
-        final height = constraints.maxHeight.isFinite
-            ? ((constraints.maxHeight - (rows - 1) * rowGap) / rows)
-                .clamp(0.0, double.infinity)
-                .toDouble()
-            : 210.0;
-        return Wrap(
-          spacing: crossGap,
-          runSpacing: rowGap,
-          children: List.generate(
-            widget.seats.length ~/ 4,
-            (table) => SizedBox(
-              width: width,
-              height: height,
-              child: _table(table),
+        // Fit the existing furniture as one composition. Dividing viewport
+        // height between rows stretches the aisle while furniture stays small.
+        const tableWidth = 480.0;
+        final roomWidth = columns * tableWidth + (columns - 1) * crossGap;
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight.isFinite
+                  ? constraints.maxHeight
+                  : 0,
+            ),
+            child: Center(
+              child: SizedBox(
+                width: constraints.maxWidth,
+                child: FittedBox(
+                  fit: BoxFit.fitWidth,
+                  child: SizedBox(
+                    width: roomWidth,
+                    child: Wrap(
+                      spacing: crossGap,
+                      runSpacing: rowGap,
+                      children: List.generate(
+                        widget.seats.length ~/ 4,
+                        (table) => SizedBox(
+                          width: tableWidth,
+                          child: _table(table),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         );
