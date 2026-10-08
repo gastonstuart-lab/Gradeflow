@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'teaching_preview_surfaces.dart';
 
 /// Synthetic table workspace adapted from Classroom.html's interaction model.
 /// The owner holds student IDs and lesson records independently of seat indexes.
@@ -90,27 +91,35 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
         // height between rows stretches the aisle while furniture stays small.
         const tableWidth = 480.0;
         final roomWidth = columns * tableWidth + (columns - 1) * crossGap;
-        return SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight:
-                  constraints.maxHeight.isFinite ? constraints.maxHeight : 0,
-            ),
-            child: Center(
-              child: SizedBox(
-                width: constraints.maxWidth,
-                child: FittedBox(
-                  fit: BoxFit.fitWidth,
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        return DecoratedBox(
+          decoration: TeachingPreviewSurfaces.floor(dark),
+          child: CustomPaint(
+            painter: TeachingPreviewFloorPainter(dark),
+            child: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight.isFinite
+                      ? constraints.maxHeight
+                      : 0,
+                ),
+                child: Center(
                   child: SizedBox(
-                    width: roomWidth,
-                    child: Wrap(
-                      spacing: crossGap,
-                      runSpacing: rowGap,
-                      children: List.generate(
-                        widget.seats.length ~/ 4,
-                        (table) => SizedBox(
-                          width: tableWidth,
-                          child: _table(table),
+                    width: constraints.maxWidth,
+                    child: FittedBox(
+                      fit: BoxFit.fitWidth,
+                      child: SizedBox(
+                        width: roomWidth,
+                        child: Wrap(
+                          spacing: crossGap,
+                          runSpacing: rowGap,
+                          children: List.generate(
+                            widget.seats.length ~/ 4,
+                            (table) => SizedBox(
+                              width: tableWidth,
+                              child: _table(table),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -199,13 +208,6 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
   Widget _table(int table) {
     final lit = widget.spotlightTable == table;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final tableSurface = lit
-        ? (dark ? const Color(0xff302b1f) : const Color(0xfffff8e7))
-        : (dark ? const Color(0xff142536) : const Color(0xfff9fbfd));
-    final tableLine = lit
-        ? const Color(0xffd5a13a)
-        : (dark ? const Color(0xff385066) : const Color(0xffcbd8e3));
-
     // Preserve the original Classroom.html geometry exactly: three seats
     // behind/below each table, with the physical side seats only where the
     // room actually has them.
@@ -244,33 +246,20 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
                       height: widget.presentation ? 108 : 100,
-                      decoration: BoxDecoration(
-                        color: tableSurface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: tableLine,
-                          width: lit ? 2 : 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: dark
-                                ? Colors.black.withValues(alpha: .18)
-                                : const Color(0x15173f62),
-                            blurRadius: 14,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          'TABLE ${table + 1}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            letterSpacing: 1.45,
-                            color: dark
-                                ? const Color(0xffd8e4ee)
-                                : const Color(0xff4c657b),
-                            fontWeight: FontWeight.w800,
+                      decoration: TeachingPreviewSurfaces.tabletop(dark, lit),
+                      child: CustomPaint(
+                        painter: TeachingPreviewOakPainter(table),
+                        child: Center(
+                          child: Text(
+                            'TABLE ${table + 1}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              letterSpacing: 1.1,
+                              color: dark
+                                  ? const Color(0xff172019)
+                                  : const Color(0xff493c2b),
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),
@@ -310,15 +299,19 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
     const chairHeight = 50.0;
 
     final baseFill = id == null
-        ? (dark ? const Color(0xff0e1c29) : const Color(0xfff5f8fb))
-        : (dark ? const Color(0xff172a3a) : Colors.white);
+        ? (dark ? const Color(0xff1a2d35) : const Color(0xffdce5df))
+        : (dark ? const Color(0xff285a60) : const Color(0xff247c7b));
     final borderColor = lit
         ? const Color(0xffd5a13a)
         : selected
             ? const Color(0xff2584ff)
             : done && widget.checking
                 ? const Color(0xff4f9b73)
-                : (dark ? const Color(0xff385066) : const Color(0xffcbd8e3));
+                : id == null
+                    ? (dark ? const Color(0xff475c63) : const Color(0xffa8bab0))
+                    : (dark
+                        ? const Color(0xff517b7b)
+                        : const Color(0xff397570));
 
     Widget token({bool feedback = false}) => Material(
           color: Colors.transparent,
@@ -343,56 +336,107 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                                 ? const Color(0xff4b3c1c)
                                 : const Color(0xffffedbd))
                             : baseFill,
+                        gradient: id != null && !lit
+                            ? LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: dark
+                                    ? const [
+                                        Color(0xff326e73),
+                                        Color(0xff204c53)
+                                      ]
+                                    : const [
+                                        Color(0xff317e79),
+                                        Color(0xff205e5b)
+                                      ],
+                              )
+                            : null,
                         borderRadius: BorderRadius.circular(11),
                         border: Border.all(
                           color: borderColor,
                           width: selected || lit ? 2 : 1.2,
                         ),
-                        boxShadow: selected || lit
-                            ? [
-                                BoxShadow(
-                                  color: (lit
-                                          ? const Color(0xffd5a13a)
-                                          : const Color(0xff2584ff))
-                                      .withValues(alpha: .18),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ]
-                            : null,
+                        boxShadow: [
+                          if (id != null)
+                            BoxShadow(
+                              color: dark
+                                  ? const Color(0x66050f16)
+                                  : const Color(0x30314e45),
+                              blurRadius: 7,
+                              offset: const Offset(0, 4),
+                            ),
+                          if (selected || lit)
+                            BoxShadow(
+                              color: (lit
+                                      ? const Color(0xffd5a13a)
+                                      : const Color(0xff2584ff))
+                                  .withValues(alpha: .20),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                        ],
                       ),
                       child: Stack(children: [
-                        Center(
-                          child: Icon(
-                            id == null
-                                ? Icons.event_seat_outlined
-                                : Icons.event_seat_rounded,
-                            size: 26,
-                            color: id == null
-                                ? (dark
-                                    ? const Color(0xff60758c)
-                                    : const Color(0xffa4b2bf))
-                                : (dark
-                                    ? const Color(0xffdce7f0)
-                                    : const Color(0xff536d83)),
-                          ),
-                        ),
+                        if (id == null)
+                          Center(
+                              child: Icon(Icons.event_seat_outlined,
+                                  size: 26,
+                                  color: dark
+                                      ? const Color(0xff5a7378)
+                                      : const Color(0xff8ea7a0)))
+                        else ...[
+                          Positioned(
+                              left: 8,
+                              right: 8,
+                              top: 7,
+                              height: 8,
+                              child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: .15),
+                                borderRadius: BorderRadius.circular(4),
+                              ))),
+                          Positioned(
+                              left: 8,
+                              right: 8,
+                              bottom: 6,
+                              height: 24,
+                              child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(
+                                    color: Colors.white.withValues(alpha: .16)),
+                                gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.white.withValues(alpha: .07),
+                                      Colors.black.withValues(alpha: .08)
+                                    ]),
+                              ))),
+                        ],
                         if (id != null && widget.studentNumbers.containsKey(id))
                           Positioned(
-                            right: 4,
-                            top: 3,
+                            left: 0,
+                            right: 0,
+                            top: 23,
                             child: Text(
                               widget.studentNumbers[id]!,
+                              textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 13,
                                 height: 1,
-                                color: dark
-                                    ? const Color(0xff9fb4c7)
-                                    : const Color(0xff60758c),
+                                color: lit
+                                    ? const Color(0xff3b2e18)
+                                    : const Color(0xfff0faf5),
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
+                        if (id != null &&
+                            !widget.studentNumbers.containsKey(id))
+                          const Center(
+                              child: Icon(Icons.person_outline_rounded,
+                                  size: 22, color: Color(0xfff0faf5))),
                         if (done && widget.checking && id != null)
                           const Positioned(
                             left: 4,
@@ -414,10 +458,10 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                           height: 1.1,
                           fontWeight: selected || lit
                               ? FontWeight.w800
-                              : FontWeight.w600,
+                              : FontWeight.w700,
                           color: dark
-                              ? const Color(0xffedf5fb)
-                              : const Color(0xff29465d),
+                              ? const Color(0xffe9f3ed)
+                              : const Color(0xff24443e),
                         ),
                       )
                     else

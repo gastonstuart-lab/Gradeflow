@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:gradeflow/components/teaching_preview_room.dart';
+import 'package:gradeflow/components/teaching_preview_surfaces.dart';
 import 'package:gradeflow/components/teaching_preview_quiz.dart';
 import 'package:gradeflow/components/teaching_preview_room_builder.dart';
 import 'package:gradeflow/components/teaching_preview_desktop.dart';
@@ -969,21 +970,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                 ],
               ]),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(children: [
-                Expanded(child: Container(height: 1, color: _line)),
-                const SizedBox(width: 10),
-                Text('FRONT OF CLASSROOM',
-                    style: TextStyle(
-                        color: _secondaryText,
-                        fontSize: 8.5,
-                        letterSpacing: 1.5,
-                        fontWeight: FontWeight.w800)),
-                const SizedBox(width: 10),
-                Expanded(child: Container(height: 1, color: _line)),
-              ]),
-            ),
+            _frontWall(compact: true),
             const SizedBox(height: 5),
             Expanded(
               child: Padding(
@@ -1242,164 +1229,105 @@ class _TeachingJourneyState extends State<TeachingJourney> {
       );
 
 
-  Widget _classroomEnvironment(
-      {required Widget child, bool compact = false}) {
+  Widget _frontWall({required bool compact}) {
     final dark = widget.darkMode;
-    final structural =
-        dark ? const Color(0xff385066) : const Color(0xffc8d6e0);
-    final fixture =
-        dark ? const Color(0xff183246) : const Color(0xffe3ebf0);
-    final glass =
-        dark ? const Color(0x332f9bd2) : const Color(0x4039a9df);
-
-    return Column(children: [
-      Container(
-        height: compact ? 30 : 42,
-        margin: const EdgeInsets.symmetric(horizontal: 26),
-        decoration: BoxDecoration(
-          color: dark ? const Color(0xff10212f) : Colors.white,
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: structural),
-          boxShadow: [
-            BoxShadow(
-              color: dark
-                  ? Colors.black.withValues(alpha: .20)
-                  : const Color(0x14163f65),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    final edge = TeachingPreviewSurfaces.boundary(dark);
+    return Container(
+      height: compact ? 30 : 42,
+      margin: const EdgeInsets.symmetric(horizontal: 26),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: dark
+              ? const [Color(0xff2a3e44), Color(0xff203239)]
+              : const [Color(0xffe7ebe3), Color(0xffcad6ce)],
         ),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: edge),
+        boxShadow: [
+          BoxShadow(
+            color: dark ? const Color(0x3304090e) : const Color(0x20354d42),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
           Icon(Icons.videocam_outlined, size: 15, color: _secondaryText),
           const SizedBox(width: 8),
-          Container(
-            width: 118,
-            height: 22,
-            decoration: BoxDecoration(
-              color: dark ? const Color(0xff0a1722) : const Color(0xfff7fafc),
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: structural),
+          Flexible(
+            child: Container(
+              width: 180,
+              height: 20,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: const Color(0xff20343d),
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(
+                  color: dark
+                      ? const Color(0xff647e80)
+                      : const Color(0xff8ca09c),
+                ),
+              ),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(1),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: dark
+                        ? const [
+                            Color(0xff718b8b),
+                            Color(0xff435f68),
+                            Color(0xff30434d),
+                          ]
+                        : const [
+                            Color(0xffe6eee9),
+                            Color(0xffc5d8d5),
+                            Color(0xffa5bebb),
+                          ],
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 12),
           Text(
-            'PROJECTOR / SCREEN',
+            'FRONT OF CLASSROOM',
             style: TextStyle(
               color: _secondaryText,
               fontSize: 8.5,
-              letterSpacing: 1.35,
-              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ]),
+        ],
       ),
-      const SizedBox(height: 8),
-      Container(
-        width: double.infinity,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: dark
-                ? const [Color(0xff0d1b27), Color(0xff102636)]
-                : const [Color(0xfff8fbfd), Color(0xffedf3f6)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: structural),
-          boxShadow: [
-            BoxShadow(
-              color: dark
-                  ? Colors.black.withValues(alpha: .22)
-                  : const Color(0x18163f65),
-              blurRadius: 22,
-              offset: const Offset(0, 8),
+    );
+  }
+
+  Widget _classroomEnvironment({required Widget child, bool compact = false}) {
+    final dark = widget.darkMode;
+    return Column(
+      children: [
+        _frontWall(compact: compact),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          decoration: TeachingPreviewSurfaces.floor(dark),
+          child: CustomPaint(
+            painter: TeachingPreviewFloorPainter(dark),
+            child: Padding(
+              padding: EdgeInsets.only(bottom: compact ? 24 : 32),
+              child: child,
             ),
-          ],
+          ),
         ),
-        child: Stack(children: [
-          Positioned(
-            left: 8,
-            top: 22,
-            bottom: 22,
-            width: 9,
-            child: IgnorePointer(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(
-                  3,
-                  (_) => Container(
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: glass,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: structural.withValues(alpha: .7)),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 8,
-            top: 24,
-            width: 9,
-            height: 68,
-            child: IgnorePointer(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: fixture,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: structural),
-                ),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    width: 2.5,
-                    height: 2.5,
-                    margin: const EdgeInsets.only(right: 1.5),
-                    decoration: BoxDecoration(
-                      color: _secondaryText,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 22,
-            bottom: 9,
-            width: 116,
-            height: 17,
-            child: IgnorePointer(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: fixture.withValues(alpha: .82),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: structural.withValues(alpha: .85)),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'TEACHER / STORAGE',
-                  style: TextStyle(
-                    color: _secondaryText.withValues(alpha: .82),
-                    fontSize: 7,
-                    letterSpacing: 1.0,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.only(bottom: compact ? 24 : 32),
-            child: child,
-          ),
-        ]),
-      ),
-    ]);
+      ],
+    );
   }
 
   Widget _classroomHeading(bool compact) {
