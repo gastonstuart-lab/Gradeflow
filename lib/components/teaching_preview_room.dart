@@ -91,9 +91,8 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
         return SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: constraints.maxHeight.isFinite
-                  ? constraints.maxHeight
-                  : 0,
+              minHeight:
+                  constraints.maxHeight.isFinite ? constraints.maxHeight : 0,
             ),
             child: Center(
               child: SizedBox(
@@ -184,7 +183,12 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                 widget.seats.length ~/ 4,
                 (table) => SizedBox(
                       width: width,
-                      child: _table(table),
+                      // Scale furniture and labels together, rather than
+                      // spreading fixed-size seats across a growing cell.
+                      child: FittedBox(
+                        fit: BoxFit.fitWidth,
+                        child: SizedBox(width: 480, child: _table(table)),
+                      ),
                     )));
       }),
     ]);
@@ -206,7 +210,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
     final showLeftSide = !widget.allSideSeats && table == 0;
     final showRightSide = widget.allSideSeats || table == 2;
     final sideSeat = _seat(table * 4 + 3);
-    final sideSize = widget.presentation ? 72.0 : 64.0;
+    const sideSize = 80.0;
     final sidePlaceholder = SizedBox(width: sideSize, height: sideSize);
 
     return AnimatedContainer(
@@ -217,9 +221,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
           horizontal: widget.presentation ? 8 : 2),
       decoration: BoxDecoration(
         color: lit
-            ? (dark
-                ? const Color(0x2239a0ff)
-                : const Color(0x143b82f6))
+            ? (dark ? const Color(0x2239a0ff) : const Color(0x143b82f6))
             : Colors.transparent,
         borderRadius: BorderRadius.circular(20),
       ),
@@ -236,10 +238,10 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
               Expanded(
                 child: Center(
                   child: FractionallySizedBox(
-                    widthFactor: widget.presentation ? .72 : .68,
+                    widthFactor: .88,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
-                      height: widget.presentation ? 88 : 74,
+                      height: widget.presentation ? 108 : 100,
                       decoration: BoxDecoration(
                         color: tableSurface,
                         borderRadius: BorderRadius.circular(14),
@@ -261,7 +263,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                         child: Text(
                           'TABLE ${table + 1}',
                           style: TextStyle(
-                            fontSize: widget.presentation ? 14 : 11,
+                            fontSize: 14,
                             letterSpacing: 1.45,
                             color: dark
                                 ? const Color(0xffd8e4ee)
@@ -301,9 +303,9 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
         (id != null && id == widget.selectedStudent) || _moving == slot;
     final lit = id != null && widget.spotlightStudent == id;
     final name = widget.students[id] ?? 'Empty';
-    final slotWidth = widget.presentation ? 72.0 : 64.0;
-    final chairWidth = widget.presentation ? 56.0 : 48.0;
-    final chairHeight = widget.presentation ? 46.0 : 40.0;
+    const slotWidth = 80.0;
+    const chairWidth = 62.0;
+    const chairHeight = 50.0;
 
     final baseFill = id == null
         ? (dark ? const Color(0xff0e1c29) : const Color(0xfff5f8fb))
@@ -314,9 +316,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
             ? const Color(0xff2584ff)
             : done && widget.checking
                 ? const Color(0xff4f9b73)
-                : (dark
-                    ? const Color(0xff385066)
-                    : const Color(0xffcbd8e3));
+                : (dark ? const Color(0xff385066) : const Color(0xffcbd8e3));
 
     Widget token({bool feedback = false}) => Material(
           color: Colors.transparent,
@@ -365,7 +365,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                             id == null
                                 ? Icons.event_seat_outlined
                                 : Icons.event_seat_rounded,
-                            size: widget.presentation ? 25 : 21,
+                            size: 26,
                             color: id == null
                                 ? (dark
                                     ? const Color(0xff60758c)
@@ -375,15 +375,14 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                                     : const Color(0xff536d83)),
                           ),
                         ),
-                        if (id != null &&
-                            widget.studentNumbers.containsKey(id))
+                        if (id != null && widget.studentNumbers.containsKey(id))
                           Positioned(
                             right: 4,
                             top: 3,
                             child: Text(
                               widget.studentNumbers[id]!,
                               style: TextStyle(
-                                fontSize: widget.presentation ? 9 : 8,
+                                fontSize: 10,
                                 height: 1,
                                 color: dark
                                     ? const Color(0xff9fb4c7)
@@ -409,7 +408,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: widget.presentation ? 12 : 10.5,
+                          fontSize: 14,
                           height: 1.1,
                           fontWeight: selected || lit
                               ? FontWeight.w800
@@ -456,8 +455,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                 ? Draggable<int>(
                     data: slot,
                     feedback: token(feedback: true),
-                    childWhenDragging:
-                        Opacity(opacity: .28, child: token()),
+                    childWhenDragging: Opacity(opacity: .28, child: token()),
                     child: token(),
                   )
                 : token(),
@@ -474,9 +472,7 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
-                color: dark
-                    ? const Color(0xff17334f)
-                    : const Color(0xffe8f2ff),
+                color: dark ? const Color(0xff17334f) : const Color(0xffe8f2ff),
                 borderRadius: BorderRadius.circular(999)),
             child: Text('Group ${widget.groups[id] ?? '-'}',
                 style: TextStyle(
@@ -497,9 +493,8 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
                   padding: EdgeInsets.zero,
                   minimumSize: Size(slotWidth, 28),
                   textStyle: const TextStyle(fontSize: 9.5)),
-              onPressed: widget.onPresent == null
-                  ? null
-                  : () => widget.onPresent!(id),
+              onPressed:
+                  widget.onPresent == null ? null : () => widget.onPresent!(id),
               child: Text(widget.attendance[id] == 'Present'
                   ? '✓ Present'
                   : widget.attendance[id] ?? 'Present'),
@@ -529,5 +524,4 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
       ]),
     );
   }
-
 }

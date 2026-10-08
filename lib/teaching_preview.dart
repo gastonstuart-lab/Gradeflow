@@ -1392,7 +1392,10 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               ),
             ),
           ),
-          child,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 32),
+            child: child,
+          ),
         ]),
       ),
     ]);
