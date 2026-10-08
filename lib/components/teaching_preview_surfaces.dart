@@ -1,9 +1,26 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+/// Paint-only settings for the provisional, existing room cues. Real classroom
+/// references can replace these independently of furniture and seating logic.
+class TeachingPreviewEnvironmentStyle {
+  final int windowCount;
+  final bool showDoor;
+  final bool showStorage;
+  final Alignment lightOrigin;
+
+  const TeachingPreviewEnvironmentStyle({
+    this.windowCount = 3,
+    this.showDoor = true,
+    this.showStorage = true,
+    this.lightOrigin = const Alignment(-1, -.55),
+  }) : assert(windowCount >= 0);
+}
+
 /// Materials shared by the teaching room and its presentation view.
 /// Furniture dimensions, hit targets and seat assignments live in the room.
 class TeachingPreviewSurfaces {
+  static const environment = TeachingPreviewEnvironmentStyle();
   static Color boundary(bool dark) =>
       dark ? const Color(0xff3c555c) : const Color(0xffaabbb5);
 
@@ -79,7 +96,9 @@ class TeachingPreviewSurfaces {
 /// Quiet directional light, wall skirting and floor joints; no new fixtures.
 class TeachingPreviewFloorPainter extends CustomPainter {
   final bool dark;
-  const TeachingPreviewFloorPainter(this.dark);
+  final TeachingPreviewEnvironmentStyle environment;
+  const TeachingPreviewFloorPainter(this.dark,
+      {this.environment = TeachingPreviewSurfaces.environment});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -91,7 +110,7 @@ class TeachingPreviewFloorPainter extends CustomPainter {
       Offset.zero & size,
       Paint()
         ..shader = RadialGradient(
-          center: const Alignment(-1, -.55),
+          center: environment.lightOrigin,
           radius: 1.3,
           colors: [
             dark ? const Color(0x123eb2ab) : const Color(0x70fffdf0),
@@ -107,10 +126,24 @@ class TeachingPreviewFloorPainter extends CustomPainter {
       canvas.drawLine(Offset(x, 12), Offset(x, size.height - 12), joint);
     }
     final skirt = Paint()
-      ..color = dark ? const Color(0x332e494f) : const Color(0x2490a59b)
+      ..color = dark ? const Color(0x66576b6c) : const Color(0x3890a59b)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 7;
     canvas.drawRRect(bounds.deflate(5), skirt);
+    // A shallow wall return gives the front boundary a contact shadow.
+    // It stays within the existing floor bounds and cannot move any seats.
+    final wallReturn = Rect.fromLTWH(9, 1, math.max(0, size.width - 18), 12);
+    canvas.drawRect(
+        wallReturn,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              dark ? const Color(0x400b171d) : const Color(0x243d5549),
+              Colors.transparent
+            ],
+          ).createShader(wallReturn));
     canvas.drawLine(
       const Offset(18, 9),
       Offset(size.width - 18, 9),
@@ -126,8 +159,11 @@ class TeachingPreviewFloorPainter extends CustomPainter {
       ..color = dark ? const Color(0xff294b54) : const Color(0xffa9c8c4);
     final highlight = Paint()
       ..color = dark ? const Color(0xff607e80) : const Color(0xffe1eee6);
-    final gap = math.max(0.0, (size.height - 44 - 162) / 4);
-    for (var i = 0; i < 3; i++) {
+    final gap = math.max(
+        0.0,
+        (size.height - 44 - environment.windowCount * 54) /
+            (environment.windowCount + 1));
+    for (var i = 0; i < environment.windowCount; i++) {
       final y = 22 + gap + i * (54 + gap);
       final window = RRect.fromRectAndRadius(
           Rect.fromLTWH(4, y, 12, 54), const Radius.circular(2));
@@ -138,41 +174,46 @@ class TeachingPreviewFloorPainter extends CustomPainter {
       canvas.drawLine(
           Offset(6, y + 2), Offset(6, y + 51), highlight..strokeWidth = .7);
     }
-    final door = Rect.fromLTWH(size.width - 16, 24, 12, 68);
-    canvas.drawRRect(
-        RRect.fromRectAndRadius(door, const Radius.circular(2)), frame);
-    canvas.drawRect(
-        door.deflate(2),
-        Paint()
-          ..color = dark ? const Color(0xff33494e) : const Color(0xffbccbbf));
-    canvas.drawCircle(Offset(size.width - 7, 60), 1.4,
-        Paint()..color = const Color(0xffb1986d));
-    final storage = Rect.fromLTWH(size.width - 138, size.height - 26, 116, 17);
-    canvas.drawRRect(
-        RRect.fromRectAndRadius(storage, const Radius.circular(2)), frame);
-    canvas.drawRect(
-        storage.deflate(1.5),
-        Paint()
-          ..color = dark ? const Color(0xff30444a) : const Color(0xffbac9bd));
-    canvas.drawLine(
-        Offset(storage.center.dx, storage.top + 2),
-        Offset(storage.center.dx, storage.bottom - 2),
-        Paint()
-          ..color = dark ? const Color(0xff1a2b33) : const Color(0xff91a59a));
-    for (final x in [storage.center.dx - 5, storage.center.dx + 5]) {
-      canvas.drawLine(
-          Offset(x, storage.top + 7),
-          Offset(x, storage.top + 11),
+    if (environment.showDoor) {
+      final door = Rect.fromLTWH(size.width - 16, 24, 12, 68);
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(door, const Radius.circular(2)), frame);
+      canvas.drawRect(
+          door.deflate(2),
           Paint()
-            ..color = dark ? const Color(0xff809592) : const Color(0xff657b70)
-            ..strokeWidth = 1.2);
+            ..color = dark ? const Color(0xff33494e) : const Color(0xffbccbbf));
+      canvas.drawCircle(Offset(size.width - 7, 60), 1.4,
+          Paint()..color = const Color(0xffb1986d));
+    }
+    if (environment.showStorage) {
+      final storage =
+          Rect.fromLTWH(size.width - 138, size.height - 26, 116, 17);
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(storage, const Radius.circular(2)), frame);
+      canvas.drawRect(
+          storage.deflate(1.5),
+          Paint()
+            ..color = dark ? const Color(0xff30444a) : const Color(0xffbac9bd));
+      canvas.drawLine(
+          Offset(storage.center.dx, storage.top + 2),
+          Offset(storage.center.dx, storage.bottom - 2),
+          Paint()
+            ..color = dark ? const Color(0xff1a2b33) : const Color(0xff91a59a));
+      for (final x in [storage.center.dx - 5, storage.center.dx + 5]) {
+        canvas.drawLine(
+            Offset(x, storage.top + 7),
+            Offset(x, storage.top + 11),
+            Paint()
+              ..color = dark ? const Color(0xff809592) : const Color(0xff657b70)
+              ..strokeWidth = 1.2);
+      }
     }
     canvas.restore();
   }
 
   @override
   bool shouldRepaint(TeachingPreviewFloorPainter oldDelegate) =>
-      dark != oldDelegate.dark;
+      dark != oldDelegate.dark || environment != oldDelegate.environment;
 }
 
 /// Low-contrast oak grain is painted inside the existing tabletop bounds.

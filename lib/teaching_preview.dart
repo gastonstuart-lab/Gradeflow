@@ -1260,8 +1260,8 @@ class _TeachingJourneyState extends State<TeachingJourney> {
           const SizedBox(width: 8),
           Flexible(
             child: Container(
-              width: 180,
-              height: 20,
+              width: compact ? 104 : 128,
+              height: compact ? 22 : 30,
               padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 color: const Color(0xff20343d),
@@ -1280,14 +1280,14 @@ class _TeachingJourneyState extends State<TeachingJourney> {
                     end: Alignment.bottomRight,
                     colors: dark
                         ? const [
-                            Color(0xff718b8b),
-                            Color(0xff435f68),
-                            Color(0xff30434d),
+                            Color(0xffd5ddd5),
+                            Color(0xffc5d1cc),
+                            Color(0xffb6c6c2),
                           ]
                         : const [
-                            Color(0xffe6eee9),
-                            Color(0xffc5d8d5),
-                            Color(0xffa5bebb),
+                            Color(0xfff8f7ea),
+                            Color(0xffedf0e7),
+                            Color(0xffdde6e0),
                           ],
                   ),
                 ),
@@ -1406,7 +1406,7 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               ),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xff123a62), Color(0xff17666f)],
+                  colors: [Color(0xff27454b), Color(0xff30595a)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
