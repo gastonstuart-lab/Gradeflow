@@ -1,5 +1,9 @@
 # Classroom recovery audit — 8 October 2026
 
+This records the initial audit before Flutter setup resumed. For the subsequent
+Flutter 3.38.9 baseline, first spacing implementation, tests, screenshots, and
+current limitations, see [the spacing-pass report](classroom-density-pass-20261008.md).
+
 ## Scope and checkpoint
 
 Recover the standalone fictional-data teaching preview, preserving the approved
