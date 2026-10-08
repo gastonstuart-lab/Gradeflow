@@ -989,8 +989,8 @@ class _TeachingJourneyState extends State<TeachingJourney> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 0, 10, 3),
                 child: TeachingPreviewRoom(
-                  tableColumns: 3,
-                  allSideSeats: false,
+                  tableColumns: _tableColumns,
+                  allSideSeats: _customRoom,
                   studentNumbers: _numbers,
                   spotlightStudent: _spotlightStudent,
                   spotlightTable: _spotlightTable,
