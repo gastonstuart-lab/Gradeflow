@@ -75,13 +75,22 @@ class _TeachingPreviewRoomState extends State<TeachingPreviewRoom> {
   Widget build(BuildContext context) {
     if (widget.presentation) {
       return LayoutBuilder(builder: (context, constraints) {
-        const columns = 3;
         const crossGap = 20.0;
         const rowGap = 18.0;
+        final available = constraints.maxWidth >= 780
+            ? 3
+            : constraints.maxWidth >= 500
+                ? 2
+                : 1;
+        final columns =
+            widget.tableColumns < available ? widget.tableColumns : available;
+        final rows = (widget.seats.length ~/ 4 + columns - 1) ~/ columns;
         final width =
             (constraints.maxWidth - (columns - 1) * crossGap) / columns;
         final height = constraints.maxHeight.isFinite
-            ? (constraints.maxHeight - rowGap) / 2
+            ? ((constraints.maxHeight - (rows - 1) * rowGap) / rows)
+                .clamp(0.0, double.infinity)
+                .toDouble()
             : 210.0;
         return Wrap(
           spacing: crossGap,
