@@ -537,6 +537,136 @@ class ExportService {
     return await doc.save();
   }
 
+
+  /// Portrait, one-page handover. Existing two-page substitute export remains intact.
+  Future<Uint8List> generateEditableSubstituteHandoverPdf({
+    required Class classItem,
+    required List<Student> students,
+    required SeatingLayout layout,
+    required String coverTeacher,
+    required String lessonDate,
+    required String periods,
+    required String topic,
+    required String lessonPlan,
+    required String materials,
+  }) async {
+    await _ensureUnicodeFonts();
+    final theme = (_fontBase != null && _fontBold != null)
+        ? pw.ThemeData.withFont(base: _fontBase!, bold: _fontBold!)
+        : pw.ThemeData.withFont(
+            base: pw.Font.helvetica(), bold: pw.Font.helveticaBold());
+    final doc = pw.Document(theme: theme);
+    final byId = {for (final student in students) student.studentId: student};
+    final roster = List<Student>.from(students)..sort(_compareStudentsForRoster);
+    final midpoint = (roster.length + 1) ~/ 2;
+    final columns = [roster.sublist(0, midpoint), roster.sublist(midpoint)];
+    pw.Widget rosterColumn(List<Student> entries) => pw.Table(
+      border: pw.TableBorder(
+        horizontalInside: const pw.BorderSide(color: PdfColors.grey300, width: .35),
+      ),
+      columnWidths: const {
+        0: pw.FixedColumnWidth(26),
+        1: pw.FlexColumnWidth(1.5),
+        2: pw.FlexColumnWidth(1.2),
+      },
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFFEAF0F5)),
+          children: ['No.', 'English name', 'Chinese name'].map(
+            (v) => pw.Padding(
+              padding: const pw.EdgeInsets.all(3),
+              child: pw.Text(v, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+            ),
+          ).toList(),
+        ),
+        ...entries.map((student) => pw.TableRow(children: [
+          student.seatNo ?? '',
+          student.englishFullName,
+          student.chineseName,
+        ].map((value) => pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+          child: pw.Text(value.toString(), style: const pw.TextStyle(fontSize: 8)),
+        )).toList())),
+      ],
+    );
+    pw.Widget brief(String label, String value) => pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 5),
+      child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.SizedBox(width: 100,
+          child: pw.Text(label, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold))),
+        pw.Expanded(child: pw.Text(
+          value.trim().isEmpty ? '—' : value.trim(),
+          style: const pw.TextStyle(fontSize: 9),
+          maxLines: 5,
+        )),
+      ]),
+    );
+    pw.Widget heading(String text) => pw.Padding(
+      padding: const pw.EdgeInsets.only(top: 7, bottom: 5),
+      child: pw.Text(text,
+        style: pw.TextStyle(fontSize: 10.5, fontWeight: pw.FontWeight.bold)),
+    );
+
+    doc.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(25),
+      build: (context) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                pw.Text(classItem.className,
+                  style: pw.TextStyle(fontSize: 19, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 3),
+                pw.Text('${classItem.subject}   •   ${lessonDate.trim()}   •   ${periods.trim()}',
+                  style: const pw.TextStyle(fontSize: 9.5)),
+              ]),
+              pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+                pw.Text('COVER TEACHER', style: const pw.TextStyle(fontSize: 8)),
+                pw.Text(coverTeacher.trim().isEmpty ? '—' : coverTeacher.trim(),
+                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              ]),
+            ]),
+          pw.Divider(color: const PdfColor.fromInt(0xFF163E5B), thickness: 2),
+          heading('01  /  SEATING PLAN'),
+          pw.Container(
+            height: 208,
+            padding: const pw.EdgeInsets.all(8),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300),
+              borderRadius: pw.BorderRadius.circular(5)),
+            child: pw.Column(children: [
+              _frontMarker(),
+              pw.SizedBox(height: 8),
+              pw.Expanded(child: _buildSeatingDiagram(layout, byId)),
+            ]),
+          ),
+          heading('02  /  STUDENT ROSTER  •  ${roster.length} STUDENTS'),
+          pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Expanded(child: rosterColumn(columns[0])),
+            pw.SizedBox(width: 9),
+            pw.Expanded(child: rosterColumn(columns[1])),
+          ]),
+          pw.Spacer(),
+          pw.Divider(color: PdfColors.grey300),
+          heading('03  /  LESSON INFORMATION'),
+          brief('Topic / aim', topic),
+          brief('Lesson plan', lessonPlan),
+          brief('Materials / finish', materials),
+          pw.SizedBox(height: 8),
+          pw.Text('Teacher feedback / work completed: _________________________________________________',
+            style: const pw.TextStyle(fontSize: 8.5)),
+          pw.SizedBox(height: 5),
+          pw.Text('Follow-up: __________________________________________________________________________',
+            style: const pw.TextStyle(fontSize: 8.5)),
+        ],
+      ),
+    ));
+    return doc.save();
+  }
+
   Future<Uint8List> generateSubstitutePacketPdf({
     required Class classItem,
     required List<Student> students,
