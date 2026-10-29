@@ -5,6 +5,7 @@ import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
+import 'package:gradeflow/components/home/approved_teacher_home.dart';
 
 /// The calm integration layer on InstructOS Home.
 ///
@@ -23,6 +24,18 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
     this.onOpenStudents,
     this.onOpenIedStudio,
     this.onOpenScience,
+    this.approvedAppearance = false,
+    this.teacherName = 'Teacher',
+    this.schoolName = 'Teacher workspace',
+    this.studentCounts = const {},
+    this.reminders = const [],
+    this.loading = false,
+    this.remindersAvailable = true,
+    this.onSelectClass,
+    this.onMoreHomeTools,
+    this.onToggleTheme,
+    this.onAttention,
+    this.onAssistant,
   });
 
   final Class? primaryClass;
@@ -35,9 +48,44 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
   final VoidCallback? onOpenStudents;
   final VoidCallback? onOpenIedStudio;
   final VoidCallback? onOpenScience;
+  final bool approvedAppearance;
+  final String teacherName;
+  final String schoolName;
+  final Map<String, int> studentCounts;
+  final List<TeacherWorkspaceReminderSnapshot> reminders;
+  final bool loading;
+  final bool remindersAvailable;
+  final ValueChanged<String>? onSelectClass;
+  final VoidCallback? onMoreHomeTools;
+  final VoidCallback? onToggleTheme;
+  final VoidCallback? onAttention;
+  final VoidCallback? onAssistant;
 
   @override
   Widget build(BuildContext context) {
+    if (approvedAppearance) {
+      return ApprovedTeacherHome(
+        teacherName: teacherName,
+        schoolName: schoolName,
+        primaryClass: primaryClass,
+        classes: classes,
+        studentCounts: studentCounts,
+        reminders: reminders,
+        loading: loading,
+        remindersAvailable: remindersAvailable,
+        onSelectClass: onSelectClass ?? (_) {},
+        onOpenClassroom: () => _openClassroom(context),
+        onOpenPlanner: () => _openPlanner(context),
+        onOpenGrades: () => _openGrades(context),
+        onOpenStudents: () => _openStudents(context),
+        onOpenIedStudio: () => _openIedStudio(context),
+        onOpenScience: () => _openScience(context),
+        onMoreHomeTools: onMoreHomeTools ?? () {},
+        onToggleTheme: onToggleTheme ?? () {},
+        onAttention: onAttention ?? () {},
+        onAssistant: onAssistant ?? () {},
+      );
+    }
     final dark = context.isDark;
     final classItem = primaryClass;
 
