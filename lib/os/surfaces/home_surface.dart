@@ -54,6 +54,8 @@ class _HomeSurfaceState extends State<HomeSurface> {
   Map<String, int> _classStudentCounts = const {};
   String _studentCountSignature = '';
   bool _loadingStudentCounts = false;
+  bool _showExistingHomeTools = false;
+  String? _selectedHomeClassId;
 
   @override
   void didChangeDependencies() {
@@ -323,7 +325,8 @@ class _HomeSurfaceState extends State<HomeSurface> {
         if (mounted) _syncWallpaperForUser(wallpaperUserId);
       });
     }
-    final serviceClasses = context.watch<ClassService>().activeClasses;
+    final classService = context.watch<ClassService>();
+    final serviceClasses = classService.activeClasses;
     final classes = serviceClasses.isNotEmpty
         ? serviceClasses
         : (snapshot?.activeClasses ?? const <Class>[]);
@@ -343,9 +346,38 @@ class _HomeSurfaceState extends State<HomeSurface> {
     final resolvedTotalStudents =
         _resolvedTotalStudents(classes: classes, fallback: totalStudents);
 
+    if (!_showExistingHomeTools) {
+      return Scaffold(
+        body: SafeArea(
+          child: TeacherHomeIntegrationPanel(
+            approvedAppearance: true,
+            teacherName: teacherName,
+            schoolName: schoolName,
+            primaryClass: primaryClass,
+            classes: classes,
+            primaryReminder: primaryReminder,
+            reminders: reminders,
+            remindersAvailable: snapshot != null,
+            studentCounts: _classStudentCounts,
+            loading: !auth.isInitialized || auth.isLoading ||
+                shell.isWorkspaceLoading || classService.isLoading,
+            onSelectClass: (id) => setState(() => _selectedHomeClassId = id),
+            onMoreHomeTools: () => setState(() => _showExistingHomeTools = true),
+            onToggleTheme: toggleTheme,
+            onAttention: controller.openShade,
+            onAssistant: controller.openAssistant,
+          ),
+        ),
+      );
+    }
+
     return _HomeReadabilityScope(
       preset: _readabilityPreset,
       child: Scaffold(
+        appBar: AppBar(
+          leading: BackButton(onPressed: () => setState(() => _showExistingHomeTools = false)),
+          title: const Text('Home tools'),
+        ),
         backgroundColor: OSColors.bg(context.isDark),
         body: SafeArea(
           bottom: false,
@@ -436,6 +468,9 @@ class _HomeSurfaceState extends State<HomeSurface> {
     List<Class>? snapshotClasses,
     List<Class> serviceClasses,
   ) {
+    for (final classItem in serviceClasses) {
+      if (classItem.classId == _selectedHomeClassId) return classItem;
+    }
     final candidates = snapshotClasses != null && snapshotClasses.isNotEmpty
         ? snapshotClasses
         : serviceClasses;
@@ -564,7 +599,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
   static const String _miniAppTapRegionGroup = 'home-mini-app-desktop';
   _HomeMiniApp? _selectedMiniApp;
   Class? _selectedClassPreview;
-  bool _secondaryToolsOpen = false;
+  bool _secondaryToolsOpen = true;
 
   void _closeMiniApp() {
     if (_selectedMiniApp != null) {
@@ -4442,7 +4477,7 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
   static const String _miniAppTapRegionGroup = 'home-mini-app-stacked';
   _HomeMiniApp? _selectedMiniApp;
   Class? _selectedClassPreview;
-  bool _secondaryToolsOpen = false;
+  bool _secondaryToolsOpen = true;
 
   void _closeMiniApp() {
     if (_selectedMiniApp != null) {
