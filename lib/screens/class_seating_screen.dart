@@ -169,6 +169,12 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
           }),
         ),
         if (!_presentationMode)
+          IconButton(
+            tooltip: 'Create editable substitute handover',
+            icon: const Icon(Icons.assignment_outlined),
+            onPressed: _isBuildingHandout ? null : _createEditableHandover,
+          ),
+        if (!_presentationMode)
           PilotFeedbackIconButton(
             initialArea: 'Seating',
             initialRoute: AppRoutes.osClassSeating(widget.classId),
@@ -692,6 +698,90 @@ class _ClassSeatingScreenState extends State<ClassSeatingScreen> {
     if (!mounted) return;
     Navigator.of(context).pop();
     _showMessage('This class now keeps its own room layout.');
+  }
+
+
+  Future<void> _createEditableHandover() async {
+    final classItem = context.read<ClassService>().getClassById(widget.classId);
+    final students = List<Student>.from(context.read<StudentService>().students);
+    final layout = context.read<SeatingService>().activeLayout(widget.classId);
+    if (classItem == null || layout == null) {
+      _showMessage('Load a class and seating plan before creating a handover.');
+      return;
+    }
+
+    final teacher = TextEditingController();
+    final date = TextEditingController();
+    final periods = TextEditingController();
+    final topic = TextEditingController();
+    final plan = TextEditingController();
+    final materials = TextEditingController();
+    final fields = [teacher, date, periods, topic, plan, materials];
+    try {
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Create substitute handover'),
+          content: SizedBox(
+            width: 540,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text('One-page A4 handover for ${classItem.className}. '
+                    'Uses a snapshot of the current seating plan and roster.'),
+                const SizedBox(height: 12),
+                TextField(controller: teacher,
+                  decoration: const InputDecoration(labelText: 'Cover teacher')),
+                TextField(controller: date,
+                  decoration: const InputDecoration(labelText: 'Date',
+                    hintText: 'e.g. 3 November 2026')),
+                TextField(controller: periods,
+                  decoration: const InputDecoration(labelText: 'Periods / times')),
+                TextField(controller: topic,
+                  decoration: const InputDecoration(labelText: 'Topic / aim')),
+                TextField(controller: plan, maxLines: 4,
+                  decoration: const InputDecoration(labelText: 'Lesson instructions')),
+                TextField(controller: materials, maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Materials / completion')),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel')),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('Preview A4 handover')),
+          ],
+        ),
+      );
+      if (accepted != true || !mounted) return;
+      setState(() => _isBuildingHandout = true);
+      try {
+        final bytes = await _exportService.generateEditableSubstituteHandoverPdf(
+          classItem: classItem,
+          students: students,
+          layout: layout,
+          coverTeacher: teacher.text,
+          lessonDate: date.text,
+          periods: periods.text,
+          topic: topic.text,
+          lessonPlan: plan.text,
+          materials: materials.text,
+        );
+        if (!mounted) return;
+        await _previewPdf(bytes, _handoutFilename(classItem));
+      } catch (e) {
+        if (mounted) _showMessage('Could not build one-page handover: $e');
+      } finally {
+        if (mounted) setState(() => _isBuildingHandout = false);
+      }
+    } finally {
+      for (final controller in fields) {
+        controller.dispose();
+      }
+    }
   }
 
   Future<void> _withHandoutPdf(
