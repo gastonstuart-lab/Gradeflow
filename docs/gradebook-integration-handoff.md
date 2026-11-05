@@ -18,11 +18,11 @@ Native gradebook with acknowledged writes, missing-score handling, explicit 40/6
 - 55 relevant tests passed; 12 final Classroom/OS surface checks repeated successfully.
 - Dedicated dock accessibility activation test passed (Home, Planner, Classes).
 - Targeted analysis: no issues.
-- Release build passed before the final small class-record-management header control; the final repeat is tracked in the log below. That control passed analysis.
+- Final release build including the class-record-management header control passed (68.1 seconds). Targeted analysis also passed.
 - Browser: right panel, map selection, class chooser, Planner, Home, quiz seat entry -> full gradebook checked. Demo reminder survived reload. Classroom dark theme and 700px room editor checked. Actual screenshots committed under docs/gradebook-integration/20261105-correction/.
 
 ## Next steps
-1. Confirm the final release-build result in work/design-correction-build-final.log (local path below), or rebuild from this branch.
+1. Open/rebuild the saved candidate from this branch; the final local release build passed.
 2. Visually review the corrected candidate with Stuart before removing the review hold. This is an improvement candidate, not a claim that every legacy screen now matches.
 3. Continue the design acceptance pass for remaining specialized Home/student/results/admin destinations. Do not blindly reuse old screens or copy fictional preview state.
 4. Verify cloud save/history/import behavior and rules compatibility in an authorized test environment before merge or real-data transfer. Legacy issue #62 remains outside the bounded workspace fix.
