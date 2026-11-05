@@ -1,3 +1,5 @@
+import 'package:gradeflow/components/classroom/classroom_materials.dart';
+import 'package:gradeflow/screens/native_gradebook_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/seating/seating_canvas.dart';
@@ -13,6 +15,8 @@ class SeatingDesignerView extends StatefulWidget {
   final String classId;
   final List<Student> students;
   final bool autoLoad;
+  final bool premiumAppearance;
+  final String? scoreCategory;
   final bool presentationMode;
   final bool interactive;
   final bool editRoomMode;
@@ -31,6 +35,8 @@ class SeatingDesignerView extends StatefulWidget {
     required this.classId,
     required this.students,
     this.autoLoad = true,
+    this.premiumAppearance = false,
+    this.scoreCategory,
     this.presentationMode = false,
     this.interactive = true,
     this.editRoomMode = false,
@@ -248,7 +254,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     return Container(
-      decoration: BoxDecoration(
+      decoration: widget.premiumAppearance ? ClassroomMaterials.floor(isDark) : BoxDecoration(
         color: theme.colorScheme.surface.withValues(
           alpha: isDark ? 0.26 : 0.56,
         ),
@@ -263,6 +269,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
         borderRadius: BorderRadius.circular(8),
         child: SeatingCanvas(
           layout: active,
+          premiumAppearance: widget.premiumAppearance,
           studentsById: studentsById,
           designMode: widget.editRoomMode || _designMode,
           interactive: widget.interactive,
@@ -853,6 +860,10 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
         layout.tables.firstWhere((entry) => entry.tableId == seat.tableId);
     final student =
         seat.studentId == null ? null : studentsById[seat.studentId];
+    if (student != null && widget.scoreCategory != null) {
+      await showDialog<void>(context:context,barrierDismissible:false,builder:(_)=>Dialog(child:SizedBox(width:1100,height:MediaQuery.sizeOf(context).height*.85,child:NativeGradebookScreen(classId:widget.classId,studentId:student.studentId,initialCategory:widget.scoreCategory))));
+      return;
+    }
     final canEditSeatStructure = _canEditSeatStructure(table.type);
 
     await showModalBottomSheet(
@@ -878,6 +889,33 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                       .titleMedium
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
+                if (student != null)
+                  ListTile(
+                    leading: const Icon(Icons.edit_note),
+                    title: const Text('Add score / Gradebook'),
+                    subtitle: const Text('Enter an assessment score for this student.'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted) return;
+                        showDialog<void>(
+                          context: this.context,
+                          barrierDismissible: false,
+                          builder: (_) => Dialog(
+                            child: SizedBox(
+                              width: 1100,
+                              height: MediaQuery.sizeOf(this.context).height * .85,
+                              child: NativeGradebookScreen(
+                                classId: widget.classId,
+                                studentId: student.studentId,
+                                initialCategory: widget.scoreCategory,
+                              ),
+                            ),
+                          ),
+                        );
+                      });
+                    },
+                  ),
                 if (hasAnnotation) ...[
                   const SizedBox(height: 12),
                   Container(

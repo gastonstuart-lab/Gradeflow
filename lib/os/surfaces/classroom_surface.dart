@@ -30,6 +30,7 @@ class ClassroomSurface extends StatefulWidget {
 class _ClassroomSurfaceState extends State<ClassroomSurface> {
   bool _loading = true;
   bool _toolsOpen = true;
+  String? _scoreCategory;
   bool _setupMode = false;
 
   @override
@@ -180,13 +181,12 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 980;
-            final narrow = constraints.maxWidth < 760;
-            final drawerWidth = constraints.maxWidth >= 1320 ? 360.0 : 330.0;
 
             final map = _ClassroomMapPanel(
               classId: widget.classId,
               students: students,
               setupMode: _setupMode,
+              scoreCategory: _scoreCategory,
             );
 
             final drawer = ClassroomToolsDrawer(
@@ -243,54 +243,19 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Expanded(
-                    child: narrow
-                        ? Stack(
-                            children: [
-                              Positioned.fill(child: map),
-                              if (_toolsOpen)
-                                Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  width: constraints.maxWidth * 0.88,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(
-                                            alpha: dark ? 0.36 : 0.16,
-                                          ),
-                                          blurRadius: 24,
-                                          offset: const Offset(-6, 0),
-                                        ),
-                                      ],
-                                    ),
-                                    child: drawer,
-                                  ),
-                                ),
-                            ],
-                          )
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(child: map),
-                              AnimatedContainer(
-                                duration: OSMotion.normal,
-                                curve: OSMotion.ease,
-                                width: _toolsOpen ? 10 : 0,
-                              ),
-                              ClipRect(
-                                child: AnimatedContainer(
-                                  duration: OSMotion.normal,
-                                  curve: OSMotion.ease,
-                                  width: _toolsOpen ? drawerWidth : 0,
-                                  child: _toolsOpen ? drawer : null,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
+                  Card(margin:EdgeInsets.zero,child:Padding(padding:const EdgeInsets.all(8),child:Wrap(spacing:8,runSpacing:6,children:[
+                    OutlinedButton.icon(onPressed:()=>setState(()=>_setupMode=!_setupMode),icon:const Icon(Icons.dashboard_customize_outlined),label:Text(_setupMode?'Finish room setup':'Room setup')),
+                    OutlinedButton.icon(onPressed:()=>_openStudentPicker(students:students,seatingService:seatingService),icon:const Icon(Icons.person_search_outlined),label:const Text('Pick student')),
+                    OutlinedButton.icon(onPressed:()=>setState(()=>_scoreCategory='Homework'),icon:const Icon(Icons.task_alt),label:Text(_scoreCategory=='Homework'?'Homework check · select a student':'Homework check')),
+                    OutlinedButton.icon(onPressed:()=>setState(()=>_scoreCategory='Quizzes'),icon:const Icon(Icons.quiz_outlined),label:Text(_scoreCategory=='Quizzes'?'Quiz scores · select a student':'Quiz scores')),
+                    FilledButton.tonalIcon(onPressed:()=>context.go(AppRoutes.osClassGradebook(widget.classId)),icon:const Icon(Icons.grid_on),label:const Text('Full gradebook')),
+                    OutlinedButton.icon(onPressed:()=>setState(()=>_toolsOpen=!_toolsOpen),icon:const Icon(Icons.tune),label:const Text('Class tools')),
+                  ]))),
+                  const SizedBox(height: 10),
+                  Expanded(child:Stack(children:[
+                    Positioned.fill(child:map),
+                    if(_toolsOpen) Positioned(left:0,right:0,bottom:0,height:(constraints.maxHeight*.48).clamp(200.0,340.0),child:drawer),
+                  ])),
                 ],
               ),
             );
@@ -331,7 +296,7 @@ class _ClassroomHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 10, 8),
       decoration: BoxDecoration(
-        color: OSColors.panelSurface(dark).withValues(alpha: 0.9),
+        gradient: const LinearGradient(colors:[Color(0xff133c67),Color(0xff14817b)]),
         borderRadius: OSRadius.lgBr,
         border: Border.all(
           color: OSColors.panelBorder(dark).withValues(alpha: 0.86),
@@ -359,7 +324,7 @@ class _ClassroomHeader extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
-                          color: OSColors.textPrimary(dark),
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -390,7 +355,7 @@ class _ClassroomHeader extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: OSColors.textSubtle(dark),
+                    color: Colors.white70,
                   ),
                 ),
               ],
@@ -422,11 +387,13 @@ class _ClassroomMapPanel extends StatelessWidget {
     required this.classId,
     required this.students,
     required this.setupMode,
+    this.scoreCategory,
   });
 
   final String classId;
   final List<Student> students;
   final bool setupMode;
+  final String? scoreCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -444,6 +411,8 @@ class _ClassroomMapPanel extends StatelessWidget {
         classId: classId,
         students: students,
         autoLoad: false,
+        premiumAppearance: true,
+        scoreCategory: scoreCategory,
         editRoomMode: setupMode,
         showToolbar: setupMode,
         showStudentPanel: setupMode,

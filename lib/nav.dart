@@ -7,7 +7,7 @@ import 'package:gradeflow/screens/class_list_screen.dart';
 import 'package:gradeflow/screens/class_detail_screen.dart';
 import 'package:gradeflow/screens/student_list_screen.dart';
 import 'package:gradeflow/screens/student_detail_screen.dart';
-import 'package:gradeflow/screens/gradebook_screen.dart';
+import 'package:gradeflow/screens/native_gradebook_screen.dart';
 import 'package:gradeflow/screens/category_management_screen.dart';
 import 'package:gradeflow/screens/exam_input_screen.dart';
 import 'package:gradeflow/screens/export_screen.dart';
@@ -180,13 +180,14 @@ class AppRouter {
       GoRoute(
         path: '${AppRoutes.osClass}/:classId/gradebook',
         name: 'osClassGradebook',
+        onExit: (context, state) => NativeGradebookScreen.canLeave(state.pathParameters['classId']!),
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
           return _osPage(
             state,
             surface: OSSurface.classWorkspace,
             classId: classId,
-            child: GradebookScreen(classId: classId),
+            child: NativeGradebookScreen(classId: classId),
           );
         },
       ),

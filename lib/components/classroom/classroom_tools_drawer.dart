@@ -240,6 +240,12 @@ class _TodaySection extends StatelessWidget {
           title: 'Today',
           subtitle: 'Live classroom status from the current room map.',
         ),
+        _ActionButton(
+          icon: Icons.casino_rounded,
+          label: 'Random student',
+          onPressed: onPickStudent,
+        ),
+        const SizedBox(height: 10),
         _MetricRow(
           items: [
             _MetricData('Students', '$studentCount'),
@@ -254,11 +260,6 @@ class _TodaySection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
-        _ActionButton(
-          icon: Icons.casino_rounded,
-          label: 'Random student',
-          onPressed: onPickStudent,
-        ),
         const SizedBox(height: 8),
         _InfoCard(
           icon: Icons.event_seat_outlined,

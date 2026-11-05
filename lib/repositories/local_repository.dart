@@ -71,6 +71,20 @@ class LocalRepository implements DataRepository {
     await Future.wait(_pendingWrites.toList());
   }
 
+  // A failed SharedPreferences write may already have changed its cache.
+  // Reload it before exposing failure so a retry cannot mistake cached data
+  // for a durably saved score.
+  Future<void> _saveAcademicString(SharedPreferences prefs, String key, String value) async {
+    try {
+      if (!await prefs.setString(key, value)) {
+        throw StateError('Gradebook storage rejected the write.');
+      }
+    } catch (_) {
+      try { await prefs.reload(); } catch (_) { /* Preserve the write error. */ }
+      rethrow;
+    }
+  }
+
   // Students
   @override
   Future<List<Student>> loadStudents(String classId) async {
@@ -173,7 +187,7 @@ class LocalRepository implements DataRepository {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
       final String data = json.encode(items.map((i) => i.toJson()).toList());
-      await prefs.setString('$_gradeItemsKeyPrefix$classId', data);
+      await _saveAcademicString(prefs, '$_gradeItemsKeyPrefix$classId', data);
     });
   }
 
@@ -212,7 +226,7 @@ class LocalRepository implements DataRepository {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
       final String data = json.encode(scores.map((s) => s.toJson()).toList());
-      await prefs.setString('$_scoresKeyPrefix${classId}_$gradeItemId', data);
+      await _saveAcademicString(prefs, '$_scoresKeyPrefix${classId}_$gradeItemId', data);
     });
   }
 
@@ -259,7 +273,7 @@ class LocalRepository implements DataRepository {
       if (list.length > maxEntries) {
         list = list.sublist(list.length - maxEntries);
       }
-      await prefs.setString(key, json.encode(list));
+      await _saveAcademicString(prefs, key, json.encode(list));
     });
   }
 
@@ -273,7 +287,7 @@ class LocalRepository implements DataRepository {
       List<Map<String, dynamic>> list =
           (json.decode(existing) as List).cast<Map<String, dynamic>>();
       list.removeWhere((e) => e['changeId'] == changeId);
-      await prefs.setString(key, json.encode(list));
+      await _saveAcademicString(prefs, key, json.encode(list));
     });
   }
 
@@ -306,7 +320,7 @@ class LocalRepository implements DataRepository {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
       final String data = json.encode(exams.map((e) => e.toJson()).toList());
-      await prefs.setString('$_examsKeyPrefix$classId', data);
+      await _saveAcademicString(prefs, '$_examsKeyPrefix$classId', data);
     });
   }
 
@@ -337,7 +351,7 @@ class LocalRepository implements DataRepository {
       final prefs = await SharedPreferences.getInstance();
       final String data =
           json.encode(categories.map((c) => c.toJson()).toList());
-      await prefs.setString('$_categoriesKeyPrefix$classId', data);
+      await _saveAcademicString(prefs, '$_categoriesKeyPrefix$classId', data);
     });
   }
 
