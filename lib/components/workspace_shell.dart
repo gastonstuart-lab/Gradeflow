@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/theme.dart';
@@ -370,7 +368,7 @@ class WorkspaceScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.floatingActionButtonLocation,
     this.maxContentWidth = 1480,
-    this.compactHeader = false,
+    this.compactHeader = true,
     this.header,
   });
 
@@ -416,32 +414,13 @@ class WorkspaceScaffold extends StatelessWidget {
                               : WorkspaceSpacing.lg,
                         ),
                       header ??
-                          WorkspaceSurfaceCard(
-                            padding: compactHeader
-                                ? WorkspaceSpacing.headerPaddingCompact
-                                : WorkspaceSpacing.headerPadding,
-                            radius: compactHeader
-                                ? WorkspaceRadius.cardCompact
-                                : WorkspaceRadius.feature,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (eyebrow != null &&
-                                    eyebrow!.trim().isNotEmpty) ...[
-                                  Text(
-                                    eyebrow!.toUpperCase(),
-                                    style: WorkspaceTypography.eyebrow(context),
-                                  ),
-                                  const SizedBox(height: WorkspaceSpacing.xs),
-                                ],
-                                _WorkspaceHeaderCopy(
+                          Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 8),
+                              child: _WorkspaceHeaderCopy(
                                   title: title,
                                   subtitle: subtitle,
-                                  compact: compactHeader,
-                                ),
-                              ],
-                            ),
-                          ),
+                                  compact: true)),
                       if (defaultContextBar != null || contextBar != null)
                         SizedBox(
                           height: compactHeader
@@ -484,90 +463,7 @@ class WorkspaceShellFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final border = WorkspaceChrome.shellBorderColor(context);
-    final base = theme.colorScheme.surface.withValues(
-      alpha: isDark ? 0.42 : 0.72,
-    );
-    final secondary = theme.colorScheme.surfaceContainerHighest.withValues(
-      alpha: isDark ? 0.36 : 0.58,
-    );
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: border),
-        boxShadow: WorkspaceChrome.shellShadow(context),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(
-            sigmaX: WorkspaceChrome.shellBlur,
-            sigmaY: WorkspaceChrome.shellBlur,
-          ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      base,
-                      secondary,
-                      base.withValues(alpha: isDark ? 0.48 : 0.80),
-                    ],
-                    stops: const [0.0, 0.58, 1.0],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: -48,
-                top: -62,
-                child: IgnorePointer(
-                  child: _WorkspaceGlowOrb(
-                    size: 164,
-                    color: theme.colorScheme.primary.withValues(
-                      alpha: isDark ? 0.14 : 0.10,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: -28,
-                bottom: -64,
-                child: IgnorePointer(
-                  child: _WorkspaceGlowOrb(
-                    size: 186,
-                    color: const Color(0xFF5EC7E6).withValues(
-                      alpha: isDark ? 0.10 : 0.07,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: IgnorePointer(
-                  child: Container(
-                    height: 1,
-                    color: WorkspaceChrome.glassHighlight(context, shell: true),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: padding,
-                child: child,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return Padding(padding: padding, child: child);
   }
 }
 
@@ -587,96 +483,17 @@ class WorkspaceSurfaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final surface = theme.colorScheme.surface.withValues(
-      alpha: isDark ? 0.50 : 0.78,
-    );
-    final elevated = theme.colorScheme.surfaceContainerHighest.withValues(
-      alpha: isDark ? 0.42 : 0.70,
-    );
-    final border = WorkspaceChrome.panelBorderColor(context);
-
-    final body = Padding(
-      padding: padding,
-      child: child,
-    );
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        boxShadow: WorkspaceChrome.panelShadow(context),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(
-            sigmaX: WorkspaceChrome.panelBlur,
-            sigmaY: WorkspaceChrome.panelBlur,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: border),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.lerp(surface, elevated, isDark ? 0.58 : 0.28)!,
-                  Color.lerp(
-                    surface,
-                    theme.colorScheme.primary.withValues(
-                      alpha: isDark ? 0.18 : 0.08,
-                    ),
-                    isDark ? 0.24 : 0.14,
-                  )!,
-                  surface,
-                ],
-                stops: const [0.0, 0.48, 1.0],
-              ),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: IgnorePointer(
-                    child: Container(
-                      height: 1,
-                      color: WorkspaceChrome.glassHighlight(context),
-                    ),
-                  ),
-                ),
-                Material(
-                  type: MaterialType.transparency,
-                  child: onTap == null
-                      ? body
-                      : InkWell(
-                          onTap: onTap,
-                          hoverColor: WorkspaceChrome.interactiveOverlay(
-                            context,
-                          ),
-                          focusColor: WorkspaceChrome.interactiveOverlay(
-                            context,
-                          ),
-                          highlightColor: WorkspaceChrome.interactiveOverlay(
-                            context,
-                            emphasis: 1.34,
-                          ),
-                          splashColor: WorkspaceChrome.interactiveOverlay(
-                            context,
-                            emphasis: 1.66,
-                          ),
-                          child: body,
-                        ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+        color: scheme.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius),
+            side: BorderSide(color: scheme.outline)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(radius),
+            child: Padding(padding: padding, child: child)));
   }
 }
 
@@ -760,31 +577,6 @@ class WorkspaceCommandBand extends StatelessWidget {
       padding: padding,
       emphasized: true,
       child: child,
-    );
-  }
-}
-
-class _WorkspaceGlowOrb extends StatelessWidget {
-  final double size;
-  final Color color;
-
-  const _WorkspaceGlowOrb({
-    required this.size,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ImageFiltered(
-      imageFilter: ui.ImageFilter.blur(sigmaX: 38, sigmaY: 38),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-        ),
-      ),
     );
   }
 }

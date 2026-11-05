@@ -10,10 +10,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:gradeflow/components/command_surface.dart';
+import 'package:gradeflow/config/instructos_design.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_controller.dart';
-import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/student_service.dart';
@@ -27,28 +26,13 @@ class ClassSurface extends StatefulWidget {
   State<ClassSurface> createState() => _ClassSurfaceState();
 }
 
-class _ClassSurfaceState extends State<ClassSurface>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
+class _ClassSurfaceState extends State<ClassSurface> {
   bool _hydrating = false;
   String? _lastHydrationUserId;
-
-  static const _tabDefs = [
-    _TabDef(icon: Icons.dashboard_outlined, label: 'Overview'),
-    _TabDef(icon: Icons.event_note_outlined, label: 'Schedule'),
-    _TabDef(icon: Icons.menu_book_rounded, label: 'Gradebook'),
-    _TabDef(icon: Icons.description_outlined, label: 'Exams'),
-    _TabDef(icon: Icons.assessment_outlined, label: 'Results'),
-    _TabDef(icon: Icons.meeting_room_rounded, label: 'Classroom'),
-    _TabDef(icon: Icons.event_seat_rounded, label: 'Seating'),
-    _TabDef(icon: Icons.people_rounded, label: 'Students'),
-    _TabDef(icon: Icons.picture_as_pdf_rounded, label: 'Export'),
-  ];
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: _tabDefs.length, vsync: this);
     _hydrating =
         context.read<ClassService>().getClassById(widget.classId) == null;
 
@@ -66,7 +50,6 @@ class _ClassSurfaceState extends State<ClassSurface>
   void didUpdateWidget(covariant ClassSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.classId != widget.classId) {
-      _tabs.index = 0;
       _lastHydrationUserId = null;
       setState(() {
         _hydrating =
@@ -92,12 +75,6 @@ class _ClassSurfaceState extends State<ClassSurface>
     if (_lastHydrationUserId == userId) return;
     _lastHydrationUserId = userId;
     _scheduleHydration();
-  }
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
   }
 
   void _scheduleHydration() {
@@ -137,1254 +114,189 @@ class _ClassSurfaceState extends State<ClassSurface>
     }
   }
 
-  void _goBackHome() {
-    context.read<GradeFlowOSController>().setSurface(OSSurface.home);
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AppRoutes.osHome);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final classService = context.watch<ClassService>();
-    final classModel = classService.classes
-        .where((c) => c.classId == widget.classId)
-        .firstOrNull;
-
-    if (classModel == null && _hydrating) {
-      return _ClassWorkspaceStatusScaffold(
-        title: 'Loading class workspace',
-        subtitle: 'Restoring the active class, roster, and quick-launch tools.',
-        loading: true,
-        onBack: _goBackHome,
-      );
-    }
-
-    if (classModel == null) {
-      return _ClassWorkspaceStatusScaffold(
-        title: 'Class not found',
-        subtitle:
-            'Return to the OS home surface and choose another class workspace.',
-        onBack: _goBackHome,
-      );
-    }
-
-    final className = classModel.className;
-    final subject = classModel.subject;
-
-    return Scaffold(
-      backgroundColor: OSColors.appBackground(dark),
-      body: SafeArea(
-        bottom: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isCompact = constraints.maxWidth < 980;
-            final hPad = isCompact ? 12.0 : 16.0;
-            final dockInset = MediaQuery.paddingOf(context).bottom;
-
-            return Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 0),
-                  child: _ClassWorkspaceHero(
-                    classId: widget.classId,
-                    className: className,
-                    subject: subject,
-                    schoolYear: classModel.schoolYear,
-                    term: classModel.term,
-                    compact: isCompact,
-                    onBack: _goBackHome,
-                    onOpenFullView: () {
-                      context.go('${AppRoutes.classDetail}/${widget.classId}');
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 8),
-                  child: _ClassWorkspaceTabBar(
-                    tabs: _tabDefs,
-                    controller: _tabs,
-                    dark: dark,
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: dockInset),
-                    child: TabBarView(
-                      controller: _tabs,
-                      children: [
-                        _ClassOverviewTab(
-                          classId: widget.classId,
-                          className: className,
-                          subject: subject,
-                        ),
-                        _ClassToolTab(
-                          icon: Icons.event_note_outlined,
-                          title: 'Schedule',
-                          description:
-                              'Manage class schedules, syllabus tables, and dated planning context.',
-                          action: 'Open Schedule',
-                          onTap: () => context.go(
-                            AppRoutes.osClassSchedule(widget.classId),
-                          ),
-                        ),
-                        _ClassToolTab(
-                          icon: Icons.menu_book_rounded,
-                          title: 'Gradebook',
-                          description:
-                              'Manage scores, grade items, and assessments.',
-                          action: 'Open Gradebook',
-                          onTap: () => context.go(
-                            AppRoutes.osClassGradebook(widget.classId),
-                          ),
-                        ),
-                        _ClassToolTab(
-                          icon: Icons.description_outlined,
-                          title: 'Exams',
-                          description:
-                              'Import, review, and correct exam scores for this class roster.',
-                          action: 'Open Exams',
-                          onTap: () => context.go(
-                            AppRoutes.osClassExams(widget.classId),
-                          ),
-                        ),
-                        _ClassToolTab(
-                          icon: Icons.assessment_outlined,
-                          title: 'Results',
-                          description:
-                              'Review process marks, exam scores, and final class outcomes.',
-                          action: 'Open Results',
-                          onTap: () => context.go(
-                            AppRoutes.osClassResults(widget.classId),
-                          ),
-                        ),
-                        _ClassToolTab(
-                          icon: Icons.meeting_room_rounded,
-                          title: 'Classroom',
-                          description:
-                              'Run the live class from the room map with a focused teacher tools drawer.',
-                          action: 'Open Classroom',
-                          onTap: () => context.go(
-                            AppRoutes.osClassroom(widget.classId),
-                          ),
-                        ),
-                        _ClassToolTab(
-                          icon: Icons.event_seat_rounded,
-                          title: 'Seating',
-                          description:
-                              'Keep the existing full seating setup available while Classroom is proven.',
-                          action: 'Open Seating',
-                          onTap: () => context.go(
-                            AppRoutes.osClassSeating(widget.classId),
-                          ),
-                        ),
-                        _ClassToolTab(
-                          icon: Icons.people_rounded,
-                          title: 'Students',
-                          description: 'View and manage student records.',
-                          action: 'Open Students',
-                          onTap: () => context.go(
-                            AppRoutes.osClassStudents(widget.classId),
-                          ),
-                        ),
-                        _ClassToolTab(
-                          icon: Icons.picture_as_pdf_rounded,
-                          title: 'Export',
-                          description:
-                              'Preview and download class reports as CSV, XLSX, or PDF.',
-                          action: 'Open Export',
-                          onTap: () => context.go(
-                            AppRoutes.osClassExport(widget.classId),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _ClassWorkspaceStatusScaffold extends StatelessWidget {
-  const _ClassWorkspaceStatusScaffold({
-    required this.title,
-    required this.subtitle,
-    required this.onBack,
-    this.loading = false,
-  });
-
-  final String title;
-  final String subtitle;
-  final VoidCallback onBack;
-  final bool loading;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-
-    return Scaffold(
-      backgroundColor: OSColors.appBackground(dark),
-      body: SafeArea(
-        bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: GradeFlowPanel(
-              variant: GradeFlowPanelVariant.stage,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (loading)
-                    const SizedBox.square(
-                      dimension: 34,
-                      child: CircularProgressIndicator(strokeWidth: 3),
-                    )
-                  else
-                    Icon(
-                      Icons.class_outlined,
-                      size: 42,
-                      color: OSColors.textSubtle(dark),
-                    ),
-                  const SizedBox(height: 16),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: OSColors.textPrimary(dark),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 1.35,
-                      color: OSColors.textSubtle(dark),
-                    ),
-                  ),
-                  if (!loading) ...[
-                    const SizedBox(height: 18),
-                    GradeFlowActionChip(
-                      label: 'Back to OS home',
-                      icon: Icons.arrow_back_rounded,
-                      onPressed: onBack,
-                      emphasized: true,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ClassWorkspaceHero extends StatelessWidget {
-  const _ClassWorkspaceHero({
-    required this.classId,
-    required this.className,
-    required this.subject,
-    required this.schoolYear,
-    required this.term,
-    required this.compact,
-    required this.onBack,
-    required this.onOpenFullView,
-  });
-
-  final String classId;
-  final String className;
-  final String subject;
-  final String schoolYear;
-  final String term;
-  final bool compact;
-  final VoidCallback onBack;
-  final VoidCallback onOpenFullView;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final studentCount = context
+    final service = context.watch<ClassService>();
+    final item = service.getClassById(widget.classId);
+    if (item == null)
+      return Scaffold(
+          body: SafeArea(
+              child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (_hydrating) const CircularProgressIndicator(),
+        const SizedBox(height: 16),
+        Text(_hydrating ? 'Loading class workspace' : 'Class not found'),
+        const SizedBox(height: 16),
+        TextButton(
+            onPressed: () => context.go(AppRoutes.osClasses),
+            child: const Text('Back to classes'))
+      ]))));
+    final count = context
         .watch<StudentService>()
         .students
-        .where((s) => s.classId == classId)
+        .where((s) => s.classId == widget.classId)
         .length;
-
-    return GradeFlowPanel(
-      variant: GradeFlowPanelVariant.stage,
-      padding: compact
-          ? const EdgeInsets.fromLTRB(14, 12, 14, 12)
-          : const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Classes / $className',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: OSColors.textSubtle(dark),
-                  ),
-                ),
-              ),
-              GradeFlowActionChip(
-                label: compact ? 'Full class' : 'View full class',
-                icon: Icons.open_in_new_rounded,
-                onPressed: onOpenFullView,
-              ),
-            ],
-          ),
-          SizedBox(height: compact ? 8 : 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconButton(
-                tooltip: 'Back to OS home',
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                iconSize: 18,
-                color: OSColors.textSubtle(dark),
-                style: IconButton.styleFrom(
-                  minimumSize: Size(compact ? 32 : 36, compact ? 32 : 36),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-              SizedBox(width: compact ? 6 : 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          className,
-                          style: TextStyle(
-                            fontSize: compact ? 30 : 42,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0,
-                            color: OSColors.textPrimary(dark),
-                          ),
-                        ),
-                        Text(
-                          subject,
-                          style: TextStyle(
-                            fontSize: compact ? 30 : 42,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0,
-                            color: OSColors.blueSoft,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: compact ? 6 : 8),
-                    Wrap(
-                      spacing: compact ? 10 : 14,
-                      runSpacing: compact ? 4 : 6,
-                      children: [
-                        if (schoolYear.trim().isNotEmpty)
-                          _MetaItem(label: schoolYear.trim()),
-                        if (term.trim().isNotEmpty)
-                          _MetaItem(label: term.trim()),
-                        if (!compact) const _MetaItem(label: 'Class workspace'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: compact ? 10 : 14),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                GradeFlowMetricPill(
-                  icon: Icons.people_alt_outlined,
-                  label: 'Students',
-                  value: '$studentCount',
-                  accent: OSColors.blue,
-                ),
-                const SizedBox(width: 10),
-                GradeFlowMetricPill(
-                  icon: Icons.calendar_today_outlined,
-                  label: 'Year',
-                  value: schoolYear.trim().isEmpty ? '-' : schoolYear.trim(),
-                  accent: OSColors.green,
-                ),
-                const SizedBox(width: 10),
-                GradeFlowMetricPill(
-                  icon: Icons.schedule_outlined,
-                  label: 'Section',
-                  value: term.trim().isEmpty ? '-' : term.trim(),
-                  accent: OSColors.cyan,
-                ),
-                const SizedBox(width: 10),
-                const GradeFlowMetricPill(
-                  icon: Icons.widgets_outlined,
-                  label: 'Tools',
-                  value: '8',
-                  accent: OSColors.indigo,
-                ),
-              ],
-            ),
-          ),
-        ],
+    final tools =
+        <({IconData icon, String label, String detail, String route})>[
+      (
+        icon: Icons.meeting_room_outlined,
+        label: 'Classroom',
+        detail: 'Room map, student picking and quick scores',
+        route: AppRoutes.osClassroom(widget.classId)
       ),
-    );
-  }
-}
-
-class _MetaItem extends StatelessWidget {
-  const _MetaItem({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final color = OSColors.textSubtle(dark);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.circle, size: 8, color: color.withValues(alpha: 0.9)),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TabDef {
-  const _TabDef({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-}
-
-double _classWorkspaceBottomPadding() {
-  return 24;
-}
-
-class _ClassWorkspaceTabBar extends StatelessWidget {
-  const _ClassWorkspaceTabBar({
-    required this.tabs,
-    required this.controller,
-    required this.dark,
-  });
-
-  final List<_TabDef> tabs;
-  final TabController controller;
-  final bool dark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        color:
-            OSColors.panelSurface(dark).withValues(alpha: dark ? 0.72 : 0.86),
-        borderRadius: OSRadius.xlBr,
-        border: Border.all(
-          color: OSColors.panelBorder(dark).withValues(alpha: dark ? 0.7 : 0.8),
-          width: 1,
-        ),
+      (
+        icon: Icons.menu_book_outlined,
+        label: 'Gradebook',
+        detail: 'Assessments, scores and Excel export',
+        route: AppRoutes.osClassGradebook(widget.classId)
       ),
-      child: TabBar(
-        controller: controller,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        dividerColor: Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        indicator: BoxDecoration(
-          color: OSColors.blue.withValues(alpha: dark ? 0.26 : 0.18),
-          borderRadius: OSRadius.lgBr,
-          border: Border.all(
-            color: OSColors.blue.withValues(alpha: dark ? 0.36 : 0.26),
-            width: 1,
-          ),
-        ),
-        labelColor: OSColors.textPrimary(dark),
-        unselectedLabelColor: OSColors.textSubtle(dark),
-        indicatorSize: TabBarIndicatorSize.tab,
-        labelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-        tabs: tabs
-            .map(
-              (t) => Tab(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(t.icon, size: 16),
-                    const SizedBox(width: 7),
-                    Text(t.label),
-                  ],
-                ),
-              ),
-            )
-            .toList(),
+      (
+        icon: Icons.people_outline,
+        label: 'Students',
+        detail: 'Roster and student records',
+        route: AppRoutes.osClassStudents(widget.classId)
       ),
-    );
-  }
-}
-
-class _ClassOverviewTab extends StatelessWidget {
-  const _ClassOverviewTab({
-    required this.classId,
-    required this.className,
-    required this.subject,
-  });
-
-  final String classId;
-  final String className;
-  final String subject;
-
-  String get _gradebookRoute => AppRoutes.osClassGradebook(classId);
-  String get _seatingRoute => AppRoutes.osClassSeating(classId);
-  String get _studentsRoute => AppRoutes.osClassStudents(classId);
-  String get _exportRoute => AppRoutes.osClassExport(classId);
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 1220;
-        final medium = constraints.maxWidth >= 900;
-        final pad = constraints.maxWidth < 860 ? 12.0 : 16.0;
-
-        final mainColumn = const _OverviewMainColumn();
-        final rail = _OverviewInsightRail(
-          className: className,
-          onGradebook: () => context.go(_gradebookRoute),
-          onSeating: () => context.go(_seatingRoute),
-          onStudents: () => context.go(_studentsRoute),
-          onExport: () => context.go(_exportRoute),
-        );
-
-        return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            pad,
-            2,
-            pad,
-            _classWorkspaceBottomPadding(),
-          ),
-          child: wide
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 8, child: mainColumn),
-                    const SizedBox(width: 14),
-                    Expanded(flex: 4, child: rail),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (medium)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(flex: 7, child: mainColumn),
-                          const SizedBox(width: 14),
-                          Expanded(flex: 5, child: rail),
-                        ],
-                      )
-                    else ...[
-                      mainColumn,
-                      const SizedBox(height: 12),
-                      rail,
-                    ],
-                  ],
-                ),
-        );
-      },
-    );
-  }
-}
-
-class _OverviewMainColumn extends StatelessWidget {
-  const _OverviewMainColumn();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Column(
-      children: [
-        _LessonFlowPanel(),
-        SizedBox(height: 12),
-        _UpcomingTasksPanel(),
-        SizedBox(height: 12),
-        _LiveActivityPanel(),
-      ],
-    );
-  }
-}
-
-class _LessonFlowPanel extends StatelessWidget {
-  const _LessonFlowPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    const rows = [
-      _FlowRow('10:00 AM', 'Do now', 'Quick check-in and review of homework',
-          '10 min', 'Now'),
-      _FlowRow('10:10 AM', 'Lesson', 'Linear equations in two variables',
-          '20 min', 'In progress'),
-      _FlowRow('10:30 AM', 'Guided practice',
-          'Work through examples as a class', '15 min', 'Upcoming'),
-      _FlowRow('10:45 AM', 'Independent practice',
-          'Problem set: apply and solve', '15 min', 'Upcoming'),
-      _FlowRow('11:00 AM', 'Wrap up', 'Exit ticket and key takeaways', '10 min',
-          'Upcoming'),
+      (
+        icon: Icons.event_note_outlined,
+        label: 'Class plan',
+        detail: 'Schedule and syllabus',
+        route: AppRoutes.osClassSchedule(widget.classId)
+      ),
+      (
+        icon: Icons.description_outlined,
+        label: 'Exams',
+        detail: 'Review and enter exam scores',
+        route: AppRoutes.osClassExams(widget.classId)
+      ),
+      (
+        icon: Icons.assessment_outlined,
+        label: 'Results',
+        detail: 'Review calculated class outcomes',
+        route: AppRoutes.osClassResults(widget.classId)
+      ),
+      (
+        icon: Icons.download_outlined,
+        label: 'Reports & export',
+        detail: 'Prepare files and printable reports',
+        route: AppRoutes.osClassExport(widget.classId)
+      ),
+      (
+        icon: Icons.tune_outlined,
+        label: 'Grading settings',
+        detail: 'Review categories and weights',
+        route: AppRoutes.osClassCategories(widget.classId)
+      ),
     ];
-
-    return GradeFlowPanel(
-      variant: GradeFlowPanelVariant.tool,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const GradeFlowSectionHeader(
-            title: 'Today\'s lesson flow',
-            subtitle: '10:00 AM - 60 min lesson',
-          ),
-          const SizedBox(height: 10),
-          for (final row in rows) ...[
-            _TimelineRow(row: row),
-            if (row != rows.last) const SizedBox(height: 8),
-          ],
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Classroom sequence is ready',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: OSColors.textSubtle(dark),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FlowRow {
-  const _FlowRow(
-      this.time, this.title, this.detail, this.duration, this.status);
-
-  final String time;
-  final String title;
-  final String detail;
-  final String duration;
-  final String status;
-}
-
-class _TimelineRow extends StatelessWidget {
-  const _TimelineRow({required this.row});
-
-  final _FlowRow row;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final statusColor = switch (row.status) {
-      'Now' => OSColors.amber,
-      'In progress' => OSColors.blue,
-      _ => OSColors.textFaint(dark),
-    };
-
-    return GradeFlowPanel(
-      variant: GradeFlowPanelVariant.whisper,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 92,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  row.time,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: OSColors.textPrimary(dark),
-                  ),
-                ),
-                Text(
-                  row.duration,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: OSColors.textSubtle(dark),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  row.title,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.4,
-                    color: OSColors.textPrimary(dark),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  row.detail,
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.35,
-                    color: OSColors.textSubtle(dark),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: dark ? 0.2 : 0.14),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: statusColor.withValues(alpha: dark ? 0.35 : 0.24),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              row.status,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: statusColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UpcomingTasksPanel extends StatelessWidget {
-  const _UpcomingTasksPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    const rows = [
-      _TaskRow('Quiz 6: Systems of Equations', 'Due May 2, 11:59 PM',
-          '18 / 28 submitted', OSColors.indigo),
-      _TaskRow('Problem Set 6.2', 'Due May 7, 11:59 PM', 'Not started',
-          OSColors.green),
-      _TaskRow(
-          'Unit 6 Test', 'May 14, 10:00 AM', 'Not started', OSColors.coral),
-    ];
-
-    return GradeFlowPanel(
-      variant: GradeFlowPanelVariant.tool,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const GradeFlowSectionHeader(title: 'Upcoming tasks'),
-          const SizedBox(height: 10),
-          for (final row in rows) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              decoration: BoxDecoration(
-                color: OSColors.panelSurface(dark)
-                    .withValues(alpha: dark ? 0.52 : 0.82),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: OSColors.panelBorder(dark).withValues(alpha: 0.7),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: row.color.withValues(alpha: dark ? 0.25 : 0.18),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.assignment_outlined,
-                        size: 16, color: row.color),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          row.title,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: OSColors.textPrimary(dark),
-                          ),
-                        ),
-                        Text(
-                          row.subtitle,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: OSColors.textSubtle(dark),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    row.status,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: OSColors.textSubtle(dark),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (row != rows.last) const SizedBox(height: 8),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _TaskRow {
-  const _TaskRow(this.title, this.subtitle, this.status, this.color);
-
-  final String title;
-  final String subtitle;
-  final String status;
-  final Color color;
-}
-
-class _LiveActivityPanel extends StatelessWidget {
-  const _LiveActivityPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-
-    const rows = [
-      'Jayden C. submitted Quiz 5',
-      'Ava L. answered Q4 correctly',
-      '5 students need help on Q3',
-    ];
-
-    return GradeFlowPanel(
-      variant: GradeFlowPanelVariant.tool,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const GradeFlowSectionHeader(title: 'Live class activity'),
-          const SizedBox(height: 10),
-          for (final row in rows) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              decoration: BoxDecoration(
-                color: OSColors.panelSurface(dark)
-                    .withValues(alpha: dark ? 0.52 : 0.82),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: OSColors.panelBorder(dark).withValues(alpha: 0.7),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.circle, size: 8, color: OSColors.green),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      row,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: OSColors.textPrimary(dark),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Now',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: OSColors.textSubtle(dark),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (row != rows.last) const SizedBox(height: 8),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _OverviewInsightRail extends StatelessWidget {
-  const _OverviewInsightRail({
-    required this.className,
-    required this.onGradebook,
-    required this.onSeating,
-    required this.onStudents,
-    required this.onExport,
-  });
-
-  final String className;
-  final VoidCallback onGradebook;
-  final VoidCallback onSeating;
-  final VoidCallback onStudents;
-  final VoidCallback onExport;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-
-    return Column(
-      children: [
-        GradeFlowPanel(
-          variant: GradeFlowPanelVariant.tool,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              GradeFlowSectionHeader(title: 'Class health'),
-              SizedBox(height: 12),
-              _HealthRow(label: 'Engagement', value: 0.78),
-              SizedBox(height: 8),
-              _HealthRow(label: 'Assignment completion', value: 0.82),
-              SizedBox(height: 8),
-              _HealthRow(label: 'On-track', value: 0.86),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        GradeFlowPanel(
-          variant: GradeFlowPanelVariant.tool,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              GradeFlowSectionHeader(title: 'Notices'),
-              SizedBox(height: 10),
-              _NoticeCard(
-                icon: Icons.info_outline,
-                iconColor: OSColors.blue,
-                title: 'Midterm review sessions',
-                detail: 'May 6 and May 7 after school in Room 204.',
-              ),
-              SizedBox(height: 8),
-              _NoticeCard(
-                icon: Icons.warning_amber_rounded,
-                iconColor: OSColors.amber,
-                title: 'Unit 6 Test',
-                detail: 'May 14 at 10:00 AM. Calculator permitted.',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        GradeFlowPanel(
-          variant: GradeFlowPanelVariant.tool,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const GradeFlowSectionHeader(title: 'Quick launch'),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  GradeFlowActionChip(
-                    label: 'Gradebook',
-                    icon: Icons.menu_book_rounded,
-                    onPressed: onGradebook,
-                    emphasized: true,
-                  ),
-                  GradeFlowActionChip(
-                    label: 'Seating',
-                    icon: Icons.event_seat_rounded,
-                    onPressed: onSeating,
-                  ),
-                  GradeFlowActionChip(
-                    label: 'Students',
-                    icon: Icons.people_rounded,
-                    onPressed: onStudents,
-                  ),
-                  GradeFlowActionChip(
-                    label: 'Export',
-                    icon: Icons.file_download_outlined,
-                    onPressed: onExport,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$className workspace tools are one tap away.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: OSColors.textSubtle(dark),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HealthRow extends StatelessWidget {
-  const _HealthRow({required this.label, required this.value});
-
-  final String label;
-  final double value;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final pct = (value * 100).round();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: OSColors.textPrimary(dark),
-                ),
-              ),
-            ),
-            Text(
-              '$pct%',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: OSColors.textSubtle(dark),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            minHeight: 6,
-            value: value,
-            backgroundColor:
-                OSColors.panelBorder(dark).withValues(alpha: dark ? 0.35 : 0.5),
-            valueColor: const AlwaysStoppedAnimation<Color>(OSColors.green),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _NoticeCard extends StatelessWidget {
-  const _NoticeCard({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.detail,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color:
-            OSColors.panelSurface(dark).withValues(alpha: dark ? 0.52 : 0.82),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: OSColors.panelBorder(dark).withValues(alpha: 0.7),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: iconColor, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: OSColors.textPrimary(dark),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  detail,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.3,
-                    color: OSColors.textSubtle(dark),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ClassToolTab extends StatelessWidget {
-  const _ClassToolTab({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.action,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String description;
-  final String action;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bottomPadding = _classWorkspaceBottomPadding();
-        final minHeight = constraints.maxHeight > bottomPadding + 24
-            ? constraints.maxHeight - bottomPadding - 24
-            : 0.0;
-
-        return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(24, 24, 24, bottomPadding),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: minHeight),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: OSColors.blue.withValues(alpha: 0.12),
-                      borderRadius: OSRadius.lgBr,
-                    ),
-                    child: Icon(icon, color: OSColors.blue, size: 30),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: OSColors.text(dark),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    description,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: OSColors.textSecondary(dark),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    onPressed: onTap,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: OSColors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 12,
-                      ),
-                      shape: const StadiumBorder(),
-                    ),
-                    child: Text(
-                      action,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
+    return Scaffold(
+        backgroundColor: InstructOSDesign.background(context),
+        body: SafeArea(
+            child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Center(
+                    child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1200),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                      gradient: InstructOSDesign.header,
+                                      borderRadius: BorderRadius.circular(24)),
+                                  child: Row(children: [
+                                    IconButton(
+                                        tooltip: 'Back to classes',
+                                        onPressed: () =>
+                                            context.go(AppRoutes.osClasses),
+                                        icon: const Icon(Icons.arrow_back,
+                                            color: Colors.white)),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                          Text(item.className,
+                                              style: const TextStyle(
+                                                  fontSize: 28,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Colors.white)),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                              '${item.subject} · ${item.schoolYear} ${item.term} · $count students',
+                                              style: const TextStyle(
+                                                  color: Colors.white70))
+                                        ]))
+                                  ])),
+                              const SizedBox(height: 24),
+                              Text('What do you need for this class?',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 16),
+                              LayoutBuilder(builder: (context, size) {
+                                final columns = size.maxWidth < 650
+                                    ? 1
+                                    : size.maxWidth < 1000
+                                        ? 2
+                                        : 3;
+                                return Wrap(
+                                    spacing: 16,
+                                    runSpacing: 16,
+                                    children: [
+                                      for (final tool in tools)
+                                        SizedBox(
+                                            width: (size.maxWidth -
+                                                    16 * (columns - 1)) /
+                                                columns,
+                                            child: Card(
+                                                child: InkWell(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            20),
+                                                    onTap: () =>
+                                                        context.go(tool.route),
+                                                    child: Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .all(22),
+                                                        child: Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Icon(tool.icon,
+                                                                  color: Theme.of(
+                                                                          context)
+                                                                      .colorScheme
+                                                                      .primary,
+                                                                  size: 27),
+                                                              const SizedBox(
+                                                                  height: 18),
+                                                              Text(tool.label,
+                                                                  style: Theme.of(
+                                                                          context)
+                                                                      .textTheme
+                                                                      .titleMedium
+                                                                      ?.copyWith(
+                                                                          fontWeight:
+                                                                              FontWeight.w700)),
+                                                              const SizedBox(
+                                                                  height: 6),
+                                                              Text(tool.detail,
+                                                                  style: TextStyle(
+                                                                      color: Theme.of(
+                                                                              context)
+                                                                          .colorScheme
+                                                                          .onSurfaceVariant,
+                                                                      height:
+                                                                          1.4)),
+                                                              const SizedBox(
+                                                                  height: 8)
+                                                            ])))))
+                                    ]);
+                              }),
+                            ]))))));
   }
 }

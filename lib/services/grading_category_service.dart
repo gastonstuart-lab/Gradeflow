@@ -13,7 +13,7 @@ class GradingCategoryService extends ChangeNotifier {
   Future<void> loadCategories(String classId) async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
       final repo = RepositoryFactory.instance;
       final all = await repo.loadCategories(classId);
@@ -39,7 +39,8 @@ class GradingCategoryService extends ChangeNotifier {
 
   Future<void> updateCategory(GradingCategory updatedCategory) async {
     try {
-      final localIndex = _categories.indexWhere((c) => c.categoryId == updatedCategory.categoryId);
+      final localIndex = _categories
+          .indexWhere((c) => c.categoryId == updatedCategory.categoryId);
       if (localIndex == -1) return;
       _categories[localIndex] = updatedCategory;
       final repo = RepositoryFactory.instance;
@@ -55,7 +56,8 @@ class GradingCategoryService extends ChangeNotifier {
       final idx = _categories.indexWhere((c) => c.categoryId == categoryId);
       if (idx == -1) return;
       final classId = _categories[idx].classId;
-      final updated = _categories[idx].copyWith(isActive: false, updatedAt: DateTime.now());
+      final updated =
+          _categories[idx].copyWith(isActive: false, updatedAt: DateTime.now());
       _categories[idx] = updated;
       final repo = RepositoryFactory.instance;
       await repo.saveCategories(classId, _categories);
@@ -67,7 +69,9 @@ class GradingCategoryService extends ChangeNotifier {
   }
 
   double getTotalWeight(String classId) {
-    return _categories.where((c) => c.classId == classId && c.isActive).fold(0.0, (sum, c) => sum + c.weightPercent);
+    return _categories
+        .where((c) => c.classId == classId && c.isActive)
+        .fold(0.0, (sum, c) => sum + c.weightPercent);
   }
 
   bool isWeightValid(String classId) {
@@ -76,14 +80,16 @@ class GradingCategoryService extends ChangeNotifier {
   }
 
   Future<void> autoFixWeights(String classId) async {
-    final activeCategories = _categories.where((c) => c.classId == classId && c.isActive).toList();
-    
+    final activeCategories =
+        _categories.where((c) => c.classId == classId && c.isActive).toList();
+
     if (activeCategories.isEmpty) return;
-    
+
     final equalWeight = 100.0 / activeCategories.length;
-    
+
     for (var category in activeCategories) {
-      final updated = category.copyWith(weightPercent: equalWeight, updatedAt: DateTime.now());
+      final updated = category.copyWith(
+          weightPercent: equalWeight, updatedAt: DateTime.now());
       await updateCategory(updated);
     }
   }
@@ -99,7 +105,7 @@ class GradingCategoryService extends ChangeNotifier {
             categoryId: const Uuid().v4(),
             classId: classId,
             name: 'Participation',
-            weightPercent: 25.0,
+            weightPercent: 20.0,
             aggregationMethod: AggregationMethod.average,
             isActive: true,
             createdAt: now,
@@ -109,7 +115,7 @@ class GradingCategoryService extends ChangeNotifier {
             categoryId: const Uuid().v4(),
             classId: classId,
             name: 'Homework',
-            weightPercent: 25.0,
+            weightPercent: 30.0,
             aggregationMethod: AggregationMethod.average,
             isActive: true,
             createdAt: now,
@@ -119,7 +125,7 @@ class GradingCategoryService extends ChangeNotifier {
             categoryId: const Uuid().v4(),
             classId: classId,
             name: 'Classwork',
-            weightPercent: 25.0,
+            weightPercent: 20.0,
             aggregationMethod: AggregationMethod.average,
             isActive: true,
             createdAt: now,
@@ -129,14 +135,14 @@ class GradingCategoryService extends ChangeNotifier {
             categoryId: const Uuid().v4(),
             classId: classId,
             name: 'Quiz',
-            weightPercent: 25.0,
+            weightPercent: 30.0,
             aggregationMethod: AggregationMethod.average,
             isActive: true,
             createdAt: now,
             updatedAt: now,
           ),
         ];
-        
+
         await repo.saveCategories(classId, defaultCategories);
         debugPrint('Default categories seeded for class $classId');
       }

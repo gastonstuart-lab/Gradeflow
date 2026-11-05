@@ -840,7 +840,7 @@ class _KnowledgeHubHeader extends StatelessWidget {
                 height: 26,
                 child: CircularProgressIndicator.adaptive(),
               )
-            : const _SecurePrivatePill();
+            : const _ImportReviewPill();
 
         if (compact) {
           return Column(
@@ -1643,14 +1643,14 @@ class _HubIconBadge extends StatelessWidget {
   }
 }
 
-class _SecurePrivatePill extends StatelessWidget {
-  const _SecurePrivatePill();
+class _ImportReviewPill extends StatelessWidget {
+  const _ImportReviewPill();
 
   @override
   Widget build(BuildContext context) {
     return _SmallOutlinedPill(
       icon: Icons.lock_outline_rounded,
-      label: 'Secure & private',
+      label: 'Review before import',
       accent: Theme.of(context).colorScheme.primary,
     );
   }

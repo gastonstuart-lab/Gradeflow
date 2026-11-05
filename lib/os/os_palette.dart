@@ -1,4 +1,4 @@
-﻿/// GradeFlow OS - Design Tokens
+/// GradeFlow OS - Design Tokens
 ///
 /// Centralized colors, spacing, motion, and radius values for the OS shell
 /// layer. Surface-level screens (HomeSurface, ClassSurface, TeachSurface)
@@ -12,14 +12,14 @@ class OSColors {
   OSColors._();
 
   // Backgrounds
-  static const Color darkBg = Color(0xFF090E16);
+  static const Color darkBg = Color(0xFF07131F);
   static const Color darkBgAlt = Color(0xFF0D1320);
   static const Color darkSurface = Color(0xFF111827);
   static const Color darkSurfaceAlt = Color(0xFF151F2E);
   static const Color darkSurfaceElevated = Color(0xFF1C2436);
   static const Color darkPanel = Color(0xFF1A2130);
 
-  static const Color lightBg = Color(0xFFF0F4FA);
+  static const Color lightBg = Color(0xFFF0F5FA);
   static const Color lightBgAlt = Color(0xFFE8EEF7);
   static const Color lightSurface = Color(0xFFFFFFFF);
   static const Color lightSurfaceAlt = Color(0xFFF5F8FC);
@@ -40,9 +40,9 @@ class OSColors {
   static const Color lightBorder = Color(0xFFD8E2EE);
 
   // Accents
-  static const Color blue = Color(0xFF5C8AFF);
-  static const Color blueSoft = Color(0xFF8DB2FF);
-  static const Color indigo = Color(0xFF7869F0);
+  static const Color blue = Color(0xFF187F79);
+  static const Color blueSoft = Color(0xFF82D5CC);
+  static const Color indigo = Color(0xFF173B63);
   static const Color amber = Color(0xFFF4B45F);
   static const Color green = Color(0xFF58C78B);
   static const Color coral = Color(0xFFEF7E67);
@@ -51,7 +51,7 @@ class OSColors {
   // Status
   static const Color urgent = Color(0xFFEF5350);
   static const Color attention = Color(0xFFF4B45F);
-  static const Color info = Color(0xFF5C8AFF);
+  static const Color info = Color(0xFF187F79);
   static const Color success = Color(0xFF58C78B);
 
   // Dock
@@ -154,4 +154,3 @@ class OSRadius {
 extension OSBrightnessX on BuildContext {
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 }
-

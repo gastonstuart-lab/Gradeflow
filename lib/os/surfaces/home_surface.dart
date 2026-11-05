@@ -359,10 +359,13 @@ class _HomeSurfaceState extends State<HomeSurface> {
             reminders: reminders,
             remindersAvailable: snapshot != null,
             studentCounts: _classStudentCounts,
-            loading: !auth.isInitialized || auth.isLoading ||
-                shell.isWorkspaceLoading || classService.isLoading,
+            loading: !auth.isInitialized ||
+                auth.isLoading ||
+                shell.isWorkspaceLoading ||
+                classService.isLoading,
             onSelectClass: (id) => setState(() => _selectedHomeClassId = id),
-            onMoreHomeTools: () => setState(() => _showExistingHomeTools = true),
+            onMoreHomeTools: () =>
+                setState(() => _showExistingHomeTools = true),
             onToggleTheme: toggleTheme,
             onAttention: controller.openShade,
             onAssistant: controller.openAssistant,
@@ -375,7 +378,8 @@ class _HomeSurfaceState extends State<HomeSurface> {
       preset: _readabilityPreset,
       child: Scaffold(
         appBar: AppBar(
-          leading: BackButton(onPressed: () => setState(() => _showExistingHomeTools = false)),
+          leading: BackButton(
+              onPressed: () => setState(() => _showExistingHomeTools = false)),
           title: const Text('Home tools'),
         ),
         backgroundColor: OSColors.bg(context.isDark),
@@ -678,9 +682,7 @@ class _HomeDesktopLayoutState extends State<_HomeDesktopLayout> {
                       : Icons.tune_rounded,
                 ),
                 label: Text(
-                  _secondaryToolsOpen
-                      ? 'Hide Home tools'
-                      : 'More Home tools',
+                  _secondaryToolsOpen ? 'Hide Home tools' : 'More Home tools',
                 ),
               ),
               if (_secondaryToolsOpen) ...[
@@ -2957,137 +2959,38 @@ class _WeatherDetailGrid extends StatelessWidget {
 
 class _MessagesMiniAppContent extends StatelessWidget {
   const _MessagesMiniAppContent({required this.unread});
-
   final int unread;
-
   @override
   Widget build(BuildContext context) {
-    final dark = context.isDark;
-    final conversations = [
-      (
-        sender: unread == 0 ? 'Staff room' : 'Unread channels',
-        snippet: unread == 0
-            ? 'Recent class and staff threads are ready.'
-            : '$unread conversation${unread == 1 ? '' : 's'} waiting for review.',
-        status: unread == 0 ? 'quiet' : 'now',
-        accent: OSColors.cyan,
-        unread: unread > 0,
-      ),
-      (
-        sender: 'Class channels',
-        snippet: 'Families, students, and staff threads.',
-        status: 'live',
-        accent: OSColors.blue,
-        unread: false,
-      ),
-      (
-        sender: 'Announcements',
-        snippet: 'School-wide updates and broadcast notes.',
-        status: 'school',
-        accent: OSColors.indigo,
-        unread: false,
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth > 560;
-        final list = Column(
-          children: [
-            _MiniSearchField(label: 'Search conversations'),
-            const SizedBox(height: 10),
-            for (int index = 0; index < conversations.length; index++) ...[
-              _FolderMessagePreview(
-                sender: conversations[index].sender,
-                snippet: conversations[index].snippet,
-                status: conversations[index].status,
-                unread: conversations[index].unread,
-                accent: conversations[index].accent,
-                onTap: () {},
-              ),
-              if (index != conversations.length - 1) const SizedBox(height: 8),
-            ],
-          ],
-        );
-
-        final thread = Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: dark
-                ? Colors.white.withValues(alpha: 0.032)
-                : Colors.white.withValues(alpha: 0.58),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: dark
-                  ? Colors.white.withValues(alpha: 0.055)
-                  : Colors.white.withValues(alpha: 0.68),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  _MiniAvatar(label: unread == 0 ? 'S' : 'U'),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      unread == 0 ? 'Staff room' : 'Unread channels',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: OSColors.text(dark),
-                      ),
-                    ),
-                  ),
-                  _StatusPill(
-                    label: unread == 0 ? 'quiet' : '$unread unread',
-                    accent: unread == 0 ? OSColors.green : OSColors.urgent,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _MessageBubble(
-                text: unread == 0
-                    ? 'No urgent messages are waiting right now.'
-                    : 'There are updates waiting for review before your next handoff.',
-                incoming: true,
-              ),
-              const SizedBox(height: 8),
-              const _MessageBubble(
-                text: 'Class channels are ready for a quick scan from Home.',
-                incoming: true,
-              ),
-              const SizedBox(height: 8),
-              const _MessageBubble(
-                text:
-                    'Open full messages when you need to reply or manage channels.',
-                incoming: false,
-              ),
-              const SizedBox(height: 8),
-              const _MessageBubble(
-                text: 'This quick view keeps the lesson surface open.',
-                incoming: true,
-              ),
-              const SizedBox(height: 12),
-              _MiniInputBar(label: 'Reply from full Messages'),
-            ],
-          ),
-        );
-
-        if (!wide) {
-          return Column(children: [list, const SizedBox(height: 12), thread]);
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(width: 250, child: list),
-            const SizedBox(width: 12),
-            Expanded(child: thread),
-          ],
-        );
-      },
-    );
+    final service = context.watch<CommunicationService>();
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('$unread unread updates',
+          style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: 12),
+      if (service.isLoading)
+        const LinearProgressIndicator()
+      else if (service.channels.isEmpty)
+        const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Text('No message channels are available in this workspace.'))
+      else
+        for (final channel in service.channels.take(5))
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(channel.name),
+              subtitle: Text(channel.lastMessagePreview ?? channel.description,
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                service.selectChannel(channel.channelId);
+                context.go(AppRoutes.communication);
+              }),
+      const SizedBox(height: 12),
+      FilledButton.icon(
+          onPressed: () => context.go(AppRoutes.communication),
+          icon: const Icon(Icons.forum_outlined),
+          label: const Text('Open Messages')),
+    ]);
   }
 }
 
@@ -3280,73 +3183,6 @@ class _FocusAudioMiniAppContent extends StatelessWidget {
   }
 }
 
-class _MiniSearchField extends StatelessWidget {
-  const _MiniSearchField({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: dark
-            ? Colors.white.withValues(alpha: 0.035)
-            : Colors.white.withValues(alpha: 0.62),
-        borderRadius: OSRadius.pillBr,
-        border: Border.all(
-          color: dark
-              ? Colors.white.withValues(alpha: 0.055)
-              : Colors.white.withValues(alpha: 0.72),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.search_rounded, size: 16, color: OSColors.textMuted(dark)),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(fontSize: 12, color: OSColors.textMuted(dark)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniAvatar extends StatelessWidget {
-  const _MiniAvatar({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 34,
-      height: 34,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [
-            OSColors.cyan.withValues(alpha: 0.44),
-            OSColors.indigo.withValues(alpha: 0.24),
-          ],
-        ),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w900,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-}
-
 class _StatusPill extends StatelessWidget {
   const _StatusPill({required this.label, required this.accent});
 
@@ -3370,48 +3206,6 @@ class _StatusPill extends StatelessWidget {
           fontSize: 10.5,
           fontWeight: FontWeight.w900,
           color: accent,
-        ),
-      ),
-    );
-  }
-}
-
-class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.text, required this.incoming});
-
-  final String text;
-  final bool incoming;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return Align(
-      alignment: incoming ? Alignment.centerLeft : Alignment.centerRight,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 420),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: BoxDecoration(
-          color: incoming
-              ? (dark
-                  ? Colors.white.withValues(alpha: 0.050)
-                  : Colors.white.withValues(alpha: 0.72))
-              : OSColors.cyan.withValues(alpha: dark ? 0.18 : 0.12),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: incoming
-                ? (dark
-                    ? Colors.white.withValues(alpha: 0.060)
-                    : Colors.white.withValues(alpha: 0.80))
-                : OSColors.cyan.withValues(alpha: 0.20),
-          ),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 12.5,
-            height: 1.35,
-            color: OSColors.text(dark),
-          ),
         ),
       ),
     );
@@ -4561,9 +4355,7 @@ class _HomeStackedLayoutState extends State<_HomeStackedLayout> {
                   : Icons.tune_rounded,
             ),
             label: Text(
-              _secondaryToolsOpen
-                  ? 'Hide Home tools'
-                  : 'More Home tools',
+              _secondaryToolsOpen ? 'Hide Home tools' : 'More Home tools',
             ),
           ),
         ),

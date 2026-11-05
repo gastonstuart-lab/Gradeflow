@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/config/instructos_branding.dart';
+import 'package:gradeflow/config/instructos_design.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/widgets/branding/instructos_interactive_auth_background.dart';
 
@@ -60,7 +61,9 @@ class _GradeFlowLaunchGateState extends State<GradeFlowLaunchGate> {
 
     return SizedBox.expand(
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 620),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 240),
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         child: _completed
@@ -83,62 +86,31 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: const Color(0xFF050912),
-      body: InstructOSInteractiveAuthBackground(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 640;
-            final edgePadding = compact ? 20.0 : 32.0;
-
-            return SingleChildScrollView(
-              padding: EdgeInsets.all(edgePadding),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: (constraints.maxHeight - (edgePadding * 2)).clamp(
-                    0,
-                    double.infinity,
-                  ),
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 430),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          InstructOSBranding.productName,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Teaching, organised.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color:
-                                const Color(0xFFD7DDF1).withValues(alpha: 0.72),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        const _LaunchPulseDot(),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
+        backgroundColor: InstructOSDesign.background(context),
+        body: InstructOSInteractiveAuthBackground(
+            child: Center(
+                child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      const InstructOSBrandMark(size: 64),
+                      const SizedBox(height: 24),
+                      Text(InstructOSBranding.productName,
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.w800, letterSpacing: -1)),
+                      const SizedBox(height: 8),
+                      Text('Teaching, organised.',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant)),
+                      const SizedBox(height: 32),
+                      const _LaunchPulseDot(),
+                      const SizedBox(height: 14),
+                      Semantics(
+                          liveRegion: true,
+                          child: Text('Opening your workspace',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant))),
+                    ])))));
   }
 }
 
@@ -157,6 +129,17 @@ class _LaunchPulseDotState extends State<_LaunchPulseDot>
   )..repeat(reverse: true);
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = 1;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -173,10 +156,11 @@ class _LaunchPulseDotState extends State<_LaunchPulseDot>
         height: 7,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFFB8C3FF).withValues(alpha: 0.90),
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.90),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF8B5CF6).withValues(alpha: 0.34),
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.24),
               blurRadius: 16,
               spreadRadius: 3,
             ),

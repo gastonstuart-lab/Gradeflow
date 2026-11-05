@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:gradeflow/nav.dart';
+import 'package:gradeflow/config/instructos_design.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
 import 'package:gradeflow/components/home/teacher_home_clock.dart';
@@ -65,13 +68,12 @@ class ApprovedTeacherHome extends StatelessWidget {
       teacherName: teacherName,
       now: now,
       header: _header(context),
-      dayPlan: _dayPlan(context),
       classCard: _classCard(context),
       shortcuts: _destinations(context),
       calendar: _calendar(context, now),
       reminders: _reminders(context),
       footer: Text(
-        'Calendar shows the local date · Timetable and lesson continuation are not connected to Home',
+        'Your selected class stays in focus as you move between teaching tools.',
         style: TextStyle(fontSize: 12, color: _subtle(context)),
       ),
     );
@@ -83,17 +85,7 @@ class ApprovedTeacherHome extends StatelessWidget {
             ? const Color(0xff0d1d2c)
             : Colors.white.withValues(alpha: .9),
         child: Row(children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [Color(0xff1769ce), Color(0xff158d8a)]),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child:
-                const Icon(Icons.layers_rounded, color: Colors.white, size: 23),
-          ),
+          const InstructOSBrandMark(size: 40),
           const SizedBox(width: 10),
           Expanded(
               child: Column(
@@ -138,103 +130,6 @@ class ApprovedTeacherHome extends StatelessWidget {
             const SizedBox(width: 12),
             TeacherHomeClock(color: _text(context)),
           ],
-        ]),
-      );
-
-  Widget _dayPlan(BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        decoration: BoxDecoration(
-          color: _dark(context)
-              ? const Color(0xff0d1d2c)
-              : Colors.white.withValues(alpha: .9),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: _line(context)),
-          boxShadow: [
-            BoxShadow(
-                color: _dark(context)
-                    ? Colors.black.withValues(alpha: .20)
-                    : const Color(0x0c284d78),
-                blurRadius: 20,
-                offset: const Offset(0, 7))
-          ],
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const Icon(Icons.calendar_view_day_rounded,
-                size: 18, color: Color(0xff148c8a)),
-            const SizedBox(width: 8),
-            Text('Day plan',
-                style: TextStyle(
-                    color: _text(context),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15))
-          ]),
-          const SizedBox(height: 10),
-          LayoutBuilder(builder: (context, size) {
-            final items = [
-              _planTile(
-                  context,
-                  'Selected class',
-                  loading
-                      ? 'Loading teaching context…'
-                      : primaryClass?.className ?? 'No class selected',
-                  'Your selected teaching class',
-                  active: true),
-              _planTile(context, 'Timetable', 'Unavailable on Home',
-                  'No timetable connected to Home'),
-              _planTile(context, 'Next lesson', 'Unavailable on Home',
-                  'No next-class timing connected'),
-            ];
-            if (size.maxWidth < 760) {
-              return Column(children: [
-                for (var i = 0; i < items.length; i++) ...[
-                  items[i],
-                  if (i < items.length - 1) const SizedBox(height: 8)
-                ]
-              ]);
-            }
-            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              for (var i = 0; i < items.length; i++) ...[
-                Expanded(child: items[i]),
-                if (i < items.length - 1) const SizedBox(width: 8)
-              ]
-            ]);
-          }),
-        ]),
-      );
-
-  Widget _planTile(
-          BuildContext context, String label, String title, String detail,
-          {bool active = false}) =>
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: _dark(context)
-              ? (active ? const Color(0xff102f4c) : const Color(0xff122536))
-              : (active ? const Color(0xffedf6ff) : const Color(0xfff7f9fc)),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-              color: active ? const Color(0xffbed9f3) : _line(context)),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: TextStyle(
-                  color: active ? const Color(0xff4da3ff) : _subtle(context),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
-                  letterSpacing: -.25)),
-          const SizedBox(height: 7),
-          Text(title,
-              style: TextStyle(
-                  color: _text(context),
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800)),
-          const SizedBox(height: 2),
-          Text(detail,
-              style: TextStyle(
-                  color: _subtle(context), fontSize: 10.5, height: 1.25)),
         ]),
       );
 
@@ -284,7 +179,7 @@ class ApprovedTeacherHome extends StatelessWidget {
                                   size: 112, color: Colors.white)),
                         ]))))),
         Padding(
-            padding: const EdgeInsets.all(34),
+            padding: const EdgeInsets.all(26),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               SizedBox(
@@ -312,7 +207,7 @@ class ApprovedTeacherHome extends StatelessWidget {
                       ? 'Loading your classes…'
                       : item?.className ?? 'No class selected',
                   style: const TextStyle(
-                      fontSize: 48,
+                      fontSize: 42,
                       height: 1,
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -326,22 +221,22 @@ class ApprovedTeacherHome extends StatelessWidget {
                       fontSize: 15.5,
                       fontWeight: FontWeight.w600,
                       color: Color(0xffd6e6ef))),
-              const SizedBox(height: 28),
-              const Text('Lesson continuation',
+              const SizedBox(height: 20),
+              const Text('Ready for class',
                   style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 17,
                       color: Colors.white)),
               const SizedBox(height: 8),
               const Text(
-                  'Not connected on Home. Open Classroom to use the existing teaching workspace.',
+                  'Open your room map to pick students, check work and enter scores.',
                   style: TextStyle(
                       height: 1.55, fontSize: 15.5, color: Color(0xffe0edf3))),
               const SizedBox(height: 22),
               Text(
                   '${classes.length} active class${classes.length == 1 ? '' : 'es'}',
                   style: const TextStyle(color: Color(0xffd6e6ef))),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
               Wrap(spacing: 10, runSpacing: 10, children: [
                 FilledButton.icon(
                   style: FilledButton.styleFrom(
@@ -382,6 +277,8 @@ class ApprovedTeacherHome extends StatelessWidget {
         style: const TextStyle(color: Colors.white, fontSize: 13),
         decoration: const InputDecoration(
           labelText: 'Selected class',
+          filled: true,
+          fillColor: Color(0xff123f57),
           labelStyle: TextStyle(color: Color(0xffd6e6ef)),
           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           isDense: true,
@@ -414,10 +311,10 @@ class ApprovedTeacherHome extends StatelessWidget {
                 'Your planning workspace', onOpenPlanner),
             _quickTool(context, Icons.meeting_room_rounded, 'Classroom',
                 'Open the selected class', loading ? null : onOpenClassroom),
-            _quickTool(context, Icons.hub_rounded, 'IED Studio',
-                'Open connected destination', onOpenIedStudio),
-            _quickTool(context, Icons.science_rounded, 'Science',
-                'Open connected destination', onOpenScience),
+            _quickTool(context, Icons.open_in_new_rounded, 'IED Studio',
+                'Open external resource', onOpenIedStudio),
+            _quickTool(context, Icons.open_in_new_rounded, 'Science',
+                'Open external resource', onOpenScience),
           ];
           final columns = size.maxWidth < 520
               ? 1
@@ -490,13 +387,16 @@ class ApprovedTeacherHome extends StatelessWidget {
         title: 'Calendar',
         child: Column(children: [
           Row(children: [
-            const IconButton(onPressed: null, icon: Icon(Icons.chevron_left)),
+            const SizedBox(width: 44),
             Expanded(
                 child: Text('${_months[now.month - 1]} ${now.year}',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         color: _text(context), fontWeight: FontWeight.w600))),
-            const IconButton(onPressed: null, icon: Icon(Icons.chevron_right))
+            IconButton(
+                tooltip: 'Open Planner',
+                onPressed: onOpenPlanner,
+                icon: const Icon(Icons.open_in_new, size: 18))
           ]),
           Row(children: [
             for (final day in ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
@@ -514,7 +414,7 @@ class ApprovedTeacherHome extends StatelessWidget {
                         context, row * 7 + col - offset + 1, count, now.day))
             ]),
           const SizedBox(height: 12),
-          Text('Local date only · No calendar synchronization',
+          Text('Open Planner for events and reminders',
               textAlign: TextAlign.center,
               style: TextStyle(color: _subtle(context), fontSize: 11.5)),
         ]));
@@ -522,15 +422,29 @@ class ApprovedTeacherHome extends StatelessWidget {
 
   Widget _day(BuildContext context, int day, int count, int today) {
     if (day < 1 || day > count) return const SizedBox(height: 40);
-    return Container(
-        height: 40,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-            color: day == today ? const Color(0xff1769ce) : null,
-            borderRadius: BorderRadius.circular(999)),
-        child: Text('$day',
-            style: TextStyle(
-                color: day == today ? Colors.white : _text(context))));
+    final now = DateTime.now();
+    final date =
+        DateTime(now.year, now.month, day).toIso8601String().split('T').first;
+    return Semantics(
+        key: ValueKey('home-planner-date-$date'),
+        label: 'Open Planner for $date',
+        button: true,
+        child: Material(
+            color: day == today
+                ? Theme.of(context).colorScheme.primary
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => context.go('${AppRoutes.osPlanner}?date=$date'),
+                child: SizedBox(
+                    height: 44,
+                    child: Center(
+                        child: Text('$day',
+                            style: TextStyle(
+                                color: day == today
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : _text(context))))))));
   }
 
   Widget _reminders(BuildContext context) => TeacherHomeCard(
@@ -549,18 +463,13 @@ class ApprovedTeacherHome extends StatelessWidget {
                 child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.check_box_outline_blank, size: 20),
+                      const Icon(Icons.notes_outlined, size: 20),
                       const SizedBox(width: 12),
                       Expanded(child: Text(reminder.text))
                     ])),
         const SizedBox(height: 12),
-        InputDecorator(
-            decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                enabled: false,
-                prefixIcon: Icon(Icons.lock_outline_rounded)),
-            child: Text('Reminder editing is unavailable on Home',
-                style: TextStyle(color: _subtle(context), fontSize: 12))),
+        Text('Manage your reminders in Planner.',
+            style: TextStyle(color: _subtle(context), fontSize: 13)),
         const SizedBox(height: 10),
         Align(
             alignment: Alignment.centerRight,

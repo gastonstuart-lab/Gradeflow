@@ -83,7 +83,7 @@ void main() {
   });
 
   testWidgets(
-      'approved Home discloses unavailable capabilities without preview fixtures or editors',
+      'approved Home uses actual context without unsupported lesson placeholders',
       (tester) async {
     size(tester);
     await tester.pumpWidget(MaterialApp(
@@ -98,11 +98,11 @@ void main() {
           onOpenClassroom: () {},
           onOpenPlanner: () {},
         ))));
-    expect(find.text('Unavailable on Home'), findsNWidgets(2));
+    expect(find.text('Unavailable on Home'), findsNothing);
+    expect(find.text('0 active classes'), findsOneWidget);
     expect(find.text('Reminders unavailable'), findsOneWidget);
     expect(find.text('No pending reminders loaded'), findsNothing);
-    expect(find.text('Local date only · No calendar synchronization'),
-        findsOneWidget);
+    expect(find.text('Open Planner for events and reminders'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
     expect(find.textContaining('10:10'), findsNothing);
     expect(find.textContaining('J2 Science'), findsNothing);
@@ -153,5 +153,36 @@ void main() {
     ));
     expect(button.onPressed, isNull);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('Home calendar opens Planner on the day the teacher selected',
+      (tester) async {
+    size(tester);
+    final now = DateTime.now();
+    final date =
+        DateTime(now.year, now.month, 15).toIso8601String().split('T').first;
+    final router = GoRouter(initialLocation: '/home-test', routes: [
+      GoRoute(
+          path: '/home-test',
+          builder: (_, __) => const Scaffold(
+              body: TeacherHomeIntegrationPanel(
+                  approvedAppearance: true,
+                  primaryClass: null,
+                  classes: [],
+                  primaryReminder: null))),
+      GoRoute(
+          path: AppRoutes.osPlanner,
+          builder: (_, state) => Scaffold(
+              body:
+                  Text('Selected date: ${state.uri.queryParameters['date']}'))),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+        MaterialApp.router(theme: lightTheme, routerConfig: router));
+    await tester.pumpAndSettle();
+    final day = find.byKey(ValueKey('home-planner-date-$date'));
+    await tester.ensureVisible(day);
+    await tester.tap(day);
+    await tester.pumpAndSettle();
+    expect(find.text('Selected date: $date'), findsOneWidget);
   });
 }

@@ -243,14 +243,6 @@ class _ClassDetailScreenState extends State<ClassDetailScreen> {
 
       await scoreService.loadScores(widget.classId, gradeItemIds);
       await examService.loadExams(widget.classId, studentIds);
-
-      if (scoreService.scores.isEmpty && gradeItemIds.isNotEmpty) {
-        await scoreService.seedDemoScores(
-            widget.classId, studentIds, gradeItemIds);
-        await examService.seedDemoExams(widget.classId, studentIds);
-        await scoreService.loadScores(widget.classId, gradeItemIds);
-        await examService.loadExams(widget.classId, studentIds);
-      }
     }
   }
 

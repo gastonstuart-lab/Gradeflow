@@ -85,7 +85,7 @@ class AppProviders extends StatelessWidget {
 class ThemeModeNotifier extends ChangeNotifier {
   static const String _prefsKey = 'theme_mode_v1';
 
-  ThemeMode _themeMode = ThemeMode.dark;
+  ThemeMode _themeMode = ThemeMode.light;
 
   ThemeMode get themeMode => _themeMode;
 
@@ -102,11 +102,11 @@ class ThemeModeNotifier extends ChangeNotifier {
       } else if (saved == 'dark') {
         _themeMode = ThemeMode.dark;
       } else {
-        _themeMode = ThemeMode.dark;
+        _themeMode = ThemeMode.light;
       }
       notifyListeners();
     } catch (_) {
-      // Fall back to dark mode if preferences are unavailable.
+      // Fall back to light mode if preferences are unavailable.
     }
   }
 

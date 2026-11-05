@@ -211,17 +211,20 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
     final workspace = _workspaceSnapshot;
 
     return WorkspaceScaffold(
-      header: _buildAdminHeader(
-        context,
-        workspace: workspace,
-        trashCount: classTrash.trash.length,
-      ),
       eyebrow: 'Support surface',
       title: 'School support',
-      subtitle:
-          'Recovery, alerts, and connected environment health for the wider teacher OS.',
-      leadingActions: const [],
+      subtitle: 'School notices and class recovery.',
+      leadingActions: [
+        IconButton(
+            tooltip: 'Back to Home',
+            onPressed: () => context.go(AppRoutes.osHome),
+            icon: const Icon(Icons.arrow_back_rounded))
+      ],
       trailingActions: [
+        OutlinedButton.icon(
+            onPressed: () => context.go(AppRoutes.classTrash),
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: const Text('Class recycle bin')),
         IconButton(
           tooltip: themeMode == ThemeMode.dark
               ? 'Switch app theme'
@@ -246,65 +249,6 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
         context,
         communicationService: communicationService,
       ),
-    );
-  }
-
-  Widget _buildAdminHeader(
-    BuildContext context, {
-    required TeacherWorkspaceSnapshot? workspace,
-    required int trashCount,
-  }) {
-    return CommandHeader(
-      eyebrow: 'Support surface',
-      title: 'School support',
-      subtitle:
-          'Recovery, alerts, and connected environment health for the wider teacher OS.',
-      leading: IconButton(
-        tooltip: 'Back to OS home',
-        onPressed: () => context.go(AppRoutes.osHome),
-        icon: const Icon(Icons.arrow_back_rounded),
-        style: WorkspaceButtonStyles.icon(context),
-      ),
-      primaryAction: FilledButton.icon(
-        onPressed: () => context.go(AppRoutes.classTrash),
-        icon: const Icon(Icons.delete_outline_rounded),
-        label: const Text('Open recycle bin'),
-        style: WorkspaceButtonStyles.filled(context),
-      ),
-      contextPills: [
-        WorkspaceContextPill(
-          icon: Icons.class_outlined,
-          label: 'Active classes',
-          value: workspace == null ? '--' : '${workspace.activeClasses.length}',
-          emphasized: workspace != null && workspace.activeClasses.isNotEmpty,
-        ),
-        WorkspaceContextPill(
-          icon: Icons.inventory_2_outlined,
-          label: 'Archived',
-          value:
-              workspace == null ? '--' : '${workspace.archivedClasses.length}',
-          accent: Theme.of(context).colorScheme.secondary,
-        ),
-        WorkspaceContextPill(
-          icon: Icons.delete_outline_rounded,
-          label: 'Recycle bin',
-          value: '$trashCount',
-          accent: Theme.of(context).colorScheme.tertiary,
-          emphasized: trashCount > 0,
-        ),
-        WorkspaceContextPill(
-          icon: RepositoryFactory.isUsingFirestore
-              ? Icons.cloud_done_outlined
-              : Icons.offline_bolt_outlined,
-          label: 'Source',
-          value: RepositoryFactory.sourceOfTruthLabel,
-          accent: RepositoryFactory.isUsingFirestore
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.secondary,
-        ),
-      ],
-      pulseTone: CommandPulseTone.attention,
-      pulseLabel: 'Recovery and support alerts live',
     );
   }
 
@@ -435,35 +379,6 @@ class _AdminWorkspaceScreenState extends State<AdminWorkspaceScreen> {
                       ],
                     );
                   },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          CommandSurfaceCard(
-            surfaceType: SurfaceType.whisper,
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                WorkspaceSectionHeader(
-                  title: 'Support posture',
-                  subtitle:
-                      'The core support lane is live, with the next tightening step centered on permissions and shared communication depth.',
-                ),
-                SizedBox(height: 14),
-                _AdminStatusRow(
-                  icon: Icons.hub_outlined,
-                  title: 'Shared communication is now anchored',
-                  subtitle:
-                      'Alerts and staff channels now sit inside a dedicated support surface instead of scattered admin utilities.',
-                ),
-                SizedBox(height: 12),
-                _AdminStatusRow(
-                  icon: Icons.verified_user_outlined,
-                  title: 'Role-aware access is the next quality gate',
-                  subtitle:
-                      'Admin, department lead, and teacher roles should shape visibility as shared communication continues to mature.',
                 ),
               ],
             ),

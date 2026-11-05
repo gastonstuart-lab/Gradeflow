@@ -132,10 +132,12 @@ class GradeFlowMetricPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: OSColors.panelSurface(dark).withValues(alpha: dark ? 0.54 : 0.84),
+        color:
+            OSColors.panelSurface(dark).withValues(alpha: dark ? 0.54 : 0.84),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: OSColors.panelBorder(dark).withValues(alpha: dark ? 0.75 : 0.8),
+          color:
+              OSColors.panelBorder(dark).withValues(alpha: dark ? 0.75 : 0.8),
           width: 1,
         ),
       ),
@@ -594,135 +596,39 @@ _CommandSurfaceSpec _resolveCommandSurfaceSpec(
   required bool pressed,
 }) {
   final theme = Theme.of(context);
-  final isDark = context.isDark;
-  final primary = theme.colorScheme.primary;
-  final surface = OSColors.panelSurface(isDark);
-  final elevated = OSColors.elevatedPanelSurface(isDark);
-
-  switch (type) {
-    case SurfaceType.stage:
-      return _CommandSurfaceSpec(
-        padding: const EdgeInsets.all(24),
-        radius: 30,
-        blur: 16,
-        fillColor: surface.withValues(alpha: isDark ? 0.58 : 0.88),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(
-              surface.withValues(alpha: isDark ? 0.62 : 0.92),
-              elevated.withValues(alpha: isDark ? 0.54 : 0.84),
-              0.46,
-            )!,
-            Color.lerp(
-              surface.withValues(alpha: isDark ? 0.60 : 0.90),
-              primary.withValues(alpha: isDark ? 0.18 : 0.10),
-              0.28,
-            )!,
-            surface.withValues(alpha: isDark ? 0.56 : 0.84),
-          ],
-          stops: const [0.0, 0.52, 1.0],
-        ),
-        borderColor: WorkspaceChrome.panelBorderColor(context, emphasis: 1.2),
-        shadows: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withValues(
-              alpha: isDark ? 0.26 : 0.10,
-            ),
-            blurRadius: hovered ? 34 : 28,
-            offset: Offset(0, hovered ? 22 : 18),
-          ),
-          BoxShadow(
-            color: primary.withValues(alpha: isDark ? 0.12 : 0.06),
-            blurRadius: hovered ? 18 : 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-        overlayColor: primary.withValues(alpha: 0.08),
-        topHighlightAlpha: isDark ? 0.10 : 0.68,
-        translateY: pressed
-            ? -1
-            : hovered
-                ? -3
-                : 0,
-        scale: pressed ? 0.996 : 1,
-        contentSpacing: 18,
-      );
-    case SurfaceType.tool:
-      return _CommandSurfaceSpec(
-        padding: const EdgeInsets.all(18),
-        radius: 24,
-        blur: 10,
-        fillColor: surface.withValues(alpha: isDark ? 0.46 : 0.78),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(
-              surface.withValues(alpha: isDark ? 0.48 : 0.82),
-              elevated.withValues(alpha: isDark ? 0.40 : 0.72),
-              0.24,
-            )!,
-            Color.lerp(
-              surface.withValues(alpha: isDark ? 0.44 : 0.78),
-              primary.withValues(alpha: isDark ? 0.10 : 0.05),
-              0.20,
-            )!,
-            surface.withValues(alpha: isDark ? 0.42 : 0.72),
-          ],
-          stops: const [0.0, 0.5, 1.0],
-        ),
-        borderColor: WorkspaceChrome.panelBorderColor(context, emphasis: 0.94),
-        shadows: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withValues(
-              alpha: isDark ? 0.17 : 0.07,
-            ),
-            blurRadius: hovered ? 24 : 20,
-            offset: Offset(0, hovered ? 16 : 12),
-          ),
-        ],
-        overlayColor: primary.withValues(alpha: 0.07),
-        topHighlightAlpha: isDark ? 0.07 : 0.52,
-        translateY: pressed
-            ? -1
-            : hovered
-                ? -2
-                : 0,
-        scale: pressed ? 0.994 : 1,
-        contentSpacing: 14,
-      );
-    case SurfaceType.whisper:
-      return _CommandSurfaceSpec(
-        padding: const EdgeInsets.all(14),
-        radius: 20,
-        blur: 0,
-        fillColor: Color.lerp(
-          surface.withValues(alpha: isDark ? 0.26 : 0.62),
-          elevated.withValues(alpha: isDark ? 0.16 : 0.38),
-          0.22,
-        )!,
-        gradient: null,
-        borderColor: WorkspaceChrome.panelBorderColor(context, emphasis: 0.66),
-        shadows: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withValues(
-              alpha: isDark ? 0.08 : 0.025,
-            ),
-            blurRadius: hovered ? 12 : 8,
-            offset: Offset(0, hovered ? 8 : 5),
-          ),
-        ],
-        overlayColor: primary.withValues(alpha: 0.05),
-        topHighlightAlpha: 0,
-        translateY: pressed
-            ? 0
-            : hovered
-                ? -1
-                : 0,
-        scale: pressed ? 0.998 : 1,
-        contentSpacing: 12,
-      );
-  }
+  final stage = type == SurfaceType.stage;
+  final whisper = type == SurfaceType.whisper;
+  // One opaque surface treatment across teaching and support pages. Avoid
+  // blurred layers and moving cards while teachers read or enter information.
+  return _CommandSurfaceSpec(
+    padding: EdgeInsets.all(stage
+        ? 24
+        : whisper
+            ? 14
+            : 18),
+    radius: 20,
+    blur: 0,
+    fillColor: theme.colorScheme.surface,
+    gradient: null,
+    borderColor: hovered
+        ? theme.colorScheme.primary.withValues(alpha: .45)
+        : theme.colorScheme.outlineVariant,
+    shadows: stage
+        ? [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: .035),
+                blurRadius: 18,
+                offset: const Offset(0, 5))
+          ]
+        : const [],
+    overlayColor: theme.colorScheme.primary.withValues(alpha: .07),
+    topHighlightAlpha: 0,
+    translateY: 0,
+    scale: 1,
+    contentSpacing: stage
+        ? 18
+        : whisper
+            ? 12
+            : 14,
+  );
 }

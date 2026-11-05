@@ -132,7 +132,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Secure & private'), findsOneWidget);
+    expect(find.text('Review before import'), findsOneWidget);
     expect(find.text('Add school data'), findsOneWidget);
     expect(
       find.text(

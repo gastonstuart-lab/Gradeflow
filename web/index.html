@@ -19,17 +19,17 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Professional workflow operating system for teachers.">
-  <meta name="theme-color" content="#050912">
-  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#f0f5fa">
+  <meta name="color-scheme" content="light dark">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="InstructOS">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/svg+xml" href="icons/instructos-mark.svg"/>
 
   <!-- Google Sign-In (optional but recommended for Flutter web) -->
   <!-- Set this to your OAuth Web client ID from Google Cloud Console -->
@@ -37,125 +37,54 @@
 
   <title>InstructOS</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // Match the saved appearance before Flutter draws its first frame.
+    try {
+      const saved = JSON.parse(localStorage.getItem('flutter.theme_mode_v1') || '"light"');
+      if (saved === 'dark') {
+        document.documentElement.dataset.theme = 'dark';
+        document.querySelector('meta[name="theme-color"]').content = '#07131f';
+      }
+    } catch (_) {}
+  </script>
   <style>
-    :root {
-      color-scheme: dark;
-      --gf-bg: #050912;
-      --gf-bg-soft: #090b16;
-      --gf-text: #f5f7fb;
-      --gf-muted: rgba(245, 247, 251, 0.72);
-      --gf-accent: #8b5cf6;
-    }
-
-    html,
-    body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      background:
-        radial-gradient(circle at 24% 38%, rgba(255, 62, 165, 0.16), transparent 32%),
-        radial-gradient(circle at 72% 52%, rgba(34, 211, 238, 0.13), transparent 34%),
-        radial-gradient(circle at 50% 88%, rgba(139, 92, 246, 0.14), transparent 38%),
-        linear-gradient(140deg, #050711 0%, #0a1023 56%, var(--gf-bg-soft) 100%);
-      color: var(--gf-text);
-    }
-
-    body {
-      overflow: hidden;
-      font-family: "Segoe UI", "SF Pro Display", system-ui, sans-serif;
-    }
-
-    body.gradeflow-ready {
-      overflow: auto;
-    }
-
-    #gradeflow-loader {
-      position: fixed;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      background:
-        radial-gradient(circle at 24% 38%, rgba(255, 62, 165, 0.16), transparent 32%),
-        radial-gradient(circle at 72% 52%, rgba(34, 211, 238, 0.13), transparent 34%),
-        radial-gradient(circle at 50% 88%, rgba(139, 92, 246, 0.14), transparent 38%),
-        linear-gradient(140deg, #050711 0%, #0a1023 56%, var(--gf-bg-soft) 100%);
-      opacity: 1;
-      visibility: visible;
-      transition: opacity 360ms ease, visibility 360ms ease;
-      z-index: 9999;
-    }
-
-    #gradeflow-loader.is-hidden {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
-
-    .gf-loader-shell {
-      position: relative;
-      width: min(100%, 430px);
-      text-align: center;
-    }
-
-    .gf-loader-head {
-      display: grid;
-      justify-items: center;
-      gap: 6px;
-    }
-
-    .gf-loader-title {
-      margin: 0;
-      font-size: clamp(1.5rem, 4vw, 1.65rem);
-      font-weight: 900;
-      letter-spacing: 0;
-      line-height: 1.1;
-    }
-
-    .gf-loader-copy {
-      margin: 0 auto;
-      color: var(--gf-muted);
-      line-height: 1.4;
-      font-size: 0.95rem;
-      font-weight: 600;
-    }
-
-    .gf-loader-dot {
-      width: 7px;
-      height: 7px;
-      margin: 24px auto 0;
-      border-radius: 999px;
-      background: rgba(184, 195, 255, 0.9);
-      box-shadow: 0 0 18px rgba(139, 92, 246, 0.42);
-      animation: instructos-pulse 1.5s ease-in-out infinite alternate;
-    }
-
-    @keyframes instructos-pulse {
-      from {
-        opacity: 0.36;
-        transform: scale(0.86);
-      }
-      to {
-        opacity: 0.88;
-        transform: scale(1);
-      }
-    }
+    :root {color-scheme:light;--canvas:#f0f5fa;--ink:#173b63;--muted:#586f82;--teal:#187f79;--wash:#eaf5f2;}
+    :root[data-theme="dark"] {color-scheme:dark;--canvas:#07131f;--ink:#e8f2f7;--muted:#a8bdcb;--teal:#82d5cc;--wash:#102c32;}
+    html,body{width:100%;height:100%;margin:0;background:var(--canvas);color:var(--ink);}
+    body{overflow:hidden;font-family:Roboto,"Segoe UI",system-ui,sans-serif;}
+    body.gradeflow-ready{overflow:auto;}
+    #gradeflow-loader{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:linear-gradient(140deg,var(--canvas),var(--wash));z-index:9999;transition:opacity 240ms ease,visibility 240ms ease;}
+    #gradeflow-loader.is-hidden{opacity:0;visibility:hidden;pointer-events:none;}
+    .gf-loader-shell{width:min(100%,430px);text-align:center;}
+    .gf-loader-mark{display:block;width:64px;height:64px;margin:0 auto 24px;}
+    .gf-loader-title{margin:0;font-size:2rem;font-weight:800;letter-spacing:-1px;line-height:1.15;}
+    .gf-loader-copy{margin:8px 0 0;color:var(--muted);font-size:1rem;line-height:1.5;}
+    .gf-loader-status{margin:14px 0 0;color:var(--muted);font-size:.8rem;}
+    .gf-loader-dot{height:7px;width:7px;margin:32px auto 0;border-radius:50%;background:var(--teal);animation:instructos-pulse 1.5s ease-in-out infinite alternate;}
+    .gf-loader-retry{margin-top:16px;padding:12px 20px;border:0;border-radius:14px;background:#187f79;color:white;font:inherit;cursor:pointer;}
+    .gf-loader-retry:focus-visible{outline:3px solid var(--teal);outline-offset:4px;}
+    @keyframes instructos-pulse{from{opacity:.36}to{opacity:.88}}
+    @media(prefers-reduced-motion:reduce){.gf-loader-dot{animation:none}#gradeflow-loader{transition:none}}
   </style>
 </head>
 <body>
-  <div id="gradeflow-loader" aria-hidden="true">
+  <div id="gradeflow-loader" role="status" aria-live="polite">
     <div class="gf-loader-shell">
-      <div class="gf-loader-head">
-        <h1 class="gf-loader-title">InstructOS</h1>
-        <p class="gf-loader-copy">Teaching, organised.</p>
-      </div>
-      <div class="gf-loader-dot"></div>
+      <img class="gf-loader-mark" src="icons/instructos-mark.svg" alt="">
+      <h1 class="gf-loader-title">InstructOS</h1>
+      <p class="gf-loader-copy">Teaching, organised.</p>
+      <div class="gf-loader-dot" aria-hidden="true"></div>
+      <p class="gf-loader-status">Opening your workspace</p>
+      <p id="loader-help" class="gf-loader-status" hidden>Taking longer than usual. Check your connection and try again.</p>
+      <button id="loader-retry" class="gf-loader-retry" hidden>Try again</button>
     </div>
   </div>
   <script>
     (function () {
       const loader = document.getElementById('gradeflow-loader');
       let removed = false;
+      document.getElementById('loader-retry').addEventListener('click', () => window.location.reload());
+      window.setTimeout(() => { if (!removed) { document.getElementById('loader-help').hidden = false; document.getElementById('loader-retry').hidden = false; } }, 15000);
 
       function removeLoader() {
         if (!loader || removed) {
