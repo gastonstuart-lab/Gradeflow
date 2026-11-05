@@ -7,7 +7,7 @@ import 'package:gradeflow/screens/class_list_screen.dart';
 import 'package:gradeflow/screens/class_detail_screen.dart';
 import 'package:gradeflow/screens/student_list_screen.dart';
 import 'package:gradeflow/screens/student_detail_screen.dart';
-import 'package:gradeflow/screens/gradebook_screen.dart';
+import 'package:gradeflow/screens/native_gradebook_screen.dart';
 import 'package:gradeflow/screens/category_management_screen.dart';
 import 'package:gradeflow/screens/exam_input_screen.dart';
 import 'package:gradeflow/screens/export_screen.dart';
@@ -29,6 +29,7 @@ import 'package:gradeflow/os/gradeflow_os_shell.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/surfaces/home_surface.dart';
 import 'package:gradeflow/os/surfaces/planner_surface.dart';
+import 'package:gradeflow/os/surfaces/class_directory_surface.dart';
 import 'package:gradeflow/os/surfaces/class_surface.dart';
 import 'package:gradeflow/os/surfaces/classroom_surface.dart';
 import 'package:gradeflow/os/surfaces/teach_surface.dart';
@@ -72,6 +73,8 @@ class AppRouter {
       return null;
     },
     routes: [
+      GoRoute(path:AppRoutes.osClasses,name:'osClasses',pageBuilder:(context,state)=>_osPage(state,surface:OSSurface.classWorkspace,child:const ClassDirectorySurface())),
+
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
@@ -180,13 +183,14 @@ class AppRouter {
       GoRoute(
         path: '${AppRoutes.osClass}/:classId/gradebook',
         name: 'osClassGradebook',
+        onExit: (context, state) => NativeGradebookScreen.canLeave(state.pathParameters['classId']!),
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
           return _osPage(
             state,
             surface: OSSurface.classWorkspace,
             classId: classId,
-            child: GradebookScreen(classId: classId),
+            child: NativeGradebookScreen(classId: classId),
           );
         },
       ),
@@ -437,6 +441,7 @@ class AppRoutes {
   // GradeFlow OS surfaces
   static const String osHome = '/os/home';
   static const String osPlanner = '/os/planner';
+  static const String osClasses = '/os/classes';
   static const String osInbox = '/os/inbox';
   static const String osClass = '/os/class';
   static const String osTeach = '/os/teach';

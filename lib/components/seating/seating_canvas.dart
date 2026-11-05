@@ -1,3 +1,4 @@
+import 'package:gradeflow/components/classroom/classroom_materials.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:gradeflow/models/seating_layout.dart';
@@ -14,6 +15,9 @@ class SeatingCanvas extends StatelessWidget {
   final bool designMode;
   final bool interactive;
   final bool presentationMode;
+  final bool premiumAppearance;
+  final String? highlightedStudentId;
+  final String? highlightedTableId;
   final bool showFrontMarker;
   final void Function(String tableId, Offset delta)? onMoveTable;
   final void Function(String tableId)? onRemoveTable;
@@ -35,6 +39,9 @@ class SeatingCanvas extends StatelessWidget {
     required this.designMode,
     required this.interactive,
     required this.presentationMode,
+    this.premiumAppearance = false,
+    this.highlightedStudentId,
+    this.highlightedTableId,
     this.showFrontMarker = true,
     this.onMoveTable,
     this.onRemoveTable,
@@ -63,6 +70,7 @@ class SeatingCanvas extends StatelessWidget {
           height: boundary.height,
           child: Stack(
             children: [
+              if (premiumAppearance) Positioned.fill(child:IgnorePointer(child:CustomPaint(painter:ClassroomFloorPainter(Theme.of(context).brightness==Brightness.dark)))),
               if (showFrontMarker) _FrontMarker(width: boundary.width),
               if (layout.tables.isEmpty) const _BlankCanvasHint(),
               for (final table in layout.tables)
@@ -82,6 +90,9 @@ class SeatingCanvas extends StatelessWidget {
                     designMode: designMode,
                     interactive: interactive,
                     presentationMode: presentationMode,
+                    premiumAppearance: premiumAppearance,
+                    highlightedStudentId: highlightedStudentId,
+                    highlightedTableId: highlightedTableId,
                     onRemove: () => onRemoveTable?.call(table.tableId),
                     onUpdateTable: (type, count) =>
                         onUpdateTable?.call(table.tableId, type, count),
@@ -119,6 +130,9 @@ class TableWidget extends StatelessWidget {
   final bool designMode;
   final bool interactive;
   final bool presentationMode;
+  final bool premiumAppearance;
+  final String? highlightedStudentId;
+  final String? highlightedTableId;
   final VoidCallback? onRemove;
   final void Function(SeatingTableType type, int seatCount)? onUpdateTable;
   final VoidCallback? onEditTable;
@@ -137,6 +151,9 @@ class TableWidget extends StatelessWidget {
     required this.designMode,
     required this.interactive,
     required this.presentationMode,
+    this.premiumAppearance = false,
+    this.highlightedStudentId,
+    this.highlightedTableId,
     this.onRemove,
     this.onUpdateTable,
     this.onEditTable,
@@ -170,7 +187,7 @@ class TableWidget extends StatelessWidget {
 
     Widget buildTableBody(bool isDropActive) {
       final scheme = Theme.of(context).colorScheme;
-      final tableDecoration = BoxDecoration(
+      final tableDecoration = premiumAppearance ? ClassroomMaterials.tabletop(Theme.of(context).brightness==Brightness.dark,isDropActive).copyWith(borderRadius:BorderRadius.circular(table.type==SeatingTableType.round?60:14)) : BoxDecoration(
         color: isDropActive
             ? scheme.primaryContainer
             : table.type == SeatingTableType.teacherDesk
@@ -196,17 +213,19 @@ class TableWidget extends StatelessWidget {
         duration: const Duration(milliseconds: 140),
         width: table.width,
         height: table.height,
-        decoration: tableDecoration,
+        key: ValueKey('table-visual-${table.tableId}'),
+        decoration: highlightedTableId == table.tableId ? tableDecoration.copyWith(border:Border.all(color:const Color(0xffffbc42),width:4),boxShadow:[const BoxShadow(color:Color(0x66ffbc42),blurRadius:24,spreadRadius:4)]) : tableDecoration,
         padding: const EdgeInsets.all(8),
         child: Stack(
           children: [
+            if(premiumAppearance) Positioned.fill(child:IgnorePointer(child:CustomPaint(painter:ClassroomOakPainter(table.tableId.hashCode)))),
             Align(
               alignment: Alignment.center,
               child: Text(
                 tableLabel,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: table.type == SeatingTableType.teacherDesk
+                      color: premiumAppearance ? const Color(0xff493c2b) : table.type == SeatingTableType.teacherDesk
                           ? scheme.onPrimaryContainer
                           : scheme.onSurface,
                     ),
@@ -283,6 +302,8 @@ class TableWidget extends StatelessWidget {
     Widget child = SeatWidget(
       seat: seat,
       student: seat.studentId == null ? null : studentsById[seat.studentId],
+      premiumAppearance: premiumAppearance,
+      highlighted: highlightedStudentId == seat.studentId && seat.studentId != null || highlightedTableId == seat.tableId,
       acceptDrops: interactive,
       allowStudentDrag: interactive && !designMode,
       presentationMode: presentationMode,
@@ -329,6 +350,8 @@ class SeatWidget extends StatelessWidget {
   final bool acceptDrops;
   final bool allowStudentDrag;
   final bool presentationMode;
+  final bool premiumAppearance;
+  final bool highlighted;
   final ValueChanged<StudentDragData>? onSeatDrop;
   final VoidCallback? onTap;
 
@@ -339,6 +362,8 @@ class SeatWidget extends StatelessWidget {
     required this.acceptDrops,
     required this.allowStudentDrag,
     required this.presentationMode,
+    this.premiumAppearance = false,
+    this.highlighted = false,
     this.onSeatDrop,
     this.onTap,
   });
@@ -367,19 +392,20 @@ class SeatWidget extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
+          gradient: premiumAppearance && student!=null && !isDropTarget ? const LinearGradient(colors:[Color(0xff317e79),Color(0xff205e5b)],begin:Alignment.topLeft,end:Alignment.bottomRight) : null,
           color: isDropTarget
               ? scheme.primaryContainer
-              : statusColor.withValues(
+              : premiumAppearance ? (student==null ? const Color(0xffdce5df) : const Color(0xff2d7771)) : statusColor.withValues(
                   alpha: seat.statusColor == SeatStatusColor.none ? 0.06 : 0.22,
                 ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isDropTarget
+            color: highlighted ? const Color(0xffffbc42) : isDropTarget
                 ? scheme.primary
-                : statusColor.withValues(alpha: 0.65),
-            width: isDropTarget ? 2.2 : 1.5,
+                : premiumAppearance && seat.statusColor==SeatStatusColor.none ? const Color(0xff397570) : statusColor.withValues(alpha: 0.65),
+            width: highlighted ? 4 : isDropTarget ? 2.2 : 1.5,
           ),
-          boxShadow: isDropTarget
+          boxShadow: highlighted ? [const BoxShadow(color:Color(0x99ffbc42),blurRadius:22,spreadRadius:3)] : isDropTarget
               ? [
                   BoxShadow(
                     color: scheme.primary.withValues(alpha: 0.2),
@@ -405,7 +431,7 @@ class SeatWidget extends StatelessWidget {
                   Icon(
                     student == null ? Icons.event_seat_outlined : Icons.person,
                     size: iconSize,
-                    color: isDropTarget ? scheme.primary : statusColor,
+                    color: premiumAppearance && student!=null ? Colors.white : isDropTarget ? scheme.primary : statusColor,
                   ),
                   if (label.isNotEmpty)
                     SizedBox(height: presentationMode ? 4 : 2),
@@ -419,7 +445,7 @@ class SeatWidget extends StatelessWidget {
                             fontSize: presentationMode ? 10 : 9,
                             height: 1.0,
                             fontWeight: FontWeight.w600,
-                            color: scheme.onSurface,
+                            color: premiumAppearance && student!=null ? Colors.white : scheme.onSurface,
                           ),
                     ),
                 ],

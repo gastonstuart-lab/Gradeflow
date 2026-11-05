@@ -119,7 +119,7 @@ class OSAppRegistry {
       icon: Icons.class_rounded,
       category: OSAppCategory.core,
       description: 'All your class groups',
-      route: '/classes',
+      route: '/os/classes',
       color: Color(0xFF58C78B),
     ),
     OSApp(

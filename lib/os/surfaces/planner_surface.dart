@@ -860,233 +860,74 @@ class _PlannerDashboardView extends StatelessWidget {
         : 'Teacher';
     final now = DateTime.now();
 
-    return Scaffold(
-      backgroundColor: OSColors.bg(dark),
-      body: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final desktop = constraints.maxWidth >= 1120;
-              final content = SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 104),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _PlannerTopBar(
-                      name: name,
-                      dateLabel: _formatLongPlannerDate(now),
-                      onRefresh: onRefresh,
-                    ),
-                    if (loading) ...[
-                      const SizedBox(height: 12),
-                      const LinearProgressIndicator(minHeight: 3),
-                    ],
-                    const SizedBox(height: 26),
-                    _PlannerOverviewRow(
-                      totalStudents: totalStudents,
-                      classesCount: classesCount,
-                      remindersCount: pendingReminders.length,
-                      timetablesCount: timetables.length,
-                    ),
-                    const SizedBox(height: 22),
-                    if (desktop)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 6,
-                            child: _PlannerReminderCard(
-                              reminders: pendingReminders,
-                              onImportCalendar: onImportCalendar,
-                              onToggleReminder: onToggleReminder,
-                              onDeleteReminder: onDeleteReminder,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 5,
-                            child: _PlannerCalendarCard(
-                              reminders: allReminders,
-                              focusedMonth: focusedMonth,
-                              selectedDate: selectedDate,
-                              reminderController: reminderController,
-                              onPreviousMonth: onPreviousMonth,
-                              onNextMonth: onNextMonth,
-                              onSelectDate: onSelectDate,
-                              onClearSelectedDate: onClearSelectedDate,
-                              onAddReminder: onAddReminder,
-                              onToggleReminder: onToggleReminder,
-                              onDeleteReminder: onDeleteReminder,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 5,
-                            child: _PlannerWeeklyTimetableCard(
-                              selectedTimetable: selectedTimetable,
-                              timetables: timetables,
-                              onUpload: onUploadTimetable,
-                              onManage: onManageTimetables,
-                            ),
-                          ),
-                        ],
-                      )
-                    else ...[
-                      _PlannerReminderCard(
-                        reminders: pendingReminders,
-                        onImportCalendar: onImportCalendar,
-                        onToggleReminder: onToggleReminder,
-                        onDeleteReminder: onDeleteReminder,
-                      ),
-                      const SizedBox(height: 16),
-                      _PlannerCalendarCard(
-                        reminders: allReminders,
-                        focusedMonth: focusedMonth,
-                        selectedDate: selectedDate,
-                        reminderController: reminderController,
-                        onPreviousMonth: onPreviousMonth,
-                        onNextMonth: onNextMonth,
-                        onSelectDate: onSelectDate,
-                        onClearSelectedDate: onClearSelectedDate,
-                        onAddReminder: onAddReminder,
-                        onToggleReminder: onToggleReminder,
-                        onDeleteReminder: onDeleteReminder,
-                      ),
-                      const SizedBox(height: 16),
-                      _PlannerWeeklyTimetableCard(
-                        selectedTimetable: selectedTimetable,
-                        timetables: timetables,
-                        onUpload: onUploadTimetable,
-                        onManage: onManageTimetables,
-                      ),
-                    ],
-                  ],
-                ),
-              );
-
-              if (!desktop) return content;
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(width: 250, child: _PlannerSidebar()),
-                  const SizedBox(width: 24),
-                  Expanded(child: content),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlannerSidebar extends StatelessWidget {
-  const _PlannerSidebar();
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return _PlannerCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _PlannerNavButton(
-            icon: Icons.grid_view_rounded,
-            label: 'Planner',
-            selected: true,
-            onTap: () {},
-          ),
-          _PlannerNavButton(
-            icon: Icons.class_rounded,
-            label: 'Classrooms',
-            onTap: () => context.go(AppRoutes.classes),
-          ),
-          _PlannerNavButton(
-            icon: Icons.people_alt_outlined,
-            label: 'Students',
-            onTap: () => context.go(AppRoutes.classes),
-          ),
-          _PlannerNavButton(
-            icon: Icons.calendar_month_rounded,
-            label: 'Calendar',
-            onTap: () {},
-          ),
-          _PlannerNavButton(
-            icon: Icons.table_chart_outlined,
-            label: 'Timetable',
-            onTap: () {},
-          ),
-          const Spacer(),
-          Text(
-            'InstructOS',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 20,
-              color: OSColors.text(dark),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlannerNavButton extends StatelessWidget {
-  const _PlannerNavButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.selected = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: selected
-                ? OSColors.blue.withValues(alpha: dark ? 0.22 : 0.13)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: selected ? OSColors.blue : OSColors.textSecondary(dark),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: selected
-                      ? OSColors.text(dark)
-                      : OSColors.textSecondary(dark),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    final calendar = _PlannerCalendarCard(
+        reminders: allReminders,
+        focusedMonth: focusedMonth,
+        selectedDate: selectedDate,
+        reminderController: reminderController,
+        onPreviousMonth: onPreviousMonth,
+        onNextMonth: onNextMonth,
+        onSelectDate: onSelectDate,
+        onClearSelectedDate: onClearSelectedDate,
+        onAddReminder: onAddReminder,
+        onToggleReminder: onToggleReminder,
+        onDeleteReminder: onDeleteReminder);
+    final reminders = _PlannerReminderCard(
+        reminders: pendingReminders,
+        onImportCalendar: onImportCalendar,
+        onToggleReminder: onToggleReminder,
+        onDeleteReminder: onDeleteReminder);
+    final timetable = _PlannerWeeklyTimetableCard(
+        selectedTimetable: selectedTimetable,
+        timetables: timetables,
+        onUpload: onUploadTimetable,
+        onManage: onManageTimetables);
+    return Theme(
+        data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xff1769ce),
+                brightness: Theme.of(context).brightness)),
+        child: Scaffold(
+          backgroundColor:
+              dark ? const Color(0xff07131f) : const Color(0xfff0f5fa),
+          body: SafeArea(
+              child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _PlannerTopBar(
+                            name: name,
+                            dateLabel: _formatLongPlannerDate(now),
+                            onRefresh: onRefresh),
+                        if (loading)
+                          const LinearProgressIndicator(minHeight: 2),
+                        const SizedBox(height: 20),
+                        LayoutBuilder(
+                            builder: (context, size) => size.maxWidth >= 900
+                                ? Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                        Expanded(flex: 6, child: calendar),
+                                        const SizedBox(width: 20),
+                                        Expanded(
+                                            flex: 5,
+                                            child: Column(children: [
+                                              reminders,
+                                              const SizedBox(height: 20),
+                                              timetable
+                                            ]))
+                                      ])
+                                : Column(children: [
+                                    calendar,
+                                    const SizedBox(height: 16),
+                                    reminders,
+                                    const SizedBox(height: 16),
+                                    timetable
+                                  ])),
+                      ]))),
+        ));
   }
 }
 
@@ -1103,192 +944,34 @@ class _PlannerTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return Row(
-      children: [
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+          gradient: const LinearGradient(
+              colors: [Color(0xff173b63), Color(0xff187f79)]),
+          borderRadius: BorderRadius.circular(24)),
+      child: Row(children: [
+        IconButton(
+            tooltip: 'Back to Home',
+            onPressed: () => context.go(AppRoutes.osHome),
+            icon: const Icon(Icons.arrow_back, color: Colors.white)),
+        const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Welcome back, $name',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: OSColors.text(dark),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                dateLabel,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: OSColors.textSecondary(dark),
-                ),
-              ),
-            ],
-          ),
-        ),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Planner',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800)),
+          Text('$dateLabel · $name',
+              style: const TextStyle(color: Colors.white70))
+        ])),
         IconButton(
-          tooltip: 'Refresh planner',
-          onPressed: onRefresh,
-          icon: const Icon(Icons.refresh_rounded),
-        ),
-        IconButton(
-          tooltip: 'Search',
-          onPressed: () {},
-          icon: const Icon(Icons.search_rounded),
-        ),
-        IconButton(
-          tooltip: 'Settings',
-          onPressed: () {},
-          icon: const Icon(Icons.settings_outlined),
-        ),
-      ],
-    );
-  }
-}
-
-class _PlannerOverviewRow extends StatelessWidget {
-  const _PlannerOverviewRow({
-    required this.totalStudents,
-    required this.classesCount,
-    required this.remindersCount,
-    required this.timetablesCount,
-  });
-
-  final int totalStudents;
-  final int classesCount;
-  final int remindersCount;
-  final int timetablesCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 900 ? 4 : 2;
-        final gap = 14.0;
-        final width = (constraints.maxWidth - (gap * (columns - 1))) / columns;
-        final cards = [
-          _PlannerMetricData(
-            title: 'No of Students',
-            value: totalStudents == 0 ? '--' : '$totalStudents',
-            icon: Icons.people_alt_rounded,
-            accent: OSColors.indigo,
-            tint: const Color(0xFFEDEBFF),
-          ),
-          _PlannerMetricData(
-            title: 'No of Classes',
-            value: '$classesCount',
-            icon: Icons.class_rounded,
-            accent: OSColors.blue,
-            tint: const Color(0xFFE9F3FB),
-          ),
-          _PlannerMetricData(
-            title: 'Open reminders',
-            value: '$remindersCount',
-            icon: Icons.event_note_rounded,
-            accent: OSColors.coral,
-            tint: const Color(0xFFFFEFEC),
-          ),
-          _PlannerMetricData(
-            title: 'Timetables',
-            value: '$timetablesCount',
-            icon: Icons.table_chart_rounded,
-            accent: OSColors.green,
-            tint: const Color(0xFFEAF8F0),
-          ),
-        ];
-        return Wrap(
-          spacing: gap,
-          runSpacing: gap,
-          children: [
-            for (final card in cards)
-              SizedBox(width: width, child: _PlannerMetricCard(data: card)),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _PlannerMetricData {
-  const _PlannerMetricData({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.accent,
-    required this.tint,
-  });
-
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color accent;
-  final Color tint;
-}
-
-class _PlannerMetricCard extends StatelessWidget {
-  const _PlannerMetricCard({required this.data});
-
-  final _PlannerMetricData data;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return _PlannerCard(
-      padding: const EdgeInsets.all(18),
-      tint: dark ? null : data.tint,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: data.accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(data.icon, size: 18, color: data.accent),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  data.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: OSColors.text(dark),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Text(
-            data.value,
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.w900,
-              color: OSColors.text(dark),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            width: 84,
-            height: 3,
-            decoration: BoxDecoration(
-              color: data.accent,
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
-        ],
-      ),
+            tooltip: 'Refresh planner',
+            onPressed: onRefresh,
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white))
+      ]),
     );
   }
 }
@@ -1315,7 +998,7 @@ class _PlannerReminderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _PlannerCardHeader(
-            title: 'Messages',
+            title: 'Reminders',
             actionLabel: 'Import',
             onAction: onImportCalendar,
           ),
@@ -1651,24 +1334,19 @@ class _PlannerCardHeader extends StatelessWidget {
 class _PlannerCard extends StatelessWidget {
   const _PlannerCard({
     required this.child,
-    this.padding = const EdgeInsets.all(20),
-    this.tint,
   });
 
   final Widget child;
-  final EdgeInsets padding;
-  final Color? tint;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
     return Container(
-      padding: padding,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: dark
             ? const Color(0xFF111827).withValues(alpha: 0.88)
-            : (tint ?? Colors.white)
-                .withValues(alpha: tint == null ? 0.92 : 0.76),
+            : Colors.white.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: dark

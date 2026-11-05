@@ -4,6 +4,8 @@ import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/models/seating_layout.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/os/surfaces/classroom_surface.dart';
+import 'package:gradeflow/components/seating/seating_canvas.dart';
+import 'package:gradeflow/components/seating/student_picker_sheet.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
@@ -20,143 +22,103 @@ void main() {
     RepositoryFactory.useLocal();
   });
 
-  testWidgets('classroom drawer collapses and map remains available',
-      (tester) async {
-    tester.view.physicalSize = const Size(1400, 900);
-    tester.view.devicePixelRatio = 1.0;
+  Future<_Services> open(WidgetTester tester, String id,
+      {double width = 1400}) async {
+    tester.view.physicalSize = Size(width, 900);
+    tester.view.devicePixelRatio = 1;
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
     });
-
-    final services = await _buildServices('classroom-a');
-    await tester.pumpWidget(_harness(services, 'classroom-a'));
+    final services = await _buildServices(id);
+    await tester.pumpWidget(_harness(services, id));
     await tester.pumpAndSettle();
+    return services;
+  }
 
-    expect(find.text('Grade 8 Science'), findsOneWidget);
-    expect(find.text('Classroom tools'), findsOneWidget);
-    expect(find.text('Hide tools'), findsOneWidget);
-    expect(find.byType(InteractiveViewer), findsWidgets);
-
-    await tester.tap(find.text('Hide tools'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Classroom tools'), findsNothing);
+  testWidgets(
+      'tools start closed and slide from the right without resizing room',
+      (tester) async {
+    await open(tester, 'classroom-a');
     expect(find.text('Show tools'), findsOneWidget);
-    expect(find.byType(InteractiveViewer), findsWidgets);
-
+    final room = find.byType(InteractiveViewer).first;
+    final before = tester.getRect(room);
     await tester.tap(find.text('Show tools'));
     await tester.pumpAndSettle();
-
-    expect(find.text('Classroom tools'), findsOneWidget);
+    expect(find.text('Hide tools'), findsOneWidget);
+    final panel = tester.getRect(find.text('Classroom tools'));
+    expect(panel.left, greaterThan(1000));
+    expect(tester.getRect(room), before);
+    await tester.tap(find.byTooltip('Close tools'));
+    await tester.pumpAndSettle();
+    expect(find.text('Show tools'), findsOneWidget);
   });
 
-  testWidgets('setup controls appear only when setup mode is enabled',
+  testWidgets('room setup uses right panel instead of old editor toolbar',
       (tester) async {
-    tester.view.physicalSize = const Size(1400, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final services = await _buildServices('classroom-b');
-    await tester.pumpWidget(_harness(services, 'classroom-b'));
+    await open(tester, 'classroom-b');
+    await tester.tap(find.text('Room setup'));
     await tester.pumpAndSettle();
-
+    expect(find.text('Add round table'), findsOneWidget);
     expect(find.text('New room map'), findsNothing);
-
-    await tester.tap(find.text('Setup'));
+    expect(find.textContaining('Setup Room'), findsOneWidget);
+    await tester.tap(find.text('Finish room setup'));
     await tester.pumpAndSettle();
-    expect(find.text('Setup room'), findsOneWidget);
-
-    await tester.tap(find.text('Setup room'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('New room map'), findsOneWidget);
-    expect(find.textContaining('Setup Room'), findsWidgets);
+    expect(find.text('Room setup'), findsOneWidget);
   });
 
-  testWidgets('random student reuses the existing seating picker',
+  testWidgets('student and table picks highlight map without modifying layout',
       (tester) async {
-    tester.view.physicalSize = const Size(1400, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final services = await _buildServices('classroom-random');
-    await tester.pumpWidget(_harness(services, 'classroom-random'));
+    final services = await open(tester, 'classroom-picks');
+    final before =
+        services.seatingService.activeLayout('classroom-picks')!.toJson();
+    await tester.tap(find.text('Pick student').first);
     await tester.pumpAndSettle();
-
-    expect(find.text('Random student'), findsOneWidget);
-
-    await tester.tap(find.text('Random student'));
+    expect(find.byType(StudentPickerSheet), findsNothing);
+    expect(
+        tester
+            .widgetList<SeatWidget>(find.byType(SeatWidget))
+            .where((s) => s.highlighted)
+            .length,
+        1);
+    await tester.tap(find.text('Pick table').first);
     await tester.pumpAndSettle();
-
-    expect(find.text('Pick a student'), findsOneWidget);
-    expect(find.text('Alex Student'), findsOneWidget);
-    expect(find.text('Seat 1'), findsWidgets);
-    expect(find.text('Avoid repeats'), findsOneWidget);
+    expect(
+        tester
+            .widgetList<TableWidget>(find.byType(TableWidget))
+            .any((t) => t.highlightedTableId == t.table.tableId),
+        isTrue);
+    expect(services.seatingService.activeLayout('classroom-picks')!.toJson(),
+        before);
   });
 
-  testWidgets('presentation hides private classroom drawer and setup controls',
+  testWidgets('presentation keeps premium map and hides private controls',
       (tester) async {
-    tester.view.physicalSize = const Size(1400, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final services = await _buildServices('classroom-c');
-    await tester.pumpWidget(_harness(services, 'classroom-c'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Classroom tools'), findsOneWidget);
-
+    await open(tester, 'classroom-c');
     await tester.tap(find.text('Present'));
     await tester.pumpAndSettle();
-
     expect(find.text('Exit presentation'), findsOneWidget);
-    expect(find.text('Classroom tools'), findsNothing);
-    expect(find.text('Setup room'), findsNothing);
-    expect(find.text('Open student records'), findsNothing);
-    expect(find.text('Random student'), findsNothing);
-    expect(find.byType(InteractiveViewer), findsWidgets);
-
+    expect(find.text('Show tools'), findsNothing);
+    expect(
+        tester
+            .widget<SeatingCanvas>(find.byType(SeatingCanvas).last)
+            .premiumAppearance,
+        isTrue);
     await tester.tap(find.byIcon(Icons.person).first);
     await tester.pumpAndSettle();
     expect(find.text('Add note or reminder'), findsNothing);
-
-    await tester.tap(find.text('Exit presentation'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Classroom tools'), findsOneWidget);
   });
 
-  testWidgets('narrow classroom uses an overlay drawer that can be dismissed',
+  testWidgets('compact right panel can be closed without hiding the map',
       (tester) async {
-    tester.view.physicalSize = const Size(700, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    final services = await _buildServices('classroom-d');
-    await tester.pumpWidget(_harness(services, 'classroom-d'));
+    await open(tester, 'classroom-d', width: 700);
+    await tester.tap(find.text('Show tools'));
     await tester.pumpAndSettle();
-
-    expect(find.text('Classroom tools'), findsOneWidget);
-    expect(find.byType(InteractiveViewer), findsWidgets);
-
-    await tester.tap(find.byTooltip('Hide tools'));
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byTooltip('Close tools'));
     await tester.pumpAndSettle();
-
-    expect(find.text('Classroom tools'), findsNothing);
     expect(find.byType(InteractiveViewer), findsWidgets);
+    expect(find.text('Show tools'), findsOneWidget);
   });
 }
 

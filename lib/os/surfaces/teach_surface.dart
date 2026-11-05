@@ -228,7 +228,7 @@ class _TeachSurfaceState extends State<TeachSurface> {
         subtitle:
             'Open a class workspace first, then enter Teach Mode to use the live roster, group picker, and quick poll.',
         primaryLabel: 'Open classes',
-        onPrimary: () => context.go(AppRoutes.classes),
+        onPrimary: () => context.go(AppRoutes.osClasses),
         secondaryLabel: 'Back home',
         onSecondary: () => context.go(AppRoutes.osHome),
       );
@@ -241,7 +241,7 @@ class _TeachSurfaceState extends State<TeachSurface> {
         subtitle: _contextError ??
             'We could not restore this class for Teach Mode right now.',
         primaryLabel: 'Open classes',
-        onPrimary: () => context.go(AppRoutes.classes),
+        onPrimary: () => context.go(AppRoutes.osClasses),
         secondaryLabel: 'Back home',
         onSecondary: () => context.go(AppRoutes.osHome),
       );
