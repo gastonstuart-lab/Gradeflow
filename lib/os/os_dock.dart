@@ -9,6 +9,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
@@ -243,6 +244,7 @@ class _DockItem extends StatefulWidget {
 class _DockItemState extends State<_DockItem>
     with SingleTickerProviderStateMixin {
   bool _hovered = false;
+  bool _focused = false;
   late final AnimationController _ac = AnimationController(
     vsync: this,
     duration: OSMotion.fast,
@@ -263,108 +265,123 @@ class _DockItemState extends State<_DockItem>
   Widget build(BuildContext context) {
     final dark = context.isDark;
     final d = widget.data;
-    final hovered = _hovered && !d.isActive;
+    final hovered = (_hovered || _focused) && !d.isActive;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: d.onTap,
-        onTapDown: (_) {
-          _ac.forward();
-        },
-        onTapUp: (_) {
-          _ac.reverse();
-        },
-        onTapCancel: () {
-          _ac.reverse();
-        },
-        child: AnimatedBuilder(
-          animation: _scale,
-          builder: (_, child) => Transform.scale(
-            scale: 1.0 - _scale.value * 0.08,
-            child: child,
-          ),
-          child: Tooltip(
-            message: d.label,
-            preferBelow: false,
-            child: SizedBox(
-              width: OSSpacing.dockItemSize,
-              height: OSSpacing.dockHeight,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (d.isActive)
-                    Positioned(
-                      bottom: 7,
-                      child: Container(
-                        width: 18,
-                        height: 3,
+      child: FocusableActionDetector(
+          onShowFocusHighlight: (value) => setState(() => _focused = value),
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.space): ActivateIntent()
+          },
+          actions: {
+            ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) {
+              d.onTap();
+              return null;
+            })
+          },
+          child: GestureDetector(
+            onTap: d.onTap,
+            onTapDown: (_) {
+              _ac.forward();
+            },
+            onTapUp: (_) {
+              _ac.reverse();
+            },
+            onTapCancel: () {
+              _ac.reverse();
+            },
+            child: AnimatedBuilder(
+              animation: _scale,
+              builder: (_, child) => Transform.scale(
+                scale: 1.0 - _scale.value * 0.08,
+                child: child,
+              ),
+              child: Tooltip(
+                message: d.label,
+                preferBelow: false,
+                child: SizedBox(
+                  width: OSSpacing.dockItemSize,
+                  height: OSSpacing.dockHeight,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (d.isActive)
+                        Positioned(
+                          bottom: 7,
+                          child: Container(
+                            width: 18,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: OSColors.blue,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                        ),
+                      AnimatedContainer(
+                        duration: OSMotion.fast,
+                        curve: OSMotion.ease,
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: OSColors.blue,
-                          borderRadius: BorderRadius.circular(999),
+                          color: d.isActive
+                              ? OSColors.blue
+                                  .withValues(alpha: dark ? 0.18 : 0.14)
+                              : hovered
+                                  ? (dark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.white.withValues(alpha: 0.74))
+                                  : (dark
+                                      ? Colors.white.withValues(alpha: 0.03)
+                                      : Colors.white.withValues(alpha: 0.52)),
+                          borderRadius: OSRadius.lgBr,
+                          border: Border.all(
+                            color: d.isActive
+                                ? OSColors.blue.withValues(alpha: 0.28)
+                                : hovered
+                                    ? WorkspaceChrome.panelBorderColor(
+                                        context,
+                                        emphasis: dark ? 0.34 : 0.42,
+                                      )
+                                    : (dark
+                                        ? Colors.white.withValues(alpha: 0.06)
+                                        : Colors.black.withValues(alpha: 0.05)),
+                          ),
+                          boxShadow: d.isActive || hovered
+                              ? [
+                                  BoxShadow(
+                                    color: (d.isActive
+                                            ? OSColors.blue
+                                            : Colors.black)
+                                        .withValues(
+                                      alpha: d.isActive
+                                          ? 0.18
+                                          : (dark ? 0.10 : 0.06),
+                                    ),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Icon(
+                          d.icon,
+                          size: 24,
+                          color: d.isActive
+                              ? OSColors.blue
+                              : hovered
+                                  ? OSColors.text(dark)
+                                  : OSColors.textSecondary(dark),
                         ),
                       ),
-                    ),
-                  AnimatedContainer(
-                    duration: OSMotion.fast,
-                    curve: OSMotion.ease,
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: d.isActive
-                          ? OSColors.blue.withValues(alpha: dark ? 0.18 : 0.14)
-                          : hovered
-                              ? (dark
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : Colors.white.withValues(alpha: 0.74))
-                              : (dark
-                                  ? Colors.white.withValues(alpha: 0.03)
-                                  : Colors.white.withValues(alpha: 0.52)),
-                      borderRadius: OSRadius.lgBr,
-                      border: Border.all(
-                        color: d.isActive
-                            ? OSColors.blue.withValues(alpha: 0.28)
-                            : hovered
-                                ? WorkspaceChrome.panelBorderColor(
-                                    context,
-                                    emphasis: dark ? 0.34 : 0.42,
-                                  )
-                                : (dark
-                                    ? Colors.white.withValues(alpha: 0.06)
-                                    : Colors.black.withValues(alpha: 0.05)),
-                      ),
-                      boxShadow: d.isActive || hovered
-                          ? [
-                              BoxShadow(
-                                color:
-                                    (d.isActive ? OSColors.blue : Colors.black)
-                                        .withValues(
-                                  alpha:
-                                      d.isActive ? 0.18 : (dark ? 0.10 : 0.06),
-                                ),
-                                blurRadius: 14,
-                                offset: const Offset(0, 6),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Icon(
-                      d.icon,
-                      size: 24,
-                      color: d.isActive
-                          ? OSColors.blue
-                          : hovered
-                              ? OSColors.text(dark)
-                              : OSColors.textSecondary(dark),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ),
+          )),
     );
   }
 }

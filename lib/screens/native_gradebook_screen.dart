@@ -17,7 +17,8 @@ import 'package:gradeflow/platform/browser_file_actions.dart';
 
 class NativeGradebookScreen extends StatefulWidget {
   static final Map<String, Future<bool> Function()> _leaveGuards = {};
-  static Future<bool> canLeave(String classId) async => await _leaveGuards[classId]?.call() ?? true;
+  static Future<bool> canLeave(String classId) async =>
+      await _leaveGuards[classId]?.call() ?? true;
   const NativeGradebookScreen({
     super.key,
     required this.classId,
@@ -47,18 +48,22 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
   }
 
   void _open() {
-    if(widget.studentId==null) NativeGradebookScreen._leaveGuards[widget.classId]=leave;
+    if (widget.studentId == null)
+      NativeGradebookScreen._leaveGuards[widget.classId] = leave;
     book = GradebookWorkspace(RepositoryFactory.instance, widget.classId);
     book.addListener(_changed);
-    book
-        .load()
-        .then((_) {
-          if (mounted)
-            setState(() => category = book.categories.where((c)=>GradebookWorkspace.canonical(c.name)==widget.initialCategory).firstOrNull?.categoryId ?? book.categories.firstOrNull?.categoryId);
-        })
-        .catchError((Object e) {
-          if (mounted) setState(() => loadError = e.toString());
-        });
+    book.load().then((_) {
+      if (mounted)
+        setState(() => category = book.categories
+                .where((c) =>
+                    GradebookWorkspace.canonical(c.name) ==
+                    widget.initialCategory)
+                .firstOrNull
+                ?.categoryId ??
+            book.categories.firstOrNull?.categoryId);
+    }).catchError((Object e) {
+      if (mounted) setState(() => loadError = e.toString());
+    });
   }
 
   void _changed() {
@@ -85,7 +90,8 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
 
   @override
   void dispose() {
-    if(widget.studentId==null) NativeGradebookScreen._leaveGuards.remove(widget.classId);
+    if (widget.studentId == null)
+      NativeGradebookScreen._leaveGuards.remove(widget.classId);
     book.removeListener(_changed);
     book.dispose();
     for (final c in fields.values) {
@@ -266,45 +272,160 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
       )
       .toList();
   Future<void> importBackup() async {
-    if(dirty.isNotEmpty){message('Save unfinished entries before importing.');return;}
-    try{
-      final picked=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['json'],withData:true);
-      if(picked==null||!mounted)return;
-      final bytes=picked.files.single.bytes;
-      if(bytes==null||bytes.length>5000000)throw const FormatException('Choose a gradebook JSON backup under 5 MB.');
-      final data=jsonDecode(utf8.decode(bytes));
-      if(data is! Map||data['version']!=1||data['classes'] is! List)throw const FormatException('This is not a supported standalone gradebook backup.');
-      final sources=(data['classes'] as List).whereType<Map>().where((c)=>c['sheet'] is String&&c['scores'] is Map&&c['columns'] is Map).toList();
-      if(sources.isEmpty)throw const FormatException('This file contains no standalone gradebook class records.');
-      var selection=0;var replace=false;
-      final confirmed=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,update)=>AlertDialog(title:const Text('Import scores into this class'),content:SizedBox(width:480,child:Column(mainAxisSize:MainAxisSize.min,children:[Text('Destination: ${context.read<ClassService>().getClassById(widget.classId)?.className??widget.classId}'),DropdownButtonFormField<int>(initialValue:0,decoration:const InputDecoration(labelText:'Source class in backup'),items:[for(var i=0;i<sources.length;i++)DropdownMenuItem(value:i,child:Text(sources[i]['sheet'] as String))],onChanged:(v)=>selection=v!),const SizedBox(height:12),const Text('Every student ID must belong to this class. Missing source scores do not erase existing marks. Assessment names are matched within their category. This applies the confirmed 20/30/30/20 GPA weights.'),CheckboxListTile(contentPadding:EdgeInsets.zero,value:replace,onChanged:(v)=>update(()=>replace=v!),title:const Text('Replace conflicting existing scores'))])),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Validate and import'))])));
-      if(confirmed!=true||!mounted)return;
-      final plan=GradebookImportPlan.parse(Map<String,dynamic>.from(sources[selection]),book.students.map((s)=>s.studentId).toSet());
-      if(book.categories.isNotEmpty&&(book.categories.length!=4||!GradebookWorkspace.processWeights.keys.every((k)=>book.categories.where((c)=>GradebookWorkspace.canonical(c.name)==k).length==1)))throw const FormatException('Existing categories need review before importing.');
+    if (dirty.isNotEmpty) {
+      message('Save unfinished entries before importing.');
+      return;
+    }
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+          type: FileType.custom, allowedExtensions: ['json'], withData: true);
+      if (picked == null || !mounted) return;
+      final bytes = picked.files.single.bytes;
+      if (bytes == null || bytes.length > 5000000)
+        throw const FormatException(
+            'Choose a gradebook JSON backup under 5 MB.');
+      final data = jsonDecode(utf8.decode(bytes));
+      if (data is! Map || data['version'] != 1 || data['classes'] is! List)
+        throw const FormatException(
+            'This is not a supported standalone gradebook backup.');
+      final sources = (data['classes'] as List)
+          .whereType<Map>()
+          .where((c) =>
+              c['sheet'] is String && c['scores'] is Map && c['columns'] is Map)
+          .toList();
+      if (sources.isEmpty)
+        throw const FormatException(
+            'This file contains no standalone gradebook class records.');
+      var selection = 0;
+      var replace = false;
+      final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => StatefulBuilder(
+              builder: (ctx, update) => AlertDialog(
+                      title: const Text('Import scores into this class'),
+                      content: SizedBox(
+                          width: 480,
+                          child:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                            Text(
+                                'Destination: ${context.read<ClassService>().getClassById(widget.classId)?.className ?? widget.classId}'),
+                            DropdownButtonFormField<int>(
+                                initialValue: 0,
+                                decoration: const InputDecoration(
+                                    labelText: 'Source class in backup'),
+                                items: [
+                                  for (var i = 0; i < sources.length; i++)
+                                    DropdownMenuItem(
+                                        value: i,
+                                        child:
+                                            Text(sources[i]['sheet'] as String))
+                                ],
+                                onChanged: (v) => selection = v!),
+                            const SizedBox(height: 12),
+                            const Text(
+                                'Every student ID must belong to this class. Missing source scores do not erase existing marks. Assessment names are matched within their category. This applies the confirmed 20/30/30/20 GPA weights.'),
+                            CheckboxListTile(
+                                contentPadding: EdgeInsets.zero,
+                                value: replace,
+                                onChanged: (v) => update(() => replace = v!),
+                                title: const Text(
+                                    'Replace conflicting existing scores'))
+                          ])),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel')),
+                        FilledButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Validate and import'))
+                      ])));
+      if (confirmed != true || !mounted) return;
+      final plan = GradebookImportPlan.parse(
+          Map<String, dynamic>.from(sources[selection]),
+          book.students.map((s) => s.studentId).toSet());
+      if (book.categories.isNotEmpty &&
+          (book.categories.length != 4 ||
+              !GradebookWorkspace.processWeights.keys.every((k) =>
+                  book.categories
+                      .where((c) => GradebookWorkspace.canonical(c.name) == k)
+                      .length ==
+                  1)))
+        throw const FormatException(
+            'Existing categories need review before importing.');
       // Validate the entire plan and every conflict before any policy/item/score writes.
-      for(final k in plan.columns.keys){
-        final cat=book.categories.where((c)=>GradebookWorkspace.canonical(c.name)==k).firstOrNull;
-        for(var j=0;j<plan.columns[k]!.length;j++){
-          final matches=cat==null?<GradeItem>[]:book.categoryItems(cat.categoryId).where((i)=>i.name==plan.columns[k]![j]).toList();
-          if(matches.length>1||matches.any((i)=>i.maxScore!=100))throw const FormatException('An assessment name or maximum score conflicts. Nothing imported.');
-          if(!replace&&matches.isNotEmpty){for(final id in plan.scores.keys){final old=book.score(id,matches.single.gradeItemId),v=plan.scores[id]![k]![j];if(old!=null&&v!=null&&old!=v)throw const FormatException('Existing scores conflict. Review the source or explicitly choose replacement.');}}
+      for (final k in plan.columns.keys) {
+        final cat = book.categories
+            .where((c) => GradebookWorkspace.canonical(c.name) == k)
+            .firstOrNull;
+        for (var j = 0; j < plan.columns[k]!.length; j++) {
+          final matches = cat == null
+              ? <GradeItem>[]
+              : book
+                  .categoryItems(cat.categoryId)
+                  .where((i) => i.name == plan.columns[k]![j])
+                  .toList();
+          if (matches.length > 1 || matches.any((i) => i.maxScore != 100))
+            throw const FormatException(
+                'An assessment name or maximum score conflicts. Nothing imported.');
+          if (!replace && matches.isNotEmpty) {
+            for (final id in plan.scores.keys) {
+              final old = book.score(id, matches.single.gradeItemId),
+                  v = plan.scores[id]![k]![j];
+              if (old != null && v != null && old != v)
+                throw const FormatException(
+                    'Existing scores conflict. Review the source or explicitly choose replacement.');
+            }
+          }
         }
       }
-      if(!replace&&plan.exams.entries.any((e)=>e.value!=null&&book.exam(e.key)!=null&&e.value!=book.exam(e.key)))throw const FormatException('Existing exam scores conflict. Nothing imported.');
-      final teacher=context.read<AuthService>().currentUser?.userId;if(teacher==null)throw StateError('Sign in before importing.');
-      setState(()=>working=true);
-      await book.setUpCategories();var historyFailures=0;
-      for(final k in plan.columns.keys){final cat=book.categories.singleWhere((c)=>GradebookWorkspace.canonical(c.name)==k);for(var j=0;j<plan.columns[k]!.length;j++){
-        final name=plan.columns[k]![j];if(!book.categoryItems(cat.categoryId).any((i)=>i.name==name))await book.addAssessment(cat.categoryId,name,100);
-        final item=book.categoryItems(cat.categoryId).singleWhere((i)=>i.name==name);
-        for(final id in plan.scores.keys){final v=plan.scores[id]![k]![j];if(v!=null){await book.saveScore(id,item,v,teacher);if(book.saveState==GradebookSaveState.historyIncomplete)historyFailures++;}}
-      }}
-      for(final e in plan.exams.entries){if(e.value!=null)await book.saveExam(e.key,e.value);}
-      for(final f in fields.values){f.dispose();}fields.clear();
-      category=book.categories.first.categoryId;
-      message('${plan.entered} supplied scores imported.${historyFailures>0?' $historyFailures history entries need review.':''}');
-    }catch(e){message('Import stopped: $e. Keep your source backup; completed records can be matched on retry.');}
-    finally{if(mounted)setState(()=>working=false);}
+      if (!replace &&
+          plan.exams.entries.any((e) =>
+              e.value != null &&
+              book.exam(e.key) != null &&
+              e.value != book.exam(e.key)))
+        throw const FormatException(
+            'Existing exam scores conflict. Nothing imported.');
+      final teacher = context.read<AuthService>().currentUser?.userId;
+      if (teacher == null) throw StateError('Sign in before importing.');
+      setState(() => working = true);
+      await book.setUpCategories();
+      var historyFailures = 0;
+      for (final k in plan.columns.keys) {
+        final cat = book.categories
+            .singleWhere((c) => GradebookWorkspace.canonical(c.name) == k);
+        for (var j = 0; j < plan.columns[k]!.length; j++) {
+          final name = plan.columns[k]![j];
+          if (!book.categoryItems(cat.categoryId).any((i) => i.name == name))
+            await book.addAssessment(cat.categoryId, name, 100);
+          final item = book
+              .categoryItems(cat.categoryId)
+              .singleWhere((i) => i.name == name);
+          for (final id in plan.scores.keys) {
+            final v = plan.scores[id]![k]![j];
+            if (v != null) {
+              await book.saveScore(id, item, v, teacher);
+              if (book.saveState == GradebookSaveState.historyIncomplete)
+                historyFailures++;
+            }
+          }
+        }
+      }
+      for (final e in plan.exams.entries) {
+        if (e.value != null) await book.saveExam(e.key, e.value);
+      }
+      for (final f in fields.values) {
+        f.dispose();
+      }
+      fields.clear();
+      category = book.categories.first.categoryId;
+      message(
+          '${plan.entered} supplied scores imported.${historyFailures > 0 ? ' $historyFailures history entries need review.' : ''}');
+    } catch (e) {
+      message(
+          'Import stopped: $e. Keep your source backup; completed records can be matched on retry.');
+    } finally {
+      if (mounted) setState(() => working = false);
+    }
   }
 
   Future<void> paste() async {
@@ -463,8 +584,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
         }),
         'InstructOS-gradebook-backup.json',
         'application/json',
-      ))
-        throw StateError('Download is unavailable on this platform.');
+      )) throw StateError('Download is unavailable on this platform.');
       message('Backup downloaded.');
     } catch (e) {
       message('Backup failed: $e');
@@ -580,8 +700,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
             Uint8List.fromList(bytes),
             'grades_all_classes.xlsx',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          ))
-        throw StateError('Download unavailable.');
+          )) throw StateError('Download unavailable.');
       message('Excel downloaded. Missing scores remain blank.');
     } catch (e) {
       message('Export failed: $e');
@@ -593,389 +712,416 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     final theme = Theme.of(context), dark = theme.brightness == Brightness.dark;
     final item = context.watch<ClassService>().getClassById(widget.classId);
     final rows = visible,
-        assessments = category == null
-            ? <GradeItem>[]
-            : book.categoryItems(category!);
+        assessments =
+            category == null ? <GradeItem>[] : book.categoryItems(category!);
     final status = working
         ? 'Saving…'
         : dirty.isNotEmpty
-        ? 'Unfinished entries'
-        : switch (book.saveState) {
-            GradebookSaveState.ready => 'Ready',
-            GradebookSaveState.saving => 'Saving…',
-            GradebookSaveState.saved => 'Saved',
-            GradebookSaveState.failed => 'Save failed — retry your entry',
-            GradebookSaveState.historyIncomplete =>
-              'Score saved — history incomplete',
-          };
-    return Theme(data:theme.copyWith(colorScheme:theme.colorScheme.copyWith(primary:dark?const Color(0xff8cd7d3):const Color(0xff126d78),secondary:const Color(0xff14817b))),child:PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (!didPop && await leave() && context.mounted) {
-          if (widget.studentId != null) {
-            Navigator.pop(context);
-          } else {
-            context.go(AppRoutes.osClassroom(widget.classId));
-          }
-        }
-      },
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: dark
-                  ? const [Color(0xff07131f), Color(0xff0c1d29)]
-                  : const [
-                      Color(0xffe5eff9),
-                      Color(0xfff6f9fc),
-                      Color(0xffeaf5f3),
-                    ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1380),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Wrap(
-                        alignment: WrapAlignment.spaceBetween,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 16,
-                        runSpacing: 12,
+            ? 'Unfinished entries'
+            : switch (book.saveState) {
+                GradebookSaveState.ready => 'Ready',
+                GradebookSaveState.saving => 'Saving…',
+                GradebookSaveState.saved => 'Saved',
+                GradebookSaveState.failed => 'Save failed — retry your entry',
+                GradebookSaveState.historyIncomplete =>
+                  'Score saved — history incomplete',
+              };
+    return Theme(
+        data: theme,
+        child: PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (!didPop && await leave() && context.mounted) {
+              if (widget.studentId != null) {
+                Navigator.pop(context);
+              } else {
+                context.go(AppRoutes.osClassroom(widget.classId));
+              }
+            }
+          },
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: dark
+                      ? const [Color(0xff07131f), Color(0xff0c1d29)]
+                      : const [
+                          Color(0xffe5eff9),
+                          Color(0xfff6f9fc),
+                          Color(0xffeaf5f3),
+                        ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: SafeArea(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1380),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 16,
+                            runSpacing: 12,
                             children: [
-                              IconButton(
-                                tooltip: widget.studentId == null
-                                    ? 'Back to Classroom'
-                                    : 'Close',
-                                onPressed: () async {
-                                  if (await leave() && context.mounted) {
-                                    if (widget.studentId != null) {
-                                      Navigator.pop(context);
-                                    } else {
-                                      context.go(
-                                        AppRoutes.osClassroom(widget.classId),
-                                      );
-                                    }
-                                  }
-                                },
-                                icon: const Icon(Icons.arrow_back),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    widget.studentId == null
-                                        ? 'Gradebook'
-                                        : 'Quick score',
-                                    style: theme.textTheme.headlineSmall
-                                        ?.copyWith(fontWeight: FontWeight.w800),
+                                  IconButton(
+                                    tooltip: widget.studentId == null
+                                        ? 'Back to Classroom'
+                                        : 'Close',
+                                    onPressed: () async {
+                                      if (await leave() && context.mounted) {
+                                        if (widget.studentId != null) {
+                                          Navigator.pop(context);
+                                        } else {
+                                          context.go(
+                                            AppRoutes.osClassroom(
+                                                widget.classId),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    icon: const Icon(Icons.arrow_back),
                                   ),
-                                  Text(
-                                    item?.className ?? 'Class',
-                                    style: theme.textTheme.bodyMedium,
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        widget.studentId == null
+                                            ? 'Gradebook'
+                                            : 'Quick score',
+                                        style: theme.textTheme.headlineSmall
+                                            ?.copyWith(
+                                                fontWeight: FontWeight.w800),
+                                      ),
+                                      Text(
+                                        item?.className ?? 'Class',
+                                        style: theme.textTheme.bodyMedium,
+                                      ),
+                                    ],
                                   ),
+                                ],
+                              ),
+                              Wrap(
+                                spacing: 8,
+                                children: [
+                                  if (widget.studentId != null)
+                                    FilledButton.tonal(
+                                      onPressed: () async {
+                                        if (await leave() && context.mounted) {
+                                          Navigator.pop(context);
+                                          context.go(
+                                            AppRoutes.osClassGradebook(
+                                              widget.classId,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      child: const Text('Open full gradebook'),
+                                    ),
+                                  if (widget.studentId == null) ...[
+                                    OutlinedButton.icon(
+                                        onPressed:
+                                            working ? null : importBackup,
+                                        icon: const Icon(Icons.upload_file),
+                                        label: const Text('Import scores')),
+                                    OutlinedButton.icon(
+                                      onPressed: working ? null : backup,
+                                      icon: const Icon(Icons.backup_outlined),
+                                      label: const Text('Backup'),
+                                    ),
+                                    FilledButton.icon(
+                                      onPressed: working ? null : export,
+                                      icon: const Icon(Icons.download),
+                                      label: const Text('Export Excel'),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ],
                           ),
-                          Wrap(
-                            spacing: 8,
-                            children: [
-                              if (widget.studentId != null)
-                                FilledButton.tonal(
-                                  onPressed: () async {
-                                    if (await leave() && context.mounted) {
-                                      Navigator.pop(context);
-                                      context.go(
-                                        AppRoutes.osClassGradebook(
-                                          widget.classId,
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: const Text('Open full gradebook'),
-                                ),
-                              if (widget.studentId == null) ...[
-                                OutlinedButton.icon(onPressed:working?null:importBackup,icon:const Icon(Icons.upload_file),label:const Text('Import scores')),
-                                OutlinedButton.icon(
-                                  onPressed: working ? null : backup,
-                                  icon: const Icon(Icons.backup_outlined),
-                                  label: const Text('Backup'),
-                                ),
-                                FilledButton.icon(
-                                  onPressed: working ? null : export,
-                                  icon: const Icon(Icons.download),
-                                  label: const Text('Export Excel'),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xff133c67), Color(0xff14817b)],
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Wrap(
-                          spacing: 24,
-                          runSpacing: 10,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              '${book.students.length} students',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xff133c67), Color(0xff14817b)],
                               ),
-                            ),
-                            Text(
-                              status,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            const Text(
-                              'GPA 40% + Exam 60%',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            const Text(
-                              'Participation 20% · Homework 30% · Quizzes 30% · Classwork 20%',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      if (loadError != null)
-                        Text('Could not load grades: $loadError'),
-                      if (!book.loaded && loadError == null)
-                        const LinearProgressIndicator(),
-                      if (book.loaded)
-                        Expanded(
-                          child: Card(
-                            margin: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(24),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
+                            child: Wrap(
+                              spacing: 24,
+                              runSpacing: 10,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  '${book.students.length} students',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  status,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                                const Text(
+                                  'GPA 40% + Exam 60%',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                const Text(
+                                  'Participation 20% · Homework 30% · Quizzes 30% · Classwork 20%',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          if (loadError != null)
+                            Text('Could not load grades: $loadError'),
+                          if (!book.loaded && loadError == null)
+                            const LinearProgressIndicator(),
+                          if (book.loaded)
+                            Expanded(
+                              child: Card(
+                                margin: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
                                     crossAxisAlignment:
-                                        WrapCrossAlignment.center,
+                                        CrossAxisAlignment.stretch,
                                     children: [
-                                      ...book.categories.map(
-                                        (c) => ChoiceChip(
-                                          label: Text(c.name),
-                                          selected:
-                                              !summary &&
-                                              category == c.categoryId,
-                                          onSelected: working
-                                              ? null
-                                              : (_) => setState(() {
-                                                  summary = false;
-                                                  category = c.categoryId;
-                                                }),
-                                        ),
-                                      ),
-                                      TextButton.icon(onPressed:working||dirty.isNotEmpty||!book.canUndo?null:()async{setState(()=>working=true);try{await book.undoLastEdit();for(final f in fields.values){f.dispose();}fields.clear();}catch(e){message('Undo failed: $e');}finally{if(mounted)setState(()=>working=false);}},icon:const Icon(Icons.undo),label:const Text('Undo last edit')),
-                                      ChoiceChip(
-                                        label: const Text('Summary'),
-                                        selected: summary,
-                                        onSelected: working
-                                            ? null
-                                            : (_) => setState(
-                                                () => summary = true,
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          ...book.categories.map(
+                                            (c) => ChoiceChip(
+                                              label: Text(c.name),
+                                              selected: !summary &&
+                                                  category == c.categoryId,
+                                              onSelected: working
+                                                  ? null
+                                                  : (_) => setState(() {
+                                                        summary = false;
+                                                        category = c.categoryId;
+                                                      }),
+                                            ),
+                                          ),
+                                          TextButton.icon(
+                                              onPressed: working ||
+                                                      dirty.isNotEmpty ||
+                                                      !book.canUndo
+                                                  ? null
+                                                  : () async {
+                                                      setState(
+                                                          () => working = true);
+                                                      try {
+                                                        await book
+                                                            .undoLastEdit();
+                                                        for (final f
+                                                            in fields.values) {
+                                                          f.dispose();
+                                                        }
+                                                        fields.clear();
+                                                      } catch (e) {
+                                                        message(
+                                                            'Undo failed: $e');
+                                                      } finally {
+                                                        if (mounted)
+                                                          setState(() =>
+                                                              working = false);
+                                                      }
+                                                    },
+                                              icon: const Icon(Icons.undo),
+                                              label:
+                                                  const Text('Undo last edit')),
+                                          ChoiceChip(
+                                            label: const Text('Summary'),
+                                            selected: summary,
+                                            onSelected: working
+                                                ? null
+                                                : (_) => setState(
+                                                      () => summary = true,
+                                                    ),
+                                          ),
+                                          if (!summary && category != null)
+                                            OutlinedButton.icon(
+                                              onPressed: working
+                                                  ? null
+                                                  : addAssessment,
+                                              icon: const Icon(Icons.add),
+                                              label:
+                                                  const Text('Add assessment'),
+                                            ),
+                                          if (!summary &&
+                                              assessments.isNotEmpty &&
+                                              rows.isNotEmpty)
+                                            TextButton.icon(
+                                              onPressed:
+                                                  working || dirty.isNotEmpty
+                                                      ? null
+                                                      : paste,
+                                              icon: const Icon(
+                                                  Icons.content_paste),
+                                              label: const Text('Paste scores'),
+                                            ),
+                                          if (dirty.isNotEmpty)
+                                            TextButton(
+                                              onPressed: working
+                                                  ? null
+                                                  : () async {
+                                                      for (final s
+                                                          in book.students) {
+                                                        for (final i
+                                                            in book.items) {
+                                                          await commit(s, i);
+                                                        }
+                                                        await commit(s, null);
+                                                      }
+                                                    },
+                                              child: const Text(
+                                                'Save unfinished entries',
                                               ),
+                                            ),
+                                        ],
                                       ),
-                                      if (!summary && category != null)
-                                        OutlinedButton.icon(
-                                          onPressed: working
-                                              ? null
-                                              : addAssessment,
-                                          icon: const Icon(Icons.add),
-                                          label: const Text('Add assessment'),
-                                        ),
-                                      if (!summary &&
-                                          assessments.isNotEmpty &&
-                                          rows.isNotEmpty)
-                                        TextButton.icon(
-                                          onPressed: working || dirty.isNotEmpty
-                                              ? null
-                                              : paste,
-                                          icon: const Icon(Icons.content_paste),
-                                          label: const Text('Paste scores'),
-                                        ),
-                                      if (dirty.isNotEmpty)
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        'Enter scores, then press Enter or click outside to save. Blank means missing; zero counts as zero.',
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                      if (!book.policyMatches)
                                         TextButton(
                                           onPressed: working
                                               ? null
                                               : () async {
-                                                  for (final s
-                                                      in book.students) {
-                                                    for (final i
-                                                        in book.items) {
-                                                      await commit(s, i);
-                                                    }
-                                                    await commit(s, null);
+                                                  final ok = await showDialog<
+                                                          bool>(
+                                                      context: context,
+                                                      builder: (ctx) =>
+                                                          AlertDialog(
+                                                              title: const Text(
+                                                                  'Use the confirmed syllabus weights?'),
+                                                              content: const Text(
+                                                                  'Apply Participation 20%, Homework 30%, Quizzes 30%, Classwork 20% within GPA. Existing assessment scores remain unchanged.'),
+                                                              actions: [
+                                                                TextButton(
+                                                                    onPressed: () =>
+                                                                        Navigator.pop(
+                                                                            ctx,
+                                                                            false),
+                                                                    child: const Text(
+                                                                        'Cancel')),
+                                                                FilledButton(
+                                                                    onPressed: () =>
+                                                                        Navigator.pop(
+                                                                            ctx,
+                                                                            true),
+                                                                    child: const Text(
+                                                                        'Apply weights'))
+                                                              ]));
+                                                  if (ok != true) return;
+                                                  try {
+                                                    await book
+                                                        .setUpCategories();
+                                                    if (mounted)
+                                                      setState(
+                                                        () => category = book
+                                                            .categories
+                                                            .first
+                                                            .categoryId,
+                                                      );
+                                                  } catch (e) {
+                                                    message('$e');
                                                   }
                                                 },
                                           child: const Text(
-                                            'Save unfinished entries',
+                                            'Apply confirmed GPA weights: 20% / 30% / 30% / 20%',
                                           ),
                                         ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    'Enter scores, then press Enter or click outside to save. Blank means missing; zero counts as zero.',
-                                    style: theme.textTheme.bodySmall,
-                                  ),
-                                  if (!book.policyMatches)
-                                    TextButton(
-                                      onPressed: working
-                                          ? null
-                                          : () async {
-                                              final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:const Text('Use the confirmed syllabus weights?'),content:const Text('Apply Participation 20%, Homework 30%, Quizzes 30%, Classwork 20% within GPA. Existing assessment scores remain unchanged.'),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Apply weights'))]));
-                                              if(ok!=true)return;
-                                              try {
-                                                await book.setUpCategories();
-                                                if (mounted)
-                                                  setState(
-                                                    () => category = book
-                                                        .categories
-                                                        .first
-                                                        .categoryId,
-                                                  );
-                                              } catch (e) {
-                                                message('$e');
-                                              }
-                                            },
-                                      child: const Text(
-                                        'Apply confirmed GPA weights: 20% / 30% / 30% / 20%',
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        child: TextField(
+                                          decoration: const InputDecoration(
+                                            prefixIcon: Icon(Icons.search),
+                                            labelText: 'Find student',
+                                            isDense: true,
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          onChanged: (v) =>
+                                              setState(() => search = v),
+                                        ),
                                       ),
-                                    ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                    child: TextField(
-                                      decoration: const InputDecoration(
-                                        prefixIcon: Icon(Icons.search),
-                                        labelText: 'Find student',
-                                        isDense: true,
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      onChanged: (v) =>
-                                          setState(() => search = v),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: SingleChildScrollView(
-                                      child: SingleChildScrollView(
-                                        scrollDirection: Axis.horizontal,
-                                        child: DataTable(dataRowMinHeight:72,dataRowMaxHeight:72,
-                                          columnSpacing: 20,
-                                          headingRowColor:
-                                              WidgetStatePropertyAll(
+                                      Expanded(
+                                        child: SingleChildScrollView(
+                                          child: SingleChildScrollView(
+                                            scrollDirection: Axis.horizontal,
+                                            child: DataTable(
+                                              dataRowMinHeight: 72,
+                                              dataRowMaxHeight: 72,
+                                              columnSpacing: 20,
+                                              headingRowColor:
+                                                  WidgetStatePropertyAll(
                                                 theme.colorScheme.primary
                                                     .withValues(alpha: .07),
                                               ),
-                                          columns: [
-                                            const DataColumn(
-                                              label: Text('Student'),
-                                            ),
-                                            const DataColumn(
-                                              label: Text('Class / Seat'),
-                                            ),
-                                            if (summary) ...[
-                                              ...GradebookWorkspace
-                                                  .processWeights
-                                                  .keys
-                                                  .map(
+                                              columns: [
+                                                const DataColumn(
+                                                  label: Text('Student'),
+                                                ),
+                                                const DataColumn(
+                                                  label: Text('Class / Seat'),
+                                                ),
+                                                if (summary) ...[
+                                                  ...GradebookWorkspace
+                                                      .processWeights.keys
+                                                      .map(
                                                     (k) => DataColumn(
                                                       label: Text(k),
                                                     ),
                                                   ),
-                                              const DataColumn(
-                                                label: Text('GPA'),
-                                              ),
-                                              const DataColumn(
-                                                label: Text('Exam'),
-                                              ),
-                                              const DataColumn(
-                                                label: Text('Final'),
-                                              ),
-                                            ] else ...[
-                                              ...assessments.map(
-                                                (i) => DataColumn(
-                                                  label: Column(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(i.name),
-                                                      Text(
-                                                        'out of ${fmt(i.maxScore)}',
-                                                        style: theme
-                                                            .textTheme
-                                                            .bodySmall,
-                                                      ),
-                                                    ],
+                                                  const DataColumn(
+                                                    label: Text('GPA'),
                                                   ),
-                                                ),
-                                              ),
-                                              const DataColumn(
-                                                label: Text('Average'),
-                                              ),
-                                            ],
-                                          ],
-                                          rows: rows
-                                              .map(
-                                                (s) => DataRow(
-                                                  cells: [
-                                                    DataCell(
-                                                      Column(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .center,
+                                                  const DataColumn(
+                                                    label: Text('Exam'),
+                                                  ),
+                                                  const DataColumn(
+                                                    label: Text('Final'),
+                                                  ),
+                                                ] else ...[
+                                                  ...assessments.map(
+                                                    (i) => DataColumn(
+                                                      label: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
                                                         crossAxisAlignment:
                                                             CrossAxisAlignment
                                                                 .start,
                                                         children: [
+                                                          Text(i.name),
                                                           Text(
-                                                            s.englishFullName,
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                ),
-                                                          ),
-                                                          Text(
-                                                            '${s.chineseName} · ${s.studentId}',
+                                                            'out of ${fmt(i.maxScore)}',
                                                             style: theme
                                                                 .textTheme
                                                                 .bodySmall,
@@ -983,35 +1129,73 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                                         ],
                                                       ),
                                                     ),
-                                                    DataCell(
-                                                      Text(
-                                                        '${s.classCode ?? ''} / ${s.seatNo ?? ''}',
-                                                      ),
-                                                    ),
-                                                    if (summary) ...[
-                                                      ...GradebookWorkspace
-                                                          .processWeights
-                                                          .keys
-                                                          .map((k) {
-                                                            final cats = book
-                                                                .categories
-                                                                .where(
-                                                                  (c) =>
-                                                                      GradebookWorkspace.canonical(
-                                                                        c.name,
-                                                                      ) ==
-                                                                      k,
-                                                                )
-                                                                .toList();
+                                                  ),
+                                                  const DataColumn(
+                                                    label: Text('Average'),
+                                                  ),
+                                                ],
+                                              ],
+                                              rows: rows
+                                                  .map(
+                                                    (s) => DataRow(
+                                                      cells: [
+                                                        DataCell(
+                                                          Column(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Text(
+                                                                s.englishFullName,
+                                                                style:
+                                                                    const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                ),
+                                                              ),
+                                                              Text(
+                                                                '${s.chineseName} · ${s.studentId}',
+                                                                style: theme
+                                                                    .textTheme
+                                                                    .bodySmall,
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        DataCell(
+                                                          Text(
+                                                            '${s.classCode ?? ''} / ${s.seatNo ?? ''}',
+                                                          ),
+                                                        ),
+                                                        if (summary) ...[
+                                                          ...GradebookWorkspace
+                                                              .processWeights
+                                                              .keys
+                                                              .map((k) {
+                                                            final cats =
+                                                                book.categories
+                                                                    .where(
+                                                                      (c) =>
+                                                                          GradebookWorkspace
+                                                                              .canonical(
+                                                                            c.name,
+                                                                          ) ==
+                                                                          k,
+                                                                    )
+                                                                    .toList();
                                                             return DataCell(
                                                               Text(
                                                                 fmt(
                                                                   cats.length ==
                                                                           1
-                                                                      ? book.average(
+                                                                      ? book
+                                                                          .average(
                                                                           s.studentId,
-                                                                          cats
-                                                                              .single
+                                                                          cats.single
                                                                               .categoryId,
                                                                         )
                                                                       : null,
@@ -1019,72 +1203,73 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                                               ),
                                                             );
                                                           }),
-                                                      DataCell(
-                                                        Text(
-                                                          fmt(
-                                                            book.process(
-                                                              s.studentId,
+                                                          DataCell(
+                                                            Text(
+                                                              fmt(
+                                                                book.process(
+                                                                  s.studentId,
+                                                                ),
+                                                              ),
                                                             ),
                                                           ),
-                                                        ),
-                                                      ),
-                                                      DataCell(
-                                                        scoreField(s, null),
-                                                      ),
-                                                      DataCell(
-                                                        Text(
-                                                          fmt(
-                                                            book.finalGrade(
-                                                              s.studentId,
+                                                          DataCell(
+                                                            scoreField(s, null),
+                                                          ),
+                                                          DataCell(
+                                                            Text(
+                                                              fmt(
+                                                                book.finalGrade(
+                                                                  s.studentId,
+                                                                ),
+                                                              ),
                                                             ),
                                                           ),
-                                                        ),
-                                                      ),
-                                                    ] else ...[
-                                                      ...assessments.map(
-                                                        (i) => DataCell(
-                                                          scoreField(s, i),
-                                                        ),
-                                                      ),
-                                                      DataCell(
-                                                        Text(
-                                                          fmt(
-                                                            category == null
-                                                                ? null
-                                                                : book.average(
-                                                                    s.studentId,
-                                                                    category!,
-                                                                  ),
+                                                        ] else ...[
+                                                          ...assessments.map(
+                                                            (i) => DataCell(
+                                                              scoreField(s, i),
+                                                            ),
                                                           ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
-                                                ),
-                                              )
-                                              .toList(),
+                                                          DataCell(
+                                                            Text(
+                                                              fmt(
+                                                                category == null
+                                                                    ? null
+                                                                    : book
+                                                                        .average(
+                                                                        s.studentId,
+                                                                        category!,
+                                                                      ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                  )
+                                                  .toList(),
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        '${rows.length} students shown · Category averages require all assessment scores. Final grades require all four categories and an exam.',
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    '${rows.length} students shown · Category averages require all assessment scores. Final grades require all four categories and an exam.',
-                                    style: theme.textTheme.bodySmall,
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
-    ));
+        ));
   }
 }

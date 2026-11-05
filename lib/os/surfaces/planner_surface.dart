@@ -24,7 +24,8 @@ import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/theme.dart';
 
 class PlannerSurface extends StatefulWidget {
-  const PlannerSurface({super.key});
+  const PlannerSurface({super.key, this.initialDate});
+  final DateTime? initialDate;
 
   @override
   State<PlannerSurface> createState() => _PlannerSurfaceState();
@@ -50,6 +51,26 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
   List<_PlannerReminder> _reminders = const <_PlannerReminder>[];
   List<_PlannerTimetable> _timetables = const <_PlannerTimetable>[];
   String? _selectedTimetableId;
+
+  @override
+  void initState() {
+    super.initState();
+    _applyInitialDate();
+  }
+
+  void _applyInitialDate() {
+    final date = widget.initialDate;
+    if (date != null) {
+      _selectedDate = DateUtils.dateOnly(date);
+      _focusedMonth = DateTime(date.year, date.month);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant PlannerSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialDate != widget.initialDate) _applyInitialDate();
+  }
 
   @override
   void didChangeDependencies() {
@@ -883,10 +904,7 @@ class _PlannerDashboardView extends StatelessWidget {
         onUpload: onUploadTimetable,
         onManage: onManageTimetables);
     return Theme(
-        data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.fromSeed(
-                seedColor: const Color(0xff1769ce),
-                brightness: Theme.of(context).brightness)),
+        data: Theme.of(context),
         child: Scaffold(
           backgroundColor:
               dark ? const Color(0xff07131f) : const Color(0xfff0f5fa),

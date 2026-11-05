@@ -12,8 +12,6 @@ import 'package:gradeflow/screens/category_management_screen.dart';
 import 'package:gradeflow/screens/exam_input_screen.dart';
 import 'package:gradeflow/screens/export_screen.dart';
 import 'package:gradeflow/screens/final_results_screen.dart';
-import 'package:gradeflow/screens/class_seating_screen.dart';
-import 'package:gradeflow/screens/teacher_dashboard_screen.dart';
 import 'package:gradeflow/screens/demo_dashboard_preview_screen.dart';
 import 'package:gradeflow/screens/communication_hub_screen.dart';
 import 'package:gradeflow/screens/admin_workspace_screen.dart';
@@ -73,8 +71,12 @@ class AppRouter {
       return null;
     },
     routes: [
-      GoRoute(path:AppRoutes.osClasses,name:'osClasses',pageBuilder:(context,state)=>_osPage(state,surface:OSSurface.classWorkspace,child:const ClassDirectorySurface())),
-
+      GoRoute(
+          path: AppRoutes.osClasses,
+          name: 'osClasses',
+          pageBuilder: (context, state) => _osPage(state,
+              surface: OSSurface.classWorkspace,
+              child: const ClassDirectorySurface())),
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
@@ -84,8 +86,8 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.dashboard,
         name: 'dashboard',
-        pageBuilder: (context, state) =>
-            _shellPage(state, const TeacherDashboardScreen()),
+        redirect: (context, state) =>
+            _redirectWithQuery(state, AppRoutes.osPlanner),
       ),
       GoRoute(
         path: AppRoutes.osHome,
@@ -102,7 +104,9 @@ class AppRouter {
         pageBuilder: (context, state) => _osPage(
           state,
           surface: OSSurface.planner,
-          child: const PlannerSurface(),
+          child: PlannerSurface(
+              initialDate:
+                  DateTime.tryParse(state.uri.queryParameters['date'] ?? '')),
         ),
       ),
       GoRoute(
@@ -183,7 +187,8 @@ class AppRouter {
       GoRoute(
         path: '${AppRoutes.osClass}/:classId/gradebook',
         name: 'osClassGradebook',
-        onExit: (context, state) => NativeGradebookScreen.canLeave(state.pathParameters['classId']!),
+        onExit: (context, state) =>
+            NativeGradebookScreen.canLeave(state.pathParameters['classId']!),
         pageBuilder: (context, state) {
           final classId = state.pathParameters['classId']!;
           return _osPage(
@@ -203,22 +208,17 @@ class AppRouter {
             state,
             surface: OSSurface.classWorkspace,
             classId: classId,
-            child: ClassroomSurface(classId: classId),
+            child: ClassroomSurface(
+                classId: classId,
+                startInSetup: state.uri.queryParameters['setup'] == '1'),
           );
         },
       ),
       GoRoute(
         path: '${AppRoutes.osClass}/:classId/seating',
         name: 'osClassSeating',
-        pageBuilder: (context, state) {
-          final classId = state.pathParameters['classId']!;
-          return _osPage(
-            state,
-            surface: OSSurface.classWorkspace,
-            classId: classId,
-            child: ClassSeatingScreen(classId: classId),
-          );
-        },
+        redirect: (context, state) =>
+            '${AppRoutes.osClassroom(state.pathParameters['classId']!)}?setup=1',
       ),
       GoRoute(
         path: '${AppRoutes.osClass}/:classId/categories',

@@ -565,7 +565,7 @@ class _ExportScreenState extends State<ExportScreen> {
       case _ExportScope.perStudent:
         return 'Prepare a single student handoff or archive from $className.';
       case _ExportScope.perClass:
-        return 'Keep the full class report aligned to the current grading context.';
+        return 'Preview and download grades for this class.';
       case _ExportScope.classDetails:
         return 'Generate the more detailed per-student packet for this class.';
       case _ExportScope.allClasses:
@@ -1930,7 +1930,7 @@ class _ExportScreenState extends State<ExportScreen> {
           const WorkspaceSectionHeader(
             title: 'Report readiness',
             subtitle:
-                'This pass keeps the report context visible before you preview or download anything.',
+                'Review the report scope, format and data checks before downloading.',
           ),
           const SizedBox(height: WorkspaceSpacing.md),
           Wrap(
@@ -1979,7 +1979,7 @@ class _ExportScreenState extends State<ExportScreen> {
             icon: readyForAction
                 ? Icons.verified_outlined
                 : Icons.warning_amber_rounded,
-            label: 'Trust check',
+            label: 'Data checks',
             value: readyForAction
                 ? 'No blocking data issues were found in the current class review.'
                 : 'Missing exam scores or invalid category weights are still visible before export.',

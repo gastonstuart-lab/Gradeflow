@@ -19,6 +19,7 @@ class CommunicationHubScreen extends StatefulWidget {
 
 class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
   bool _loading = true;
+  bool _showConversation = true;
   String? _error;
 
   @override
@@ -211,11 +212,19 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
     final communicationService = context.watch<CommunicationService>();
 
     return ToolFirstAppSurface(
-      header: _buildMessagesHeader(context, communicationService),
+      leading: IconButton(
+          tooltip: 'Back to Home',
+          onPressed: () => context.go(AppRoutes.osHome),
+          icon: const Icon(Icons.arrow_back_rounded)),
+      trailing: [
+        OutlinedButton.icon(
+            onPressed: () => _showCreateGroupDialog(context),
+            icon: const Icon(Icons.add_circle_outline_rounded),
+            label: const Text('Create group'))
+      ],
       eyebrow: 'Support surface',
       title: 'Messages',
-      subtitle:
-          'Staff coordination, admin notices, and shared updates in one secondary support space.',
+      subtitle: 'Staff channels and school notices.',
       contextStrip: _MessagesContextBar(
         unreadCount: communicationService.totalUnreadCount,
         channelCount: communicationService.channelCount,
@@ -223,51 +232,6 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
         onRefresh: _load,
       ),
       workspace: _buildSplitViewWorkspace(context, communicationService),
-    );
-  }
-
-  Widget _buildMessagesHeader(
-    BuildContext context,
-    CommunicationService communicationService,
-  ) {
-    return CommandHeader(
-      eyebrow: 'Support surface',
-      title: 'Messages',
-      subtitle:
-          'Staff coordination, admin notices, and shared updates in one secondary support space.',
-      leading: IconButton(
-        onPressed: () => context.go(AppRoutes.osHome),
-        icon: const Icon(Icons.arrow_back_rounded),
-        tooltip: 'Back to OS home',
-        style: WorkspaceButtonStyles.icon(context),
-      ),
-      primaryAction: FilledButton.icon(
-        onPressed: () => _showCreateGroupDialog(context),
-        icon: const Icon(Icons.add_circle_outline_rounded),
-        label: const Text('Create group'),
-        style: WorkspaceButtonStyles.filled(context),
-      ),
-      contextPills: [
-        WorkspaceContextPill(
-          icon: Icons.mark_chat_unread_outlined,
-          label: 'Unread',
-          value: communicationService.totalUnreadCount.toString(),
-          emphasized: communicationService.totalUnreadCount > 0,
-        ),
-        WorkspaceContextPill(
-          icon: Icons.forum_outlined,
-          label: 'Channels',
-          value: communicationService.channelCount.toString(),
-        ),
-        WorkspaceContextPill(
-          icon: Icons.bolt_outlined,
-          label: 'Today',
-          value: '${communicationService.activityCount} active',
-          accent: Theme.of(context).colorScheme.tertiary,
-        ),
-      ],
-      pulseTone: CommandPulseTone.calm,
-      pulseLabel: 'Shared staff coordination live',
     );
   }
 
@@ -309,20 +273,24 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
 
         if (!hasSplitView) {
           final selected = communicationService.selectedChannel != null;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Column(
-              children: [
-                if (!selected)
-                  Expanded(child: threadList)
-                else ...[
-                  SizedBox(height: 220, child: threadList),
-                  const SizedBox(height: 12),
-                  Expanded(child: threadPanel),
-                ],
-              ],
-            ),
-          );
+          return Column(children: [
+            if (selected)
+              Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () =>
+                        setState(() => _showConversation = !_showConversation),
+                    icon: Icon(_showConversation
+                        ? Icons.forum_outlined
+                        : Icons.arrow_forward),
+                    label: Text(_showConversation
+                        ? 'Show channels'
+                        : 'Show conversation'),
+                  )),
+            Expanded(
+                child:
+                    selected && _showConversation ? threadPanel : threadList),
+          ]);
         }
 
         return Row(
@@ -350,6 +318,7 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
       surfaceType: SurfaceType.tool,
       padding: const EdgeInsets.all(14),
       radius: 22,
+      expandChild: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -398,8 +367,10 @@ class _CommunicationHubScreenState extends State<CommunicationHubScreen> {
                         selected:
                             communicationService.selectedChannel?.channelId ==
                                 channel.channelId,
-                        onTap: () => communicationService
-                            .selectChannel(channel.channelId),
+                        onTap: () {
+                          communicationService.selectChannel(channel.channelId);
+                          setState(() => _showConversation = true);
+                        },
                       );
                     },
                   ),
@@ -848,151 +819,168 @@ class _CommunicationThreadPanelState extends State<_CommunicationThreadPanel> {
       surfaceType: SurfaceType.stage,
       padding: EdgeInsets.zero,
       radius: 22,
+      expandChild: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 15, 16, 14),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  accent.withValues(alpha: 0.08),
-                  Theme.of(context).colorScheme.surface.withValues(alpha: 0.06),
+          if (MediaQuery.sizeOf(context).width < 600)
+            Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+                child: Row(children: [
+                  Expanded(
+                      child: Text(channel.name,
+                          style: Theme.of(context).textTheme.titleMedium)),
+                  IconButton(
+                      tooltip: 'Refresh conversation',
+                      onPressed: widget.onRefresh,
+                      icon: const Icon(Icons.refresh_rounded)),
+                ]))
+          else
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 15, 16, 14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    accent.withValues(alpha: 0.08),
+                    Theme.of(context)
+                        .colorScheme
+                        .surface
+                        .withValues(alpha: 0.06),
+                  ],
+                ),
+                border: Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outline
+                        .withValues(alpha: 0.12),
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          color: accent.withValues(alpha: 0.16),
+                          border: Border.all(
+                            color: accent.withValues(alpha: 0.22),
+                          ),
+                        ),
+                        child: Icon(
+                          _iconForKind(channel.kind),
+                          size: 20,
+                          color: accent,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              channel.name,
+                              style: context.textStyles.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              channel.description.trim().isNotEmpty
+                                  ? channel.description
+                                  : 'Shared staff updates with ${channel.memberCount} participants.',
+                              style: context.textStyles.bodySmall?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                                height: 1.35,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      _CommunicationMetaPill(
+                        label: _channelKindLabel(channel.kind),
+                        accent: accent,
+                        icon: _iconForKind(channel.kind),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      WorkspaceContextPill(
+                        icon: Icons.people_alt_outlined,
+                        label: 'Members',
+                        value: '${channel.memberCount}',
+                        accent: accent,
+                      ),
+                      WorkspaceContextPill(
+                        icon: channel.readOnly
+                            ? Icons.lock_outline_rounded
+                            : Icons.edit_outlined,
+                        label: 'Posting',
+                        value: channel.readOnly ? 'Read only' : 'Open',
+                        accent: channel.readOnly
+                            ? Theme.of(context).colorScheme.error
+                            : Theme.of(context).colorScheme.primary,
+                      ),
+                      _CommunicationMetaPill(
+                        label:
+                            channel.readOnly ? 'Broadcast lane' : 'Reply ready',
+                        accent: channel.readOnly
+                            ? Theme.of(context).colorScheme.error
+                            : accent,
+                        icon: channel.readOnly
+                            ? Icons.campaign_outlined
+                            : Icons.reply_rounded,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (!channel.readOnly)
+                        OutlinedButton.icon(
+                          onPressed: _focusComposer,
+                          icon: const Icon(Icons.reply_rounded),
+                          label: const Text('Write update'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: accent,
+                            side: BorderSide(
+                              color: accent.withValues(alpha: 0.24),
+                            ),
+                          ),
+                        ),
+                      OutlinedButton.icon(
+                        onPressed: widget.onRefresh,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Refresh'),
+                        style: WorkspaceButtonStyles.outlined(
+                          context,
+                          compact: true,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-              border: Border(
-                bottom: BorderSide(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outline
-                      .withValues(alpha: 0.12),
-                ),
-              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        color: accent.withValues(alpha: 0.16),
-                        border: Border.all(
-                          color: accent.withValues(alpha: 0.22),
-                        ),
-                      ),
-                      child: Icon(
-                        _iconForKind(channel.kind),
-                        size: 20,
-                        color: accent,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            channel.name,
-                            style: context.textStyles.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            channel.description.trim().isNotEmpty
-                                ? channel.description
-                                : 'Shared staff updates with ${channel.memberCount} participants.',
-                            style: context.textStyles.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                              height: 1.35,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _CommunicationMetaPill(
-                      label: _channelKindLabel(channel.kind),
-                      accent: accent,
-                      icon: _iconForKind(channel.kind),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    WorkspaceContextPill(
-                      icon: Icons.people_alt_outlined,
-                      label: 'Members',
-                      value: '${channel.memberCount}',
-                      accent: accent,
-                    ),
-                    WorkspaceContextPill(
-                      icon: channel.readOnly
-                          ? Icons.lock_outline_rounded
-                          : Icons.edit_outlined,
-                      label: 'Posting',
-                      value: channel.readOnly ? 'Read only' : 'Open',
-                      accent: channel.readOnly
-                          ? Theme.of(context).colorScheme.error
-                          : Theme.of(context).colorScheme.primary,
-                    ),
-                    _CommunicationMetaPill(
-                      label:
-                          channel.readOnly ? 'Broadcast lane' : 'Reply ready',
-                      accent: channel.readOnly
-                          ? Theme.of(context).colorScheme.error
-                          : accent,
-                      icon: channel.readOnly
-                          ? Icons.campaign_outlined
-                          : Icons.reply_rounded,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (!channel.readOnly)
-                      OutlinedButton.icon(
-                        onPressed: _focusComposer,
-                        icon: const Icon(Icons.reply_rounded),
-                        label: const Text('Write update'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: accent,
-                          side: BorderSide(
-                            color: accent.withValues(alpha: 0.24),
-                          ),
-                        ),
-                      ),
-                    OutlinedButton.icon(
-                      onPressed: widget.onRefresh,
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Refresh'),
-                      style: WorkspaceButtonStyles.outlined(
-                        context,
-                        compact: true,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
           Expanded(
             child: widget.messages.isEmpty
                 ? Center(

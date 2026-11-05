@@ -1,3 +1,5 @@
+> Newer review checkpoint: `feat/instructos-cohesive-teacher-experience-20261105` continues this stack. Read [the teacher experience audit](experience-review/teacher-experience-audit.md) and [continuation notes](experience-review/continuation.md). The PR #69 checkpoint below remains historical evidence.
+
 # Continue this work from GitHub or a new chat
 
 ## Current checkpoint

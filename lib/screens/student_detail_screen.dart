@@ -308,7 +308,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           const WorkspaceSectionHeader(
             title: 'Grade breakdown',
             subtitle:
-                'Process, exam, and final values stay visible inside one calm student summary.',
+                'Category averages, GPA and exam results for this student.',
           ),
           const SizedBox(height: WorkspaceSpacing.md),
           ...categories.map((category) {

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/config/instructos_branding.dart';
+import 'package:gradeflow/config/instructos_design.dart';
+import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/demo_data_service.dart';
@@ -30,6 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _nameController = TextEditingController();
   bool _isLoading = false;
   bool _isCreatingAccount = false;
+  bool _showPassword = false;
 
   bool get _shouldUseLocalhostForGoogleSignIn =>
       kIsWeb && Uri.base.host == '127.0.0.1';
@@ -150,9 +153,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_shouldUseLocalhostForGoogleSignIn) {
       showWorkspaceSnackBar(
         context,
-        message:
-            'Google sign-in on local web should use localhost. Opening ${_localhostSignInUri.toString()}',
-        title: 'Opening localhost',
+        message: 'Opening the local Google sign-in page.',
+        title: 'Google sign-in',
       );
       await _openLocalhostSignIn();
       return;
@@ -195,286 +197,253 @@ class _LoginScreenState extends State<LoginScreen> {
       context,
       message: message,
       tone: WorkspaceFeedbackTone.error,
+      title: 'Check your sign-in details',
     );
   }
 
-  Widget _buildAccessPanel(
-    BuildContext context, {
-    required bool compact,
-  }) {
+  Widget _buildAccessPanel(BuildContext context, {required bool compact}) {
     final theme = Theme.of(context);
-    final primaryButtonStyle = FilledButton.styleFrom(
-      minimumSize: const Size.fromHeight(54),
-      backgroundColor: const Color(0xFF8B5CF6),
-      foregroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(19),
-      ),
-      textStyle: theme.textTheme.titleSmall?.copyWith(
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0,
-      ),
-    );
-    final secondaryButtonStyle = OutlinedButton.styleFrom(
-      minimumSize: const Size.fromHeight(50),
-      foregroundColor: const Color(0xFFB8C3FF),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
-      side: BorderSide(
-        color: Colors.white.withValues(alpha: 0.13),
-      ),
-      textStyle: theme.textTheme.titleSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0,
-      ),
-    );
-
     return InstructOSAuthCardShell(
-      compact: compact,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+        compact: compact,
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(_isCreatingAccount ? 'Create your account' : 'Welcome back.',
+              style: theme.textTheme.headlineMedium
+                  ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -.7)),
+          const SizedBox(height: 8),
           Text(
-            InstructOSBranding.productName,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Teaching, organised.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFFD7DDF1).withValues(alpha: 0.72),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: compact ? 30 : 36),
-          Text(
-            _isCreatingAccount ? 'Create account' : 'Sign in',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: Colors.white.withValues(alpha: 0.94),
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0,
-            ),
-          ),
-          if (_shouldUseLocalhostForGoogleSignIn) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                color: const Color(0xFF142036).withValues(alpha: 0.62),
-                border: Border.all(
-                  color: theme.colorScheme.tertiary.withValues(alpha: 0.30),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Google sign-in works better on localhost',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'This local run opened on 127.0.0.1, which Firebase web auth often rejects. Switch to localhost for Google sign-in.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      height: 1.45,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: _isLoading ? null : _openLocalhostSignIn,
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Open localhost sign-in'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 22),
+              _isCreatingAccount
+                  ? 'Set up your teacher workspace.'
+                  : 'Sign in to your teaching workspace.',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 28),
           AutofillGroup(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_isCreatingAccount) ...[
-                  TextField(
-                    controller: _nameController,
-                    decoration: _portalInputDecoration(
-                      theme,
+              child: Column(children: [
+            if (_isCreatingAccount) ...[
+              TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
                       labelText: 'Name',
-                      prefixIcon: const Icon(Icons.person_outline),
-                    ),
-                    textInputAction: TextInputAction.next,
-                    autofillHints: const [AutofillHints.name],
-                    enabled: !_isLoading,
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                TextField(
-                  controller: _emailController,
-                  decoration: _portalInputDecoration(
-                    theme,
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
+                      prefixIcon: Icon(Icons.person_outline)),
                   textInputAction: TextInputAction.next,
-                  autofillHints: const [AutofillHints.username],
-                  enabled: !_isLoading,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  decoration: _portalInputDecoration(
-                    theme,
+                  autofillHints: const [AutofillHints.name],
+                  enabled: !_isLoading),
+              const SizedBox(height: 16)
+            ],
+            TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                    labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autofillHints: const [AutofillHints.username],
+                enabled: !_isLoading),
+            const SizedBox(height: 16),
+            TextField(
+                controller: _passwordController,
+                decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                  ),
-                  obscureText: true,
-                  textInputAction: TextInputAction.done,
-                  autofillHints: const [AutofillHints.password],
-                  enabled: !_isLoading,
-                  onSubmitted: (_) =>
-                      _isCreatingAccount ? _handleRegister() : _handleLogin(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                        tooltip:
+                            _showPassword ? 'Hide password' : 'Show password',
+                        onPressed: () =>
+                            setState(() => _showPassword = !_showPassword),
+                        icon: Icon(_showPassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined))),
+                obscureText: !_showPassword,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.password],
+                enabled: !_isLoading,
+                onSubmitted: (_) =>
+                    _isCreatingAccount ? _handleRegister() : _handleLogin()),
+          ])),
+          const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: _isLoading
-                ? null
-                : (_isCreatingAccount ? _handleRegister : _handleLogin),
-            style: primaryButtonStyle,
-            icon: _isLoading
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.arrow_forward_rounded),
-            label: Text(_isLoading ? 'Opening...' : 'Enter'),
-          ),
-          const SizedBox(height: 14),
+              onPressed: _isLoading
+                  ? null
+                  : (_isCreatingAccount ? _handleRegister : _handleLogin),
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.arrow_forward_rounded, size: 19),
+              label: Text(_isLoading
+                  ? 'Opening workspace...'
+                  : _isCreatingAccount
+                      ? 'Create account'
+                      : 'Sign in'),
+              style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52))),
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(child: Divider(color: theme.colorScheme.outline)),
+            Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text('or',
+                    style:
+                        TextStyle(color: theme.colorScheme.onSurfaceVariant))),
+            Expanded(child: Divider(color: theme.colorScheme.outline))
+          ]),
+          const SizedBox(height: 16),
           OutlinedButton.icon(
-            onPressed: _isLoading ? null : _handleGoogleLogin,
-            style: secondaryButtonStyle,
-            icon: const Icon(Icons.login),
-            label: const Text('Continue with Google'),
-          ),
+              onPressed: _isLoading ? null : _handleGoogleLogin,
+              icon: const Icon(Icons.login, size: 19),
+              label: const Text('Continue with Google')),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _isLoading ? null : _handleDemoLogin,
-            style: secondaryButtonStyle,
-            icon: const Icon(Icons.preview_outlined),
-            label: const Text('Open demo workspace'),
-          ),
-          const SizedBox(height: 18),
           TextButton(
-            onPressed: _isLoading
-                ? null
-                : () {
-                    setState(() => _isCreatingAccount = !_isCreatingAccount);
-                  },
-            child: Text(
-              _isCreatingAccount ? 'Sign in' : 'Create account',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: const Color(0xFFB8C3FF),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+              onPressed: _isLoading
+                  ? null
+                  : () =>
+                      setState(() => _isCreatingAccount = !_isCreatingAccount),
+              child: Text(_isCreatingAccount
+                  ? 'Already have an account? Sign in'
+                  : 'Create account')),
+          const SizedBox(height: 16),
+          Divider(color: theme.colorScheme.outline),
+          const SizedBox(height: 8),
+          TextButton.icon(
+              onPressed: _isLoading ? null : _handleDemoLogin,
+              icon: const Icon(Icons.preview_outlined, size: 19),
+              label: const Text('Open demo workspace')),
+          Text('Explore with sample students and scores.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ]));
   }
 
-  InputDecoration _portalInputDecoration(
-    ThemeData theme, {
-    required String labelText,
-    required Widget prefixIcon,
-  }) {
-    final borderRadius = BorderRadius.circular(18);
-    return InputDecoration(
-      labelText: labelText,
-      prefixIcon: prefixIcon,
-      filled: true,
-      fillColor: const Color(0xFF070B14).withValues(alpha: 0.46),
-      labelStyle: TextStyle(
-        color: const Color(0xFFD7DDF1).withValues(alpha: 0.78),
-        fontWeight: FontWeight.w600,
-      ),
-      prefixIconColor: const Color(0xFFD7DDF1).withValues(alpha: 0.86),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: BorderSide(
-          color: Colors.white.withValues(alpha: 0.13),
+  Widget _welcome(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('More time for\nteaching.',
+          style: theme.textTheme.displaySmall?.copyWith(
+              fontSize: 48,
+              height: 1.08,
+              letterSpacing: -1.6,
+              fontWeight: FontWeight.w800)),
+      const SizedBox(height: 20),
+      Text('Your classes, plans and grades.\nOne familiar workspace.',
+          style: theme.textTheme.titleLarge?.copyWith(
+              height: 1.5,
+              fontWeight: FontWeight.w400,
+              color: theme.colorScheme.onSurfaceVariant)),
+      const SizedBox(height: 40),
+      for (final feature in [
+        (
+          Icons.meeting_room_outlined,
+          'Teach from your classroom',
+          'Your room map and student tools, together.'
         ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: const BorderSide(
-          color: Color(0xFF8B5CF6),
-          width: 1.4,
+        (
+          Icons.menu_book_outlined,
+          'Keep grades in reach',
+          'Enter scores and prepare your gradebook.'
         ),
-      ),
-      disabledBorder: OutlineInputBorder(
-        borderRadius: borderRadius,
-        borderSide: BorderSide(
-          color: Colors.white.withValues(alpha: 0.07),
-        ),
-      ),
-      border: OutlineInputBorder(borderRadius: borderRadius),
-    );
+        (
+          Icons.calendar_month_outlined,
+          'Plan the day',
+          'Your calendar, reminders and timetable.'
+        )
+      ])
+        Padding(
+            padding: const EdgeInsets.only(bottom: 22),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(14)),
+                  child: Icon(feature.$1,
+                      color: theme.colorScheme.primary, size: 22)),
+              const SizedBox(width: 14),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(feature.$2,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(feature.$3,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            height: 1.4))
+                  ]))
+            ])),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
     final router = GoRouter.of(context);
-    if (kDebugMode) {
-      debugPrint(
-          'LoginScreen.build | isAuth=${auth.isAuthenticated} isLoading=${auth.isLoading} isInit=${auth.isInitialized}');
-    }
-    if (auth.isAuthenticated) {
+    if (auth.isAuthenticated)
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        router.go(_postAuthDestination());
+        if (mounted) router.go(_postAuthDestination());
       });
-    }
-
-    final size = MediaQuery.sizeOf(context);
-    final shortViewport = size.height < 780;
-    final edgePadding = shortViewport ? 18.0 : 24.0;
-
-    return Scaffold(
-      body: InstructOSInteractiveAuthBackground(
-        child: SafeArea(
+    return Scaffold(body: InstructOSInteractiveAuthBackground(
+        child: SafeArea(child: LayoutBuilder(builder: (context, size) {
+      final wide = size.maxWidth >= 900;
+      return SingleChildScrollView(
+          padding:
+              EdgeInsets.symmetric(horizontal: wide ? 48 : 20, vertical: 24),
           child: Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(edgePadding),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 430),
-                child: _buildAccessPanel(
-                  context,
-                  compact: size.width < 560 || shortViewport,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+                  constraints: const BoxConstraints(maxWidth: 1120),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(children: [
+                          const InstructOSBrandMark(),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                Text(InstructOSBranding.productName,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                            fontWeight: FontWeight.w800)),
+                                Text('Teaching, organised.',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall)
+                              ])),
+                          IconButton(
+                              tooltip: 'Change appearance',
+                              onPressed: () => context
+                                  .read<ThemeModeNotifier>()
+                                  .toggleTheme(),
+                              icon: Icon(InstructOSDesign.dark(context)
+                                  ? Icons.light_mode_outlined
+                                  : Icons.dark_mode_outlined))
+                        ]),
+                        SizedBox(height: wide ? 64 : 32),
+                        if (wide)
+                          Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(child: _welcome(context)),
+                                const SizedBox(width: 80),
+                                SizedBox(
+                                    width: 430,
+                                    child: _buildAccessPanel(context,
+                                        compact: false))
+                              ])
+                        else
+                          Center(
+                              child: ConstrainedBox(
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 460),
+                                  child: _buildAccessPanel(context,
+                                      compact: true))),
+                        const SizedBox(height: 32),
+                      ]))));
+    }))));
   }
 }

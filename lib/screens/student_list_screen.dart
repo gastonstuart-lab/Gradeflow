@@ -510,21 +510,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
       await context.read<StudentService>().addStudent(student);
 
-      // Default all non-exam grade items to full marks for the new student.
-      final gradeItemSvc = context.read<GradeItemService>();
-      if (gradeItemSvc.gradeItems.isEmpty) {
-        await gradeItemSvc.loadGradeItems(widget.classId);
-      }
-      final scoreSvc = context.read<StudentScoreService>();
-      for (final item in gradeItemSvc.gradeItems) {
-        await scoreSvc.ensureDefaultScoresForGradeItem(
-          widget.classId,
-          item.gradeItemId,
-          [student.studentId],
-          item.maxScore,
-        );
-      }
-
       _showSuccess('Student added successfully');
     }
   }
@@ -857,19 +842,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
     return leftParts.length.compareTo(rightParts.length);
   }
 
-  String _sortLabel() {
-    switch (_sortBy) {
-      case _SortBy.studentId:
-        return 'Student ID';
-      case _SortBy.seat:
-        return 'Seat';
-      case _SortBy.chinese:
-        return 'Chinese';
-      case _SortBy.english:
-        return 'English';
-    }
-  }
-
   Widget _buildContextBar(
     BuildContext context, {
     required String className,
@@ -877,43 +849,14 @@ class _StudentListScreenState extends State<StudentListScreen> {
     required int rosterCount,
     required int visibleCount,
   }) {
-    return WorkspaceContextBar(
-      title: className,
-      subtitle: classContextLine,
-      leading: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          WorkspaceContextPill(
-            icon: Icons.people_alt_outlined,
-            label: 'Roster',
-            value: '$rosterCount students',
-            emphasized: true,
-          ),
-          WorkspaceContextPill(
-            icon: Icons.filter_list_outlined,
-            label: 'Visible',
-            value: '$visibleCount shown',
-          ),
-          WorkspaceContextPill(
-            icon: Icons.sort_outlined,
-            label: 'Sort',
-            value: '${_sortLabel()} ${_ascending ? 'up' : 'down'}',
-          ),
-        ],
-      ),
-      trailing: WorkspaceContextPill(
-        icon: _selectionMode ? Icons.checklist_rtl : Icons.person_add_alt_1,
-        label: _selectionMode ? 'Selection' : 'Mode',
-        value: _selectionMode
-            ? '${_selectedStudentIds.length} selected'
-            : 'Browse',
-        accent: _selectionMode
-            ? const Color(0xFFDAA85E)
-            : Theme.of(context).colorScheme.primary,
-        emphasized: true,
-      ),
-    );
+    return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: Row(children: [
+          Expanded(
+              child: Text('$className · $visibleCount of $rosterCount students',
+                  style: Theme.of(context).textTheme.titleSmall)),
+          if (_selectionMode) Text('${_selectedStudentIds.length} selected')
+        ]));
   }
 
   Widget _buildRosterToolbar(BuildContext context) {
@@ -922,12 +865,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const WorkspaceSectionHeader(
-            title: 'Roster controls',
-            subtitle:
-                'Search, sort, and scan the current class roster without leaving the workspace shell.',
-          ),
-          const SizedBox(height: WorkspaceSpacing.md),
           Row(
             children: [
               Expanded(
@@ -1045,23 +982,28 @@ class _StudentListScreenState extends State<StudentListScreen> {
             else
               _StudentAvatar(
                 photoBase64: student.photoBase64,
-                fallbackLetter: student.englishFirstName[0],
+                fallbackLetter: student.englishFirstName.isNotEmpty
+                    ? student.englishFirstName[0]
+                    : student.chineseName.isNotEmpty
+                        ? student.chineseName[0]
+                        : '?',
               ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    student.chineseName,
-                    style: context.textStyles.titleMedium?.semiBold,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    student.englishFullName,
-                    style: WorkspaceTypography.metadata(context),
-                  ),
-                  const SizedBox(height: 6),
+                  Wrap(
+                      spacing: 10,
+                      runSpacing: 2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(student.chineseName,
+                            style: context.textStyles.titleMedium?.semiBold),
+                        Text(student.englishFullName,
+                            style: context.textStyles.bodyMedium),
+                      ]),
+                  const SizedBox(height: 4),
                   Text(
                     metadataParts.join(' / '),
                     style: context.textStyles.labelSmall?.withColor(
@@ -1231,6 +1173,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
               ? Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: FloatingActionButton(
+                    tooltip: 'Add student',
                     onPressed: _showAddStudentDialog,
                     child: const Icon(Icons.add),
                   ),

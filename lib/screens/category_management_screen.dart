@@ -6,7 +6,6 @@ import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/services/grading_category_service.dart';
 import 'package:gradeflow/models/grading_category.dart';
 import 'package:gradeflow/theme.dart';
-import 'package:gradeflow/components/animated_glow_border.dart';
 import 'package:uuid/uuid.dart';
 
 class CategoryManagementScreen extends StatefulWidget {
@@ -180,7 +179,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
 
     return WorkspaceScaffold(
       title: 'Grading Categories',
-      subtitle: 'Weight, balance, and tune the process-score structure',
+      subtitle: 'Set how each category contributes to the GPA score',
       eyebrow: 'Assessment Setup',
       leadingActions: [
         IconButton(
@@ -278,9 +277,10 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                     itemCount: categoryService.categories.length,
                     itemBuilder: (context, index) {
                       final category = categoryService.categories[index];
-                      return AnimatedGlowBorder(
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                         child: Card(
-                          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          margin: EdgeInsets.zero,
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: Theme.of(context)
@@ -304,11 +304,13 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
+                                  tooltip: 'Edit category weight',
                                   icon: const Icon(Icons.edit),
                                   onPressed: () =>
                                       _showEditWeightDialog(category),
                                 ),
                                 IconButton(
+                                  tooltip: 'Delete category',
                                   icon: const Icon(Icons.delete),
                                   onPressed: () async {
                                     final confirm = await showDialog<bool>(

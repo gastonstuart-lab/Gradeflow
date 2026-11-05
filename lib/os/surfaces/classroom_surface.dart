@@ -20,9 +20,11 @@ class ClassroomSurface extends StatefulWidget {
   const ClassroomSurface({
     super.key,
     required this.classId,
+    this.startInSetup = false,
   });
 
   final String classId;
+  final bool startInSetup;
 
   @override
   State<ClassroomSurface> createState() => _ClassroomSurfaceState();
@@ -42,6 +44,8 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   @override
   void initState() {
     super.initState();
+    _setupMode = widget.startInSetup;
+    _toolsOpen = widget.startInSetup;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_loadClassroom());
     });
@@ -303,11 +307,8 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
     }
 
     final roomName = seatingService.assignedRoomSetup(widget.classId)?.name;
-    final scheme = ColorScheme.fromSeed(
-        seedColor: const Color(0xff187f79),
-        brightness: Theme.of(context).brightness);
     return Theme(
-        data: Theme.of(context).copyWith(colorScheme: scheme),
+        data: Theme.of(context),
         child: Scaffold(
           backgroundColor: OSColors.appBackground(dark),
           body: SafeArea(

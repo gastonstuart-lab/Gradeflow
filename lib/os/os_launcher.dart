@@ -160,7 +160,7 @@ class OSLauncher extends StatelessWidget {
   String? _classToolForApp(String appId) {
     switch (appId) {
       case OSAppId.seating:
-        return 'seating';
+        return 'classroom';
       case OSAppId.gradebook:
         return 'gradebook';
       case OSAppId.exports:

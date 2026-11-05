@@ -284,6 +284,20 @@ void main() {
 
     expect(taps, 1);
   });
+  testWidgets('Planner accepts the date selected on Home', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await tester.pumpWidget(
+        _harness(PlannerSurface(initialDate: DateTime(2026, 12, 15))));
+    await tester.pump();
+    expect(find.text('Selected: 2026-12-15'), findsOneWidget);
+    expect(find.text('Dec 2026'), findsOneWidget);
+  });
 }
 
 Widget _harness(
