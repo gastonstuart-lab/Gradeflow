@@ -1,3 +1,5 @@
+> **HOLD — design regression reported by Stuart. Do not merge.** The current preview mixes legacy screens with the approved new design. See [design integration hold](docs/design-integration-hold-20261105.md). Previous test results do not establish visual or navigation acceptance.
+
 # Native gradebook and approved Classroom integration
 
 ## Executive summary
@@ -62,3 +64,4 @@ Revert this PR as a unit. No schema migration, dependency change or production d
 
 ## Human review required
 Stuart: visual review against the recovered Classroom and approval of the full grading workflow. Reviewer: academic persistence/history and import failure semantics, cross-class protections and cloud rules compatibility before merge. Do not merge or deploy automatically.
+
