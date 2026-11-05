@@ -1,3 +1,5 @@
+Historical rejection record. A corrected candidate is documented in [the correction report](gradebook-design-correction-20261105.md); visual approval and merge remain pending.
+
 # Design integration hold — 5 November 2026
 
 Status: BLOCKED FOR DESIGN CORRECTION. PRs #68 and #69 are open drafts, neither merged. The existing integration preview is not the approved finished design.

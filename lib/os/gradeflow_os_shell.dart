@@ -136,7 +136,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
 
     final adjustedMQ = mq.copyWith(
       padding: mq.padding.copyWith(
-        bottom: mq.padding.bottom + dockReserve,
+        bottom: mq.padding.bottom,
       ),
     );
     final dragProgress =
@@ -147,6 +147,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final shellStack = Stack(
       children: [
         Positioned.fill(
+          bottom: dockReserve,
           child: Transform.translate(
             offset: Offset(_dragDx, 0),
             child: AnimatedOpacity(
@@ -289,9 +290,9 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
           opacity: controller.idleActive ? 1.0 : 0.0,
           child: IgnorePointer(
             ignoring: !controller.idleActive,
-            child: OSIdleScreen(
+            child: ExcludeSemantics(excluding: !controller.idleActive, child: OSIdleScreen(
               onDismiss: controller.dismissIdle,
-            ),
+            )),
           ),
         ),
       ],

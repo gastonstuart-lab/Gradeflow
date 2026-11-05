@@ -353,7 +353,7 @@ class OSNextClassWidget extends StatelessWidget {
     return _WidgetCard(
       onTap: nextClass != null
           ? () => context.go('${AppRoutes.osClass}/${nextClass.classId}')
-          : () => context.go(AppRoutes.classes),
+          : () => context.go(AppRoutes.osClasses),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -579,7 +579,7 @@ class OSQuickLaunchWidget extends StatelessWidget {
     _QuickAction(
       icon: Icons.class_rounded,
       label: 'Classes',
-      route: AppRoutes.classes,
+      route: AppRoutes.osClasses,
       color: Color(0xFF66758C),
     ),
   ];
@@ -636,7 +636,7 @@ class OSClassHealthWidget extends StatelessWidget {
     final totalStudents = snapshot?.totalStudents ?? 0;
 
     return _WidgetCard(
-      onTap: () => context.go(AppRoutes.classes),
+      onTap: () => context.go(AppRoutes.osClasses),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

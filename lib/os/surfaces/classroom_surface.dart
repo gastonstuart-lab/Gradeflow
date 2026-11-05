@@ -1,12 +1,13 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:gradeflow/components/classroom/classroom_tools_drawer.dart';
+import 'package:gradeflow/models/seating_layout.dart';
 import 'package:gradeflow/components/seating/seating_designer_view.dart';
-import 'package:gradeflow/components/seating/student_picker_sheet.dart';
+
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_palette.dart';
@@ -29,7 +30,12 @@ class ClassroomSurface extends StatefulWidget {
 
 class _ClassroomSurfaceState extends State<ClassroomSurface> {
   bool _loading = true;
-  bool _toolsOpen = true;
+  bool _toolsOpen = false;
+  String? _pickedStudent;
+  String? _pickedTable;
+  String? _pickLabel;
+  final _pickedStudents = <String>{};
+  final _random = Random();
   String? _scoreCategory;
   bool _setupMode = false;
 
@@ -48,6 +54,12 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
       setState(() {
         _loading = true;
         _setupMode = false;
+        _pickedStudents.clear();
+        _pickedStudent = null;
+        _pickedTable = null;
+        _pickLabel = null;
+        _scoreCategory = null;
+        _toolsOpen = false;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         unawaited(_loadClassroom());
@@ -81,46 +93,171 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   }
 
   void _backToClass() {
-    context.go(AppRoutes.osClassWorkspace(widget.classId));
+    context.go(AppRoutes.osClasses);
   }
 
-  Future<void> _openStudentPicker({
-    required List<Student> students,
-    required SeatingService seatingService,
-  }) async {
-    if (students.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No students are available to pick.')),
-      );
-      return;
-    }
-
-    final seatLabels = <String, String>{};
-    final layout = seatingService.activeLayout(widget.classId);
-    if (layout != null) {
-      final orderedSeats = seatingService.orderedSeatsForLayout(layout);
-      for (var index = 0; index < orderedSeats.length; index++) {
-        final studentId = orderedSeats[index].studentId;
-        if (studentId != null && studentId.isNotEmpty) {
-          seatLabels[studentId] = 'Seat ${index + 1}';
-        }
+  void _pick({bool table = false}) {
+    final layout = context.read<SeatingService>().activeLayout(widget.classId);
+    if (layout == null) return;
+    final students = context.read<StudentService>().students;
+    if (table) {
+      final tables = layout.tables
+          .where((t) => layout.seats
+              .any((s) => s.tableId == t.tableId && s.studentId != null))
+          .toList();
+      if (tables.isEmpty) return;
+      final chosen = tables[_random.nextInt(tables.length)];
+      setState(() {
+        _pickedTable = chosen.tableId;
+        _pickedStudent = null;
+        _pickLabel = chosen.label.isEmpty ? 'Selected table' : chosen.label;
+        _toolsOpen = false;
+      });
+    } else {
+      final seated = students
+          .where(
+              (s) => layout.seats.any((seat) => seat.studentId == s.studentId))
+          .toList();
+      if (seated.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Seat students on the map before picking.')));
+        return;
       }
+      var available =
+          seated.where((s) => !_pickedStudents.contains(s.studentId)).toList();
+      if (available.isEmpty) {
+        _pickedStudents.clear();
+        available = seated;
+      }
+      final chosen = available[_random.nextInt(available.length)];
+      _pickedStudents.add(chosen.studentId);
+      setState(() {
+        _pickedStudent = chosen.studentId;
+        _pickedTable = null;
+        _pickLabel =
+            '${chosen.englishFirstName} ${chosen.englishLastName}'.trim();
+        _toolsOpen = false;
+      });
     }
+  }
 
-    final entries = students
-        .map(
-          (student) => StudentPickerEntry(
-            student: student,
-            seatLabel: seatLabels[student.studentId],
-          ),
-        )
-        .toList(growable: false);
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => StudentPickerSheet(entries: entries),
+  Widget _toolsPanel(List<Student> students, SeatingService service) {
+    final layout = service.activeLayout(widget.classId);
+    Widget action(IconData icon, String title, VoidCallback onTap) => ListTile(
+        leading: Icon(icon),
+        title: Text(title),
+        onTap: onTap,
+        trailing: const Icon(Icons.chevron_right, size: 18));
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      elevation: 12,
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: [
+        Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 8, 8),
+            child: Row(children: [
+              const Expanded(
+                  child: Text('Classroom tools',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w800))),
+              IconButton(
+                  tooltip: 'Close tools',
+                  onPressed: () => setState(() => _toolsOpen = false),
+                  icon: const Icon(Icons.close))
+            ])),
+        Expanded(
+            child:
+                ListView(padding: const EdgeInsets.only(bottom: 16), children: [
+          Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Text(_setupMode ? 'ROOM SETUP' : 'TEACHING',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5))),
+          if (!_setupMode) ...[
+            action(Icons.person_search_outlined, 'Pick student', () => _pick()),
+            action(Icons.table_restaurant_outlined, 'Pick table',
+                () => _pick(table: true)),
+            action(Icons.grid_on_outlined, 'Full gradebook',
+                () => context.go(AppRoutes.osClassGradebook(widget.classId))),
+            action(
+                Icons.task_alt,
+                'Homework check',
+                () => setState(() {
+                      _scoreCategory = 'Homework';
+                      _toolsOpen = false;
+                    })),
+            action(
+                Icons.quiz_outlined,
+                'Quiz scores',
+                () => setState(() {
+                      _scoreCategory = 'Quizzes';
+                      _toolsOpen = false;
+                    })),
+            const Divider(indent: 20, endIndent: 20),
+          ],
+          SwitchListTile(
+              title: const Text('Edit room'),
+              subtitle: const Text('Move furniture and arrange seats'),
+              value: _setupMode,
+              onChanged: (v) => setState(() => _setupMode = v)),
+          if (_setupMode) ...[
+            Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey(layout?.layoutId),
+                  initialValue: layout?.layoutId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                      labelText: 'Room map', border: OutlineInputBorder()),
+                  items: service
+                      .layoutsForClass(widget.classId)
+                      .map((room) => DropdownMenuItem(
+                          value: room.layoutId,
+                          child:
+                              Text(room.name, overflow: TextOverflow.ellipsis)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null)
+                      service.selectLayout(widget.classId, value);
+                  },
+                )),
+            action(
+                Icons.table_restaurant_outlined,
+                'Add table',
+                () => service.addTable(
+                    widget.classId, SeatingTableType.rectangular,
+                    seatCount: 4)),
+            action(
+                Icons.circle_outlined,
+                'Add round table',
+                () => service.addTable(widget.classId, SeatingTableType.round,
+                    seatCount: 4)),
+            action(
+                Icons.desk_outlined,
+                'Add single desk',
+                () => service.addTable(
+                    widget.classId, SeatingTableType.singleDesk,
+                    seatCount: 1)),
+            action(
+                Icons.person_outline,
+                'Add teacher desk',
+                () => service.addTable(
+                    widget.classId, SeatingTableType.teacherDesk,
+                    seatCount: 0)),
+            const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                    'Drag furniture on the floor. Use a table’s menu to resize, rotate or change its seats. Tap an empty seat to assign a student.')),
+          ],
+          Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                  '${students.length} students · ${layout?.tables.length ?? 0} tables · ${layout?.seats.length ?? 0} seats')),
+        ])),
+      ]),
     );
   }
 
@@ -147,7 +284,6 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         context.watch<ClassService>().getClassById(widget.classId);
     final students = context.watch<StudentService>().students;
     final seatingService = context.watch<SeatingService>();
-    final activeLayout = seatingService.activeLayout(widget.classId);
 
     if (_loading) {
       return _ClassroomState(
@@ -166,103 +302,117 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
       );
     }
 
-    final placedSeatCount = activeLayout?.seats
-            .where((seat) => (seat.studentId ?? '').trim().isNotEmpty)
-            .length ??
-        0;
-    final seatCount = activeLayout?.seats.length ?? 0;
-    final tableCount = activeLayout?.tables.length ?? 0;
     final roomName = seatingService.assignedRoomSetup(widget.classId)?.name;
-
-    return Scaffold(
-      backgroundColor: OSColors.appBackground(dark),
-      body: SafeArea(
-        bottom: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 980;
-
-            final map = _ClassroomMapPanel(
-              classId: widget.classId,
-              students: students,
-              setupMode: _setupMode,
-              scoreCategory: _scoreCategory,
-            );
-
-            final drawer = ClassroomToolsDrawer(
-              studentCount: students.length,
-              placedSeatCount: placedSeatCount,
-              seatCount: seatCount,
-              tableCount: tableCount,
-              setupMode: _setupMode,
-              onClose: () => setState(() => _toolsOpen = false),
-              onSetupModeChanged: (value) =>
-                  setState(() => _setupMode = value),
-              onPickStudent: () {
-                unawaited(
-                  _openStudentPicker(
-                    students: students,
-                    seatingService: seatingService,
-                  ),
-                );
-              },
-              onOpenStudents: () =>
-                  context.go(AppRoutes.osClassStudents(widget.classId)),
-              onOpenGradebook: () =>
-                  context.go(AppRoutes.osClassGradebook(widget.classId)),
-              onOpenSchedule: () =>
-                  context.go(AppRoutes.osClassSchedule(widget.classId)),
-              onOpenResults: () =>
-                  context.go(AppRoutes.osClassResults(widget.classId)),
-              onOpenLegacySeating: () =>
-                  context.go(AppRoutes.osClassSeating(widget.classId)),
-            );
-
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                compact ? 10 : 14,
-                10,
-                compact ? 10 : 14,
-                8,
-              ),
-              child: Column(
-                children: [
-                  _ClassroomHeader(
-                    className: classItem.className,
-                    subject: classItem.subject,
-                    studentCount: students.length,
-                    roomName: roomName,
-                    setupMode: _setupMode,
-                    toolsOpen: _toolsOpen,
-                    onBack: _backToClass,
-                    onToggleTools: () =>
-                        setState(() => _toolsOpen = !_toolsOpen),
-                    onPresent: () => _openPresentation(
-                      className: classItem.className,
-                      subject: classItem.subject,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Card(margin:EdgeInsets.zero,child:Padding(padding:const EdgeInsets.all(8),child:Wrap(spacing:8,runSpacing:6,children:[
-                    OutlinedButton.icon(onPressed:()=>setState(()=>_setupMode=!_setupMode),icon:const Icon(Icons.dashboard_customize_outlined),label:Text(_setupMode?'Finish room setup':'Room setup')),
-                    OutlinedButton.icon(onPressed:()=>_openStudentPicker(students:students,seatingService:seatingService),icon:const Icon(Icons.person_search_outlined),label:const Text('Pick student')),
-                    OutlinedButton.icon(onPressed:()=>setState(()=>_scoreCategory='Homework'),icon:const Icon(Icons.task_alt),label:Text(_scoreCategory=='Homework'?'Homework check · select a student':'Homework check')),
-                    OutlinedButton.icon(onPressed:()=>setState(()=>_scoreCategory='Quizzes'),icon:const Icon(Icons.quiz_outlined),label:Text(_scoreCategory=='Quizzes'?'Quiz scores · select a student':'Quiz scores')),
-                    FilledButton.tonalIcon(onPressed:()=>context.go(AppRoutes.osClassGradebook(widget.classId)),icon:const Icon(Icons.grid_on),label:const Text('Full gradebook')),
-                    OutlinedButton.icon(onPressed:()=>setState(()=>_toolsOpen=!_toolsOpen),icon:const Icon(Icons.tune),label:const Text('Class tools')),
+    final scheme = ColorScheme.fromSeed(
+        seedColor: const Color(0xff187f79),
+        brightness: Theme.of(context).brightness);
+    return Theme(
+        data: Theme.of(context).copyWith(colorScheme: scheme),
+        child: Scaffold(
+          backgroundColor: OSColors.appBackground(dark),
+          body: SafeArea(
+              bottom: true,
+              child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+                  child: Column(children: [
+                    _ClassroomHeader(
+                        className: classItem.className,
+                        subject: classItem.subject,
+                        studentCount: students.length,
+                        roomName: roomName,
+                        setupMode: _setupMode,
+                        toolsOpen: _toolsOpen,
+                        onBack: _backToClass,
+                        onToggleTools: () =>
+                            setState(() => _toolsOpen = !_toolsOpen),
+                        onPresent: () => _openPresentation(
+                            className: classItem.className,
+                            subject: classItem.subject)),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                        height: 42,
+                        child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(children: [
+                              TextButton.icon(
+                                  onPressed: () => _pick(),
+                                  icon:
+                                      const Icon(Icons.person_search_outlined),
+                                  label: const Text('Pick student')),
+                              TextButton.icon(
+                                  onPressed: () => _pick(table: true),
+                                  icon: const Icon(
+                                      Icons.table_restaurant_outlined),
+                                  label: const Text('Pick table')),
+                              TextButton.icon(
+                                  onPressed: () => setState(() {
+                                        _setupMode = !_setupMode;
+                                        _toolsOpen = _setupMode;
+                                      }),
+                                  icon: const Icon(
+                                      Icons.dashboard_customize_outlined),
+                                  label: Text(_setupMode
+                                      ? 'Finish room setup'
+                                      : 'Room setup')),
+                              if (_pickLabel != null) ...[
+                                const SizedBox(width: 12),
+                                InputChip(
+                                    label: Text(_pickLabel!),
+                                    avatar: const Icon(Icons.auto_awesome,
+                                        size: 16),
+                                    onDeleted: () => setState(() {
+                                          _pickedStudent = null;
+                                          _pickedTable = null;
+                                          _pickLabel = null;
+                                        }))
+                              ],
+                              if (_scoreCategory != null) ...[
+                                const SizedBox(width: 12),
+                                InputChip(
+                                    label: Text(
+                                        '$_scoreCategory · select a student'),
+                                    onDeleted: () =>
+                                        setState(() => _scoreCategory = null))
+                              ],
+                            ]))),
+                    const SizedBox(height: 8),
+                    Expanded(
+                        child: LayoutBuilder(
+                            builder: (context, size) => ClipRect(
+                                    child: Stack(children: [
+                                  Positioned.fill(
+                                      child: _ClassroomMapPanel(
+                                          classId: widget.classId,
+                                          students: students,
+                                          setupMode: _setupMode,
+                                          scoreCategory: _scoreCategory,
+                                          highlightedStudentId: _pickedStudent,
+                                          highlightedTableId: _pickedTable)),
+                                  Positioned(
+                                      top: 0,
+                                      bottom: 0,
+                                      right: 0,
+                                      width: min(340.0, size.maxWidth * .92),
+                                      child: IgnorePointer(
+                                          ignoring: !_toolsOpen,
+                                          child: ExcludeSemantics(
+                                              excluding: !_toolsOpen,
+                                              child: AnimatedSlide(
+                                                  duration: MediaQuery
+                                                          .disableAnimationsOf(
+                                                              context)
+                                                      ? Duration.zero
+                                                      : const Duration(
+                                                          milliseconds: 240),
+                                                  curve: Curves.easeOutCubic,
+                                                  offset: _toolsOpen
+                                                      ? Offset.zero
+                                                      : const Offset(1.1, 0),
+                                                  child: _toolsPanel(students,
+                                                      seatingService))))),
+                                ])))),
                   ]))),
-                  const SizedBox(height: 10),
-                  Expanded(child:Stack(children:[
-                    Positioned.fill(child:map),
-                    if(_toolsOpen) Positioned(left:0,right:0,bottom:0,height:(constraints.maxHeight*.48).clamp(200.0,340.0),child:drawer),
-                  ])),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
+        ));
   }
 }
 
@@ -296,7 +446,8 @@ class _ClassroomHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 10, 8),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors:[Color(0xff133c67),Color(0xff14817b)]),
+        gradient: const LinearGradient(
+            colors: [Color(0xff133c67), Color(0xff14817b)]),
         borderRadius: OSRadius.lgBr,
         border: Border.all(
           color: OSColors.panelBorder(dark).withValues(alpha: 0.86),
@@ -305,9 +456,9 @@ class _ClassroomHeader extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            tooltip: 'Back to class workspace',
+            tooltip: 'Back to classes',
             onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_rounded),
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           ),
           const SizedBox(width: 4),
           Expanded(
@@ -337,7 +488,7 @@ class _ClassroomHeader extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: OSColors.blueSoft,
+                          color: Colors.white70,
                         ),
                       ),
                     ),
@@ -364,6 +515,9 @@ class _ClassroomHeader extends StatelessWidget {
           const SizedBox(width: 8),
           OutlinedButton.icon(
             onPressed: onToggleTools,
+            style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white54)),
             icon: Icon(
               toolsOpen ? Icons.chevron_right_rounded : Icons.tune_rounded,
               size: 18,
@@ -388,12 +542,16 @@ class _ClassroomMapPanel extends StatelessWidget {
     required this.students,
     required this.setupMode,
     this.scoreCategory,
+    this.highlightedStudentId,
+    this.highlightedTableId,
   });
 
   final String classId;
   final List<Student> students;
   final bool setupMode;
   final String? scoreCategory;
+  final String? highlightedStudentId;
+  final String? highlightedTableId;
 
   @override
   Widget build(BuildContext context) {
@@ -413,11 +571,13 @@ class _ClassroomMapPanel extends StatelessWidget {
         autoLoad: false,
         premiumAppearance: true,
         scoreCategory: scoreCategory,
+        highlightedStudentId: highlightedStudentId,
+        highlightedTableId: highlightedTableId,
         editRoomMode: setupMode,
-        showToolbar: setupMode,
-        showStudentPanel: setupMode,
+        showToolbar: false,
+        showStudentPanel: false,
         showFullScreenButton: false,
-        showUseHint: setupMode,
+        showUseHint: false,
         webMode: kIsWeb,
       ),
     );
@@ -500,6 +660,7 @@ class _ClassroomPresentationView extends StatelessWidget {
                     students: students,
                     autoLoad: false,
                     presentationMode: true,
+                    premiumAppearance: true,
                     interactive: false,
                     editRoomMode: false,
                     showToolbar: false,
@@ -581,7 +742,8 @@ class _ClassroomState extends StatelessWidget {
                     const SizedBox(height: 16),
                     FilledButton.icon(
                       onPressed: onBack,
-                      icon: const Icon(Icons.arrow_back_rounded),
+                      icon: const Icon(Icons.arrow_back_rounded,
+                          color: Colors.white),
                       label: const Text('Back to class'),
                     ),
                   ],

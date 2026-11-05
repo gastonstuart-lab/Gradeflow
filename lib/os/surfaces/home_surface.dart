@@ -1114,7 +1114,7 @@ class _HomeQuickClassesStrip extends StatelessWidget {
           const SizedBox(height: 12),
           if (visible.isEmpty)
             _HomeQuickClassEmptyCard(
-              onTap: () => context.go(AppRoutes.classes),
+              onTap: () => context.go(AppRoutes.osClasses),
             )
           else
             Expanded(
@@ -1962,7 +1962,7 @@ String? _miniAppFullRoute(_HomeMiniApp app) {
     _HomeMiniApp.today ||
     _HomeMiniApp.tasks =>
       AppRoutes.osPlanner,
-    _HomeMiniApp.classes || _HomeMiniApp.insights => AppRoutes.classes,
+    _HomeMiniApp.classes || _HomeMiniApp.insights => AppRoutes.osClasses,
     _HomeMiniApp.weather || _HomeMiniApp.audio || _HomeMiniApp.ask => null,
   };
 }
@@ -3667,12 +3667,12 @@ class _ClassesFolderContent extends StatelessWidget {
       actionIcon: Icons.class_rounded,
       onAction: () => context.go(
         classes.isEmpty
-            ? AppRoutes.classes
+            ? AppRoutes.osClasses
             : AppRoutes.osClassWorkspace(classes.first.classId),
       ),
       secondaryLabel: classes.length > 1 ? 'View all' : null,
       onSecondary:
-          classes.length > 1 ? () => context.go(AppRoutes.classes) : null,
+          classes.length > 1 ? () => context.go(AppRoutes.osClasses) : null,
       child: Column(
         children: [
           if (visible.isEmpty)
@@ -3964,7 +3964,7 @@ class _InsightsFolderContent extends StatelessWidget {
       subtitle: 'Compact load, attention, and class health indicators.',
       actionLabel: 'Open Classes',
       actionIcon: Icons.class_rounded,
-      onAction: () => context.go(AppRoutes.classes),
+      onAction: () => context.go(AppRoutes.osClasses),
       child: Wrap(
         spacing: 10,
         runSpacing: 10,
@@ -3973,13 +3973,13 @@ class _InsightsFolderContent extends StatelessWidget {
             label: 'Classes',
             value: '$classCount',
             accent: OSColors.green,
-            onTap: () => context.go(AppRoutes.classes),
+            onTap: () => context.go(AppRoutes.osClasses),
           ),
           _FolderMetric(
             label: 'Students',
             value: '$totalStudents',
             accent: OSColors.cyan,
-            onTap: () => context.go(AppRoutes.classes),
+            onTap: () => context.go(AppRoutes.osClasses),
           ),
           _FolderMetric(
             label: 'Messages',
@@ -6160,7 +6160,7 @@ class _HomeShortcutShelf extends StatelessWidget {
           onTap: () => context.go(AppRoutes.osTeach)),
       _shortcutFromApp(
         OSAppId.classes,
-        onTap: () => context.go(AppRoutes.classes),
+        onTap: () => context.go(AppRoutes.osClasses),
       ),
       _shortcutFromApp(
         OSAppId.planner,

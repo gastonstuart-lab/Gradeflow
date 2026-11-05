@@ -134,7 +134,7 @@ class OSLauncher extends StatelessWidget {
       final classService = context.read<ClassService>();
       if (classService.activeClasses.isEmpty) {
         onClose();
-        router.go(AppRoutes.classes);
+        router.go(AppRoutes.osClasses);
         return;
       }
       final selectedClass = await _selectClassForApp(context, app);
@@ -151,7 +151,7 @@ class OSLauncher extends StatelessWidget {
     final route = app.route;
     onClose();
     if (route == null) {
-      router.go(AppRoutes.classes);
+      router.go(AppRoutes.osClasses);
       return;
     }
     router.go(route);

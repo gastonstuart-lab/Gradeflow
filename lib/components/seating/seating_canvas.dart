@@ -16,6 +16,8 @@ class SeatingCanvas extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  final String? highlightedStudentId;
+  final String? highlightedTableId;
   final bool showFrontMarker;
   final void Function(String tableId, Offset delta)? onMoveTable;
   final void Function(String tableId)? onRemoveTable;
@@ -38,6 +40,8 @@ class SeatingCanvas extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.highlightedStudentId,
+    this.highlightedTableId,
     this.showFrontMarker = true,
     this.onMoveTable,
     this.onRemoveTable,
@@ -87,6 +91,8 @@ class SeatingCanvas extends StatelessWidget {
                     interactive: interactive,
                     presentationMode: presentationMode,
                     premiumAppearance: premiumAppearance,
+                    highlightedStudentId: highlightedStudentId,
+                    highlightedTableId: highlightedTableId,
                     onRemove: () => onRemoveTable?.call(table.tableId),
                     onUpdateTable: (type, count) =>
                         onUpdateTable?.call(table.tableId, type, count),
@@ -125,6 +131,8 @@ class TableWidget extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  final String? highlightedStudentId;
+  final String? highlightedTableId;
   final VoidCallback? onRemove;
   final void Function(SeatingTableType type, int seatCount)? onUpdateTable;
   final VoidCallback? onEditTable;
@@ -144,6 +152,8 @@ class TableWidget extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.highlightedStudentId,
+    this.highlightedTableId,
     this.onRemove,
     this.onUpdateTable,
     this.onEditTable,
@@ -203,7 +213,8 @@ class TableWidget extends StatelessWidget {
         duration: const Duration(milliseconds: 140),
         width: table.width,
         height: table.height,
-        decoration: tableDecoration,
+        key: ValueKey('table-visual-${table.tableId}'),
+        decoration: highlightedTableId == table.tableId ? tableDecoration.copyWith(border:Border.all(color:const Color(0xffffbc42),width:4),boxShadow:[const BoxShadow(color:Color(0x66ffbc42),blurRadius:24,spreadRadius:4)]) : tableDecoration,
         padding: const EdgeInsets.all(8),
         child: Stack(
           children: [
@@ -292,6 +303,7 @@ class TableWidget extends StatelessWidget {
       seat: seat,
       student: seat.studentId == null ? null : studentsById[seat.studentId],
       premiumAppearance: premiumAppearance,
+      highlighted: highlightedStudentId == seat.studentId && seat.studentId != null || highlightedTableId == seat.tableId,
       acceptDrops: interactive,
       allowStudentDrag: interactive && !designMode,
       presentationMode: presentationMode,
@@ -339,6 +351,7 @@ class SeatWidget extends StatelessWidget {
   final bool allowStudentDrag;
   final bool presentationMode;
   final bool premiumAppearance;
+  final bool highlighted;
   final ValueChanged<StudentDragData>? onSeatDrop;
   final VoidCallback? onTap;
 
@@ -350,6 +363,7 @@ class SeatWidget extends StatelessWidget {
     required this.allowStudentDrag,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.highlighted = false,
     this.onSeatDrop,
     this.onTap,
   });
@@ -381,17 +395,17 @@ class SeatWidget extends StatelessWidget {
           gradient: premiumAppearance && student!=null && !isDropTarget ? const LinearGradient(colors:[Color(0xff317e79),Color(0xff205e5b)],begin:Alignment.topLeft,end:Alignment.bottomRight) : null,
           color: isDropTarget
               ? scheme.primaryContainer
-              : premiumAppearance && student==null ? const Color(0xffdce5df) : statusColor.withValues(
+              : premiumAppearance ? (student==null ? const Color(0xffdce5df) : const Color(0xff2d7771)) : statusColor.withValues(
                   alpha: seat.statusColor == SeatStatusColor.none ? 0.06 : 0.22,
                 ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isDropTarget
+            color: highlighted ? const Color(0xffffbc42) : isDropTarget
                 ? scheme.primary
                 : premiumAppearance && seat.statusColor==SeatStatusColor.none ? const Color(0xff397570) : statusColor.withValues(alpha: 0.65),
-            width: isDropTarget ? 2.2 : 1.5,
+            width: highlighted ? 4 : isDropTarget ? 2.2 : 1.5,
           ),
-          boxShadow: isDropTarget
+          boxShadow: highlighted ? [const BoxShadow(color:Color(0x99ffbc42),blurRadius:22,spreadRadius:3)] : isDropTarget
               ? [
                   BoxShadow(
                     color: scheme.primary.withValues(alpha: 0.2),

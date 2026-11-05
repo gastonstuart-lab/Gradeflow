@@ -133,17 +133,6 @@ class OSDock extends StatelessWidget {
           onTap: () => context.go(AppRoutes.osHome),
         ),
         _DockItemData(
-          icon: Icons.draw_rounded,
-          label: 'Whiteboard',
-          isActive: true,
-          onTap: () {},
-        ),
-        _DockItemData(
-          icon: Icons.timer_outlined,
-          label: 'Timer',
-          onTap: () {},
-        ),
-        _DockItemData(
           icon: Icons.login_rounded,
           label: 'Exit',
           isActive: false,
@@ -169,7 +158,7 @@ class OSDock extends StatelessWidget {
         icon: Icons.class_rounded,
         label: 'Classes',
         isActive: currentSurface == OSSurface.classWorkspace,
-        onTap: () => context.go(AppRoutes.classes),
+        onTap: () => context.go(AppRoutes.osClasses),
       ),
       _DockItemData(
         icon: themeMode == ThemeMode.light
@@ -280,12 +269,12 @@ class _DockItemState extends State<_DockItem>
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
+        onTap: d.onTap,
         onTapDown: (_) {
           _ac.forward();
         },
         onTapUp: (_) {
           _ac.reverse();
-          d.onTap();
         },
         onTapCancel: () {
           _ac.reverse();

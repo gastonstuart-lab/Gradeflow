@@ -131,7 +131,7 @@ class _ShadeQuickActions extends StatelessWidget {
             label: 'Classes',
             onTap: () {
               onDismiss();
-              context.go(AppRoutes.classes);
+              context.go(AppRoutes.osClasses);
             },
           ),
         ],
