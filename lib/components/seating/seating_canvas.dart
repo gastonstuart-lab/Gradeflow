@@ -94,6 +94,7 @@ class SeatingCanvas extends StatelessWidget {
                     interactive: interactive,
                     presentationMode: presentationMode,
                     premiumAppearance: premiumAppearance,
+                    allowSeatReassignment: allowSeatReassignment,
                     highlightedStudentId: highlightedStudentId,
                     highlightedTableId: highlightedTableId,
                     onRemove: () => onRemoveTable?.call(table.tableId),
@@ -134,6 +135,7 @@ class TableWidget extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  final bool allowSeatReassignment;
   final String? highlightedStudentId;
   final String? highlightedTableId;
   final VoidCallback? onRemove;
@@ -155,7 +157,8 @@ class TableWidget extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
-    this.highlightedStudentId,
+    this.allowSeatReassignment = true,
+    this.highlightedStudentId:
     this.highlightedTableId,
     this.onRemove,
     this.onUpdateTable,
