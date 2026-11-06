@@ -164,12 +164,14 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
                         onPressed: () => _pick(),
                         icon: const Icon(Icons.person_search_outlined),
                         label: const Text('Pick student'),
+                        style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
                       ),
                       const SizedBox(width: 8),
                       OutlinedButton.icon(
                         onPressed: () => _pick(table: true),
                         icon: const Icon(Icons.table_restaurant_outlined),
                         label: const Text('Pick table'),
+                        style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
                       ),
                       const SizedBox(width: 12),
                       const _FullscreenTimer(),
@@ -298,6 +300,7 @@ class _FullscreenTimerState extends State<_FullscreenTimer> {
             ? Icons.play_arrow_rounded
             : Icons.pause_rounded),
         label: Text('$mm:$ss'),
+        style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
       ),
       IconButton(
         tooltip: 'Reset timer',
