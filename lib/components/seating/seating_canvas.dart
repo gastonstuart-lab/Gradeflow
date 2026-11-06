@@ -16,6 +16,7 @@ class SeatingCanvas extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  final TransformationController? transformationController;
   /// Whether roster seating can be changed on this canvas.
   final bool allowSeatReassignment;
   final String? highlightedStudentId;
@@ -42,6 +43,7 @@ class SeatingCanvas extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.transformationController,
     this.allowSeatReassignment = true,
     this.highlightedStudentId,
     this.highlightedTableId,
@@ -64,8 +66,9 @@ class SeatingCanvas extends StatelessWidget {
     final boundary = Size(layout.canvasWidth, layout.canvasHeight);
     return RepaintBoundary(
       child: InteractiveViewer(
+        transformationController: transformationController,
         maxScale: 2.6,
-        minScale: 0.6,
+        minScale: premiumAppearance ? 0.15 : 0.6,
         boundaryMargin: const EdgeInsets.all(200),
         constrained: false,
         child: SizedBox(
