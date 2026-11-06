@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/models/seating_layout.dart';
 import 'package:gradeflow/components/seating/seating_designer_view.dart';
+import 'package:gradeflow/components/seating/classroom_picker_animator.dart';
+import 'package:gradeflow/os/surfaces/classroom_presentation_view.dart';
 
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/nav.dart';
@@ -36,8 +38,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   String? _pickedStudent;
   String? _pickedTable;
   String? _pickLabel;
-  final _pickedStudents = <String>{};
-  final _random = Random();
+  final _picker = ClassroomPickerAnimator();
   String? _scoreCategory;
   bool _setupMode = false;
 
@@ -58,7 +59,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
       setState(() {
         _loading = true;
         _setupMode = false;
-        _pickedStudents.clear();
+        _picker.cancel(clearStudentHistory: true);
         _pickedStudent = null;
         _pickedTable = null;
         _pickLabel = null;
@@ -69,6 +70,12 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         unawaited(_loadClassroom());
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _picker.cancel(clearStudentHistory: true);
+    super.dispose();
   }
 
   Future<void> _loadClassroom() async {
@@ -101,48 +108,59 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   }
 
   void _pick({bool table = false}) {
+    unawaited(_runPick(table: table));
+  }
+
+  Future<void> _runPick({bool table = false}) async {
     final layout = context.read<SeatingService>().activeLayout(widget.classId);
     if (layout == null) return;
     final students = context.read<StudentService>().students;
-    if (table) {
-      final tables = layout.tables
-          .where((t) => layout.seats
-              .any((s) => s.tableId == t.tableId && s.studentId != null))
-          .toList();
-      if (tables.isEmpty) return;
-      final chosen = tables[_random.nextInt(tables.length)];
-      setState(() {
-        _pickedTable = chosen.tableId;
-        _pickedStudent = null;
-        _pickLabel = chosen.label.isEmpty ? 'Selected table' : chosen.label;
-        _toolsOpen = false;
-      });
-    } else {
-      final seated = students
-          .where(
-              (s) => layout.seats.any((seat) => seat.studentId == s.studentId))
-          .toList();
-      if (seated.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Seat students on the map before picking.')));
-        return;
-      }
-      var available =
-          seated.where((s) => !_pickedStudents.contains(s.studentId)).toList();
-      if (available.isEmpty) {
-        _pickedStudents.clear();
-        available = seated;
-      }
-      final chosen = available[_random.nextInt(available.length)];
-      _pickedStudents.add(chosen.studentId);
-      setState(() {
-        _pickedStudent = chosen.studentId;
-        _pickedTable = null;
-        _pickLabel =
-            '${chosen.englishFirstName} ${chosen.englishLastName}'.trim();
-        _toolsOpen = false;
-      });
+    final tables = layout.tables
+        .where((t) => layout.seats.any(
+            (s) => s.tableId == t.tableId && s.studentId != null))
+        .toList();
+    final seated = students
+        .where((s) => layout.seats.any(
+            (seat) => seat.studentId == s.studentId))
+        .toList();
+    final candidateIds = table
+        ? tables.map((t) => t.tableId).toList()
+        : seated.map((s) => s.studentId).toList();
+
+    if (candidateIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(table
+            ? 'No occupied tables to pick.'
+            : 'Seat students on the map before picking.'),
+      ));
+      return;
     }
+
+    final selected = await _picker.animate(
+      candidateIds: candidateIds,
+      nonRepeatingStudents: !table,
+      reduceMotion: MediaQuery.disableAnimationsOf(context),
+      onHighlight: (id) {
+        if (!mounted) return;
+        setState(() {
+          _pickedStudent = table ? null : id;
+          _pickedTable = table ? id : null;
+          _pickLabel = 'Choosing…';
+          _toolsOpen = false;
+        });
+      },
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      if (table) {
+        final chosen = tables.firstWhere((t) => t.tableId == selected);
+        _pickLabel = chosen.label.isEmpty ? 'Selected table' : chosen.label;
+      } else {
+        final chosen = seated.firstWhere((s) => s.studentId == selected);
+        _pickLabel =
+            (chosen.englishFirstName + ' ' + chosen.englishLastName).trim();
+      }
+    });
   }
 
   Widget _toolsPanel(List<Student> students, SeatingService service) {
@@ -272,7 +290,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
-        builder: (_) => _ClassroomPresentationView(
+        builder: (_) => ClassroomPresentationView(
           classId: widget.classId,
           className: className,
           subject: subject,
@@ -362,6 +380,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                     avatar: const Icon(Icons.auto_awesome,
                                         size: 16),
                                     onDeleted: () => setState(() {
+                                          _picker.cancel();
                                           _pickedStudent = null;
                                           _pickedTable = null;
                                           _pickLabel = null;
@@ -571,6 +590,7 @@ class _ClassroomMapPanel extends StatelessWidget {
         students: students,
         autoLoad: false,
         premiumAppearance: true,
+        allowSeatReassignment: setupMode,
         scoreCategory: scoreCategory,
         highlightedStudentId: highlightedStudentId,
         highlightedTableId: highlightedTableId,
@@ -580,101 +600,6 @@ class _ClassroomMapPanel extends StatelessWidget {
         showFullScreenButton: false,
         showUseHint: false,
         webMode: kIsWeb,
-      ),
-    );
-  }
-}
-
-class _ClassroomPresentationView extends StatelessWidget {
-  const _ClassroomPresentationView({
-    required this.classId,
-    required this.className,
-    required this.subject,
-  });
-
-  final String classId;
-  final String className;
-  final String subject;
-
-  @override
-  Widget build(BuildContext context) {
-    final students = context.watch<StudentService>().students;
-
-    return Scaffold(
-      backgroundColor: OSColors.teachBg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          className,
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          subject,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: OSColors.teachAccent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_fullscreen_rounded),
-                    label: const Text('Exit presentation'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.24),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: OSColors.teachSurface,
-                    borderRadius: OSRadius.mdBr,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.10),
-                    ),
-                  ),
-                  child: SeatingDesignerView(
-                    classId: classId,
-                    students: students,
-                    autoLoad: false,
-                    presentationMode: true,
-                    premiumAppearance: true,
-                    interactive: false,
-                    editRoomMode: false,
-                    showToolbar: false,
-                    showStudentPanel: false,
-                    showFullScreenButton: false,
-                    showUseHint: false,
-                    webMode: kIsWeb,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

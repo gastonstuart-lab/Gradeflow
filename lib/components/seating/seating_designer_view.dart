@@ -16,6 +16,7 @@ class SeatingDesignerView extends StatefulWidget {
   final List<Student> students;
   final bool autoLoad;
   final bool premiumAppearance;
+  final bool allowSeatReassignment;
   final String? scoreCategory;
   final String? highlightedStudentId;
   final String? highlightedTableId;
@@ -38,6 +39,7 @@ class SeatingDesignerView extends StatefulWidget {
     required this.students,
     this.autoLoad = true,
     this.premiumAppearance = false,
+    this.allowSeatReassignment = true,
     this.scoreCategory,
     this.highlightedStudentId,
     this.highlightedTableId,
@@ -274,6 +276,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
         child: SeatingCanvas(
           layout: active,
           premiumAppearance: widget.premiumAppearance,
+          allowSeatReassignment: widget.allowSeatReassignment,
           highlightedStudentId: widget.highlightedStudentId,
           highlightedTableId: widget.highlightedTableId,
           studentsById: studentsById,
