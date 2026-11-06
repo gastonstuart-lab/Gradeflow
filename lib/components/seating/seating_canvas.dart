@@ -16,6 +16,7 @@ class SeatingCanvas extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  final bool allowSeatReassignment;
   final String? highlightedStudentId;
   final String? highlightedTableId;
   final bool showFrontMarker;
@@ -40,6 +41,7 @@ class SeatingCanvas extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.allowSeatReassignment = true,
     this.highlightedStudentId,
     this.highlightedTableId,
     this.showFrontMarker = true,
@@ -64,6 +66,9 @@ class SeatingCanvas extends StatelessWidget {
         maxScale: 2.6,
         minScale: 0.6,
         boundaryMargin: const EdgeInsets.all(200),
+        // Premium classroom has no user zoom or whole-room panning.
+        panEnabled: !premiumAppearance,
+        scaleEnabled: !premiumAppearance,
         constrained: false,
         child: SizedBox(
           width: boundary.width,
@@ -91,6 +96,7 @@ class SeatingCanvas extends StatelessWidget {
                     interactive: interactive,
                     presentationMode: presentationMode,
                     premiumAppearance: premiumAppearance,
+                    allowSeatReassignment: allowSeatReassignment,
                     highlightedStudentId: highlightedStudentId,
                     highlightedTableId: highlightedTableId,
                     onRemove: () => onRemoveTable?.call(table.tableId),
@@ -131,6 +137,7 @@ class TableWidget extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  final bool allowSeatReassignment;
   final String? highlightedStudentId;
   final String? highlightedTableId;
   final VoidCallback? onRemove;
@@ -152,6 +159,7 @@ class TableWidget extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.allowSeatReassignment = true,
     this.highlightedStudentId,
     this.highlightedTableId,
     this.onRemove,
@@ -183,7 +191,7 @@ class TableWidget extends StatelessWidget {
         table.label.isEmpty ? _defaultLabel(table.type) : table.label;
     final hasOpenSeat =
         seats.any((seat) => seat.studentId == null || seat.studentId!.isEmpty);
-    final canDropOnTable = interactive && onTableDrop != null && hasOpenSeat;
+    final canDropOnTable = interactive && allowSeatReassignment && onTableDrop != null && hasOpenSeat;
 
     Widget buildTableBody(bool isDropActive) {
       final scheme = Theme.of(context).colorScheme;
@@ -304,8 +312,8 @@ class TableWidget extends StatelessWidget {
       student: seat.studentId == null ? null : studentsById[seat.studentId],
       premiumAppearance: premiumAppearance,
       highlighted: highlightedStudentId == seat.studentId && seat.studentId != null || highlightedTableId == seat.tableId,
-      acceptDrops: interactive,
-      allowStudentDrag: interactive && !designMode,
+      acceptDrops: interactive && allowSeatReassignment,
+      allowStudentDrag: interactive && allowSeatReassignment && !designMode,
       presentationMode: presentationMode,
       onSeatDrop: (data) => onSeatDrop?.call(seat.seatId, data),
       onTap: interactive ? () => onSeatTap?.call(seat.seatId) : null,
