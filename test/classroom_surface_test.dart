@@ -86,6 +86,20 @@ void main() {
         .allowSeatReassignment, isFalse);
   });
 
+  testWidgets('Fit room resets the viewport without changing saved seating',
+      (tester) async {
+    final services = await open(tester, 'classroom-fit');
+    final before = services.seatingService.activeLayout('classroom-fit')!.toJson();
+    final viewer = tester.widget<InteractiveViewer>(find.byType(InteractiveViewer).first);
+    final controller = viewer.transformationController!;
+    final initial = List<double>.from(controller.value.storage);
+    controller.value = Matrix4.identity();
+    await tester.tap(find.byTooltip('Fit room'));
+    await tester.pumpAndSettle();
+    expect(controller.value.storage.toList(), initial);
+    expect(services.seatingService.activeLayout('classroom-fit')!.toJson(), before);
+  });
+
   testWidgets('student and table picks highlight map without modifying layout',
       (tester) async {
     final services = await open(tester, 'classroom-picks');
