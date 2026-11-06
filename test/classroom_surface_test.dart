@@ -57,14 +57,33 @@ void main() {
   testWidgets('room setup uses right panel instead of old editor toolbar',
       (tester) async {
     await open(tester, 'classroom-b');
-    await tester.tap(find.text('Room setup'));
+    await tester.tap(find.text('Arrange room'));
     await tester.pumpAndSettle();
     expect(find.text('Add round table'), findsOneWidget);
     expect(find.text('New room map'), findsNothing);
-    expect(find.textContaining('Setup Room'), findsOneWidget);
-    await tester.tap(find.text('Finish room setup'));
+    expect(find.textContaining('Arrange Mode'), findsOneWidget);
+    await tester.tap(find.text('Finish arranging'));
     await tester.pumpAndSettle();
-    expect(find.text('Room setup'), findsOneWidget);
+    expect(find.text('Arrange room'), findsOneWidget);
+  });
+
+  testWidgets('Teach protects student placements; Arrange exposes seat assignment',
+      (tester) async {
+    await open(tester, 'classroom-arrange');
+    var canvas = tester.widget<SeatingCanvas>(find.byType(SeatingCanvas).first);
+    expect(canvas.allowSeatReassignment, isFalse);
+    final seatInTeach = tester.widget<SeatWidget>(find.byType(SeatWidget).first);
+    expect(seatInTeach.allowStudentDrag, isFalse);
+    expect(seatInTeach.acceptDrops, isFalse);
+
+    await tester.tap(find.text('Arrange room').first);
+    await tester.pumpAndSettle();
+    canvas = tester.widget<SeatingCanvas>(find.byType(SeatingCanvas).first);
+    expect(canvas.allowSeatReassignment, isTrue);
+    await tester.tap(find.text('Finish arranging'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<SeatingCanvas>(find.byType(SeatingCanvas).first)
+        .allowSeatReassignment, isFalse);
   });
 
   testWidgets('student and table picks highlight map without modifying layout',
