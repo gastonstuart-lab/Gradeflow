@@ -86,6 +86,41 @@ void main() {
         .allowSeatReassignment, isFalse);
   });
 
+  testWidgets('Teach is stationary while Arrange allows canvas navigation',
+      (tester) async {
+    await open(tester, 'classroom-navigation');
+    var viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer).first);
+    expect(viewer.panEnabled, isFalse);
+    expect(viewer.scaleEnabled, isFalse);
+
+    await tester.tap(find.text('Arrange room').first);
+    await tester.pumpAndSettle();
+    viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer).first);
+    expect(viewer.panEnabled, isTrue);
+    expect(viewer.scaleEnabled, isTrue);
+
+    await tester.tap(find.text('Finish arranging'));
+    await tester.pumpAndSettle();
+    viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer).first);
+    expect(viewer.panEnabled, isFalse);
+    expect(viewer.scaleEnabled, isFalse);
+  });
+
+  testWidgets('the integrated Classroom uses premium chairs with real seats',
+      (tester) async {
+    final services = await open(tester, 'classroom-premium');
+    final room = services.seatingService.activeLayout('classroom-premium')!;
+    final seatWidgets = tester.widgetList<SeatWidget>(
+        find.byType(SeatWidget)).toList();
+    expect(seatWidgets, isNotEmpty);
+    expect(seatWidgets.every((seat) => seat.premiumAppearance), isTrue);
+    expect(seatWidgets.first.seat.seatId, room.seats.first.seatId);
+    expect(find.text('Alex'), findsWidgets);
+  });
+
   testWidgets('Fit room resets the viewport without changing saved seating',
       (tester) async {
     final services = await open(tester, 'classroom-fit');
