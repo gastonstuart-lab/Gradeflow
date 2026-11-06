@@ -3,6 +3,7 @@ import 'package:gradeflow/screens/native_gradebook_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/seating/seating_canvas.dart';
+import 'package:gradeflow/components/seating/classroom_map_framing.dart';
 import 'package:gradeflow/components/seating/seating_toolbar.dart';
 import 'package:gradeflow/components/seating/student_assignment_sheet.dart';
 import 'package:gradeflow/components/seating/student_picker_sheet.dart';
@@ -16,6 +17,7 @@ class SeatingDesignerView extends StatefulWidget {
   final List<Student> students;
   final bool autoLoad;
   final bool premiumAppearance;
+  final bool allowSeatReassignment;
   final String? scoreCategory;
   final String? highlightedStudentId;
   final String? highlightedTableId;
@@ -38,6 +40,7 @@ class SeatingDesignerView extends StatefulWidget {
     required this.students,
     this.autoLoad = true,
     this.premiumAppearance = false,
+    this.allowSeatReassignment = true,
     this.scoreCategory,
     this.highlightedStudentId,
     this.highlightedTableId,
@@ -62,6 +65,14 @@ class SeatingDesignerView extends StatefulWidget {
 class _SeatingDesignerViewState extends State<SeatingDesignerView> {
   bool _designMode = false;
   String? _loadedClassId;
+  final TransformationController _premiumViewport = TransformationController();
+  String? _framedLayoutAndSize;
+
+  @override
+  void dispose() {
+    _premiumViewport.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -78,6 +89,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     if (oldWidget.classId != widget.classId ||
         oldWidget.autoLoad != widget.autoLoad) {
       _loadedClassId = null;
+      _framedLayoutAndSize = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _ensureLoaded();
@@ -271,9 +283,33 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: SeatingCanvas(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (widget.premiumAppearance &&
+                constraints.maxWidth.isFinite &&
+                constraints.maxHeight.isFinite &&
+                constraints.maxWidth > 0 &&
+                constraints.maxHeight > 0) {
+              final key = '${widget.classId}:${active.layoutId}:${active.canvasWidth}:${active.canvasHeight}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}';
+              if (_framedLayoutAndSize != key) {
+                _framedLayoutAndSize = key;
+                final transform = ClassroomMapFraming.fit(
+                  active, Size(constraints.maxWidth, constraints.maxHeight));
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && _framedLayoutAndSize == key) {
+                    _premiumViewport.value = transform;
+                  }
+                });
+              }
+            }
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                SeatingCanvas(
+          transformationController: widget.premiumAppearance ? _premiumViewport : null,
           layout: active,
           premiumAppearance: widget.premiumAppearance,
+          allowSeatReassignment: widget.allowSeatReassignment,
           highlightedStudentId: widget.highlightedStudentId,
           highlightedTableId: widget.highlightedTableId,
           studentsById: studentsById,
@@ -333,6 +369,23 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
             seatId,
             studentsById,
           ),
+        ),
+                if (widget.premiumAppearance)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: IconButton.filledTonal(
+                      tooltip: 'Fit room',
+                      icon: const Icon(Icons.fit_screen_outlined),
+                      onPressed: () {
+                        _premiumViewport.value = ClassroomMapFraming.fit(
+                          active, Size(constraints.maxWidth, constraints.maxHeight));
+                      },
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -1024,7 +1077,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                 ),
                 const SizedBox(height: 8),
                 const Divider(),
-                ListTile(
+                if (widget.allowSeatReassignment) ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(
                     student == null

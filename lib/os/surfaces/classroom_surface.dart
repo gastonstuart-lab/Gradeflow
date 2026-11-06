@@ -199,7 +199,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
             const Divider(indent: 20, endIndent: 20),
           ],
           SwitchListTile(
-              title: const Text('Edit room'),
+              title: const Text('Arrange room'),
               subtitle: const Text('Move furniture and arrange seats'),
               value: _setupMode,
               onChanged: (v) => setState(() => _setupMode = v)),
@@ -352,8 +352,8 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                   icon: const Icon(
                                       Icons.dashboard_customize_outlined),
                                   label: Text(_setupMode
-                                      ? 'Finish room setup'
-                                      : 'Room setup')),
+                                      ? 'Finish arranging'
+                                      : 'Arrange room')),
                               if (_pickLabel != null) ...[
                                 const SizedBox(width: 12),
                                 InputChip(
@@ -499,7 +499,7 @@ class _ClassroomHeader extends StatelessWidget {
                   [
                     '$studentCount students',
                     if ((roomName ?? '').trim().isNotEmpty) roomName!.trim(),
-                    setupMode ? 'Setup Room' : 'Teach Mode',
+                    setupMode ? 'Arrange Mode' : 'Teach Mode',
                   ].join('  •  '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -574,6 +574,7 @@ class _ClassroomMapPanel extends StatelessWidget {
         highlightedStudentId: highlightedStudentId,
         highlightedTableId: highlightedTableId,
         editRoomMode: setupMode,
+         allowSeatReassignment: setupMode,
         showToolbar: false,
         showStudentPanel: false,
         showFullScreenButton: false,
