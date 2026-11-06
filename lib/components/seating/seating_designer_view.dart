@@ -290,7 +290,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                 constraints.maxHeight.isFinite &&
                 constraints.maxWidth > 0 &&
                 constraints.maxHeight > 0) {
-              final key = '${widget.classId}:${active.layoutId}:${active.canvasWidth}:${active.canvasHeight}:${constraints.maxWidth}:${constraints.maxHeight}';
+              final key = '${widget.classId}:${active.layoutId}:${active.canvasWidth}:${active.canvasHeight}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}';
               if (_framedLayoutAndSize != key) {
                 _framedLayoutAndSize = key;
                 final transform = ClassroomMapFraming.fit(
@@ -302,7 +302,10 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                 });
               }
             }
-            return SeatingCanvas(
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                SeatingCanvas(
           transformationController: widget.premiumAppearance ? _premiumViewport : null,
           layout: active,
           premiumAppearance: widget.premiumAppearance,
@@ -366,7 +369,22 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
             seatId,
             studentsById,
           ),
-        );
+        ),
+                if (widget.premiumAppearance)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: IconButton.filledTonal(
+                      tooltip: 'Fit room',
+                      icon: const Icon(Icons.fit_screen_outlined),
+                      onPressed: () {
+                        _premiumViewport.value = ClassroomMapFraming.fit(
+                          active, Size(constraints.maxWidth, constraints.maxHeight));
+                      },
+                    ),
+                  ),
+              ],
+            );
           },
         ),
       ),
