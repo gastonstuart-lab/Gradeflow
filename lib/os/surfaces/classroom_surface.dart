@@ -590,6 +590,7 @@ class _ClassroomMapPanel extends StatelessWidget {
         students: students,
         autoLoad: false,
         premiumAppearance: true,
+        allowSeatReassignment: setupMode,
         scoreCategory: scoreCategory,
         highlightedStudentId: highlightedStudentId,
         highlightedTableId: highlightedTableId,
