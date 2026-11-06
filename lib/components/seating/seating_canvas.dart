@@ -70,6 +70,10 @@ class SeatingCanvas extends StatelessWidget {
         maxScale: 2.6,
         minScale: premiumAppearance ? 0.15 : 0.6,
         boundaryMargin: const EdgeInsets.all(200),
+        // Teach and Present should feel like a stable classroom, not a canvas
+        // floating inside the application. Arrange retains deliberate pan/zoom.
+        panEnabled: !premiumAppearance || designMode,
+        scaleEnabled: !premiumAppearance || designMode,
         constrained: false,
         child: SizedBox(
           width: boundary.width,
