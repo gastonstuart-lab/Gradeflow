@@ -42,6 +42,9 @@ void main() {
     await open(tester, 'classroom-a');
     expect(find.text('Show tools'), findsOneWidget);
     final room = find.byType(InteractiveViewer).first;
+    final viewer = tester.widget<InteractiveViewer>(room);
+    expect(viewer.panEnabled, isFalse);
+    expect(viewer.scaleEnabled, isFalse);
     final before = tester.getRect(room);
     await tester.tap(find.text('Show tools'));
     await tester.pumpAndSettle();
@@ -99,6 +102,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Exit presentation'), findsOneWidget);
     expect(find.text('Show tools'), findsNothing);
+    expect(find.text('Pick student'), findsOneWidget);
+    expect(find.text('Pick table'), findsOneWidget);
+    expect(find.text('03:00'), findsOneWidget);
+    expect(find.byTooltip('Set timer duration'), findsOneWidget);
+    final presentationViewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer).last);
+    expect(presentationViewer.panEnabled, isFalse);
+    expect(presentationViewer.scaleEnabled, isFalse);
     expect(
         tester
             .widget<SeatingCanvas>(find.byType(SeatingCanvas).last)
