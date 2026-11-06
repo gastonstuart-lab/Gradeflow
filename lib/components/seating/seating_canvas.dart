@@ -16,6 +16,8 @@ class SeatingCanvas extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  /// Whether roster seating can be changed on this canvas.
+  final bool allowSeatReassignment;
   final String? highlightedStudentId;
   final String? highlightedTableId;
   final bool showFrontMarker;
@@ -40,6 +42,7 @@ class SeatingCanvas extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.allowSeatReassignment = true,
     this.highlightedStudentId,
     this.highlightedTableId,
     this.showFrontMarker = true,
@@ -183,7 +186,7 @@ class TableWidget extends StatelessWidget {
         table.label.isEmpty ? _defaultLabel(table.type) : table.label;
     final hasOpenSeat =
         seats.any((seat) => seat.studentId == null || seat.studentId!.isEmpty);
-    final canDropOnTable = interactive && onTableDrop != null && hasOpenSeat;
+    final canDropOnTable = interactive && allowSeatReassignment && onTableDrop != null && hasOpenSeat;
 
     Widget buildTableBody(bool isDropActive) {
       final scheme = Theme.of(context).colorScheme;
@@ -304,8 +307,8 @@ class TableWidget extends StatelessWidget {
       student: seat.studentId == null ? null : studentsById[seat.studentId],
       premiumAppearance: premiumAppearance,
       highlighted: highlightedStudentId == seat.studentId && seat.studentId != null || highlightedTableId == seat.tableId,
-      acceptDrops: interactive,
-      allowStudentDrag: interactive && !designMode,
+      acceptDrops: interactive && allowSeatReassignment,
+      allowStudentDrag: interactive && allowSeatReassignment && !designMode,
       presentationMode: presentationMode,
       onSeatDrop: (data) => onSeatDrop?.call(seat.seatId, data),
       onTap: interactive ? () => onSeatTap?.call(seat.seatId) : null,
@@ -442,7 +445,7 @@ class SeatWidget extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontSize: presentationMode ? 10 : 9,
+                            fontSize: premiumAppearance ? (presentationMode ? 12 : 10.5) : (presentationMode ? 10 : 9),
                             height: 1.0,
                             fontWeight: FontWeight.w600,
                             color: premiumAppearance && student!=null ? Colors.white : scheme.onSurface,
