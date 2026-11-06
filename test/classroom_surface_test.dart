@@ -110,6 +110,14 @@ void main() {
         tester.widget<InteractiveViewer>(find.byType(InteractiveViewer).last);
     expect(presentationViewer.panEnabled, isFalse);
     expect(presentationViewer.scaleEnabled, isFalse);
+    await tester.tap(find.text('Pick student'));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widgetList<SeatWidget>(find.byType(SeatWidget))
+            .where((seat) => seat.highlighted)
+            .length,
+        1);
     expect(
         tester
             .widget<SeatingCanvas>(find.byType(SeatingCanvas).last)
