@@ -19,12 +19,14 @@ class ClassroomPresentationView extends StatefulWidget {
     required this.className,
     required this.subject,
     this.picker,
+    this.cleanCanvas = false,
   });
 
   final String classId;
   final String className;
   final String subject;
   final ClassroomPickerAnimator? picker;
+  final bool cleanCanvas;
 
   @override
   State<ClassroomPresentationView> createState() =>
@@ -205,7 +207,7 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
                     autoLoad: false,
                     presentationMode: true,
                     premiumAppearance: true,
-                    simplifiedArrange: true,
+                    simplifiedArrange: widget.cleanCanvas,
                     interactive: false,
                     editRoomMode: false,
                     highlightedStudentId: _highlightedStudent,
