@@ -18,6 +18,8 @@ class SeatingDesignerView extends StatefulWidget {
   final ValueChanged<String>? onSeatSelected;
   final bool autoLoad;
   final bool premiumAppearance;
+  final bool simplifiedArrange;
+  final ValueChanged<String>? onTableSelected;
   final bool allowSeatReassignment;
   final String? scoreCategory;
   final String? highlightedStudentId;
@@ -42,6 +44,8 @@ class SeatingDesignerView extends StatefulWidget {
     this.onSeatSelected,
     this.autoLoad = true,
     this.premiumAppearance = false,
+    this.simplifiedArrange = false,
+    this.onTableSelected,
     this.allowSeatReassignment = true,
     this.scoreCategory,
     this.highlightedStudentId,
@@ -273,7 +277,9 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     final isDark = theme.brightness == Brightness.dark;
     return Container(
       decoration: widget.premiumAppearance
-          ? ClassroomMaterials.floor(isDark)
+          ? widget.simplifiedArrange
+              ? BoxDecoration(color: isDark ? const Color(0xff102a30) : const Color(0xffe7eee9))
+              : ClassroomMaterials.floor(isDark)
           : BoxDecoration(
               color: theme.colorScheme.surface.withValues(
                 alpha: isDark ? 0.26 : 0.56,
@@ -311,6 +317,8 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                       widget.premiumAppearance ? _premiumViewport : null,
                   layout: active,
                   premiumAppearance: widget.premiumAppearance,
+                  simplifiedArrange: widget.simplifiedArrange,
+                  onTableSelected: widget.onTableSelected,
                   allowSeatReassignment: widget.allowSeatReassignment,
                   highlightedStudentId: widget.highlightedStudentId,
                   highlightedTableId: widget.highlightedTableId,
