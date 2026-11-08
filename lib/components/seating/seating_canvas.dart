@@ -17,6 +17,8 @@ class SeatingCanvas extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  final bool simplifiedArrange;
+  final ValueChanged<String>? onTableSelected;
   final TransformationController? transformationController;
 
   /// Whether roster seating can be changed on this canvas.
@@ -45,6 +47,8 @@ class SeatingCanvas extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.simplifiedArrange = false,
+    this.onTableSelected,
     this.transformationController,
     this.allowSeatReassignment = true,
     this.highlightedStudentId,
@@ -82,7 +86,7 @@ class SeatingCanvas extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              if (premiumAppearance)
+              if (premiumAppearance && !simplifiedArrange)
                 Positioned.fromRect(
                     rect: ClassroomMapFraming.roomBounds(layout),
                     child: IgnorePointer(
@@ -125,6 +129,7 @@ class SeatingCanvas extends StatelessWidget {
                       onResizeTable?.call(table.tableId, delta),
                   padding: _seatAreaPadding(presentationMode),
                   enabled: designMode,
+                  directDrag: simplifiedArrange,
                   child: TableWidget(
                     table: table,
                     seats: layout.seats
@@ -135,6 +140,8 @@ class SeatingCanvas extends StatelessWidget {
                     interactive: interactive,
                     presentationMode: presentationMode,
                     premiumAppearance: premiumAppearance,
+                    simplifiedArrange: simplifiedArrange,
+                    onTableSelected: onTableSelected == null ? null : () => onTableSelected!(table.tableId),
                     allowSeatReassignment: allowSeatReassignment,
                     highlightedStudentId: highlightedStudentId,
                     highlightedTableId: highlightedTableId,
@@ -176,6 +183,8 @@ class TableWidget extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  final bool simplifiedArrange;
+  final VoidCallback? onTableSelected;
   final bool allowSeatReassignment;
   final String? highlightedStudentId;
   final String? highlightedTableId;
@@ -198,6 +207,8 @@ class TableWidget extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.simplifiedArrange = false,
+    this.onTableSelected,
     this.allowSeatReassignment = true,
     this.highlightedStudentId,
     this.highlightedTableId,
@@ -332,6 +343,14 @@ class TableWidget extends StatelessWidget {
           )
         : buildTableBody(false);
 
+    final selectableTableBody = designMode && simplifiedArrange && interactive
+        ? GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTableSelected,
+            child: tableBody,
+          )
+        : tableBody;
+
     return SizedBox(
       width: areaWidth,
       height: areaHeight,
@@ -341,9 +360,9 @@ class TableWidget extends StatelessWidget {
           Positioned(
             left: center.dx - table.width / 2,
             top: center.dy - table.height / 2,
-            child: tableBody,
+            child: selectableTableBody,
           ),
-          if (designMode && interactive)
+          if (designMode && interactive && !simplifiedArrange)
             Positioned(
               left: tableLeft + table.width - 10,
               top: tableTop - 12,
@@ -390,6 +409,7 @@ class TableWidget extends StatelessWidget {
 
     if (designMode && interactive) {
       child = _SeatPositionDraggable(
+        directDrag: simplifiedArrange,
         onMove: (delta) => onMoveSeat?.call(seat.seatId, delta),
         child: child,
       );
@@ -994,6 +1014,7 @@ class _SeatingTableDraggable extends StatefulWidget {
   final SeatingTable table;
   final Widget child;
   final bool enabled;
+  final bool directDrag;
   final double padding;
   final void Function(Offset delta)? onMove;
   final void Function(Offset delta)? onResize;
@@ -1002,6 +1023,7 @@ class _SeatingTableDraggable extends StatefulWidget {
     required this.table,
     required this.child,
     required this.enabled,
+    this.directDrag = false,
     required this.padding,
     this.onMove,
     this.onResize,
@@ -1020,14 +1042,26 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
     final left = widget.table.x - widget.table.width / 2 - widget.padding;
     final top = widget.table.y - widget.table.height / 2 - widget.padding;
     final handleInset = widget.padding - 14;
+    final content = widget.enabled && widget.directDrag
+        ? GestureDetector(
+            behavior: HitTestBehavior.deferToChild,
+            onPanUpdate: (details) => setState(() => _localOffset += details.delta),
+            onPanEnd: (_) {
+              final delta = _localOffset;
+              if (delta != Offset.zero) widget.onMove?.call(delta);
+              setState(() => _localOffset = Offset.zero);
+            },
+            child: widget.child,
+          )
+        : widget.child;
     return Positioned(
       left: left + _localOffset.dx,
       top: top + _localOffset.dy,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          widget.child,
-          if (widget.enabled)
+          content,
+          if (widget.enabled && !widget.directDrag)
             Positioned(
               left: handleInset,
               top: handleInset,
@@ -1045,7 +1079,7 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
                 },
               ),
             ),
-          if (widget.enabled)
+          if (widget.enabled && !widget.directDrag)
             Positioned(
               left: widget.padding + widget.table.width - 14,
               top: widget.padding + widget.table.height - 14,
@@ -1075,10 +1109,12 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
 
 class _SeatPositionDraggable extends StatefulWidget {
   final Widget child;
+  final bool directDrag;
   final void Function(Offset delta)? onMove;
 
   const _SeatPositionDraggable({
     required this.child,
+    this.directDrag = false,
     this.onMove,
   });
 
@@ -1091,13 +1127,25 @@ class _SeatPositionDraggableState extends State<_SeatPositionDraggable> {
 
   @override
   Widget build(BuildContext context) {
+    final content = widget.directDrag
+        ? GestureDetector(
+            behavior: HitTestBehavior.deferToChild,
+            onPanUpdate: (details) => setState(() => _localOffset += details.delta),
+            onPanEnd: (_) {
+              final delta = _localOffset;
+              if (delta != Offset.zero) widget.onMove?.call(delta);
+              setState(() => _localOffset = Offset.zero);
+            },
+            child: widget.child,
+          )
+        : widget.child;
     return Transform.translate(
       offset: _localOffset,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          widget.child,
-          Positioned(
+          content,
+          if (!widget.directDrag) Positioned(
             right: -6,
             bottom: -6,
             child: _EditorHandle(
