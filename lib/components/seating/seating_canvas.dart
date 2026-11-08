@@ -102,8 +102,8 @@ class SeatingCanvas extends StatelessWidget {
                 _FrontMarker(width: boundary.width),
               if (showFrontMarker && premiumAppearance)
                 Positioned(
-                    left: ClassroomMapFraming.roomBounds(layout).center.dx - 90,
-                    top: ClassroomMapFraming.roomBounds(layout).top + 20,
+                    left: ClassroomMapFraming.roomBounds(layout, compact: simplifiedArrange).center.dx - 90,
+                    top: ClassroomMapFraming.roomBounds(layout, compact: simplifiedArrange).top + 20,
                     width: 180,
                     height: 32,
                     child: IgnorePointer(
