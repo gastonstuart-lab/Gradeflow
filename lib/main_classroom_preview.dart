@@ -6,6 +6,8 @@ import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/models/seating_layout.dart';
 import 'package:gradeflow/os/surfaces/classroom_surface.dart';
+import 'package:gradeflow/components/home/approved_teacher_home.dart';
+import 'package:gradeflow/screens/native_gradebook_screen.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
@@ -90,16 +92,113 @@ Future<void> main() async {
     }
   }
 
+  // All routes here are preview-only. Never invoke the application router or
+  // production AppProviders; the repository is explicitly local-only.
+  final themeMode = ValueNotifier<ThemeMode>(ThemeMode.light);
+  final previewClass = classes.getClassById(_classId)!;
+  void unavailable(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('$feature is not connected in this synthetic preview.'),
+    ));
+  }
+
   final router = GoRouter(
-    initialLocation: '/preview/classroom',
+    initialLocation: '/preview/home',
     routes: [
+      GoRoute(
+        path: '/',
+        redirect: (context, state) => '/preview/home',
+      ),
+      GoRoute(
+        path: '/preview/home',
+        builder: (context, state) => Scaffold(
+          body: ApprovedTeacherHome(
+            teacherName: 'Demo Teacher',
+            schoolName: 'Sample School · synthetic data only',
+            primaryClass: previewClass,
+            classes: [previewClass],
+            studentCounts: {_classId: students.students.length},
+            reminders: const [],
+            loading: false,
+            remindersAvailable: true,
+            onSelectClass: (_) {},
+            onOpenClassroom: () => context.go('/preview/classroom'),
+            onOpenPlanner: () => context.go('/preview/planner'),
+            onOpenGrades: () => context.go('/preview/gradebook'),
+            onOpenStudents: () => context.go('/preview/students'),
+            onOpenIedStudio: () => unavailable(context, 'IED Studio'),
+            onOpenScience: () => unavailable(context, 'Science resources'),
+            onMoreHomeTools: () => unavailable(context, 'Additional Home tools'),
+            onToggleTheme: () => themeMode.value =
+                themeMode.value == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark,
+            onAttention: () => unavailable(context, 'Attention centre'),
+            onAssistant: () => unavailable(context, 'Assistant'),
+          ),
+        ),
+      ),
       GoRoute(
         path: '/preview/classroom',
         builder: (context, state) => const ClassroomSurface(classId: _classId),
       ),
       GoRoute(
+        path: '/preview/gradebook',
+        builder: (context, state) => const NativeGradebookScreen(classId: _classId),
+      ),
+      GoRoute(
+        path: '/preview/students',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Sample students · local-only preview'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => context.go('/preview/home'),
+            ),
+          ),
+          body: ListView(
+            children: [
+              for (final student in students.students)
+                ListTile(
+                  leading: const Icon(Icons.person_outline),
+                  title: Text(student.englishFullName),
+                  subtitle: Text(student.chineseName),
+                  trailing: Text(student.seatNo ?? ''),
+                ),
+            ],
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/preview/planner',
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Planner · preview'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => context.go('/preview/home'),
+            ),
+          ),
+          body: const Center(
+            child: Text('The live Planner is not included in this local-only demo.'),
+          ),
+        ),
+      ),
+      // The recovered Classroom currently uses the production path for Back.
+      // Redirect it here rather than presenting a blank page or login.
+      GoRoute(
         path: '/os/classes',
-        redirect: (context, state) => '/preview/classroom',
+        redirect: (context, state) => '/preview/home',
+      ),
+      GoRoute(
+        path: '/os/planner',
+        redirect: (context, state) => '/preview/planner',
+      ),
+      GoRoute(
+        path: '/os/class/:classId/gradebook',
+        redirect: (context, state) => '/preview/gradebook',
+      ),
+      GoRoute(
+        path: '/os/class/:classId/students',
+        redirect: (context, state) => '/preview/students',
       ),
     ],
   );
@@ -111,12 +210,16 @@ Future<void> main() async {
       ChangeNotifierProvider<StudentService>.value(value: students),
       ChangeNotifierProvider<SeatingService>.value(value: seating),
     ],
-    child: MaterialApp.router(
-      title: 'GradeFlow Classroom — SYNTHETIC PREVIEW',
-      debugShowCheckedModeBanner: false,
-      theme: lightTheme,
-      darkTheme: darkTheme,
-      routerConfig: router,
+    child: ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeMode,
+      builder: (context, currentTheme, _) => MaterialApp.router(
+        title: 'GradeFlow · SYNTHETIC TEACHER WORKSPACE',
+        debugShowCheckedModeBanner: false,
+        theme: lightTheme,
+        darkTheme: darkTheme,
+        themeMode: currentTheme,
+        routerConfig: router,
+      ),
     ),
   ));
 }
