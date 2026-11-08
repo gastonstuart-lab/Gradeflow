@@ -1,0 +1,28 @@
+00:00 +0: loading C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart
+00:00 +0: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: tools start closed and slide from the right without resizing room
+00:01 +1: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: tools start closed and slide from the right without resizing room
+00:01 +2: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: tools start closed and slide from the right without resizing room
+00:02 +3: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: tools start closed and slide from the right without resizing room
+00:02 +4: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: tools start closed and slide from the right without resizing room
+00:02 +5: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: tools start closed and slide from the right without resizing room
+00:02 +6: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: tools start closed and slide from the right without resizing room
+00:02 +7: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: tools start closed and slide from the right without resizing room
+00:02 +8: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: tools start closed and slide from the right without resizing room
+RepositoryFactory: Switched to local storage
+00:03 +9: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: room setup uses right panel instead of old editor toolbar
+RepositoryFactory: Switched to local storage
+00:04 +10: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: student and table picks highlight map without modifying layout
+RepositoryFactory: Switched to local storage
+00:04 +11: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: presentation keeps premium map and hides private controls
+RepositoryFactory: Switched to local storage
+00:05 +12: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: compact right panel can be closed without hiding the map
+RepositoryFactory: Switched to local storage
+00:05 +13: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+RepositoryFactory: Switched to local storage
+00:09 +14: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: Arrange drag saves only the intended table movement
+RepositoryFactory: Switched to local storage
+00:10 +15: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: same fixture visual evidence 1440.0
+RepositoryFactory: Switched to local storage
+00:11 +16: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: same fixture visual evidence 1920.0
+RepositoryFactory: Switched to local storage
+00:14 +17: All tests passed!

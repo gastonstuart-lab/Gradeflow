@@ -3,6 +3,7 @@ import 'package:gradeflow/screens/native_gradebook_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/seating/seating_canvas.dart';
+import 'package:gradeflow/components/seating/classroom_map_framing.dart';
 import 'package:gradeflow/components/seating/seating_toolbar.dart';
 import 'package:gradeflow/components/seating/student_assignment_sheet.dart';
 import 'package:gradeflow/components/seating/student_picker_sheet.dart';
@@ -14,8 +15,10 @@ import 'package:gradeflow/services/seating_service.dart';
 class SeatingDesignerView extends StatefulWidget {
   final String classId;
   final List<Student> students;
+  final ValueChanged<String>? onSeatSelected;
   final bool autoLoad;
   final bool premiumAppearance;
+  final bool allowSeatReassignment;
   final String? scoreCategory;
   final String? highlightedStudentId;
   final String? highlightedTableId;
@@ -36,8 +39,10 @@ class SeatingDesignerView extends StatefulWidget {
     super.key,
     required this.classId,
     required this.students,
+    this.onSeatSelected,
     this.autoLoad = true,
     this.premiumAppearance = false,
+    this.allowSeatReassignment = true,
     this.scoreCategory,
     this.highlightedStudentId,
     this.highlightedTableId,
@@ -62,6 +67,14 @@ class SeatingDesignerView extends StatefulWidget {
 class _SeatingDesignerViewState extends State<SeatingDesignerView> {
   bool _designMode = false;
   String? _loadedClassId;
+  final TransformationController _premiumViewport = TransformationController();
+  String? _framedLayoutAndSize;
+
+  @override
+  void dispose() {
+    _premiumViewport.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -78,6 +91,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     if (oldWidget.classId != widget.classId ||
         oldWidget.autoLoad != widget.autoLoad) {
       _loadedClassId = null;
+      _framedLayoutAndSize = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _ensureLoaded();
@@ -258,81 +272,110 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     return Container(
-      decoration: widget.premiumAppearance ? ClassroomMaterials.floor(isDark) : BoxDecoration(
-        color: theme.colorScheme.surface.withValues(
-          alpha: isDark ? 0.26 : 0.56,
-        ),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(
-            alpha: isDark ? 0.26 : 0.18,
-          ),
-        ),
-      ),
+      decoration: widget.premiumAppearance
+          ? ClassroomMaterials.floor(isDark)
+          : BoxDecoration(
+              color: theme.colorScheme.surface.withValues(
+                alpha: isDark ? 0.26 : 0.56,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: theme.colorScheme.outline.withValues(
+                  alpha: isDark ? 0.26 : 0.18,
+                ),
+              ),
+            ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: SeatingCanvas(
-          layout: active,
-          premiumAppearance: widget.premiumAppearance,
-          highlightedStudentId: widget.highlightedStudentId,
-          highlightedTableId: widget.highlightedTableId,
-          studentsById: studentsById,
-          designMode: widget.editRoomMode || _designMode,
-          interactive: widget.interactive,
-          presentationMode: widget.presentationMode,
-          onMoveTable: (tableId, delta) =>
-              service.moveTable(widget.classId, tableId, delta.dx, delta.dy),
-          onRemoveTable: (tableId) =>
-              service.removeTable(widget.classId, tableId),
-          onUpdateTable: (tableId, type, seatCount) => service.updateTable(
-              widget.classId, tableId,
-              type: type, seatCount: seatCount),
-          onRotateTable: (tableId) =>
-              service.rotateTable(widget.classId, tableId),
-          onResizeTable: (tableId, delta) =>
-              service.resizeTable(widget.classId, tableId, delta.dx, delta.dy),
-          onMoveSeat: (seatId, delta) =>
-              service.moveSeat(widget.classId, seatId, delta.dx, delta.dy),
-          onEditTable: (tableId) => _promptEditTable(
-            context,
-            service,
-            active,
-            tableId,
-          ),
-          onDuplicateTable: (tableId) =>
-              service.duplicateTable(widget.classId, tableId),
-          onTableDrop: (tableId, data) {
-            service
-                .assignStudentToTable(
-              widget.classId,
-              tableId,
-              data.studentId,
-              fromSeatId: data.fromSeatId,
-            )
-                .then((assigned) {
-              if (assigned || !context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'That table is full. Drop onto a specific seat to swap students.',
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (widget.premiumAppearance &&
+                constraints.maxWidth.isFinite &&
+                constraints.maxHeight.isFinite &&
+                constraints.maxWidth > 0 &&
+                constraints.maxHeight > 0) {
+              final key =
+                  '${widget.classId}:${active.layoutId}:${active.canvasWidth}:${active.canvasHeight}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}';
+              if (_framedLayoutAndSize != key) {
+                _framedLayoutAndSize = key;
+                final transform = ClassroomMapFraming.fit(
+                    active, Size(constraints.maxWidth, constraints.maxHeight));
+                _premiumViewport.value = transform;
+              }
+            }
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                SeatingCanvas(
+                  transformationController:
+                      widget.premiumAppearance ? _premiumViewport : null,
+                  layout: active,
+                  premiumAppearance: widget.premiumAppearance,
+                  allowSeatReassignment: widget.allowSeatReassignment,
+                  highlightedStudentId: widget.highlightedStudentId,
+                  highlightedTableId: widget.highlightedTableId,
+                  studentsById: studentsById,
+                  designMode: widget.editRoomMode || _designMode,
+                  interactive: widget.interactive,
+                  presentationMode: widget.presentationMode,
+                  onMoveTable: (tableId, delta) => service.moveTable(
+                      widget.classId, tableId, delta.dx, delta.dy),
+                  onRemoveTable: (tableId) =>
+                      service.removeTable(widget.classId, tableId),
+                  onUpdateTable: (tableId, type, seatCount) =>
+                      service.updateTable(widget.classId, tableId,
+                          type: type, seatCount: seatCount),
+                  onRotateTable: (tableId) =>
+                      service.rotateTable(widget.classId, tableId),
+                  onResizeTable: (tableId, delta) => service.resizeTable(
+                      widget.classId, tableId, delta.dx, delta.dy),
+                  onMoveSeat: (seatId, delta) => service.moveSeat(
+                      widget.classId, seatId, delta.dx, delta.dy),
+                  onEditTable: (tableId) => _promptEditTable(
+                    context,
+                    service,
+                    active,
+                    tableId,
                   ),
+                  onDuplicateTable: (tableId) =>
+                      service.duplicateTable(widget.classId, tableId),
+                  onTableDrop: (tableId, data) {
+                    service
+                        .assignStudentToTable(
+                      widget.classId,
+                      tableId,
+                      data.studentId,
+                      fromSeatId: data.fromSeatId,
+                    )
+                        .then((assigned) {
+                      if (assigned || !context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'That table is full. Drop onto a specific seat to swap students.',
+                          ),
+                        ),
+                      );
+                    });
+                  },
+                  onSeatDrop: (seatId, data) => service.assignStudentToSeat(
+                    widget.classId,
+                    seatId,
+                    data.studentId,
+                    fromSeatId: data.fromSeatId,
+                  ),
+                  onSeatTap: widget.onSeatSelected ??
+                      (seatId) => _showSeatActions(
+                            context,
+                            service,
+                            active,
+                            seatId,
+                            studentsById,
+                          ),
                 ),
-              );
-            });
+              ],
+            );
           },
-          onSeatDrop: (seatId, data) => service.assignStudentToSeat(
-            widget.classId,
-            seatId,
-            data.studentId,
-            fromSeatId: data.fromSeatId,
-          ),
-          onSeatTap: (seatId) => _showSeatActions(
-            context,
-            service,
-            active,
-            seatId,
-            studentsById,
-          ),
         ),
       ),
     );
@@ -867,7 +910,17 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     final student =
         seat.studentId == null ? null : studentsById[seat.studentId];
     if (student != null && widget.scoreCategory != null) {
-      await showDialog<void>(context:context,barrierDismissible:false,builder:(_)=>Dialog(child:SizedBox(width:1100,height:MediaQuery.sizeOf(context).height*.85,child:NativeGradebookScreen(classId:widget.classId,studentId:student.studentId,initialCategory:widget.scoreCategory))));
+      await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => Dialog(
+              child: SizedBox(
+                  width: 1100,
+                  height: MediaQuery.sizeOf(context).height * .85,
+                  child: NativeGradebookScreen(
+                      classId: widget.classId,
+                      studentId: student.studentId,
+                      initialCategory: widget.scoreCategory))));
       return;
     }
     final canEditSeatStructure = _canEditSeatStructure(table.type);
@@ -899,7 +952,8 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                   ListTile(
                     leading: const Icon(Icons.edit_note),
                     title: const Text('Add score / Gradebook'),
-                    subtitle: const Text('Enter an assessment score for this student.'),
+                    subtitle: const Text(
+                        'Enter an assessment score for this student.'),
                     onTap: () {
                       Navigator.of(context).pop();
                       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -910,7 +964,8 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                           builder: (_) => Dialog(
                             child: SizedBox(
                               width: 1100,
-                              height: MediaQuery.sizeOf(this.context).height * .85,
+                              height:
+                                  MediaQuery.sizeOf(this.context).height * .85,
                               child: NativeGradebookScreen(
                                 classId: widget.classId,
                                 studentId: student.studentId,
@@ -1024,41 +1079,42 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                 ),
                 const SizedBox(height: 8),
                 const Divider(),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    student == null
-                        ? Icons.person_add_alt_1_outlined
-                        : Icons.swap_horiz,
+                if (widget.allowSeatReassignment)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      student == null
+                          ? Icons.person_add_alt_1_outlined
+                          : Icons.swap_horiz,
+                    ),
+                    title: Text(
+                      student == null
+                          ? 'Assign student'
+                          : 'Swap or replace student',
+                    ),
+                    subtitle: Text(
+                      widget.students.isEmpty
+                          ? 'Add students to the class roster first.'
+                          : student == null
+                              ? 'Choose from the roster for this seat.'
+                              : 'Pick another student or swap with an occupied seat.',
+                    ),
+                    enabled: widget.students.isNotEmpty,
+                    onTap: widget.students.isEmpty
+                        ? null
+                        : () {
+                            Navigator.of(context).pop();
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted) return;
+                              _showStudentAssignmentSheet(
+                                context,
+                                service,
+                                layout,
+                                seatId,
+                              );
+                            });
+                          },
                   ),
-                  title: Text(
-                    student == null
-                        ? 'Assign student'
-                        : 'Swap or replace student',
-                  ),
-                  subtitle: Text(
-                    widget.students.isEmpty
-                        ? 'Add students to the class roster first.'
-                        : student == null
-                            ? 'Choose from the roster for this seat.'
-                            : 'Pick another student or swap with an occupied seat.',
-                  ),
-                  enabled: widget.students.isNotEmpty,
-                  onTap: widget.students.isEmpty
-                      ? null
-                      : () {
-                          Navigator.of(context).pop();
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (!mounted) return;
-                            _showStudentAssignmentSheet(
-                              context,
-                              service,
-                              layout,
-                              seatId,
-                            );
-                          });
-                        },
-                ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(

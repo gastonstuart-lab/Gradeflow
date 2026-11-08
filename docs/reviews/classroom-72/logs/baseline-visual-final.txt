@@ -1,0 +1,6 @@
+00:00 +0: loading C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/baseline-70/test/classroom_surface_test.dart
+00:00 +0: same fixture visual evidence 1440.0
+RepositoryFactory: Switched to local storage
+00:04 +1: same fixture visual evidence 1920.0
+RepositoryFactory: Switched to local storage
+00:06 +2: All tests passed!

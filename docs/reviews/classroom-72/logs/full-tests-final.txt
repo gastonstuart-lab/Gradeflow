@@ -1,0 +1,571 @@
+00:00 +0: loading C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart
+00:00 +0: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart: opening class planning never generates scores or exams
+RepositoryFactory: Switched to local storage
+00:00 +1: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart: opening class planning never generates scores or exams
+00:00 +2: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart: opening class planning never generates scores or exams
+00:00 +3: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart: opening class planning never generates scores or exams
+00:00 +4: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart: opening class planning never generates scores or exams
+00:00 +5: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart: opening class planning never generates scores or exams
+00:00 +6: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart: opening class planning never generates scores or exams
+00:02 +7: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/approved_teacher_home_bindings_test.dart: approved Home sends the selected existing class to each class destination
+00:03 +8: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/approved_teacher_home_bindings_test.dart: approved Home sends the selected existing class to each class destination
+00:03 +9: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/approved_teacher_home_bindings_test.dart: approved Home sends the selected existing class to each class destination
+00:03 +10: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/approved_teacher_home_bindings_test.dart: approved Home sends the selected existing class to each class destination
+00:03 +11: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/approved_teacher_home_bindings_test.dart: approved Home sends the selected existing class to each class destination
+00:04 +11: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart: adding a student leaves all existing assessments unmarked
+RepositoryFactory: Switched to local storage
+00:04 +12: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/approved_teacher_home_bindings_test.dart: approved Home sends the selected existing class to each class destination
+00:05 +12: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/canonical_planner_route_test.dart: old dashboard bookmark opens current Planner with its date
+GoRouter.redirect from '/' | isAuth=true isInit=true isLoading=false
+GoRouter.redirect from '/dashboard' | isAuth=true isInit=true isLoading=false
+00:05 +13: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/approved_teacher_home_bindings_test.dart: approved Home sends the selected existing class to each class destination
+00:05 +13: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart: class hub shows actual tools instead of fabricated live metrics
+RepositoryFactory: Switched to local storage
+00:05 +14: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/approved_teacher_home_bindings_test.dart: approved Home sends the selected existing class to each class destination
+00:05 +14: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/academic_opening_safety_test.dart: new classes use the confirmed syllabus policy without replacing existing weights
+RepositoryFactory: Switched to local storage
+Default categories seeded for class new-fixture
+00:05 +15: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/approved_teacher_home_bindings_test.dart: approved Home sends the selected existing class to each class destination
+00:05 +16: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: tools start closed and slide from the right without resizing room
+RepositoryFactory: Switched to local storage
+00:05 +17: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_card_test.dart: class card without schedule fits compact grid tile
+00:05 +18: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_card_test.dart: class card without schedule fits compact grid tile
+00:06 +19: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: room setup uses right panel instead of old editor toolbar
+00:06 +20: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: room setup uses right panel instead of old editor toolbar
+RepositoryFactory: Switched to local storage
+00:06 +21: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:06 +22: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:06 +23: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:06 +24: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:06 +25: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:06 +26: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:07 +27: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:07 +28: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:07 +28: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: student and table picks highlight map without modifying layout
+RepositoryFactory: Switched to local storage
+00:07 +29: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:07 +30: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:08 +30: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: presentation keeps premium map and hides private controls
+RepositoryFactory: Switched to local storage
+00:08 +31: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_detail_tool_grid_test.dart: class workspace tool grid renders tools and forwards taps
+00:08 +31: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: compact right panel can be closed without hiding the map
+RepositoryFactory: Switched to local storage
+00:08 +32: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: compact right panel can be closed without hiding the map
+00:08 +33: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/class_schedule_docx_test.dart: parse class schedule from docx table bytes
+00:08 +34: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:08 +35: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:08 +36: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:08 +37: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +37: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/communication_service_test.dart: unread counts persist per user and clear when a channel is opened
+RepositoryFactory: Switched to local storage
+RepositoryFactory: Switched to local storage
+RepositoryFactory: Switched to local storage
+00:10 +38: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +38: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/communication_service_test.dart: custom staff groups are shared across teachers in the same school
+RepositoryFactory: Switched to local storage
+00:10 +39: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +39: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/communication_service_test.dart: custom staff groups are shared across teachers in the same school
+RepositoryFactory: Switched to local storage
+00:10 +40: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +41: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +42: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +42: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/communication_service_test.dart: custom staff groups are shared across teachers in the same school
+RepositoryFactory: Switched to local storage
+00:10 +43: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +44: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +45: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +46: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +47: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +48: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:10 +49: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+RepositoryFactory: Switched to local storage
+00:12 +49: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/communication_layout_test.dart: channel list and conversation remain usable at Size(1280.0, 720.0)
+RepositoryFactory: Switched to local storage
+RepositoryFactory: Switched to local storage
+00:12 +50: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: teaching actions preserve saved data and exact framing
+00:12 +51: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_class_card_test.dart: DashboardClassCard Interactive States collapsed state shows only title, subtitle, count, status chip, and primary action
+00:12 +52: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_shell_interactions_test.dart: Workspace strip tapping a mode emits selection callback
+00:13 +52: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/communication_layout_test.dart: channel list and conversation remain usable at Size(390.0, 844.0)
+RepositoryFactory: Switched to local storage
+RepositoryFactory: Switched to local storage
+00:13 +53: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_shell_interactions_test.dart: Workspace strip tapping a mode emits selection callback
+00:13 +54: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_shell_interactions_test.dart: Workspace strip tapping a mode emits selection callback
+00:13 +54: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: Arrange drag saves only the intended table movement
+RepositoryFactory: Switched to local storage
+00:13 +55: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_shell_interactions_test.dart: Workspace strip tapping a mode emits selection callback
+00:13 +56: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_surface_interactions_test.dart: Quick action cards rest state is compact and long press reveals fuller detail
+00:13 +56: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: same fixture visual evidence 1440.0
+RepositoryFactory: Switched to local storage
+00:13 +57: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_surface_interactions_test.dart: Quick action cards rest state is compact and long press reveals fuller detail
+00:13 +58: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_surface_interactions_test.dart: Quick action cards rest state is compact and long press reveals fuller detail
+00:14 +59: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_shell_interactions_test.dart: Command deck summary summary metric panel tap forwards callback
+00:14 +59: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/classroom_surface_test.dart: same fixture visual evidence 1920.0
+RepositoryFactory: Switched to local storage
+00:14 +60: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_shell_interactions_test.dart: Command deck summary summary metric panel tap forwards callback
+00:14 +61: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_class_card_test.dart: DashboardClassCard Interactive States tap collapse button returns to collapsed state
+00:14 +62: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_surface_interactions_test.dart: Quick action cards tap forwards callback
+00:14 +63: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_shell_interactions_test.dart: Sidebar navigation sidebar nav item tap forwards callback
+00:14 +64: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_class_card_test.dart: DashboardClassCard Interactive States action button taps call their onTap callbacks
+00:14 +65: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_surface_interactions_test.dart: Live/message cards message card stays concise at rest and reveals more on long press
+00:15 +66: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+RepositoryFactory: Switched to local storage
+Demo classes seeded successfully
+Demo students seeded for class demo-class-1
+Default categories seeded for class demo-class-1
+Demo grade items seeded for class demo-class-1
+Demo scores seeded successfully
+Demo final exams seeded successfully
+Demo students seeded for class demo-class-2
+Default categories seeded for class demo-class-2
+Demo grade items seeded for class demo-class-2
+Demo scores seeded successfully
+Demo final exams seeded successfully
+Demo students seeded for class demo-class-3
+Default categories seeded for class demo-class-3
+Demo grade items seeded for class demo-class-3
+Demo scores seeded successfully
+Demo final exams seeded successfully
+00:15 +67: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/dashboard_surface_interactions_test.dart: Live/message cards message card tap forwards callback
+00:15 +68: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/file_import_fallback_test.dart: fallback-heavy XLSX roster samples still parse valid students
+00:16 +68: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+RepositoryFactory: Switched to local storage
+00:16 +68: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/file_import_fallback_test.dart: fallback-heavy XLSX roster samples still parse valid students
+XLSX bytes length: 110865
+00:16 +69: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/file_import_fallback_test.dart: fallback-heavy XLSX roster samples still parse valid students
+00:16 +70: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/file_import_fallback_test.dart: fallback-heavy XLSX roster samples still parse valid students
+Excel.decodeBytes failed: Null check operator used on a null value
+XLSX ZIP/XML fallback used: sheet=xl/worksheets/sheet1.xml rows=18
+00:16 +71: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:16 +72: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:16 +73: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:17 +74: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:17 +75: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:17 +76: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:17 +77: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:17 +78: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:17 +79: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:17 +80: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:17 +81: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:17 +82: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:17 +82: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/grade_item_service_test.dart: seedDemoGradeItems uses category-aware default names
+RepositoryFactory: Switched to local storage
+Demo grade items seeded for class class-a
+00:17 +83: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:18 +83: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/instructos_assistant_service_test.dart: ask sends only message conversation and context mode
+Ask InstructOS invoking callable=askInstructOS region=us-central1 firebaseAvailable=false messageLength=13 conversationItems=3 contextMode=general
+Ask InstructOS using injected callable invoker.
+Ask InstructOS callable response received dataType=_Map<String, dynamic> keys=[reply]
+Ask InstructOS using callable reply length=25
+00:18 +84: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:18 +84: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/instructos_assistant_service_test.dart: ask returns fallback reply when callable fails
+Ask InstructOS invoking callable=askInstructOS region=us-central1 firebaseAvailable=false messageLength=19 conversationItems=0 contextMode=general
+Ask InstructOS using injected callable invoker.
+Ask InstructOS unavailable: StateError
+Ask InstructOS fallback: unexpected exception path used.
+00:18 +85: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:18 +85: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/instructos_assistant_service_test.dart: askDetailed marks fallback mode when callable fails
+Ask InstructOS invoking callable=askInstructOS region=us-central1 firebaseAvailable=false messageLength=29 conversationItems=0 contextMode=general
+Ask InstructOS using injected callable invoker.
+Ask InstructOS unavailable: StateError
+Ask InstructOS fallback: unexpected exception path used.
+00:18 +86: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:18 +87: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:18 +87: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/instructos_assistant_service_test.dart: askDetailed marks normal backend replies as success
+Ask InstructOS invoking callable=askInstructOS region=us-central1 firebaseAvailable=false messageLength=28 conversationItems=0 contextMode=general
+Ask InstructOS using injected callable invoker.
+Ask InstructOS callable response received dataType=_Map<String, dynamic> keys=[reply]
+Ask InstructOS using callable reply length=24
+00:18 +88: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: presentation-style seating designer stays interactive without roster panel
+00:18 +89: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+
+=== 2025-F Calendar (114-1).xlsx ===
+Bytes: 19711 ZIP/XLSX: true
+XLSX bytes length: 19711
+Excel tables detected: 2024
+Using sheet: 2024 rows=1001 cols=25
+Rows extracted: 1001
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+XLSX bytes length: 19711
+Excel tables detected: 2024
+Using sheet: 2024 rows=1001 cols=25
+Roster parsed: total=1 valid=0 invalid=1
+00:19 +89: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: setup room view uses teacher-first building language
+RepositoryFactory: Switched to local storage
+00:19 +90: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+
+=== 2026-S Calender.xlsx ===
+Bytes: 14754 ZIP/XLSX: true
+XLSX bytes length: 14754
+Excel tables detected: Table 1
+Using sheet: Table 1 rows=37 cols=11
+Rows extracted: 37
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+21-23: First Week of Classes in 2026-S
+22-23 H1 Civil Training Camp
+23: Homeroom Class Time]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+XLSX bytes length: 14754
+Excel tables detected: Table 1
+Using sheet: Table 1 rows=37 cols=11
+Roster parsed: total=1 valid=0 invalid=1
+
+=== grades_080e2d98-e3b4-4051-bb6e-2b6db7d77a08.xlsx ===
+Bytes: 6341 ZIP/XLSX: true
+XLSX bytes length: 6341
+Excel tables detected: Sheet1
+00:19 +91: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+00:19 +92: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+Using sheet: Sheet1 rows=20 cols=10
+Rows extracted: 20
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+XLSX bytes length: 6341
+Excel tables detected: Sheet1
+Using sheet: Sheet1 rows=20 cols=10
+Roster parsed: total=19 valid=19 invalid=0
+
+=== L1. J1 G1-2 schedule.xlsx ===
+Bytes: 20866 ZIP/XLSX: true
+XLSX bytes length: 20866
+Excel tables detected: 2025
+Using sheet: 2025 rows=998 cols=26
+Rows extracted: 998
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+XLSX bytes length: 20866
+Excel tables detected: 2025
+Using sheet: 2025 rows=998 cols=26
+Roster parsed: total=29 valid=0 invalid=29
+
+=== report_1130218.pdf ===
+Bytes: 9996 ZIP/XLSX: false
+XLSX bytes length: 9996
+Non-ZIP input does not resemble CSV; rejecting.
+Rows extracted: 0
+Roster parsed: total=0 valid=0 invalid=0
+00:20 +92: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: class seating teach mode hides helper once a room exists
+RepositoryFactory: Switched to local storage
+00:20 +93: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+00:20 +93: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/full_screen_seating_test.dart: class seating teach mode keeps blank-room guidance
+RepositoryFactory: Switched to local storage
+00:20 +94: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+00:21 +95: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+00:21 +96: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+00:21 +97: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+00:21 +98: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+00:21 +99: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+--- Diagnostics ---
+File: report_1130218.pdf
+Bytes: 9996
+Looks like XLSX (ZIP): false
+Detected delimiter: ,
+Rows decoded: 1
+Header row index: 0
+Header sample: [%PDF-1.5
+%¥±ë
+% https://github.com/DavBfr/dart_pdf
+1 0 obj
+<</Type/Pages/Kids[3 0 R]/Count 1>>
+endobj
+2 0 obj
+<</Type/Catalog/Version/1.7/Pages 1 0 R/PageMode/UseNone>>
+endobj
+3 0 obj
+<</Type/Page/Resources<</ProcSet[/PDF/Text/ImageB/ImageC]/Font<</F5 5 0 R/F10 10 0 R>>>>/Parent 1 0 R/MediaBox[0 0 595.27559 841.88976]/Contents 4 0 R>>
+endobj
+4 0 obj
+<</Filter/FlateDecode/Length 863>>stream
+x�Wۊ�0����Ҍ�P�Ph
+�>l�Ї҇���na�����őb;�l�]�G
+��Ό����L�G2'��ો���
+�iB���o��c�>k��#�t=}��w�����{!��4����i�0��W��}�f�x�(aƗ��
+
+OcW�I��a�K��
+�AÍ���ߎv ��l
+ ܂]��s?�r�f|���Z�9Z3�x��=���>�?L8� W6*�9ZV��i�R�M.�D�A��ILIbJ����r/��b��&#!���h�
+�
+W8�g4��Wu�h���z>_4�m��
+QW, с��}���Q�W�, �63�d
+��E؄�لo��OJ��������<<�II�JGQ��ѕ�9�|`?��j�!�1�Δ���B��YG�($�v�4��Jq��E����f�	�s�S�5��U4����3@��}9�r�����J_���M`Ł@
+S�c��+�iǭ�&����� �LU$�qHc��7
+�`0�ha���dP�z
+P�N5:�B�է� �42�q�at����43*��q-�6��7�ȑX�p[r�72��S�[��N~����GQ�ȝ�1І���j���>m'{����PG`���e�!�"���#�2m������i6ڠ� 8�9�6A�5�, �|��@�
+\�]�WlKCU��}�n���$:4oQ�0_gَ����=n>�P�X?�|��c<r����_�2ߧ�4��R�n���i[;Ӭ�-�q@�PV����'��p�Ќ����W���~x-Yz
+Aµ=Z�z#4�h�>fu�^U��Ѻy!U;$E�[�[
+����c>�bx�nd��嵱�kX�������H�e����6j#��(�zUf����܃
+ۜf�
+��b)��
+endstream
+endobj
+5 0 obj
+<</Type/Font/Subtype/Type0/Name/F5/Encoding/Identity-H/BaseFont/NotoSansTC-Bold/DescendantFonts[<</Type/Font/BaseFont/NotoSansTC-Bold/FontFile2 6 0 R/FontDescriptor 8 0 R/W[0 9 0 R]/CIDToGIDMap/Identity/DW 1000/Subtype/CIDFontType2/CIDSystemInfo<</Supplement 0/Registry(Adobe)/Ordering(Identity-H)>>>>]/ToUnicode 7 0 R>>
+endobj
+6 0 obj
+<</Length1 2616/Filter/FlateDecode/Length 1939>>stream
+xmVklY�����8�c�~���ێ�c;�㐗�'!!�&i�i(Ik5�M��vW�P��g*��?A+, �U, Ҋ� �U��V[!*U+�J�[�؜�M){�s��s������B
+�ZX_]\q���3�y, ����U���gsq��6ȏ�
+�;K_�%�������ۑ�k��?���XF���m��g��\Hm�����9�� �	���Y�\E2�/�:M�����7Q|��	X	�ݹ��g���#��'���w�����~�@��O�g�*�Wi�'��K�*wR�{�<|Wy�>�t⌎�M=z�&��L~�� �����ڈO��Y%���Dh7�q�.�����]�Ig�J��{�\�`��q���Gd��RFA����h�\A1҇��ET"?@3���9�7`|�H	qd�H�H3���d��8���QI\�06�Oh���p
+$�X��"����`pMF����
+!j�׀
+�"Y=Ho!$���
+�Ӂe��
+u�V�{��
+d��oFhJ�Rc��X]�V(g��s�W�I�W��������6u��Hl�z%W9E%�������"�`�> �Q�>��M��\"�'}>��>�Jq	�A��1n���
+;�u2�
+���dW��Y[µ��t��)0�X�͙t, Fz�];�Lr���V��)�̍�:��Y�3�5�MM�&ULe�r�������&2�8|<���4Gs4iR� I���Ҕz��U�WeW�
+�U����M�o��<
+m�|M�� �)F�A4���jN]
+
+��df�_�ݜu[)�L��=��*7��./�pxk, ��� F��C
+�����ף��������L�F6�e�
+q
+�2;g4��$U�+�3�.��
+���
+ܱ8
+�l1�>�
+�Ea�g�Y������r���)������\*�
+s��u^BU�'
+v�YG"���].mKz���Á���W�9��g�n<�鱤����I�G[j�����ՌZ�/W�����D�����r���'����wq�+�tT.�|�
+��'wA�42	q\5�2�Q�k2b-���`\�44t���0P(, T�^���, O���r��=��
+��s��5��R5@�"bc�?BW
+
+"5��DJ� �����d�o������;�k���g��͒�%��/O-��;m3?���h_�Ym�5���C�aպ�t�(U��m������B1
+���X@B����������<
+ۡ�	���	���G�$���Uc�16��-&���H���v���D��V~
+ϧ ��a�:���R �{�Q����������̰�'��NĦ��[)�
+U��˳���$�|'��s�c[��s6��� G`�!��{.�Q" d났ɟ����[
+�7��5�-�I��x�!���z&
+��w�
+P����e�5d��h'�93V�E�ܲ��
+���e��P��D� 7�z���J��h)�S�H
+��9A�0A=U��P��7b]���_o�l���vSH�y��}��٧U6��
+��oM��F��d�
+~_�����<-Z��?
+�	&KKUQƑ�H�b���h�l�9l�
+�e
+ZC{ۦy\5�\���q�b�ʼޣ�Ӕ�٥q��������eY����4�i�e��
+�"/@VK�%^�n�7J�ъ�ns�wd�2�ƽn�
+�F���%��u�������:����Z��8P�-&G
+y]��b�N�=ch�/��X�4�����E�%j�
+�?���'��/|m�)�:�f��=�A�u�lL_49���yw�����ؓ6k:j�Ua����2�6�R��%��A˴
+����
+�/Ͷ��
+�����sL<{h�����
+�+�݋��X�h���
+�ŝ���!5ɔ��h����$~x�\
+y=���+��
+�Nx�"�>Lf-�Z��A�i�B�
+y�pǤ�xS�P��=��CՆ����������b
+endstream
+endobj
+7 0 obj
+<</Filter/FlateDecode/Length 310>>stream
+x]�Mn�0��>���""���R�H, ���
+��Cj�ː���sS��l���<3���Xk5Eov
+M�SZZ���/tU��	�JL��)�ְ�y�y���u7�ޝ6Nv櫃
+.���W+�*}�Ϫq�܌�����7�]
+Roster parse: total=0 valid=0 invalid=0
+
+=== Science_Group4_Final_Grading.xlsx ===
+Bytes: 10527 ZIP/XLSX: true
+XLSX bytes length: 10527
+Excel.decodeBytes failed: Null check operator used on a null value
+XLSX ZIP/XML fallback used: sheet=xl/worksheets/sheet1.xml rows=20
+Rows extracted: 20
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+00:21 +100: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+00:21 +101: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/import_debug_test.dart: Import samples diagnostics
+Roster parsed: total=18 valid=18 invalid=0
+
+=== Science_Group6_Final_Grading.xlsx ===
+Bytes: 10581 ZIP/XLSX: true
+XLSX bytes length: 10581
+Excel.decodeBytes failed: Null check operator used on a null value
+XLSX ZIP/XML fallback used: sheet=xl/worksheets/sheet1.xml rows=21
+Rows extracted: 21
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+Roster parsed: total=19 valid=19 invalid=0
+
+=== Stuart.docx ===
+Bytes: 12655 ZIP/XLSX: true
+Rows extracted: 28
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+XLSX bytes length: 12655
+Excel.decodeBytes failed: Unsupported operation: Excel format unsupported. Only .xlsx files are supported
+Failed to read XLSX bytes: Unsupported operation: Excel format unsupported. Only .xlsx files are supported
+CSV fallback rejected: text does not resemble CSV
+Roster parsed: total=0 valid=0 invalid=0
+XLSX bytes length: 12655
+Excel.decodeBytes failed: Unsupported operation: Excel format unsupported. Only .xlsx files are supported
+Failed to read XLSX bytes: Unsupported operation: Excel format unsupported. Only .xlsx files are supported
+CSV fallback rejected: text does not resemble CSV
+--- Diagnostics ---
+File: Stuart.docx
+Bytes: 12655
+Looks like XLSX (ZIP): true
+Rows extracted: 28
+Header row index: 1
+Header sample: [1, 08:00, , , EEP (3) J2FG Sci Classroom II, EEP (3) J2FG Sci Classroom I, ]
+First data row sample: [, ~, , , , , ]
+Roster parse: total=0 valid=0 invalid=0
+
+=== THUHS – EEP3-J2FG – Grading_updated.xlsx ===
+Bytes: 110865 ZIP/XLSX: true
+XLSX bytes length: 110865
+Excel.decodeBytes failed: Null check operator used on a null value
+XLSX ZIP/XML fallback used: sheet=xl/worksheets/sheet1.xml rows=18
+Rows extracted: 18
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+XLSX bytes length: 110865
+Excel.decodeBytes failed: Null check operator used on a null value
+XLSX ZIP/XML fallback used: sheet=xl/worksheets/sheet1.xml rows=18
+Roster parsed: total=16 valid=16 invalid=0
+
+=== THUHS – EEP3-J2FG – Grading_updated.xlsx - Participation.csv ===
+Bytes: 1282 ZIP/XLSX: false
+XLSX bytes length: 1282
+Input not a ZIP/XLSX. Treating as CSV text.
+Rows extracted: 35
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+Roster parsed: total=33 valid=16 invalid=17
+
+=== THUHS – EEP4-J1FG – Grading_updated.xlsx ===
+Bytes: 110906 ZIP/XLSX: true
+XLSX bytes length: 110906
+Excel.decodeBytes failed: Null check operator used on a null value
+XLSX ZIP/XML fallback used: sheet=xl/worksheets/sheet1.xml rows=19
+Rows extracted: 19
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+XLSX bytes length: 110906
+Excel.decodeBytes failed: Null check operator used on a null value
+XLSX ZIP/XML fallback used: sheet=xl/worksheets/sheet1.xml rows=19
+Roster parsed: total=17 valid=17 invalid=0
+
+=== THUHS – EEP5-J2DE – Grading_updated.xlsx ===
+Bytes: 110835 ZIP/XLSX: true
+XLSX bytes length: 110835
+Excel.decodeBytes failed: Null check operator used on a null value
+XLSX ZIP/XML fallback used: sheet=xl/worksheets/sheet1.xml rows=17
+Rows extracted: 17
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+[Repository import sample row redacted]
+XLSX bytes length: 110835
+Excel.decodeBytes failed: Null check operator used on a null value
+XLSX ZIP/XML fallback used: sheet=xl/worksheets/sheet1.xml rows=17
+Roster parsed: total=15 valid=15 invalid=0
+00:23 +102: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/os_dock_activation_test.dart: dock destinations respond to semantic button activation
+00:23 +103: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/os_dock_activation_test.dart: dock destinations respond to semantic button activation
+00:23 +104: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/os_dock_activation_test.dart: dock destinations respond to semantic button activation
+00:24 +105: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/os_shell_surfaces_test.dart: HomeSurface renders native OS home sections
+00:25 +106: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/os_shell_surfaces_test.dart: HomeSurface renders native OS home sections
+00:25 +107: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/os_shell_surfaces_test.dart: HomeSurface renders native OS home sections
+00:25 +108: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/premium_classroom_adapter_test.dart: premium material adapter preserves seat bounds, IDs and notes
+00:25 +109: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/premium_classroom_adapter_test.dart: premium material adapter preserves seat bounds, IDs and notes
+00:26 +110: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/product_entry_accessibility_test.dart: entry stays usable at phone width with enlarged text in dark
+00:27 +111: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/product_entry_accessibility_test.dart: entry stays usable at phone width with enlarged text in dark
+00:28 +111: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: rotateTable swaps table orientation and preserves assignments
+RepositoryFactory: Switched to local storage
+00:28 +112: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/product_entry_accessibility_test.dart: entry stays usable at phone width with enlarged text in dark
+00:28 +112: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: moveTable keeps tables inside the room bounds
+RepositoryFactory: Switched to local storage
+00:28 +113: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/product_entry_accessibility_test.dart: entry stays usable at phone width with enlarged text in dark
+00:28 +113: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: updateCanvasSize pulls existing tables back into view
+RepositoryFactory: Switched to local storage
+00:28 +114: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/product_entry_accessibility_test.dart: entry stays usable at phone width with enlarged text in dark
+00:28 +114: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: duplicateTable copies the furniture without copying assignments
+RepositoryFactory: Switched to local storage
+00:28 +115: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/product_entry_accessibility_test.dart: entry stays usable at phone width with enlarged text in dark
+00:28 +115: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: duplicateSeat adds another seat and moveSeat can push it farther out
+RepositoryFactory: Switched to local storage
+00:28 +116: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/product_entry_accessibility_test.dart: entry stays usable at phone width with enlarged text in dark
+00:28 +116: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: assignStudentToTable uses the next empty seat on the target table
+RepositoryFactory: Switched to local storage
+00:28 +117: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/product_entry_accessibility_test.dart: entry stays usable at phone width with enlarged text in dark
+00:28 +117: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: updateSeatNote saves note text and reminder state
+RepositoryFactory: Switched to local storage
+00:28 +118: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/product_entry_accessibility_test.dart: entry stays usable at phone width with enlarged text in dark
+00:28 +118: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: copyRoomLayoutToClass copies room structure without placements
+RepositoryFactory: Switched to local storage
+00:28 +119: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/school_data_inbox_screen_test.dart: SchoolDataInboxScreen renders School Knowledge Hub layout
+00:28 +120: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/school_data_inbox_screen_test.dart: SchoolDataInboxScreen renders School Knowledge Hub layout
+00:28 +120: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: saveRoomSetupFromLayout stores a reusable room and links the class
+RepositoryFactory: Switched to local storage
+00:28 +121: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/school_data_inbox_screen_test.dart: SchoolDataInboxScreen renders School Knowledge Hub layout
+00:28 +121: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: applyRoomSetupToClass reuses a blank class and protects an existing arrangement
+RepositoryFactory: Switched to local storage
+00:28 +122: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/school_data_inbox_screen_test.dart: SchoolDataInboxScreen renders School Knowledge Hub layout
+00:28 +122: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: refreshLinkedClassesFromRoomSetup updates linked rooms and preserves seat annotations
+RepositoryFactory: Switched to local storage
+00:28 +123: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/school_data_inbox_screen_test.dart: SchoolDataInboxScreen renders School Knowledge Hub layout
+00:28 +123: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: shuffleStudentPlacements randomizes seated students in seat order
+RepositoryFactory: Switched to local storage
+00:28 +124: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/school_data_inbox_screen_test.dart: SchoolDataInboxScreen renders School Knowledge Hub layout
+00:28 +124: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_service_test.dart: shuffleStudentPlacements keeps locked seats fixed
+RepositoryFactory: Switched to local storage
+00:28 +125: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/school_data_inbox_screen_test.dart: SchoolDataInboxScreen renders School Knowledge Hub layout
+00:28 +126: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_canvas_test.dart: seat stays tappable in edit room mode
+00:28 +127: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_canvas_test.dart: seat stays tappable in edit room mode
+00:28 +128: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_canvas_test.dart: seat stays tappable in edit room mode
+00:28 +129: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_canvas_test.dart: seat stays tappable in edit room mode
+00:29 +130: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/os_shell_surfaces_test.dart: PlannerSurface waits for restored auth before loading scoped data
+00:29 +131: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_canvas_test.dart: locked seat shows a pin marker
+00:29 +132: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/os_shell_surfaces_test.dart: ClassSurface keeps deep links loading while auth restores
+00:29 +133: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/seating_canvas_test.dart: seat reminder shows a note marker
+00:29 +134: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/os_shell_surfaces_test.dart: GradeFlowOSShell shows one overlay at a time
+00:30 +135: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/student_assignment_sheet_test.dart: shows seat status and filters the roster
+00:30 +136: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/student_assignment_sheet_test.dart: shows seat status and filters the roster
+00:30 +137: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/student_assignment_sheet_test.dart: shows seat status and filters the roster
+00:32 +138: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/student_assignment_sheet_test.dart: shows seat status and filters the roster
+00:32 +139: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/student_assignment_sheet_test.dart: shows seat status and filters the roster
+00:33 +140: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/student_list_screen_test.dart: student list defaults to ascending student id and still supports seat sorting
+00:33 +141: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/student_list_screen_test.dart: student list defaults to ascending student id and still supports seat sorting
+00:34 +142: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/teacher_home_integration_panel_test.dart: Teacher Home routes class work through existing InstructOS destinations
+00:34 +143: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/teacher_home_integration_panel_test.dart: Teacher Home routes class work through existing InstructOS destinations
+00:34 +144: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/teacher_home_integration_panel_test.dart: Teacher Home routes class work through existing InstructOS destinations
+00:34 +145: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/teacher_home_integration_panel_test.dart: Teacher Home routes class work through existing InstructOS destinations
+00:34 +146: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/teacher_home_integration_panel_test.dart: Teacher Home routes class work through existing InstructOS destinations
+00:34 +147: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/teacher_whiteboard_test.dart: whiteboard workspace forwards fullscreen action
+00:35 +148: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/teacher_whiteboard_test.dart: whiteboard workspace forwards fullscreen action
+00:35 +149: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/workspace_feedback_test.dart: workspace snack bar renders shared feedback surface and action
+00:35 +150: C:/Users/Stuart/Documents/Codex/2026-11-08/referenced-chatgpt-conversation-this-is-an/work/classroom-recovery/test/workspace_feedback_test.dart: workspace snack bar renders shared feedback surface and action
+00:36 +151: All tests passed!

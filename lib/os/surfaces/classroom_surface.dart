@@ -1,5 +1,8 @@
+import 'package:gradeflow/components/classroom/classroom_seat_panel.dart';
 import 'dart:async';
 import 'dart:math';
+import 'package:gradeflow/components/seating/classroom_picker_animator.dart';
+import 'package:gradeflow/os/surfaces/classroom_presentation_view.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -31,13 +34,13 @@ class ClassroomSurface extends StatefulWidget {
 }
 
 class _ClassroomSurfaceState extends State<ClassroomSurface> {
+  String? _selectedSeat;
   bool _loading = true;
   bool _toolsOpen = false;
   String? _pickedStudent;
   String? _pickedTable;
   String? _pickLabel;
-  final _pickedStudents = <String>{};
-  final _random = Random();
+  final _picker = ClassroomPickerAnimator();
   String? _scoreCategory;
   bool _setupMode = false;
 
@@ -56,9 +59,10 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.classId != widget.classId) {
       setState(() {
+        _selectedSeat = null;
         _loading = true;
         _setupMode = false;
-        _pickedStudents.clear();
+        _picker.cancel(clearStudentHistory: true);
         _pickedStudent = null;
         _pickedTable = null;
         _pickLabel = null;
@@ -69,6 +73,12 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         unawaited(_loadClassroom());
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _picker.cancel();
+    super.dispose();
   }
 
   Future<void> _loadClassroom() async {
@@ -101,52 +111,67 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   }
 
   void _pick({bool table = false}) {
+    unawaited(_runPick(table: table));
+  }
+
+  Future<void> _runPick({bool table = false}) async {
     final layout = context.read<SeatingService>().activeLayout(widget.classId);
     if (layout == null) return;
     final students = context.read<StudentService>().students;
-    if (table) {
-      final tables = layout.tables
-          .where((t) => layout.seats
-              .any((s) => s.tableId == t.tableId && s.studentId != null))
-          .toList();
-      if (tables.isEmpty) return;
-      final chosen = tables[_random.nextInt(tables.length)];
-      setState(() {
-        _pickedTable = chosen.tableId;
-        _pickedStudent = null;
+    final tables = layout.tables
+        .where((t) => layout.seats.any((s) =>
+            s.tableId == t.tableId &&
+            students.any((student) => student.studentId == s.studentId)))
+        .toList();
+    final seated = students
+        .where((s) => layout.seats.any((seat) => seat.studentId == s.studentId))
+        .toList();
+    final candidateIds = table
+        ? tables.map((t) => t.tableId).toList()
+        : seated.map((s) => s.studentId).toList();
+
+    if (candidateIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(table
+            ? 'No occupied tables to pick.'
+            : 'Seat students on the map before picking.'),
+      ));
+      return;
+    }
+
+    final selected = await _picker.animate(
+      candidateIds: candidateIds,
+      nonRepeatingStudents: !table,
+      reduceMotion: MediaQuery.disableAnimationsOf(context),
+      onHighlight: (id) {
+        if (!mounted) return;
+        setState(() {
+          _pickedStudent = table ? null : id;
+          _pickedTable = table ? id : null;
+          _pickLabel = 'Choosing…';
+          _toolsOpen = false;
+        });
+      },
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      if (table) {
+        final chosen = tables.firstWhere((t) => t.tableId == selected);
         _pickLabel = chosen.label.isEmpty ? 'Selected table' : chosen.label;
-        _toolsOpen = false;
-      });
-    } else {
-      final seated = students
-          .where(
-              (s) => layout.seats.any((seat) => seat.studentId == s.studentId))
-          .toList();
-      if (seated.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Seat students on the map before picking.')));
-        return;
-      }
-      var available =
-          seated.where((s) => !_pickedStudents.contains(s.studentId)).toList();
-      if (available.isEmpty) {
-        _pickedStudents.clear();
-        available = seated;
-      }
-      final chosen = available[_random.nextInt(available.length)];
-      _pickedStudents.add(chosen.studentId);
-      setState(() {
-        _pickedStudent = chosen.studentId;
-        _pickedTable = null;
+      } else {
+        final chosen = seated.firstWhere((s) => s.studentId == selected);
         _pickLabel =
             '${chosen.englishFirstName} ${chosen.englishLastName}'.trim();
-        _toolsOpen = false;
-      });
-    }
+      }
+    });
   }
 
   Widget _toolsPanel(List<Student> students, SeatingService service) {
     final layout = service.activeLayout(widget.classId);
+    final seat =
+        layout?.seats.where((s) => s.seatId == _selectedSeat).firstOrNull;
+    final table =
+        layout?.tables.where((t) => t.tableId == seat?.tableId).firstOrNull;
     Widget action(IconData icon, String title, VoidCallback onTap) => ListTile(
         leading: Icon(icon),
         title: Text(title),
@@ -173,93 +198,111 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         Expanded(
             child:
                 ListView(padding: const EdgeInsets.only(bottom: 16), children: [
-          Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Text(_setupMode ? 'ROOM SETUP' : 'TEACHING',
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5))),
-          if (!_setupMode) ...[
-            action(Icons.person_search_outlined, 'Pick student', () => _pick()),
-            action(Icons.table_restaurant_outlined, 'Pick table',
-                () => _pick(table: true)),
-            action(Icons.grid_on_outlined, 'Full gradebook',
-                () => context.go(AppRoutes.osClassGradebook(widget.classId))),
-            action(
-                Icons.task_alt,
-                'Homework check',
-                () => setState(() {
-                      _scoreCategory = 'Homework';
-                      _toolsOpen = false;
-                    })),
-            action(
-                Icons.quiz_outlined,
-                'Quiz scores',
-                () => setState(() {
-                      _scoreCategory = 'Quizzes';
-                      _toolsOpen = false;
-                    })),
-            const Divider(indent: 20, endIndent: 20),
-          ],
-          SwitchListTile(
-              title: const Text('Edit room'),
-              subtitle: const Text('Move furniture and arrange seats'),
-              value: _setupMode,
-              onChanged: (v) => setState(() => _setupMode = v)),
-          if (_setupMode) ...[
+          if (seat != null && table != null) ...[
+            TextButton.icon(
+                onPressed: () => setState(() => _selectedSeat = null),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('All classroom tools')),
+            ClassroomSeatPanel(
+                key: ValueKey('${layout!.layoutId}:${seat.seatId}'),
+                classId: widget.classId,
+                seat: seat,
+                table: table,
+                students: students,
+                service: service,
+                arranging: _setupMode,
+                scoreCategory: _scoreCategory),
+          ] else ...[
             Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey(layout?.layoutId),
-                  initialValue: layout?.layoutId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                      labelText: 'Room map', border: OutlineInputBorder()),
-                  items: service
-                      .layoutsForClass(widget.classId)
-                      .map((room) => DropdownMenuItem(
-                          value: room.layoutId,
-                          child:
-                              Text(room.name, overflow: TextOverflow.ellipsis)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null)
-                      service.selectLayout(widget.classId, value);
-                  },
-                )),
-            action(
-                Icons.table_restaurant_outlined,
-                'Add table',
-                () => service.addTable(
-                    widget.classId, SeatingTableType.rectangular,
-                    seatCount: 4)),
-            action(
-                Icons.circle_outlined,
-                'Add round table',
-                () => service.addTable(widget.classId, SeatingTableType.round,
-                    seatCount: 4)),
-            action(
-                Icons.desk_outlined,
-                'Add single desk',
-                () => service.addTable(
-                    widget.classId, SeatingTableType.singleDesk,
-                    seatCount: 1)),
-            action(
-                Icons.person_outline,
-                'Add teacher desk',
-                () => service.addTable(
-                    widget.classId, SeatingTableType.teacherDesk,
-                    seatCount: 0)),
-            const Padding(
-                padding: EdgeInsets.all(20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Text(_setupMode ? 'ROOM SETUP' : 'TEACHING',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.5))),
+            if (!_setupMode) ...[
+              action(
+                  Icons.person_search_outlined, 'Pick student', () => _pick()),
+              action(Icons.table_restaurant_outlined, 'Pick table',
+                  () => _pick(table: true)),
+              action(Icons.grid_on_outlined, 'Full gradebook',
+                  () => context.go(AppRoutes.osClassGradebook(widget.classId))),
+              action(
+                  Icons.task_alt,
+                  'Homework check',
+                  () => setState(() {
+                        _scoreCategory = 'Homework';
+                        _toolsOpen = false;
+                      })),
+              action(
+                  Icons.quiz_outlined,
+                  'Quiz scores',
+                  () => setState(() {
+                        _scoreCategory = 'Quizzes';
+                        _toolsOpen = false;
+                      })),
+              const Divider(indent: 20, endIndent: 20),
+            ],
+            SwitchListTile(
+                title: const Text('Furniture editing'),
+                subtitle: const Text('Move furniture and arrange seats'),
+                value: _setupMode,
+                onChanged: (v) => setState(() => _setupMode = v)),
+            if (_setupMode) ...[
+              Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                  child: DropdownButtonFormField<String>(
+                    key: ValueKey(layout?.layoutId),
+                    initialValue: layout?.layoutId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                        labelText: 'Room map', border: OutlineInputBorder()),
+                    items: service
+                        .layoutsForClass(widget.classId)
+                        .map((room) => DropdownMenuItem(
+                            value: room.layoutId,
+                            child: Text(room.name,
+                                overflow: TextOverflow.ellipsis)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null)
+                        service.selectLayout(widget.classId, value);
+                    },
+                  )),
+              action(
+                  Icons.table_restaurant_outlined,
+                  'Add table',
+                  () => service.addTable(
+                      widget.classId, SeatingTableType.rectangular,
+                      seatCount: 4)),
+              action(
+                  Icons.circle_outlined,
+                  'Add round table',
+                  () => service.addTable(widget.classId, SeatingTableType.round,
+                      seatCount: 4)),
+              action(
+                  Icons.desk_outlined,
+                  'Add single desk',
+                  () => service.addTable(
+                      widget.classId, SeatingTableType.singleDesk,
+                      seatCount: 1)),
+              action(
+                  Icons.person_outline,
+                  'Add teacher desk',
+                  () => service.addTable(
+                      widget.classId, SeatingTableType.teacherDesk,
+                      seatCount: 0)),
+              const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                      'Drag furniture on the floor. Use a table’s menu to resize, rotate or change its seats. Tap an empty seat to assign a student.')),
+            ],
+            Padding(
+                padding: const EdgeInsets.all(20),
                 child: Text(
-                    'Drag furniture on the floor. Use a table’s menu to resize, rotate or change its seats. Tap an empty seat to assign a student.')),
+                    '${students.length} students · ${layout?.tables.length ?? 0} tables · ${layout?.seats.length ?? 0} seats')),
           ],
-          Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text(
-                  '${students.length} students · ${layout?.tables.length ?? 0} tables · ${layout?.seats.length ?? 0} seats')),
         ])),
       ]),
     );
@@ -269,10 +312,12 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
     required String className,
     required String subject,
   }) {
+    _picker.cancel();
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
-        builder: (_) => _ClassroomPresentationView(
+        builder: (_) => ClassroomPresentationView(
+          picker: _picker,
           classId: widget.classId,
           className: className,
           subject: subject,
@@ -307,8 +352,11 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
     }
 
     final roomName = seatingService.assignedRoomSetup(widget.classId)?.name;
+    final scheme = ColorScheme.fromSeed(
+        seedColor: const Color(0xff187f79),
+        brightness: Theme.of(context).brightness);
     return Theme(
-        data: Theme.of(context),
+        data: Theme.of(context).copyWith(colorScheme: scheme),
         child: Scaffold(
           backgroundColor: OSColors.appBackground(dark),
           body: SafeArea(
@@ -347,14 +395,15 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                   label: const Text('Pick table')),
                               TextButton.icon(
                                   onPressed: () => setState(() {
+                                        _selectedSeat = null;
                                         _setupMode = !_setupMode;
                                         _toolsOpen = _setupMode;
                                       }),
                                   icon: const Icon(
                                       Icons.dashboard_customize_outlined),
                                   label: Text(_setupMode
-                                      ? 'Finish room setup'
-                                      : 'Room setup')),
+                                      ? 'Finish arranging'
+                                      : 'Arrange room')),
                               if (_pickLabel != null) ...[
                                 const SizedBox(width: 12),
                                 InputChip(
@@ -362,6 +411,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                     avatar: const Icon(Icons.auto_awesome,
                                         size: 16),
                                     onDeleted: () => setState(() {
+                                          _picker.cancel();
                                           _pickedStudent = null;
                                           _pickedTable = null;
                                           _pickLabel = null;
@@ -386,6 +436,10 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                           classId: widget.classId,
                                           students: students,
                                           setupMode: _setupMode,
+                                          onSeatSelected: (id) => setState(() {
+                                                _selectedSeat = id;
+                                                _toolsOpen = true;
+                                              }),
                                           scoreCategory: _scoreCategory,
                                           highlightedStudentId: _pickedStudent,
                                           highlightedTableId: _pickedTable)),
@@ -500,7 +554,7 @@ class _ClassroomHeader extends StatelessWidget {
                   [
                     '$studentCount students',
                     if ((roomName ?? '').trim().isNotEmpty) roomName!.trim(),
-                    setupMode ? 'Setup Room' : 'Teach Mode',
+                    setupMode ? 'Arrange Mode' : 'Teach Mode',
                   ].join('  •  '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -542,6 +596,7 @@ class _ClassroomMapPanel extends StatelessWidget {
     required this.classId,
     required this.students,
     required this.setupMode,
+    required this.onSeatSelected,
     this.scoreCategory,
     this.highlightedStudentId,
     this.highlightedTableId,
@@ -550,6 +605,7 @@ class _ClassroomMapPanel extends StatelessWidget {
   final String classId;
   final List<Student> students;
   final bool setupMode;
+  final ValueChanged<String> onSeatSelected;
   final String? scoreCategory;
   final String? highlightedStudentId;
   final String? highlightedTableId;
@@ -570,111 +626,18 @@ class _ClassroomMapPanel extends StatelessWidget {
         classId: classId,
         students: students,
         autoLoad: false,
+        onSeatSelected: onSeatSelected,
         premiumAppearance: true,
         scoreCategory: scoreCategory,
         highlightedStudentId: highlightedStudentId,
         highlightedTableId: highlightedTableId,
         editRoomMode: setupMode,
+        allowSeatReassignment: setupMode,
         showToolbar: false,
         showStudentPanel: false,
         showFullScreenButton: false,
         showUseHint: false,
         webMode: kIsWeb,
-      ),
-    );
-  }
-}
-
-class _ClassroomPresentationView extends StatelessWidget {
-  const _ClassroomPresentationView({
-    required this.classId,
-    required this.className,
-    required this.subject,
-  });
-
-  final String classId;
-  final String className;
-  final String subject;
-
-  @override
-  Widget build(BuildContext context) {
-    final students = context.watch<StudentService>().students;
-
-    return Scaffold(
-      backgroundColor: OSColors.teachBg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          className,
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          subject,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: OSColors.teachAccent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_fullscreen_rounded),
-                    label: const Text('Exit presentation'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.24),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: OSColors.teachSurface,
-                    borderRadius: OSRadius.mdBr,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.10),
-                    ),
-                  ),
-                  child: SeatingDesignerView(
-                    classId: classId,
-                    students: students,
-                    autoLoad: false,
-                    presentationMode: true,
-                    premiumAppearance: true,
-                    interactive: false,
-                    editRoomMode: false,
-                    showToolbar: false,
-                    showStudentPanel: false,
-                    showFullScreenButton: false,
-                    showUseHint: false,
-                    webMode: kIsWeb,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

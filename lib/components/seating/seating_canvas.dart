@@ -1,3 +1,4 @@
+import 'package:gradeflow/components/seating/classroom_map_framing.dart';
 import 'package:gradeflow/components/classroom/classroom_materials.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,10 @@ class SeatingCanvas extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  final TransformationController? transformationController;
+
+  /// Whether roster seating can be changed on this canvas.
+  final bool allowSeatReassignment;
   final String? highlightedStudentId;
   final String? highlightedTableId;
   final bool showFrontMarker;
@@ -40,6 +45,8 @@ class SeatingCanvas extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.transformationController,
+    this.allowSeatReassignment = true,
     this.highlightedStudentId,
     this.highlightedTableId,
     this.showFrontMarker = true,
@@ -61,17 +68,54 @@ class SeatingCanvas extends StatelessWidget {
     final boundary = Size(layout.canvasWidth, layout.canvasHeight);
     return RepaintBoundary(
       child: InteractiveViewer(
+        transformationController: transformationController,
         maxScale: 2.6,
-        minScale: 0.6,
-        boundaryMargin: const EdgeInsets.all(200),
+        minScale: premiumAppearance ? 0.001 : 0.6,
+        boundaryMargin:
+            EdgeInsets.all(premiumAppearance ? double.infinity : 200),
+        panEnabled: !premiumAppearance,
+        scaleEnabled: !premiumAppearance,
         constrained: false,
         child: SizedBox(
           width: boundary.width,
           height: boundary.height,
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              if (premiumAppearance) Positioned.fill(child:IgnorePointer(child:CustomPaint(painter:ClassroomFloorPainter(Theme.of(context).brightness==Brightness.dark)))),
-              if (showFrontMarker) _FrontMarker(width: boundary.width),
+              if (premiumAppearance)
+                Positioned.fromRect(
+                    rect: ClassroomMapFraming.roomBounds(layout),
+                    child: IgnorePointer(
+                        child: DecoratedBox(
+                            decoration: ClassroomMaterials.floor(
+                                Theme.of(context).brightness ==
+                                    Brightness.dark),
+                            child: CustomPaint(
+                                painter: ClassroomFloorPainter(
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark))))),
+              if (showFrontMarker && !premiumAppearance)
+                _FrontMarker(width: boundary.width),
+              if (showFrontMarker && premiumAppearance)
+                Positioned(
+                    left: ClassroomMapFraming.roomBounds(layout).center.dx - 90,
+                    top: ClassroomMapFraming.roomBounds(layout).top + 20,
+                    width: 180,
+                    height: 32,
+                    child: IgnorePointer(
+                        child: Container(
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                                color: const Color(0xff244747),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: const Color(0xff9cae9f), width: 3)),
+                            child: const Text('FRONT OF ROOM',
+                                style: TextStyle(
+                                    color: Color(0xffe7eee3),
+                                    fontSize: 11,
+                                    letterSpacing: 1.4,
+                                    fontWeight: FontWeight.w700))))),
               if (layout.tables.isEmpty) const _BlankCanvasHint(),
               for (final table in layout.tables)
                 _SeatingTableDraggable(
@@ -91,6 +135,7 @@ class SeatingCanvas extends StatelessWidget {
                     interactive: interactive,
                     presentationMode: presentationMode,
                     premiumAppearance: premiumAppearance,
+                    allowSeatReassignment: allowSeatReassignment,
                     highlightedStudentId: highlightedStudentId,
                     highlightedTableId: highlightedTableId,
                     onRemove: () => onRemoveTable?.call(table.tableId),
@@ -131,6 +176,7 @@ class TableWidget extends StatelessWidget {
   final bool interactive;
   final bool presentationMode;
   final bool premiumAppearance;
+  final bool allowSeatReassignment;
   final String? highlightedStudentId;
   final String? highlightedTableId;
   final VoidCallback? onRemove;
@@ -152,6 +198,7 @@ class TableWidget extends StatelessWidget {
     required this.interactive,
     required this.presentationMode,
     this.premiumAppearance = false,
+    this.allowSeatReassignment = true,
     this.highlightedStudentId,
     this.highlightedTableId,
     this.onRemove,
@@ -183,51 +230,79 @@ class TableWidget extends StatelessWidget {
         table.label.isEmpty ? _defaultLabel(table.type) : table.label;
     final hasOpenSeat =
         seats.any((seat) => seat.studentId == null || seat.studentId!.isEmpty);
-    final canDropOnTable = interactive && onTableDrop != null && hasOpenSeat;
+    final canDropOnTable = interactive &&
+        allowSeatReassignment &&
+        onTableDrop != null &&
+        hasOpenSeat;
 
     Widget buildTableBody(bool isDropActive) {
       final scheme = Theme.of(context).colorScheme;
-      final tableDecoration = premiumAppearance ? ClassroomMaterials.tabletop(Theme.of(context).brightness==Brightness.dark,isDropActive).copyWith(borderRadius:BorderRadius.circular(table.type==SeatingTableType.round?60:14)) : BoxDecoration(
-        color: isDropActive
-            ? scheme.primaryContainer
-            : table.type == SeatingTableType.teacherDesk
-                ? scheme.primaryContainer
-                : bg,
-        borderRadius: BorderRadius.circular(
-          table.type == SeatingTableType.round ? 60 : 16,
-        ),
-        border: Border.all(
-          color: isDropActive ? scheme.primary : border,
-          width: isDropActive ? 2 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDropActive ? 0.1 : 0.06),
-            blurRadius: isDropActive ? 14 : 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      );
+      final tableDecoration = premiumAppearance
+          ? ClassroomMaterials.tabletop(
+                  Theme.of(context).brightness == Brightness.dark, isDropActive)
+              .copyWith(
+                  borderRadius: BorderRadius.circular(
+                      table.type == SeatingTableType.round ? 60 : 14))
+          : BoxDecoration(
+              color: isDropActive
+                  ? scheme.primaryContainer
+                  : table.type == SeatingTableType.teacherDesk
+                      ? scheme.primaryContainer
+                      : bg,
+              borderRadius: BorderRadius.circular(
+                table.type == SeatingTableType.round ? 60 : 16,
+              ),
+              border: Border.all(
+                color: isDropActive ? scheme.primary : border,
+                width: isDropActive ? 2 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color:
+                      Colors.black.withValues(alpha: isDropActive ? 0.1 : 0.06),
+                  blurRadius: isDropActive ? 14 : 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            );
 
       return AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 140),
         width: table.width,
         height: table.height,
         key: ValueKey('table-visual-${table.tableId}'),
-        decoration: highlightedTableId == table.tableId ? tableDecoration.copyWith(border:Border.all(color:const Color(0xffffbc42),width:4),boxShadow:[const BoxShadow(color:Color(0x66ffbc42),blurRadius:24,spreadRadius:4)]) : tableDecoration,
+        decoration: highlightedTableId == table.tableId
+            ? tableDecoration.copyWith(
+                border: Border.all(color: const Color(0xffffbc42), width: 4),
+                boxShadow: [
+                    const BoxShadow(
+                        color: Color(0x66ffbc42),
+                        blurRadius: 24,
+                        spreadRadius: 4)
+                  ])
+            : tableDecoration,
         padding: const EdgeInsets.all(8),
         child: Stack(
           children: [
-            if(premiumAppearance) Positioned.fill(child:IgnorePointer(child:CustomPaint(painter:ClassroomOakPainter(table.tableId.hashCode)))),
+            if (premiumAppearance)
+              Positioned.fill(
+                  child: IgnorePointer(
+                      child: CustomPaint(
+                          painter:
+                              ClassroomOakPainter(table.tableId.hashCode)))),
             Align(
               alignment: Alignment.center,
               child: Text(
                 tableLabel,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: premiumAppearance ? const Color(0xff493c2b) : table.type == SeatingTableType.teacherDesk
-                          ? scheme.onPrimaryContainer
-                          : scheme.onSurface,
+                      color: premiumAppearance
+                          ? const Color(0xff493c2b)
+                          : table.type == SeatingTableType.teacherDesk
+                              ? scheme.onPrimaryContainer
+                              : scheme.onSurface,
                     ),
                 textAlign: TextAlign.center,
               ),
@@ -303,9 +378,11 @@ class TableWidget extends StatelessWidget {
       seat: seat,
       student: seat.studentId == null ? null : studentsById[seat.studentId],
       premiumAppearance: premiumAppearance,
-      highlighted: highlightedStudentId == seat.studentId && seat.studentId != null || highlightedTableId == seat.tableId,
-      acceptDrops: interactive,
-      allowStudentDrag: interactive && !designMode,
+      highlighted:
+          highlightedStudentId == seat.studentId && seat.studentId != null ||
+              highlightedTableId == seat.tableId,
+      acceptDrops: interactive && allowSeatReassignment,
+      allowStudentDrag: interactive && allowSeatReassignment && !designMode,
       presentationMode: presentationMode,
       onSeatDrop: (data) => onSeatDrop?.call(seat.seatId, data),
       onTap: interactive ? () => onSeatTap?.call(seat.seatId) : null,
@@ -377,43 +454,199 @@ class SeatWidget extends StatelessWidget {
         : presentationMode
             ? '${student!.englishFirstName} ${student!.englishLastName}'
             : student!.englishFirstName;
-    final noteIcon = seat.reminder
-        ? Icons.notifications_active_outlined
-        : seat.note.trim().isNotEmpty
-            ? Icons.sticky_note_2_outlined
-            : null;
+    final noteIcon = presentationMode
+        ? null
+        : seat.reminder
+            ? Icons.notifications_active_outlined
+            : seat.note.trim().isNotEmpty
+                ? Icons.sticky_note_2_outlined
+                : null;
     final iconSize = presentationMode ? 20.0 : 18.0;
     final verticalPadding = presentationMode ? 8.0 : 6.0;
 
     Widget buildSeatVisual({bool isDropTarget = false}) {
       final scheme = Theme.of(context).colorScheme;
+      if (premiumAppearance) {
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        final occupied = student != null;
+        final edge = highlighted
+            ? const Color(0xffffbc42)
+            : isDropTarget
+                ? scheme.primary
+                : seat.statusColor != SeatStatusColor.none
+                    ? statusColor
+                    : dark
+                        ? const Color(0xff517b7b)
+                        : const Color(0xff397570);
+        return Tooltip(
+            message: student?.englishFullName ?? 'Empty seat',
+            child: SizedBox(
+                width: size,
+                height: size,
+                child: Column(children: [
+                  Expanded(
+                      child: AnimatedContainer(
+                          duration: MediaQuery.disableAnimationsOf(context)
+                              ? Duration.zero
+                              : const Duration(milliseconds: 160),
+                          width: size - 6,
+                          decoration: BoxDecoration(
+                              color: occupied
+                                  ? null
+                                  : dark
+                                      ? const Color(0xff1a2d35)
+                                      : const Color(0xffdce5df),
+                              gradient: occupied
+                                  ? LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: highlighted
+                                          ? const [
+                                              Color(0xff80652c),
+                                              Color(0xff54401c)
+                                            ]
+                                          : dark
+                                              ? const [
+                                                  Color(0xff326a70),
+                                                  Color(0xff234c53)
+                                                ]
+                                              : const [
+                                                  Color(0xff318b87),
+                                                  Color(0xff206864)
+                                                ])
+                                  : null,
+                              borderRadius: BorderRadius.circular(9),
+                              border: Border.all(
+                                  color: edge, width: highlighted ? 3 : 1.2),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: highlighted
+                                        ? const Color(0x66ffbc42)
+                                        : const Color(0x3435443d),
+                                    blurRadius: highlighted ? 16 : 5,
+                                    offset: const Offset(0, 3))
+                              ]),
+                          child: Stack(children: [
+                            if (occupied)
+                              Positioned(
+                                  top: 4,
+                                  left: 7,
+                                  right: 7,
+                                  height: 5,
+                                  child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                          color: Colors.white
+                                              .withValues(alpha: .15),
+                                          borderRadius:
+                                              BorderRadius.circular(4)))),
+                            Center(
+                                child: Padding(
+                                    padding: const EdgeInsets.only(top: 7),
+                                    child: occupied && student!.seatNo != null
+                                        ? Text(
+                                            '${student!.seatNo}'
+                                                .padLeft(2, '0'),
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w800))
+                                        : Icon(
+                                            occupied
+                                                ? Icons.person
+                                                : Icons.event_seat_outlined,
+                                            size: 18,
+                                            color: occupied
+                                                ? Colors.white
+                                                : dark
+                                                    ? const Color(0xff7d999a)
+                                                    : const Color(
+                                                        0xff78978e)))),
+                            if (seat.locked && !presentationMode)
+                              const Positioned(
+                                  top: 1,
+                                  right: 1,
+                                  child: Icon(Icons.push_pin,
+                                      size: 10, color: Color(0xffffe1a4))),
+                            if (noteIcon != null)
+                              Positioned(
+                                  top: 1,
+                                  left: 1,
+                                  child: Icon(noteIcon,
+                                      size: 11,
+                                      color: seat.reminder
+                                          ? const Color(0xffffcf83)
+                                          : Colors.white)),
+                          ]))),
+                  const SizedBox(height: 3),
+                  SizedBox(
+                      height: 15,
+                      child: Text(label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 11,
+                              height: 1.1,
+                              color: dark
+                                  ? const Color(0xffe4efea)
+                                  : const Color(0xff23483f),
+                              fontWeight: FontWeight.w700))),
+                ])));
+      }
       return AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 160),
         width: size,
         height: size,
         decoration: BoxDecoration(
-          gradient: premiumAppearance && student!=null && !isDropTarget ? const LinearGradient(colors:[Color(0xff317e79),Color(0xff205e5b)],begin:Alignment.topLeft,end:Alignment.bottomRight) : null,
+          gradient: premiumAppearance && student != null && !isDropTarget
+              ? const LinearGradient(
+                  colors: [Color(0xff317e79), Color(0xff205e5b)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight)
+              : null,
           color: isDropTarget
               ? scheme.primaryContainer
-              : premiumAppearance ? (student==null ? const Color(0xffdce5df) : const Color(0xff2d7771)) : statusColor.withValues(
-                  alpha: seat.statusColor == SeatStatusColor.none ? 0.06 : 0.22,
-                ),
+              : premiumAppearance
+                  ? (student == null
+                      ? const Color(0xffdce5df)
+                      : const Color(0xff2d7771))
+                  : statusColor.withValues(
+                      alpha: seat.statusColor == SeatStatusColor.none
+                          ? 0.06
+                          : 0.22,
+                    ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: highlighted ? const Color(0xffffbc42) : isDropTarget
-                ? scheme.primary
-                : premiumAppearance && seat.statusColor==SeatStatusColor.none ? const Color(0xff397570) : statusColor.withValues(alpha: 0.65),
-            width: highlighted ? 4 : isDropTarget ? 2.2 : 1.5,
+            color: highlighted
+                ? const Color(0xffffbc42)
+                : isDropTarget
+                    ? scheme.primary
+                    : premiumAppearance &&
+                            seat.statusColor == SeatStatusColor.none
+                        ? const Color(0xff397570)
+                        : statusColor.withValues(alpha: 0.65),
+            width: highlighted
+                ? 4
+                : isDropTarget
+                    ? 2.2
+                    : 1.5,
           ),
-          boxShadow: highlighted ? [const BoxShadow(color:Color(0x99ffbc42),blurRadius:22,spreadRadius:3)] : isDropTarget
+          boxShadow: highlighted
               ? [
-                  BoxShadow(
-                    color: scheme.primary.withValues(alpha: 0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
+                  const BoxShadow(
+                      color: Color(0x99ffbc42), blurRadius: 22, spreadRadius: 3)
                 ]
-              : null,
+              : isDropTarget
+                  ? [
+                      BoxShadow(
+                        color: scheme.primary.withValues(alpha: 0.2),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
         ),
         padding: EdgeInsets.symmetric(
           horizontal: presentationMode ? 6 : 5,
@@ -431,7 +664,11 @@ class SeatWidget extends StatelessWidget {
                   Icon(
                     student == null ? Icons.event_seat_outlined : Icons.person,
                     size: iconSize,
-                    color: premiumAppearance && student!=null ? Colors.white : isDropTarget ? scheme.primary : statusColor,
+                    color: premiumAppearance && student != null
+                        ? Colors.white
+                        : isDropTarget
+                            ? scheme.primary
+                            : statusColor,
                   ),
                   if (label.isNotEmpty)
                     SizedBox(height: presentationMode ? 4 : 2),
@@ -442,16 +679,20 @@ class SeatWidget extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            fontSize: presentationMode ? 10 : 9,
+                            fontSize: premiumAppearance
+                                ? (presentationMode ? 12 : 10.5)
+                                : (presentationMode ? 10 : 9),
                             height: 1.0,
                             fontWeight: FontWeight.w600,
-                            color: premiumAppearance && student!=null ? Colors.white : scheme.onSurface,
+                            color: premiumAppearance && student != null
+                                ? Colors.white
+                                : scheme.onSurface,
                           ),
                     ),
                 ],
               ),
             ),
-            if (seat.locked)
+            if (seat.locked && !presentationMode)
               Positioned(
                 top: -1,
                 right: -1,
