@@ -102,7 +102,9 @@ Future<void> main() async {
     ));
   }
 
+  final presentationObserver = _PreviewPresentationObserver();
   final router = GoRouter(
+    observers: [presentationObserver],
     initialLocation: '/preview/home',
     routes: [
       GoRoute(
@@ -219,7 +221,83 @@ Future<void> main() async {
         darkTheme: darkTheme,
         themeMode: currentTheme,
         routerConfig: router,
+        // A navigation bar for the *synthetic preview only*. Keep the
+        // approved ClassroomSurface and its furniture geometry unchanged.
+        builder: (context, navigator) => ValueListenableBuilder<bool>(
+          valueListenable: presentationObserver.inPresentation,
+          builder: (context, presenting, _) => AnimatedBuilder(
+            animation: router.routeInformationProvider,
+            builder: (context, _) {
+              final path = router.routeInformationProvider.value.uri.path;
+              final index = path.contains('gradebook')
+                  ? 2
+                  : path.contains('students')
+                      ? 3
+                      : path.contains('classroom')
+                          ? 1
+                          : 0;
+              return Column(
+                children: [
+                  Expanded(child: navigator ?? const SizedBox.shrink()),
+                  if (!presenting)
+                    NavigationBar(
+                      height: 65,
+                      selectedIndex: index,
+                      labelBehavior:
+                          NavigationDestinationLabelBehavior.alwaysShow,
+                      destinations: const [
+                        NavigationDestination(
+                            icon: Icon(Icons.home_outlined),
+                            selectedIcon: Icon(Icons.home_rounded),
+                            label: 'Home'),
+                        NavigationDestination(
+                            icon: Icon(Icons.meeting_room_outlined),
+                            selectedIcon: Icon(Icons.meeting_room_rounded),
+                            label: 'Classroom'),
+                        NavigationDestination(
+                            icon: Icon(Icons.grade_outlined),
+                            selectedIcon: Icon(Icons.grade_rounded),
+                            label: 'Grades'),
+                        NavigationDestination(
+                            icon: Icon(Icons.groups_outlined),
+                            selectedIcon: Icon(Icons.groups_rounded),
+                            label: 'Students'),
+                      ],
+                      onDestinationSelected: (next) {
+                        router.go([
+                          '/preview/home',
+                          '/preview/classroom',
+                          '/preview/gradebook',
+                          '/preview/students',
+                        ][next]);
+                      },
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     ),
   ));
+}
+
+/// Hide preview navigation while the real Classroom presentation route
+/// covers the screen; this does not modify the approved Classroom widget.
+class _PreviewPresentationObserver extends NavigatorObserver {
+  final ValueNotifier<bool> inPresentation = ValueNotifier<bool>(false);
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PageRoute && route.settings is! Page) {
+      inPresentation.value = true;
+    }
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PageRoute && route.settings is! Page) {
+      inPresentation.value = false;
+    }
+  }
 }
