@@ -205,6 +205,7 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
                     autoLoad: false,
                     presentationMode: true,
                     premiumAppearance: true,
+                    simplifiedArrange: true,
                     interactive: false,
                     editRoomMode: false,
                     highlightedStudentId: _highlightedStudent,
