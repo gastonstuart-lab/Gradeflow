@@ -1,0 +1,41 @@
+name: Synthetic Classroom preview build (no deployment)
+
+on:
+  push:
+    branches:
+      - preview/synthetic-classroom-20261108
+  pull_request:
+    branches:
+      - review/classroom-local-fonts-20261108
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout isolated preview
+        uses: actions/checkout@v4
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Analyze preview entrypoint
+        run: flutter analyze lib/main_classroom_preview.dart
+      - name: Run Classroom regression tests
+        run: flutter test test/classroom_surface_test.dart
+      - name: Build synthetic-only web entrypoint
+        run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
+      - name: Save preview build for isolated hosting
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-classroom-web
+          path: build/web
+          retention-days: 14
