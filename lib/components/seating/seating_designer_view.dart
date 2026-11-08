@@ -328,7 +328,8 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                   interactive: widget.interactive,
                   presentationMode: widget.presentationMode,
                   onMoveTable: (tableId, delta) => service.moveTable(
-                      widget.classId, tableId, delta.dx, delta.dy),
+                      widget.classId, tableId, delta.dx, delta.dy,
+                      boundaryPadding: widget.simplifiedArrange ? 12 : null),
                   onRemoveTable: (tableId) =>
                       service.removeTable(widget.classId, tableId),
                   onUpdateTable: (tableId, type, seatCount) =>
