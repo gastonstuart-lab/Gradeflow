@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/components/seating/seating_canvas.dart';
 import 'package:gradeflow/models/seating_layout.dart';
@@ -84,6 +85,27 @@ void main() {
     expect(commits.single.x, closeTo(300, 0.01));
     expect(commits.single.y, closeTo(360, 0.01));
     expect(commits.single.tableId, 'table-a');
+  });
+
+  testWidgets('Escape cancels an active V2 move without committing',
+      (tester) async {
+    final controller = TransformationController();
+    addTearDown(controller.dispose);
+    final commits = <SeatingTable>[];
+    await _mount(tester, transform: controller, onCommit: commits.add);
+    final table = find.byKey(const ValueKey('table-visual-table-a'));
+    final original = tester.getCenter(table);
+    final pointer = await tester.startGesture(original);
+    await pointer.moveBy(const Offset(85, 40));
+    await tester.pump();
+    expect(tester.getCenter(table).dx,
+        closeTo(original.dx + 85, 1.0));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(tester.getCenter(table).dx, closeTo(original.dx, 1.0));
+    await pointer.up();
+    await tester.pump();
+    expect(commits, isEmpty);
   });
 
   testWidgets('V2 pointer drag uses inverse viewport scale', (tester) async {
