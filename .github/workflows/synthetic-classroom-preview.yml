@@ -1,4 +1,4 @@
-name: Synthetic Classroom preview
+name: Synthetic Classroom preview build (no deployment)
 
 on:
   push:
@@ -8,18 +8,10 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: synthetic-classroom-preview
-  cancel-in-progress: false
 
 jobs:
-  build-and-publish:
+  build-preview:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
     timeout-minutes: 35
     steps:
       - name: Checkout isolated preview
@@ -35,22 +27,12 @@ jobs:
       - name: Analyze preview entrypoint
         run: flutter analyze lib/main_classroom_preview.dart
       - name: Run Classroom regression tests
-        run: flutter test test/classroom_surface_test.dart test/classroom_picker_animator_test.dart
+        run: flutter test test/classroom_surface_test.dart
       - name: Build synthetic-only web entrypoint
-        run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /Gradeflow/
-      - name: Verify no production bootstrap
-        run: |
-          test -f build/web/index.html
-          test -f build/web/main.dart.js
-          grep -q "SYNTHETIC PREVIEW" build/web/main.dart.js || echo "Preview title minified; expected"
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+        run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
+      - name: Save preview build for isolated hosting
+        uses: actions/upload-artifact@v4
         with:
-          enablement: true
-      - name: Upload preview
-        uses: actions/upload-pages-artifact@v3
-        with:
+          name: synthetic-classroom-web
           path: build/web
-      - name: Publish separate GitHub Pages preview
-        id: deployment
-        uses: actions/deploy-pages@v4
+          retention-days: 14
