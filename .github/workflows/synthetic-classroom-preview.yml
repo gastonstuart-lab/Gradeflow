@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - preview/synthetic-classroom-20261108
+  pull_request:
+    branches:
+      - review/classroom-local-fonts-20261108
   workflow_dispatch:
 
 permissions:
