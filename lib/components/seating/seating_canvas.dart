@@ -143,6 +143,26 @@ class SeatingCanvas extends StatelessWidget {
                   roomSize: boundary,
                   toViewport: (global) => (context.findRenderObject()! as RenderBox).globalToLocal(global),
                   onProposalCommitted: onPlannerV2Commit,
+                  previewBuilder: plannerV2
+                      ? (candidate) => TableWidget(
+                          table: candidate,
+                          seats: layout.seats.where((seat) =>
+                              seat.tableId == table.tableId).toList(),
+                          studentsById: studentsById,
+                          designMode: designMode,
+                          interactive: interactive,
+                          presentationMode: presentationMode,
+                          premiumAppearance: premiumAppearance,
+                          simplifiedArrange: simplifiedArrange,
+                          allowSeatReassignment: allowSeatReassignment,
+                          highlightedStudentId: highlightedStudentId,
+                          highlightedTableId: selectedTableId == table.tableId
+                              ? table.tableId : highlightedTableId,
+                          onTableSelected: onTableSelected == null
+                              ? null : () => onTableSelected!(table.tableId),
+                          onSeatTap: (seatId) => onSeatTap?.call(seatId),
+                        )
+                      : null,
                   child: TableWidget(
                     table: table,
                     seats: layout.seats
@@ -173,26 +193,6 @@ class SeatingCanvas extends StatelessWidget {
                         onSeatDrop?.call(seatId, data),
                     onSeatTap: (seatId) => onSeatTap?.call(seatId),
                   ),
-                  previewBuilder: plannerV2
-                      ? (candidate) => TableWidget(
-                          table: candidate,
-                          seats: layout.seats.where((seat) =>
-                              seat.tableId == table.tableId).toList(),
-                          studentsById: studentsById,
-                          designMode: designMode,
-                          interactive: interactive,
-                          presentationMode: presentationMode,
-                          premiumAppearance: premiumAppearance,
-                          simplifiedArrange: simplifiedArrange,
-                          allowSeatReassignment: allowSeatReassignment,
-                          highlightedStudentId: highlightedStudentId,
-                          highlightedTableId: selectedTableId == table.tableId
-                              ? table.tableId : highlightedTableId,
-                          onTableSelected: onTableSelected == null
-                              ? null : () => onTableSelected!(table.tableId),
-                          onSeatTap: (seatId) => onSeatTap?.call(seatId),
-                        )
-                      : null,
                 ),
             ],
           ),
