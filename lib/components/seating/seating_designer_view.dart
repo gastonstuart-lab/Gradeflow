@@ -325,8 +325,20 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                   simplifiedArrange: widget.simplifiedArrange,
                   plannerV2: widget.plannerV2,
                   selectedTableId: widget.selectedTableId,
-                  onPlannerV2Commit: (proposal) => service
-                      .commitPlannerV2TableGeometry(widget.classId, proposal),
+                  onPlannerV2Commit: (proposal) async {
+                    try {
+                      await service.commitPlannerV2TableGeometry(
+                          widget.classId, proposal);
+                    } catch (_) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text(
+                          'Could not save the furniture change. '
+                          'The previous position has been restored.',
+                        )),
+                      );
+                    }
+                  },
                   onTableSelected: widget.onTableSelected,
                   allowSeatReassignment: widget.allowSeatReassignment,
                   highlightedStudentId: widget.highlightedStudentId,
