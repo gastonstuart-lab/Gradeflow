@@ -1,0 +1,26 @@
+name: Planner V2 geometry foundation
+on:
+  push:
+    branches:
+      - engineering/planner-v2-geometry-20261109
+  pull_request:
+    branches:
+      - review/classroom-drag-bounds-20261108
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test test/planner_v2_geometry_test.dart
+      - run: flutter test
+      - run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
