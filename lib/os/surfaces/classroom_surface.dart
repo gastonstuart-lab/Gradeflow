@@ -24,10 +24,12 @@ class ClassroomSurface extends StatefulWidget {
     super.key,
     required this.classId,
     this.startInSetup = false,
+    this.cleanCanvas = false,
   });
 
   final String classId;
   final bool startInSetup;
+  final bool cleanCanvas;
 
   @override
   State<ClassroomSurface> createState() => _ClassroomSurfaceState();
@@ -367,6 +369,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
           classId: widget.classId,
           className: className,
           subject: subject,
+          cleanCanvas: widget.cleanCanvas,
         ),
       ),
     );
@@ -483,6 +486,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                           classId: widget.classId,
                                           students: students,
                                           setupMode: _setupMode,
+                                          cleanCanvas: widget.cleanCanvas,
                                           onSeatSelected: (id) => setState(() {
                                                 _selectedSeat = id;
                                                 _selectedTableId = null;
@@ -649,6 +653,7 @@ class _ClassroomMapPanel extends StatelessWidget {
     required this.classId,
     required this.students,
     required this.setupMode,
+    required this.cleanCanvas,
     required this.onSeatSelected,
     required this.onTableSelected,
     this.scoreCategory,
@@ -659,6 +664,7 @@ class _ClassroomMapPanel extends StatelessWidget {
   final String classId;
   final List<Student> students;
   final bool setupMode;
+  final bool cleanCanvas;
   final ValueChanged<String> onSeatSelected;
   final ValueChanged<String> onTableSelected;
   final String? scoreCategory;
@@ -669,10 +675,14 @@ class _ClassroomMapPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     return Container(
-      padding: EdgeInsets.zero,
-      decoration: BoxDecoration(
-        color: OSColors.panelSurface(dark).withValues(alpha: 0.72),
-      ),
+      padding: cleanCanvas ? EdgeInsets.zero : const EdgeInsets.all(8),
+      decoration: cleanCanvas
+          ? BoxDecoration(color: OSColors.panelSurface(dark).withValues(alpha: 0.72))
+          : BoxDecoration(
+              color: OSColors.panelSurface(dark).withValues(alpha: 0.72),
+              borderRadius: OSRadius.lgBr,
+              border: Border.all(color: OSColors.panelBorder(dark).withValues(alpha: 0.86)),
+            ),
       child: SeatingDesignerView(
         classId: classId,
         students: students,
@@ -680,7 +690,7 @@ class _ClassroomMapPanel extends StatelessWidget {
         onSeatSelected: onSeatSelected,
         onTableSelected: onTableSelected,
         premiumAppearance: true,
-        simplifiedArrange: true,
+        simplifiedArrange: cleanCanvas,
         scoreCategory: scoreCategory,
         highlightedStudentId: highlightedStudentId,
         highlightedTableId: highlightedTableId,
