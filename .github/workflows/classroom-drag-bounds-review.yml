@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - review/classroom-drag-bounds-20261108
+  pull_request:
+    branches:
+      - review/classroom-viewport-sizing-20261108
 permissions:
   contents: read
 jobs:
