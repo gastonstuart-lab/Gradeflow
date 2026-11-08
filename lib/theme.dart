@@ -224,7 +224,8 @@ ThemeData _productTheme(Brightness brightness) {
     colorScheme: scheme,
     scaffoldBackgroundColor:
         dark ? InstructOSDesign.night : InstructOSDesign.canvas,
-    textTheme: _buildTextTheme(brightness),
+    fontFamily: 'RobotoLocal',
+    textTheme: _buildTextTheme(brightness).apply(fontFamily: 'RobotoLocal'),
     appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
