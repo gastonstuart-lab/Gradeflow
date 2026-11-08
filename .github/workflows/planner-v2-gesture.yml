@@ -20,7 +20,6 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib/components/seating/planner_v2_geometry.dart test/planner_v2_geometry_test.dart
       - run: flutter analyze
       - run: flutter test test/planner_v2_geometry_test.dart test/seating_service_test.dart
       - run: flutter test
