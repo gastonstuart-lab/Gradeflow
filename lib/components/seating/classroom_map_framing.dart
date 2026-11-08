@@ -6,7 +6,7 @@ import 'package:gradeflow/models/seating_layout.dart';
 /// Frames the *saved* furniture rather than a fictional preview layout.
 /// Read-only: never changes table coordinates, seat coordinates or identifiers.
 class ClassroomMapFraming {
-  static Matrix4 fit(SeatingLayout layout, Size viewport) {
+  static Matrix4 fit(SeatingLayout layout, Size viewport, {bool compact = false}) {
     if (!viewport.width.isFinite ||
         !viewport.height.isFinite ||
         viewport.width <= 0 ||
@@ -14,17 +14,17 @@ class ClassroomMapFraming {
       return Matrix4.identity();
     }
 
-    final bounds = roomBounds(layout);
+    final bounds = roomBounds(layout, compact: compact);
     final left = bounds.left;
     final top = bounds.top;
     final right = bounds.right;
     final bottom = bounds.bottom;
     final contentWidth = math.max(1.0, right - left);
     final contentHeight = math.max(1.0, bottom - top);
-    final width = math.max(1.0, viewport.width - 32);
-    final height = math.max(1.0, viewport.height - 32);
+    final width = math.max(1.0, viewport.width - (compact ? 16 : 32));
+    final height = math.max(1.0, viewport.height - (compact ? 16 : 32));
     final scale = math.min(
-        2.0,
+        compact ? 2.6 : 2.0,
         math.max(
             0.001, math.min(width / contentWidth, height / contentHeight)));
     final dx = (viewport.width - contentWidth * scale) / 2 - left * scale;
@@ -38,7 +38,7 @@ class ClassroomMapFraming {
   }
 
   /// Decorative room shell around actual furniture; no persisted geometry changes.
-  static Rect roomBounds(SeatingLayout layout) {
+  static Rect roomBounds(SeatingLayout layout, {bool compact = false}) {
     var left = 0.0;
     var top = 0.0;
     var right = math.max(1.0, layout.canvasWidth);
@@ -62,11 +62,12 @@ class ClassroomMapFraming {
           bottom = math.max(bottom, table.y + seat.y + 40);
         }
       }
-      // Keep orientation visible and provide room around seats.
-      left -= 105;
-      right += 105;
-      top -= 125;
-      bottom += 105;
+      // An open floor needs breathing room around furniture, not an extra
+      // decorative room border. Keep the default historic fit unchanged.
+      left -= compact ? 55 : 105;
+      right += compact ? 55 : 105;
+      top -= compact ? 75 : 125;
+      bottom += compact ? 55 : 105;
     }
     return Rect.fromLTRB(left, top, right, bottom);
   }

@@ -301,11 +301,12 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                 constraints.maxWidth > 0 &&
                 constraints.maxHeight > 0) {
               final key =
-                  '${widget.classId}:${active.layoutId}:${active.canvasWidth}:${active.canvasHeight}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}';
+                  '${widget.classId}:${active.layoutId}:${active.canvasWidth}:${active.canvasHeight}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}:${widget.simplifiedArrange}';
               if (_framedLayoutAndSize != key) {
                 _framedLayoutAndSize = key;
                 final transform = ClassroomMapFraming.fit(
-                    active, Size(constraints.maxWidth, constraints.maxHeight));
+                    active, Size(constraints.maxWidth, constraints.maxHeight),
+                    compact: widget.simplifiedArrange);
                 _premiumViewport.value = transform;
               }
             }
