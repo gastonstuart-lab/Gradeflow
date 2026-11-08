@@ -19,8 +19,8 @@ class _PlannerV2GeometryEdit {
   });
 
   final String layoutId;
-  final SeatingTable before;
-  final SeatingTable after;
+  final Object before;
+  final Object after;
 }
 
 class RoomSetupApplication {
@@ -54,26 +54,38 @@ class SeatingService extends ChangeNotifier {
   bool canUndoPlannerV2(String classId) {
     final history = _plannerV2Undo[classId];
     return !_plannerV2Busy.contains(classId) &&
-        history != null && history.isNotEmpty &&
-        _matchesPlannerV2Geometry(classId, history.last.layoutId,
-            history.last.after);
+        history != null &&
+        history.isNotEmpty &&
+        _matchesPlannerV2Geometry(
+            classId, history.last.layoutId, history.last.after);
   }
 
   bool canRedoPlannerV2(String classId) {
     final history = _plannerV2Redo[classId];
     return !_plannerV2Busy.contains(classId) &&
-        history != null && history.isNotEmpty &&
-        _matchesPlannerV2Geometry(classId, history.last.layoutId,
-            history.last.before);
+        history != null &&
+        history.isNotEmpty &&
+        _matchesPlannerV2Geometry(
+            classId, history.last.layoutId, history.last.before);
   }
 
   bool _matchesPlannerV2Geometry(
-      String classId, String layoutId, SeatingTable candidate) {
+      String classId, String layoutId, Object candidate) {
     final active = activeLayout(classId);
     if (active == null || active.layoutId != layoutId) return false;
+    if (candidate is SeatingSeat) {
+      final seat =
+          active.seats.where((s) => s.seatId == candidate.seatId).firstOrNull;
+      return seat != null &&
+          seat.tableId == candidate.tableId &&
+          seat.x == candidate.x &&
+          seat.y == candidate.y;
+    }
+    if (candidate is! SeatingTable) return false;
     for (final table in active.tables) {
       if (table.tableId == candidate.tableId) {
-        return table.x == candidate.x && table.y == candidate.y &&
+        return table.x == candidate.x &&
+            table.y == candidate.y &&
             table.width == candidate.width &&
             table.height == candidate.height &&
             table.type == candidate.type &&
@@ -82,6 +94,7 @@ class SeatingService extends ChangeNotifier {
     }
     return false;
   }
+
   List<RoomSetup> get roomSetups => List.unmodifiable(_roomSetups);
 
   List<SeatingLayout> layoutsForClass(String classId) =>
@@ -761,13 +774,14 @@ class SeatingService extends ChangeNotifier {
     }
     final layout = activeLayout(classId);
     if (layout == null) return;
-    final table = layout.tables.where((t) => t.tableId == proposal.tableId)
-        .firstOrNull;
+    final table =
+        layout.tables.where((t) => t.tableId == proposal.tableId).firstOrNull;
     if (table == null) return;
     if (!_validPlannerV2Geometry(layout, proposal)) {
       throw ArgumentError('Proposed table must fit inside the saved room');
     }
-    if (table.x == proposal.x && table.y == proposal.y &&
+    if (table.x == proposal.x &&
+        table.y == proposal.y &&
         table.width == proposal.width &&
         table.height == proposal.height) return;
     // An editor may only change geometry; the authoritative table keeps
@@ -785,6 +799,80 @@ class SeatingService extends ChangeNotifier {
     if (history.length > 50) history.removeAt(0);
     _plannerV2Redo[classId]?.clear();
     notifyListeners();
+  }
+
+  /// Updates only x/y on the authoritative seat. Proposal metadata is ignored.
+  Future<void> commitPlannerV2SeatGeometry(
+      String classId, SeatingSeat proposal) async {
+    if (_plannerV2Busy.contains(classId))
+      throw StateError('A room change is still saving');
+    final layout = activeLayout(classId);
+    if (layout == null) throw StateError('Room unavailable');
+    final seat =
+        layout.seats.where((s) => s.seatId == proposal.seatId).firstOrNull;
+    if (seat == null) throw StateError('Seat unavailable');
+    final next = seat.copyWith(x: proposal.x, y: proposal.y);
+    if (!_validPlannerV2SeatGeometry(layout, next))
+      throw ArgumentError('Seat must fit inside the room');
+    if (seat.x == next.x && seat.y == next.y) return;
+    await _savePlannerV2SeatGeometry(classId, layout.layoutId, next);
+    final history = _plannerV2Undo.putIfAbsent(classId, () => []);
+    history.add(_PlannerV2GeometryEdit(
+        layoutId: layout.layoutId, before: seat, after: next));
+    if (history.length > 50) history.removeAt(0);
+    _plannerV2Redo[classId]?.clear();
+    notifyListeners();
+  }
+
+  bool _validPlannerV2SeatGeometry(SeatingLayout layout, SeatingSeat seat) {
+    final table =
+        layout.tables.where((t) => t.tableId == seat.tableId).firstOrNull;
+    if (table == null || !seat.x.isFinite || !seat.y.isFinite) return false;
+    final x = table.x + seat.x;
+    final y = table.y + seat.y;
+    return x >= 28 &&
+        y >= 28 &&
+        x <= layout.canvasWidth - 28 &&
+        y <= layout.canvasHeight - 28;
+  }
+
+  Future<void> _savePlannerV2SeatGeometry(
+      String classId, String layoutId, SeatingSeat next) async {
+    if (!_plannerV2Busy.add(classId))
+      throw StateError('Another room change is saving');
+    try {
+      final before = activeLayout(classId);
+      if (before == null || before.layoutId != layoutId)
+        throw StateError('Active room changed');
+      final at = before.seats.indexWhere(
+          (s) => s.seatId == next.seatId && s.tableId == next.tableId);
+      if (at < 0) throw StateError('Seat changed');
+      // Undo/redo must retain assignments and notes changed since the move.
+      final seat = before.seats[at].copyWith(x: next.x, y: next.y);
+      if (!_validPlannerV2SeatGeometry(before, seat))
+        throw StateError('Seat is outside the room');
+      final layouts = List<SeatingLayout>.from(layoutsForClass(classId));
+      final index = layouts.indexWhere((l) => l.layoutId == layoutId);
+      final seats = List<SeatingSeat>.from(before.seats)..[at] = seat;
+      layouts[index] = before.copyWith(seats: seats, updatedAt: DateTime.now());
+      _layoutsByClass[classId] = layouts;
+      _plannerV2SaveStates[classId] = PlannerV2SaveState.saving;
+      notifyListeners();
+      try {
+        await RepositoryFactory.instance.saveSeatingLayouts(classId, layouts);
+        _plannerV2SaveStates[classId] = PlannerV2SaveState.saved;
+      } catch (_) {
+        final restored = List<SeatingLayout>.from(layoutsForClass(classId));
+        final restoreIndex = restored.indexWhere((l) => l.layoutId == layoutId);
+        if (restoreIndex >= 0) restored[restoreIndex] = before;
+        _layoutsByClass[classId] = restored;
+        _plannerV2SaveStates[classId] = PlannerV2SaveState.failed;
+        rethrow;
+      }
+    } finally {
+      _plannerV2Busy.remove(classId);
+      notifyListeners();
+    }
   }
 
   Future<bool> undoPlannerV2(String classId) async {
@@ -809,11 +897,13 @@ class SeatingService extends ChangeNotifier {
     return true;
   }
 
-  bool _validPlannerV2Geometry(
-      SeatingLayout layout, SeatingTable proposal) {
-    return proposal.x.isFinite && proposal.y.isFinite &&
-        proposal.width.isFinite && proposal.height.isFinite &&
-        proposal.width >= 40 && proposal.height >= 40 &&
+  bool _validPlannerV2Geometry(SeatingLayout layout, SeatingTable proposal) {
+    return proposal.x.isFinite &&
+        proposal.y.isFinite &&
+        proposal.width.isFinite &&
+        proposal.height.isFinite &&
+        proposal.width >= 40 &&
+        proposal.height >= 40 &&
         proposal.x - proposal.width / 2 >= -0.001 &&
         proposal.y - proposal.height / 2 >= -0.001 &&
         proposal.x + proposal.width / 2 <= layout.canvasWidth + 0.001 &&
@@ -824,7 +914,12 @@ class SeatingService extends ChangeNotifier {
   /// A failed write restores the previous in-memory layout and does not add
   /// a history entry, so the UI cannot imply that the change was saved.
   Future<void> _savePlannerV2Geometry(
-      String classId, String layoutId, SeatingTable next) async {
+      String classId, String layoutId, Object next) async {
+    if (next is SeatingSeat) {
+      await _savePlannerV2SeatGeometry(classId, layoutId, next);
+      return;
+    }
+    if (next is! SeatingTable) throw ArgumentError("Unknown geometry");
     if (!_plannerV2Busy.add(classId)) {
       throw StateError('Another furniture operation is being saved');
     }
@@ -851,8 +946,7 @@ class SeatingService extends ChangeNotifier {
     _plannerV2SaveStates[classId] = PlannerV2SaveState.saving;
     notifyListeners();
     try {
-      await RepositoryFactory.instance
-          .saveSeatingLayouts(classId, layouts);
+      await RepositoryFactory.instance.saveSeatingLayouts(classId, layouts);
       _plannerV2SaveStates[classId] = PlannerV2SaveState.saved;
     } catch (_) {
       final restore = List<SeatingLayout>.from(layoutsForClass(classId));
@@ -867,8 +961,7 @@ class SeatingService extends ChangeNotifier {
     }
   }
 
-  Future<void> moveTable(
-      String classId, String tableId, double dx, double dy,
+  Future<void> moveTable(String classId, String tableId, double dx, double dy,
       {double? boundaryPadding}) async {
     _updateLayout(classId, tableId, (layout) {
       final tables = layout.tables.map((t) {
@@ -2123,11 +2216,9 @@ class SeatingService extends ChangeNotifier {
         table.height.clamp(minHeight, maxHeight).toDouble();
 
     final minX = (normalizedWidth / 2) + padding;
-    final maxX =
-        layout.canvasWidth - (normalizedWidth / 2) - padding;
+    final maxX = layout.canvasWidth - (normalizedWidth / 2) - padding;
     final minY = (normalizedHeight / 2) + padding;
-    final maxY =
-        layout.canvasHeight - (normalizedHeight / 2) - padding;
+    final maxY = layout.canvasHeight - (normalizedHeight / 2) - padding;
 
     final normalizedX = maxX < minX
         ? layout.canvasWidth / 2

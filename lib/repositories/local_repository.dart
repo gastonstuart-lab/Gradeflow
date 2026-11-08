@@ -393,7 +393,16 @@ class LocalRepository implements DataRepository {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
       final String data = json.encode(layouts.map((l) => l.toJson()).toList());
-      await prefs.setString('$_seatingLayoutsKeyPrefix$classId', data);
+      try {
+        if (!await prefs.setString('$_seatingLayoutsKeyPrefix$classId', data)) {
+          throw StateError('Room storage rejected the write.');
+        }
+      } catch (_) {
+        // SharedPreferences updates its cache before the platform write.
+        // Restore that cache too, so reopening cannot display an unsaved move.
+        try { await prefs.reload(); } catch (_) { /* Keep original error. */ }
+        rethrow;
+      }
     });
   }
 

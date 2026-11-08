@@ -385,6 +385,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
           className: className,
           subject: subject,
           cleanCanvas: widget.cleanCanvas,
+          plannerV2: widget.plannerV2,
         ),
       ),
     );
@@ -784,7 +785,7 @@ class _ClassroomMapPanel extends StatelessWidget {
         onTableSelected: onTableSelected,
         premiumAppearance: true,
         simplifiedArrange: cleanCanvas,
-        plannerV2: plannerV2 && setupMode,
+        plannerV2: plannerV2,
         selectedTableId: selectedTableId,
         scoreCategory: scoreCategory,
         highlightedStudentId: highlightedStudentId,
