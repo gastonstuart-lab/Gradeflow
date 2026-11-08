@@ -19,6 +19,8 @@ class SeatingDesignerView extends StatefulWidget {
   final bool autoLoad;
   final bool premiumAppearance;
   final bool simplifiedArrange;
+  final bool plannerV2;
+  final String? selectedTableId;
   final ValueChanged<String>? onTableSelected;
   final bool allowSeatReassignment;
   final String? scoreCategory;
@@ -45,6 +47,8 @@ class SeatingDesignerView extends StatefulWidget {
     this.autoLoad = true,
     this.premiumAppearance = false,
     this.simplifiedArrange = false,
+    this.plannerV2 = false,
+    this.selectedTableId,
     this.onTableSelected,
     this.allowSeatReassignment = true,
     this.scoreCategory,
@@ -319,6 +323,10 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                   layout: active,
                   premiumAppearance: widget.premiumAppearance,
                   simplifiedArrange: widget.simplifiedArrange,
+                  plannerV2: widget.plannerV2,
+                  selectedTableId: widget.selectedTableId,
+                  onPlannerV2Commit: (proposal) => service
+                      .commitPlannerV2TableGeometry(widget.classId, proposal),
                   onTableSelected: widget.onTableSelected,
                   allowSeatReassignment: widget.allowSeatReassignment,
                   highlightedStudentId: widget.highlightedStudentId,

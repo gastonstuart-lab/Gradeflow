@@ -140,7 +140,7 @@ Future<void> main() async {
       ),
       GoRoute(
         path: '/preview/classroom',
-        builder: (context, state) => const ClassroomSurface(classId: _classId, cleanCanvas: true),
+        builder: (context, state) => const ClassroomSurface(classId: _classId, cleanCanvas: true, plannerV2: true),
       ),
       GoRoute(
         path: '/preview/gradebook',

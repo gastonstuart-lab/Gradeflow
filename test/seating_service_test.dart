@@ -109,6 +109,41 @@ void main() {
     expect(service.activeLayout('class-a')!.tables.single.x, 1118);
   });
 
+  test('Planner V2 commits a single geometry change without dropping seats',
+      () async {
+    final service = SeatingService();
+    await service.loadLayouts('class-a');
+    await service.addTable('class-a', SeatingTableType.rectangular,
+        seatCount: 4);
+    final original = service.activeLayout('class-a')!;
+    final table = original.tables.single;
+    final seat = original.seats.first;
+    await service.assignStudentToSeat('class-a', seat.seatId, 'demo-student');
+    final proposal = table.copyWith(
+      x: table.x + 180,
+      width: table.width + 75,
+      height: table.height + 25,
+    );
+    await service.commitPlannerV2TableGeometry('class-a', proposal);
+    final changed = service.activeLayout('class-a')!;
+    expect(changed.tables.single.x, proposal.x);
+    expect(changed.tables.single.width, proposal.width);
+    expect(changed.tables.single.height, proposal.height);
+    expect(changed.tables.single.tableId, table.tableId);
+    expect(changed.tables.single.seatCount, table.seatCount);
+    expect(changed.seats.length, original.seats.length);
+    expect(changed.seats.first.seatId, seat.seatId);
+    expect(changed.seats.first.studentId, 'demo-student');
+
+    // Invalid commits must be rejected, not silently clamped.
+    await expectLater(
+      service.commitPlannerV2TableGeometry('class-a',
+          proposal.copyWith(x: -5000)),
+      throwsArgumentError,
+    );
+    expect(service.activeLayout('class-a')!.tables.single.x, proposal.x);
+  });
+
   test('updateCanvasSize pulls existing tables back into view', () async {
     final service = SeatingService();
 

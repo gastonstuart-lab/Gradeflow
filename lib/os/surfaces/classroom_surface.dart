@@ -25,11 +25,13 @@ class ClassroomSurface extends StatefulWidget {
     required this.classId,
     this.startInSetup = false,
     this.cleanCanvas = false,
+    this.plannerV2 = false,
   });
 
   final String classId;
   final bool startInSetup;
   final bool cleanCanvas;
+  final bool plannerV2;
 
   @override
   State<ClassroomSurface> createState() => _ClassroomSurfaceState();
@@ -487,6 +489,8 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                           students: students,
                                           setupMode: _setupMode,
                                           cleanCanvas: widget.cleanCanvas,
+                                          plannerV2: widget.plannerV2,
+                                          selectedTableId: _selectedTableId,
                                           onSeatSelected: (id) => setState(() {
                                                 _selectedSeat = id;
                                                 _selectedTableId = null;
@@ -654,6 +658,8 @@ class _ClassroomMapPanel extends StatelessWidget {
     required this.students,
     required this.setupMode,
     required this.cleanCanvas,
+    required this.plannerV2,
+    required this.selectedTableId,
     required this.onSeatSelected,
     required this.onTableSelected,
     this.scoreCategory,
@@ -665,6 +671,8 @@ class _ClassroomMapPanel extends StatelessWidget {
   final List<Student> students;
   final bool setupMode;
   final bool cleanCanvas;
+  final bool plannerV2;
+  final String? selectedTableId;
   final ValueChanged<String> onSeatSelected;
   final ValueChanged<String> onTableSelected;
   final String? scoreCategory;
@@ -691,6 +699,8 @@ class _ClassroomMapPanel extends StatelessWidget {
         onTableSelected: onTableSelected,
         premiumAppearance: true,
         simplifiedArrange: cleanCanvas,
+        plannerV2: plannerV2 && setupMode,
+        selectedTableId: selectedTableId,
         scoreCategory: scoreCategory,
         highlightedStudentId: highlightedStudentId,
         highlightedTableId: highlightedTableId,

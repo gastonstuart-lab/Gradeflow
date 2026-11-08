@@ -700,6 +700,45 @@ class SeatingService extends ChangeNotifier {
     return assigned;
   }
 
+  /// Commit a Planner V2 gesture atomically; seats are intentionally not
+  /// regenerated or reassigned. The caller previews gestures without writes
+  /// and invokes this only on pointer-up.
+  Future<void> commitPlannerV2TableGeometry(
+      String classId, SeatingTable proposal) async {
+    final layout = activeLayout(classId);
+    if (layout == null) return;
+    final index = layout.tables.indexWhere((t) => t.tableId == proposal.tableId);
+    if (index < 0) return;
+    if (!proposal.x.isFinite || !proposal.y.isFinite ||
+        !proposal.width.isFinite || !proposal.height.isFinite ||
+        proposal.width < 40 || proposal.height < 40 ||
+        proposal.x - proposal.width / 2 < -0.001 ||
+        proposal.y - proposal.height / 2 < -0.001 ||
+        proposal.x + proposal.width / 2 > layout.canvasWidth + 0.001 ||
+        proposal.y + proposal.height / 2 > layout.canvasHeight + 0.001) {
+      throw ArgumentError('Proposed table must fit inside the saved room');
+    }
+    final old = layout.tables[index];
+    if (old.x == proposal.x && old.y == proposal.y &&
+        old.width == proposal.width && old.height == proposal.height) return;
+    // Retain the existing table's type, label, capacity and persistent ID.
+    final next = old.copyWith(x: proposal.x, y: proposal.y,
+        width: proposal.width, height: proposal.height);
+    final updatedTables = List<SeatingTable>.from(layout.tables)
+      ..[index] = next;
+    final updated = layout.copyWith(
+      tables: updatedTables,
+      updatedAt: DateTime.now(),
+    );
+    final layouts = layoutsForClass(classId);
+    final layoutIndex = layouts.indexWhere((l) => l.layoutId == layout.layoutId);
+    if (layoutIndex < 0) return;
+    layouts[layoutIndex] = updated;
+    _layoutsByClass[classId] = List<SeatingLayout>.from(layouts);
+    notifyListeners();
+    await _persistLayouts(classId);
+  }
+
   Future<void> moveTable(
       String classId, String tableId, double dx, double dy,
       {double? boundaryPadding}) async {
