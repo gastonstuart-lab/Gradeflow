@@ -1,4 +1,5 @@
 import 'package:gradeflow/components/seating/classroom_map_framing.dart';
+import 'package:gradeflow/components/seating/planner_v2_geometry.dart';
 import 'package:gradeflow/components/classroom/classroom_materials.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,9 @@ class SeatingCanvas extends StatelessWidget {
   final bool presentationMode;
   final bool premiumAppearance;
   final bool simplifiedArrange;
+  final bool plannerV2;
+  final String? selectedTableId;
+  final ValueChanged<SeatingTable>? onPlannerV2Commit;
   final ValueChanged<String>? onTableSelected;
   final TransformationController? transformationController;
 
@@ -48,6 +52,9 @@ class SeatingCanvas extends StatelessWidget {
     required this.presentationMode,
     this.premiumAppearance = false,
     this.simplifiedArrange = false,
+    this.plannerV2 = false,
+    this.selectedTableId,
+    this.onPlannerV2Commit,
     this.onTableSelected,
     this.transformationController,
     this.allowSeatReassignment = true,
@@ -129,7 +136,13 @@ class SeatingCanvas extends StatelessWidget {
                       onResizeTable?.call(table.tableId, delta),
                   padding: _seatAreaPadding(presentationMode),
                   enabled: designMode,
-                  directDrag: simplifiedArrange,
+                  directDrag: simplifiedArrange && !plannerV2,
+                  plannerV2: plannerV2 && designMode && interactive,
+                  selected: selectedTableId == table.tableId,
+                  viewTransform: transformationController,
+                  roomSize: boundary,
+                  toViewport: (global) => (context.findRenderObject()! as RenderBox).globalToLocal(global),
+                  onProposalCommitted: onPlannerV2Commit,
                   child: TableWidget(
                     table: table,
                     seats: layout.seats
@@ -160,6 +173,26 @@ class SeatingCanvas extends StatelessWidget {
                         onSeatDrop?.call(seatId, data),
                     onSeatTap: (seatId) => onSeatTap?.call(seatId),
                   ),
+                  previewBuilder: plannerV2
+                      ? (candidate) => TableWidget(
+                          table: candidate,
+                          seats: layout.seats.where((seat) =>
+                              seat.tableId == table.tableId).toList(),
+                          studentsById: studentsById,
+                          designMode: designMode,
+                          interactive: interactive,
+                          presentationMode: presentationMode,
+                          premiumAppearance: premiumAppearance,
+                          simplifiedArrange: simplifiedArrange,
+                          allowSeatReassignment: allowSeatReassignment,
+                          highlightedStudentId: highlightedStudentId,
+                          highlightedTableId: selectedTableId == table.tableId
+                              ? table.tableId : highlightedTableId,
+                          onTableSelected: onTableSelected == null
+                              ? null : () => onTableSelected!(table.tableId),
+                          onSeatTap: (seatId) => onSeatTap?.call(seatId),
+                        )
+                      : null,
                 ),
             ],
           ),
@@ -1015,6 +1048,13 @@ class _SeatingTableDraggable extends StatefulWidget {
   final Widget child;
   final bool enabled;
   final bool directDrag;
+  final bool plannerV2;
+  final bool selected;
+  final TransformationController? viewTransform;
+  final Size? roomSize;
+  final Offset Function(Offset global)? toViewport;
+  final ValueChanged<SeatingTable>? onProposalCommitted;
+  final Widget Function(SeatingTable)? previewBuilder;
   final double padding;
   final void Function(Offset delta)? onMove;
   final void Function(Offset delta)? onResize;
@@ -1024,6 +1064,13 @@ class _SeatingTableDraggable extends StatefulWidget {
     required this.child,
     required this.enabled,
     this.directDrag = false,
+    this.plannerV2 = false,
+    this.selected = false,
+    this.viewTransform,
+    this.roomSize,
+    this.toViewport,
+    this.onProposalCommitted,
+    this.previewBuilder,
     required this.padding,
     this.onMove,
     this.onResize,
@@ -1036,12 +1083,56 @@ class _SeatingTableDraggable extends StatefulWidget {
 class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
   Offset _localOffset = Offset.zero;
   Offset _resizeOffset = Offset.zero;
+  PlannerV2Gesture? _gesture;
+  SeatingTable? _proposal;
+  int? _activePointer;
+
+  void _start(PointerDownEvent event) {
+    if (!widget.enabled || !widget.plannerV2 ||
+        widget.toViewport == null || widget.roomSize == null ||
+        widget.viewTransform == null) return;
+    final offset = event.localPosition;
+    final inTable = offset.dx >= widget.padding &&
+        offset.dx <= widget.padding + widget.table.width &&
+        offset.dy >= widget.padding &&
+        offset.dy <= widget.padding + widget.table.height;
+    if (!inTable) return; // Seat tap/drag is handled independently.
+    final nearCorner = widget.selected &&
+        offset.dx >= widget.padding + widget.table.width - 28 &&
+        offset.dy >= widget.padding + widget.table.height - 28;
+    _gesture = PlannerV2Geometry.begin(
+      table: widget.table,
+      pointer: widget.toViewport!(event.position),
+      viewTransform: widget.viewTransform!.value,
+      roomSize: widget.roomSize!,
+      action: nearCorner ? PlannerV2Action.resizeBottomRight
+          : PlannerV2Action.move,
+    );
+    _activePointer = event.pointer;
+  }
+
+  void _move(PointerMoveEvent event) {
+    if (_gesture == null || _activePointer != event.pointer) return;
+    setState(() => _proposal = _gesture!.update(
+        widget.toViewport!(event.position)));
+  }
+
+  void _finish(int pointer, {bool cancel = false}) {
+    if (_gesture == null || _activePointer != pointer) return;
+    final next = _proposal;
+    _gesture = null;
+    _activePointer = null;
+    setState(() => _proposal = null);
+    if (!cancel && next != null) widget.onProposalCommitted?.call(next);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final left = widget.table.x - widget.table.width / 2 - widget.padding;
-    final top = widget.table.y - widget.table.height / 2 - widget.padding;
+    final shown = _proposal ?? widget.table;
+    final left = shown.x - shown.width / 2 - widget.padding;
+    final top = shown.y - shown.height / 2 - widget.padding;
     final handleInset = widget.padding - 14;
+    final source = widget.previewBuilder?.call(shown) ?? widget.child;
     final content = widget.enabled && widget.directDrag
         ? GestureDetector(
             behavior: HitTestBehavior.deferToChild,
@@ -1051,13 +1142,18 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
               if (delta != Offset.zero) widget.onMove?.call(delta);
               setState(() => _localOffset = Offset.zero);
             },
-            child: widget.child,
+            child: source,
           )
-        : widget.child;
+        : source;
     return Positioned(
       left: left + _localOffset.dx,
       top: top + _localOffset.dy,
-      child: Stack(
+      child: Listener(
+        onPointerDown: widget.plannerV2 ? _start : null,
+        onPointerMove: widget.plannerV2 ? _move : null,
+        onPointerUp: widget.plannerV2 ? (e) => _finish(e.pointer) : null,
+        onPointerCancel: widget.plannerV2 ? (e) => _finish(e.pointer, cancel: true) : null,
+        child: Stack(
         clipBehavior: Clip.none,
         children: [
           content,
@@ -1101,7 +1197,27 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
                 ),
               ),
             ),
+          if (widget.plannerV2 && widget.enabled && widget.selected)
+            Positioned(
+              left: widget.padding + shown.width - 15,
+              top: widget.padding + shown.height - 15,
+              child: const IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Color(0xff176f73),
+                    shape: BoxShape.circle,
+                  ),
+                  child: SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: Icon(Icons.open_in_full,
+                        size: 15, color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
         ],
+      ),
       ),
     );
   }
