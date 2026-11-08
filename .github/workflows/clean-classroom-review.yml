@@ -1,0 +1,25 @@
+name: Clean Classroom review (no deployment)
+on:
+  push:
+    branches:
+      - review/classroom-clean-canvas-20261108
+  pull_request:
+    branches:
+      - preview/synthetic-classroom-20261108
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
