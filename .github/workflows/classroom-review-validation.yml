@@ -1,0 +1,34 @@
+name: GradeFlow review validation
+
+on:
+  push:
+    branches:
+      - review/classroom-local-fonts-20261108
+  pull_request:
+    branches:
+      - recovery/classroom-72-surface-20261108
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out review commit
+        uses: actions/checkout@v4
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.8'
+          channel: stable
+          cache: true
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Run tests
+        run: flutter test
+      - name: Compile review web app
+        run: flutter build web --release --no-wasm-dry-run
