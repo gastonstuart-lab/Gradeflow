@@ -81,6 +81,34 @@ void main() {
     expect(table.y, 145);
   });
 
+  test('open-floor drag reaches the near edge without changing default limits', () async {
+    final service = SeatingService();
+    await service.loadLayouts('class-a');
+    await service.addTable('class-a', SeatingTableType.rectangular,
+        seatCount: 4);
+    final layout = service.activeLayout('class-a')!;
+    final tableId = layout.tables.single.tableId;
+    final originalSeats = layout.seats.map((s) => s.seatId).toList();
+
+    // The normal room planner retains its conservative safety margin.
+    await service.moveTable('class-a', tableId, -5000, 0);
+    expect(service.activeLayout('class-a')!.tables.single.x, 180);
+
+    // Open-floor Arrange Mode can reach the visibly open left-hand floor.
+    await service.moveTable('class-a', tableId, -5000, 0,
+        boundaryPadding: 12);
+    final moved = service.activeLayout('class-a')!;
+    expect(moved.tables.single.x, 82);
+    expect(moved.seats.map((s) => s.seatId).toList(), originalSeats);
+    expect(moved.canvasWidth, layout.canvasWidth);
+    expect(moved.canvasHeight, layout.canvasHeight);
+
+    // Physical room bounds still hold even when the drag overshoots.
+    await service.moveTable('class-a', tableId, 5000, 0,
+        boundaryPadding: 12);
+    expect(service.activeLayout('class-a')!.tables.single.x, 1118);
+  });
+
   test('updateCanvasSize pulls existing tables back into view', () async {
     final service = SeatingService();
 

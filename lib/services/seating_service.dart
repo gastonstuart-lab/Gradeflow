@@ -701,13 +701,15 @@ class SeatingService extends ChangeNotifier {
   }
 
   Future<void> moveTable(
-      String classId, String tableId, double dx, double dy) async {
+      String classId, String tableId, double dx, double dy,
+      {double? boundaryPadding}) async {
     _updateLayout(classId, tableId, (layout) {
       final tables = layout.tables.map((t) {
         if (t.tableId != tableId) return t;
         return _constrainTableToCanvas(
           t.copyWith(x: t.x + dx, y: t.y + dy),
           layout,
+          boundaryPadding: boundaryPadding,
         );
       }).toList();
       return layout.copyWith(tables: tables, updatedAt: DateTime.now());
@@ -1935,28 +1937,30 @@ class SeatingService extends ChangeNotifier {
 
   SeatingTable _constrainTableToCanvas(
     SeatingTable table,
-    SeatingLayout layout,
-  ) {
+    SeatingLayout layout, {
+    double? boundaryPadding,
+  }) {
+    final padding = boundaryPadding ?? _tableBoundaryPadding;
     final minWidth = _minWidthForType(table.type);
     final minHeight = _minHeightForType(table.type);
     final maxWidth = math.max(
       minWidth,
-      layout.canvasWidth - (_tableBoundaryPadding * 2),
+      layout.canvasWidth - (padding * 2),
     );
     final maxHeight = math.max(
       minHeight,
-      layout.canvasHeight - (_tableBoundaryPadding * 2),
+      layout.canvasHeight - (padding * 2),
     );
     final normalizedWidth = table.width.clamp(minWidth, maxWidth).toDouble();
     final normalizedHeight =
         table.height.clamp(minHeight, maxHeight).toDouble();
 
-    final minX = (normalizedWidth / 2) + _tableBoundaryPadding;
+    final minX = (normalizedWidth / 2) + padding;
     final maxX =
-        layout.canvasWidth - (normalizedWidth / 2) - _tableBoundaryPadding;
-    final minY = (normalizedHeight / 2) + _tableBoundaryPadding;
+        layout.canvasWidth - (normalizedWidth / 2) - padding;
+    final minY = (normalizedHeight / 2) + padding;
     final maxY =
-        layout.canvasHeight - (normalizedHeight / 2) - _tableBoundaryPadding;
+        layout.canvasHeight - (normalizedHeight / 2) - padding;
 
     final normalizedX = maxX < minX
         ? layout.canvasWidth / 2
