@@ -3,6 +3,7 @@ import 'package:gradeflow/components/seating/planner_v2_geometry.dart';
 import 'package:gradeflow/components/classroom/classroom_materials.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gradeflow/models/seating_layout.dart';
 import 'package:gradeflow/models/student.dart';
 
@@ -1086,6 +1087,13 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
   PlannerV2Gesture? _gesture;
   SeatingTable? _proposal;
   int? _activePointer;
+  final FocusNode _gestureFocus = FocusNode(debugLabel: 'Planner V2 gesture');
+
+  @override
+  void dispose() {
+    _gestureFocus.dispose();
+    super.dispose();
+  }
 
   void _start(PointerDownEvent event) {
     if (!widget.enabled || !widget.plannerV2 ||
@@ -1109,6 +1117,7 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
           : PlannerV2Action.move,
     );
     _activePointer = event.pointer;
+    _gestureFocus.requestFocus();
   }
 
   void _move(PointerMoveEvent event) {
@@ -1148,7 +1157,18 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
     return Positioned(
       left: left + _localOffset.dx,
       top: top + _localOffset.dy,
-      child: Listener(
+      child: Focus(
+        focusNode: _gestureFocus,
+        onKeyEvent: (_, event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape &&
+              _activePointer != null) {
+            _finish(_activePointer!, cancel: true);
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Listener(
         onPointerDown: widget.plannerV2 ? _start : null,
         onPointerMove: widget.plannerV2 ? _move : null,
         onPointerUp: widget.plannerV2 ? (e) => _finish(e.pointer) : null,
@@ -1217,6 +1237,7 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
               ),
             ),
         ],
+      ),
       ),
       ),
     );
