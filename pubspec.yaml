@@ -51,6 +51,14 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+  # Bundle Roboto for Flutter web canvases that cannot fetch fallback fonts.
+  fonts:
+    - family: RobotoLocal
+      fonts:
+        - asset: assets/fonts/Roboto-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/Roboto-Variable.ttf
+          weight: 700
 
 flutter_launcher_icons:
   android: true
