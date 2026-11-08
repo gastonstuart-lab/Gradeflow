@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/models/seating_layout.dart';
 import 'package:gradeflow/components/seating/seating_designer_view.dart';
+import 'package:gradeflow/components/seating/planner_v2_dimensions_editor.dart';
 
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/nav.dart';
@@ -236,12 +237,24 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                     const Text('Drag this table directly to move it. Tap any seat to change its assignment.'),
                   ],
                 )),
+            if (widget.plannerV2 && layout != null)
+              PlannerV2DimensionsEditor(
+                key: ValueKey('planner-dimensions:${layout.layoutId}:${selectedTable.tableId}'),
+                table: selectedTable,
+                room: Size(layout.canvasWidth, layout.canvasHeight),
+                onSave: (proposal) => service.commitPlannerV2TableGeometry(
+                  widget.classId,
+                  proposal,
+                ),
+              )
+            else ...[
+              action(Icons.add, 'Increase table size',
+                  () => service.resizeTable(widget.classId, selectedTable.tableId, 24, 16)),
+              action(Icons.remove, 'Decrease table size',
+                  () => service.resizeTable(widget.classId, selectedTable.tableId, -24, -16)),
+            ],
             action(Icons.rotate_right, 'Rotate table',
                 () => service.rotateTable(widget.classId, selectedTable.tableId)),
-            action(Icons.add, 'Increase table size',
-                () => service.resizeTable(widget.classId, selectedTable.tableId, 24, 16)),
-            action(Icons.remove, 'Decrease table size',
-                () => service.resizeTable(widget.classId, selectedTable.tableId, -24, -16)),
             action(Icons.copy_all_outlined, 'Duplicate table',
                 () => service.duplicateTable(widget.classId, selectedTable.tableId)),
             action(Icons.delete_outline, 'Remove table', () async {
