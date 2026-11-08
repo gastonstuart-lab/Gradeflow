@@ -144,6 +144,67 @@ void main() {
     expect(service.activeLayout('class-a')!.tables.single.x, proposal.x);
   });
 
+  test('Planner V2 supports undo, redo, and redo invalidation', () async {
+    final service = SeatingService();
+    await service.loadLayouts('class-a');
+    await service.addTable('class-a', SeatingTableType.rectangular,
+        seatCount: 4);
+    final original = service.activeLayout('class-a')!;
+    final table = original.tables.single;
+    final seat = original.seats.first;
+    await service.assignStudentToSeat('class-a', seat.seatId, 'demo-1');
+    expect(service.canUndoPlannerV2('class-a'), isFalse);
+    expect(service.plannerV2SaveState('class-a'), PlannerV2SaveState.idle);
+
+    await service.commitPlannerV2TableGeometry(
+        'class-a', table.copyWith(x: table.x + 100, width: table.width + 30));
+    expect(service.plannerV2SaveState('class-a'), PlannerV2SaveState.saved);
+    expect(service.canUndoPlannerV2('class-a'), isTrue);
+    expect(service.canRedoPlannerV2('class-a'), isFalse);
+    final changed = service.activeLayout('class-a')!;
+    expect(changed.tables.single.x, table.x + 100);
+    expect(changed.tables.single.width, table.width + 30);
+    expect(changed.seats.first.studentId, 'demo-1');
+
+    expect(await service.undoPlannerV2('class-a'), isTrue);
+    expect(service.activeLayout('class-a')!.tables.single.x, table.x);
+    expect(service.activeLayout('class-a')!.tables.single.width, table.width);
+    expect(service.canRedoPlannerV2('class-a'), isTrue);
+    expect(service.activeLayout('class-a')!.seats.first.studentId, 'demo-1');
+
+    expect(await service.redoPlannerV2('class-a'), isTrue);
+    expect(service.activeLayout('class-a')!.tables.single.x, table.x + 100);
+    expect(service.canRedoPlannerV2('class-a'), isFalse);
+    expect(await service.undoPlannerV2('class-a'), isTrue);
+    await service.commitPlannerV2TableGeometry(
+        'class-a', table.copyWith(y: table.y + 75));
+    expect(service.canRedoPlannerV2('class-a'), isFalse);
+
+    // Every confirmed edit also reaches storage, not just live widgets.
+    final reopened = SeatingService();
+    await reopened.loadLayouts('class-a');
+    expect(reopened.activeLayout('class-a')!.tables.single.y, table.y + 75);
+    expect(reopened.activeLayout('class-a')!.seats.first.studentId, 'demo-1');
+  });
+
+  test('Planner V2 does not undo another room layout', () async {
+    final service = SeatingService();
+    await service.loadLayouts('class-a');
+    await service.addTable('class-a', SeatingTableType.rectangular,
+        seatCount: 4);
+    final first = service.activeLayout('class-a')!;
+    await service.commitPlannerV2TableGeometry(
+      'class-a', first.tables.single.copyWith(x: 500),
+    );
+    expect(service.canUndoPlannerV2('class-a'), isTrue);
+    final second = await service.createLayout('class-a', 'Other room');
+    expect(second.layoutId, isNot(first.layoutId));
+    expect(service.canUndoPlannerV2('class-a'), isFalse);
+    expect(await service.undoPlannerV2('class-a'), isFalse);
+    await service.selectLayout('class-a', first.layoutId);
+    expect(service.canUndoPlannerV2('class-a'), isTrue);
+  });
+
   test('updateCanvasSize pulls existing tables back into view', () async {
     final service = SeatingService();
 
