@@ -120,7 +120,7 @@ void main() {
     final seat = original.seats.first;
     await service.assignStudentToSeat('class-a', seat.seatId, 'demo-student');
     final proposal = table.copyWith(
-      x: table.x - 140,
+      x: table.x + 180,
       width: table.width + 75,
       height: table.height + 25,
     );
