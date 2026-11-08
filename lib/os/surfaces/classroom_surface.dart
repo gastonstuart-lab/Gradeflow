@@ -429,6 +429,78 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                             className: classItem.className,
                             subject: classItem.subject)),
                     const SizedBox(height: 10),
+                    if (widget.plannerV2 && _setupMode)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: seatingService.canUndoPlannerV2(widget.classId)
+                                  ? () async {
+                                      try {
+                                        await seatingService.undoPlannerV2(widget.classId);
+                                      } catch (_) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text(
+                                              'Could not save Undo. Previous layout restored.',
+                                            )),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  : null,
+                              icon: const Icon(Icons.undo, size: 18),
+                              label: const Text('Undo'),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: seatingService.canRedoPlannerV2(widget.classId)
+                                  ? () async {
+                                      try {
+                                        await seatingService.redoPlannerV2(widget.classId);
+                                      } catch (_) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text(
+                                              'Could not save Redo. Previous layout restored.',
+                                            )),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  : null,
+                              icon: const Icon(Icons.redo, size: 18),
+                              label: const Text('Redo'),
+                            ),
+                            const Spacer(),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  seatingService.plannerV2SaveState(widget.classId) ==
+                                      PlannerV2SaveState.failed
+                                      ? Icons.error_outline
+                                      : seatingService.plannerV2SaveState(widget.classId) ==
+                                              PlannerV2SaveState.saved
+                                          ? Icons.cloud_done_outlined
+                                          : Icons.cloud_upload_outlined,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  switch (seatingService.plannerV2SaveState(widget.classId)) {
+                                    PlannerV2SaveState.idle => 'No changes',
+                                    PlannerV2SaveState.saving => 'Saving…',
+                                    PlannerV2SaveState.saved => 'Saved',
+                                    PlannerV2SaveState.failed => 'Save failed',
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     SizedBox(
                         height: 42,
                         child: SingleChildScrollView(
