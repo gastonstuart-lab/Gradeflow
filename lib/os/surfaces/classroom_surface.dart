@@ -24,10 +24,12 @@ class ClassroomSurface extends StatefulWidget {
     super.key,
     required this.classId,
     this.startInSetup = false,
+    this.cleanCanvas = false,
   });
 
   final String classId;
   final bool startInSetup;
+  final bool cleanCanvas;
 
   @override
   State<ClassroomSurface> createState() => _ClassroomSurfaceState();
@@ -35,6 +37,7 @@ class ClassroomSurface extends StatefulWidget {
 
 class _ClassroomSurfaceState extends State<ClassroomSurface> {
   String? _selectedSeat;
+  String? _selectedTableId;
   bool _loading = true;
   bool _toolsOpen = false;
   String? _pickedStudent;
@@ -60,6 +63,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
     if (oldWidget.classId != widget.classId) {
       setState(() {
         _selectedSeat = null;
+        _selectedTableId = null;
         _loading = true;
         _setupMode = false;
         _picker.cancel(clearStudentHistory: true);
@@ -172,6 +176,8 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         layout?.seats.where((s) => s.seatId == _selectedSeat).firstOrNull;
     final table =
         layout?.tables.where((t) => t.tableId == seat?.tableId).firstOrNull;
+    final selectedTable = layout?.tables
+        .where((t) => t.tableId == _selectedTableId).firstOrNull;
     Widget action(IconData icon, String title, VoidCallback onTap) => ListTile(
         leading: Icon(icon),
         title: Text(title),
@@ -212,6 +218,48 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                 service: service,
                 arranging: _setupMode,
                 scoreCategory: _scoreCategory),
+          ] else if (_setupMode && selectedTable != null) ...[
+            TextButton.icon(
+                onPressed: () => setState(() => _selectedTableId = null),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('All room tools')),
+            Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(selectedTable.label.isEmpty ? 'Selected table' : selectedTable.label,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 19)),
+                    const SizedBox(height: 8),
+                    const Text('Drag this table directly to move it. Tap any seat to change its assignment.'),
+                  ],
+                )),
+            action(Icons.rotate_right, 'Rotate table',
+                () => service.rotateTable(widget.classId, selectedTable.tableId)),
+            action(Icons.add, 'Increase table size',
+                () => service.resizeTable(widget.classId, selectedTable.tableId, 24, 16)),
+            action(Icons.remove, 'Decrease table size',
+                () => service.resizeTable(widget.classId, selectedTable.tableId, -24, -16)),
+            action(Icons.copy_all_outlined, 'Duplicate table',
+                () => service.duplicateTable(widget.classId, selectedTable.tableId)),
+            action(Icons.delete_outline, 'Remove table', () async {
+              final remove = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Remove this table?'),
+                  content: const Text('This also removes its seats and their assignments from the current room map.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel')),
+                    FilledButton(onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Remove')),
+                  ],
+                ),
+              );
+              if (remove != true || !mounted) return;
+              await service.removeTable(widget.classId, selectedTable.tableId);
+              if (mounted) setState(() => _selectedTableId = null);
+            }),
           ] else ...[
             Padding(
                 padding:
@@ -296,7 +344,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
               const Padding(
                   padding: EdgeInsets.all(20),
                   child: Text(
-                      'Drag furniture on the floor. Use a table’s menu to resize, rotate or change its seats. Tap an empty seat to assign a student.')),
+                      'Drag a table or chair directly to move it. Tap a table to edit its shape or size in this panel. Tap an empty seat to assign a student.')),
             ],
             Padding(
                 padding: const EdgeInsets.all(20),
@@ -321,6 +369,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
           classId: widget.classId,
           className: className,
           subject: subject,
+          cleanCanvas: widget.cleanCanvas,
         ),
       ),
     );
@@ -396,6 +445,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                               TextButton.icon(
                                   onPressed: () => setState(() {
                                         _selectedSeat = null;
+                                        _selectedTableId = null;
                                         _setupMode = !_setupMode;
                                         _toolsOpen = _setupMode;
                                       }),
@@ -436,8 +486,15 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                           classId: widget.classId,
                                           students: students,
                                           setupMode: _setupMode,
+                                          cleanCanvas: widget.cleanCanvas,
                                           onSeatSelected: (id) => setState(() {
                                                 _selectedSeat = id;
+                                                _selectedTableId = null;
+                                                _toolsOpen = true;
+                                              }),
+                                          onTableSelected: (id) => setState(() {
+                                                _selectedSeat = null;
+                                                _selectedTableId = id;
                                                 _toolsOpen = true;
                                               }),
                                           scoreCategory: _scoreCategory,
@@ -596,7 +653,9 @@ class _ClassroomMapPanel extends StatelessWidget {
     required this.classId,
     required this.students,
     required this.setupMode,
+    required this.cleanCanvas,
     required this.onSeatSelected,
+    required this.onTableSelected,
     this.scoreCategory,
     this.highlightedStudentId,
     this.highlightedTableId,
@@ -605,7 +664,9 @@ class _ClassroomMapPanel extends StatelessWidget {
   final String classId;
   final List<Student> students;
   final bool setupMode;
+  final bool cleanCanvas;
   final ValueChanged<String> onSeatSelected;
+  final ValueChanged<String> onTableSelected;
   final String? scoreCategory;
   final String? highlightedStudentId;
   final String? highlightedTableId;
@@ -614,20 +675,22 @@ class _ClassroomMapPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = context.isDark;
     return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: OSColors.panelSurface(dark).withValues(alpha: 0.72),
-        borderRadius: OSRadius.lgBr,
-        border: Border.all(
-          color: OSColors.panelBorder(dark).withValues(alpha: 0.86),
-        ),
-      ),
+      padding: cleanCanvas ? EdgeInsets.zero : const EdgeInsets.all(8),
+      decoration: cleanCanvas
+          ? BoxDecoration(color: OSColors.panelSurface(dark).withValues(alpha: 0.72))
+          : BoxDecoration(
+              color: OSColors.panelSurface(dark).withValues(alpha: 0.72),
+              borderRadius: OSRadius.lgBr,
+              border: Border.all(color: OSColors.panelBorder(dark).withValues(alpha: 0.86)),
+            ),
       child: SeatingDesignerView(
         classId: classId,
         students: students,
         autoLoad: false,
         onSeatSelected: onSeatSelected,
+        onTableSelected: onTableSelected,
         premiumAppearance: true,
+        simplifiedArrange: cleanCanvas,
         scoreCategory: scoreCategory,
         highlightedStudentId: highlightedStudentId,
         highlightedTableId: highlightedTableId,
