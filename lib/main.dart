@@ -111,6 +111,17 @@ class _MyAppState extends State<MyApp> {
             });
           }
 
+          // On a deep link or browser refresh, restore the Firebase session
+          // before constructing GoRouter. Otherwise the first redirect sees
+          // a signed-out user and discards the requested class URL.
+          if (!authService.isInitialized) {
+            return const MaterialApp(
+              home: Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              ),
+            );
+          }
+
           return MaterialApp.router(
             title: GradeFlowProductConfig.appName,
             debugShowCheckedModeBanner: false,
