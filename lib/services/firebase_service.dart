@@ -33,6 +33,10 @@ class FirebaseService {
         // an authenticated production or public web build to local emulators.
         FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8180);
         await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
+        // Firebase Auth restores web persistence asynchronously. Wait until
+        // the first emulator-backed auth state has been resolved before the
+        // application's AuthService reads currentUser or GoRouter redirects.
+        await FirebaseAuth.instance.authStateChanges().first;
       }
       _initialized = true;
       _available = true;
