@@ -14,6 +14,7 @@ import {
   collection,
   setDoc,
   getDoc,
+  getDocFromServer,
   getDocs,
   updateDoc,
 } from 'firebase/firestore';
@@ -117,15 +118,18 @@ try {
   // Log out and confirm a cached document cannot be read while signed out,
   // then log in again to verify durable persistence across auth sessions.
   await signOut(authA);
-  await denied(() => getDoc(aClass), 'signed-out teacher reads private class');
+  await denied(() => getDocFromServer(aClass), 'signed-out teacher reads private class');
   await signInWithEmailAndPassword(authA,
     'fictional-a@example.invalid', 'FakePassword-A123!');
   assert.equal((await getDoc(aSeats)).data().seats[0].studentId,
     'fictional-student-1');
   assert.equal((await getDoc(aScore)).data().score, 92);
-  await updateDoc(aSeats, { 'tables.0.x': 430 });
+  await updateDoc(aSeats, {
+    tables: [{ tableId: 'table-1', x: 430, y: 250, width: 160, height: 90 }],
+  });
   const reopened = (await getDoc(aSeats)).data();
   assert.equal(reopened.seats[0].studentId, 'fictional-student-1');
+  assert.equal(reopened.tables[0].x, 430);
 
   process.stdout.write(
     'PASS: emulator auth, isolated classes, seating, grades and session persistence\\n',
