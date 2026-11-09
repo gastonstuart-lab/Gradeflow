@@ -17,6 +17,9 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     }
   });
   page.on('console', (message) => {
+    if (message.text().includes('GRADEFLOW_STAGING_')) {
+      browserDiagnostics.push('route: ' + message.text());
+    }
     if (message.type() === 'error' || message.type() === 'warning') {
       browserDiagnostics.push(message.type() + ': ' + message.text());
     }
@@ -71,6 +74,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
       .toBeVisible({ timeout: 15_000 });
   } catch (error) {
     console.log('Class workspace URL:', page.url());
+    console.log('Unexpected cloud Firebase endpoints:', unexpectedCloudRequests);
     console.log('Class workspace diagnostics:', browserDiagnostics);
     console.log('Class workspace visible text:',
       (await page.locator('body').innerText().catch(() => '')).slice(0, 3500));
