@@ -48,6 +48,34 @@ jobs:
           }
           NODE
 
+      - name: Require valid existing-project Hosting deployment credentials
+        env:
+          GRADEFLOW_PREVIEW_SERVICE_ACCOUNT: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const raw = process.env.GRADEFLOW_PREVIEW_SERVICE_ACCOUNT ?? '';
+          if (!raw) {
+            console.error('::error::Missing GitHub Actions secret FIREBASE_SERVICE_ACCOUNT. Configure it in repository Settings > Secrets and variables > Actions. Do not paste it into chat or source code.');
+            process.exit(1);
+          }
+          let credential;
+          try { credential = JSON.parse(raw); }
+          catch {
+            console.error('::error::FIREBASE_SERVICE_ACCOUNT must contain a JSON service-account key.');
+            process.exit(1);
+          }
+          if (credential?.type !== 'service_account' ||
+              credential.project_id !== 'gradeflow-20260113' ||
+              typeof credential.private_key !== 'string' ||
+              typeof credential.client_email !== 'string' ||
+              !credential.client_email.endsWith('@gradeflow-20260113.iam.gserviceaccount.com')) {
+            console.error('::error::Deployment credential must belong to the existing GradeFlow Firebase project.');
+            process.exit(1);
+          }
+          console.log('Firebase Hosting deployment credential accepted (key contents not printed).');
+          NODE
+
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
