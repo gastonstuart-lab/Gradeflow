@@ -45,13 +45,30 @@ class GradeFlowOSController extends ChangeNotifier {
   OSSurface _activeSurface = OSSurface.home;
   String? _activeClassId;
 
+  // Last deliberately selected class is navigation context, not an active
+  // class on the Home route. It is held only in this signed-in app session;
+  // Home must still validate it against the current teacher's class list.
+  String? _lastSelectedClassId;
+
   OSSurface get activeSurface => _activeSurface;
   String? get activeClassId => _activeClassId;
+  String? get lastSelectedClassId => _lastSelectedClassId;
+
+  void rememberSelectedClass(String classId) {
+    if (classId.isEmpty || _lastSelectedClassId == classId) return;
+    _lastSelectedClassId = classId;
+    notifyListeners();
+  }
 
   void setSurface(OSSurface surface, {String? classId}) {
     final nextClassId = surface == OSSurface.teach && classId == null
         ? _activeClassId
         : classId;
+    if (classId != null && classId.isNotEmpty) {
+      // A routed Classroom/Class/Gradebook class becomes the default context
+      // next time the teacher returns Home.
+      _lastSelectedClassId = classId;
+    }
     if (_activeSurface == surface && _activeClassId == nextClassId) return;
     _activeSurface = surface;
     _activeClassId = nextClassId;
