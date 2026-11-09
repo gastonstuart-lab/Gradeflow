@@ -7,6 +7,7 @@ import 'package:gradeflow/components/gradeflow_launch_experience.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/config/planner_v2_staging_safety.dart';
 import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
+import 'package:gradeflow/config/gradeflow_live_v2_release.dart';
 import 'package:gradeflow/config/planner_v2_firebase_config.dart';
 import 'package:gradeflow/config/planner_v2_emulator_safety.dart';
 import 'package:gradeflow/theme.dart';
@@ -28,6 +29,28 @@ void main() async {
   if (kIsWeb) {
     // Makes the web app accessible (and allows Playwright to use role/text selectors).
     RendererBinding.instance.ensureSemantics();
+  }
+
+  // The owner-authorized V2 live bundle is distinct from the preview
+  // bundle. Refuse to boot before Firebase/auth/data initialization if the
+  // target project, live origin or build-mode combination is unexpected.
+  if (!GradeFlowLiveV2Release.mayStart(
+    enabled: GradeFlowLiveV2Release.enabled,
+    stagingEnabled: PlannerV2StagingSafety.stagingEnabled,
+    previewEnabled: GradeFlowExistingProjectPreview.enabled,
+    emulatorEnabled: PlannerV2EmulatorSafety.enabled,
+    isWeb: kIsWeb,
+    firebaseProjectId: GradeFlowLiveV2Release.enabled &&
+            !PlannerV2StagingSafety.stagingEnabled
+        ? PlannerV2FirebaseConfig.currentPlatform.projectId
+        : '',
+    originHost: Uri.base.host,
+  )) {
+    runApp(const _PlannerV2StagingBlocked(
+      reason: 'The GradeFlow V2 live release is only authorized on '
+          'the original GradeFlow Hosting site and Firebase project.',
+    ));
+    return;
   }
 
   // An approved preview build may use the existing Firebase project, but
@@ -86,13 +109,14 @@ void main() async {
     return;
   }
 
-  if (PlannerV2StagingSafety.protectedTestingMode) {
-    // Preview and staging must never degrade into local-only login when Firebase
+  if (PlannerV2StagingSafety.authenticatedV2Mode) {
+    // All authenticated V2 modes must fail closed if Firebase cannot start;
+    // never degrade to local-only login on the live release, either.
     // initialization fails. Normal production startup stays unchanged.
     final ok = await FirebaseService.maybeInitialize();
     if (!ok) {
       runApp(const _PlannerV2StagingBlocked(
-        reason: 'Staging Firebase could not be initialized. '
+        reason: 'GradeFlow Firebase could not be initialized. '
             'Authentication and classroom data have not been loaded.',
       ));
       return;
