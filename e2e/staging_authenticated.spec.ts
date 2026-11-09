@@ -16,6 +16,14 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
         response.url().includes('securetoken')) {
       browserDiagnostics.push('auth-http: ' + response.status() + ' ' +
         new URL(response.url()).pathname);
+      // Log only the error code on an emulator failure; never log ID tokens
+      // or successful authentication responses.
+      if (response.status() >= 400) {
+        void response.json().then((payload) => {
+          browserDiagnostics.push('auth-error: ' +
+            String(payload?.error?.message ?? 'unknown'));
+        }).catch(() => {});
+      }
     }
   });
   await page.goto('/');
@@ -25,8 +33,16 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   const email = page.getByRole('textbox', { name: 'Email' }).first();
   const password = page.getByRole('textbox', { name: 'Password' }).first();
   await expect(email).toBeVisible({ timeout: 30_000 });
-  await email.fill('browser-teacher@example.invalid');
-  await password.fill('FakePassword-Teacher123!');
+  // Flutter text editing can receive fast DOM fill events before the
+  // framework's controller has processed the final value. Enter keys as
+  // native keyboard events and wait for the next frame before submission.
+  await email.click();
+  await email.pressSequentially('browser-teacher@example.invalid', { delay: 16 });
+  await password.click();
+  await password.pressSequentially('FakePassword-Teacher123!', { delay: 16 });
+  await expect(email).toHaveValue('browser-teacher@example.invalid');
+  await expect(password).toHaveValue('FakePassword-Teacher123!');
+  await page.waitForTimeout(300);
   await page.getByRole('button', { name: /^Sign in$/i }).first().click();
   try {
     await expect.poll(() => new URL(page.url()).pathname, { timeout: 15_000 }).toBe('/os/home');
