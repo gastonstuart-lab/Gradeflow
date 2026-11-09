@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:gradeflow/components/gradeflow_launch_experience.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/config/planner_v2_staging_safety.dart';
+import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
 import 'package:gradeflow/config/planner_v2_firebase_config.dart';
 import 'package:gradeflow/config/planner_v2_emulator_safety.dart';
 import 'package:gradeflow/theme.dart';
@@ -27,6 +28,28 @@ void main() async {
   if (kIsWeb) {
     // Makes the web app accessible (and allows Playwright to use role/text selectors).
     RendererBinding.instance.ensureSemantics();
+  }
+
+  // An approved preview build may use the existing Firebase project, but
+  // ONLY from the designated Hosting preview-channel URL. If someone
+  // accidentally publishes it on the live Hosting channel, show a blocked
+  // screen before Firebase, authentication, providers or data can load.
+  if (!GradeFlowExistingProjectPreview.mayStart(
+    enabled: GradeFlowExistingProjectPreview.enabled,
+    stagingEnabled: PlannerV2StagingSafety.stagingEnabled,
+    emulatorEnabled: PlannerV2EmulatorSafety.enabled,
+    isWeb: kIsWeb,
+    projectId: GradeFlowExistingProjectPreview.enabled &&
+            !PlannerV2StagingSafety.stagingEnabled
+        ? PlannerV2FirebaseConfig.currentPlatform.projectId
+        : '',
+    originHost: Uri.base.host,
+  )) {
+    runApp(const _PlannerV2StagingBlocked(
+      reason: 'GradeFlow V2 review is allowed only on the designated '
+          'Firebase Hosting preview channel. The live site is unchanged.',
+    ));
+    return;
   }
 
   // Emulator connections are never allowed on public domains or any
@@ -63,8 +86,8 @@ void main() async {
     return;
   }
 
-  if (PlannerV2StagingSafety.stagingEnabled) {
-    // Staging must never degrade into a local-only demo/login when Firebase
+  if (PlannerV2StagingSafety.protectedTestingMode) {
+    // Preview and staging must never degrade into local-only login when Firebase
     // initialization fails. Normal production startup stays unchanged.
     final ok = await FirebaseService.maybeInitialize();
     if (!ok) {
