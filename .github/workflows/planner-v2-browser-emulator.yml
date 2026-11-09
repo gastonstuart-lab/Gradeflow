@@ -61,3 +61,35 @@ jobs:
             test-results/
             playwright-report/
           if-no-files-found: ignore
+  
+  # This runs independently of the authenticated browser emulator gate so
+  # routing/auth failures cannot conceal regressions in the approved app.
+  candidate-regression:
+    if: github.ref == 'refs/heads/integration/v2-flutterfire-auth-refresh-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Resolve reviewed candidate packages
+        run: flutter pub get
+      - name: Preserve resolved dependency lockfile for release reconciliation
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-resolved-pubspec-lock
+          path: pubspec.lock
+          retention-days: 7
+      - name: Analyze integrated app
+        run: flutter analyze
+      - name: Complete Flutter regression suite
+        run: flutter test
+      - name: Compile owner-approved synthetic Classroom preview
+        run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
+      - name: Compile authenticated production-default app (V2 flag disabled)
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href /
+      - name: Compile authenticated staging app (fails closed without real config)
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_PLANNER_V2_STAGING=true
