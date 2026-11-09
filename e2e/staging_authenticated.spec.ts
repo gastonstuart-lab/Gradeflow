@@ -121,11 +121,14 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.goto('/os/class/class-science-browser/gradebook');
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Gradebook').first()).toBeVisible();
-  await expect(page.getByText('Fictional Quiz').first())
+  // Flutter's DataTable publishes the quiz title as one composite
+  // columnheader ('Fictional Quiz out of 100'), not a standalone text node.
+  // Locate the score field within its fictional pupil row so the test
+  // verifies actual gradebook data rather than a text-layout implementation.
+  await expect(page.getByRole('columnheader', { name: /Fictional Quiz/ }))
     .toBeVisible({ timeout: 30_000 });
-  const quizScore = page.getByRole('textbox', {
-    name: 'Fictional Pupil Fictional Quiz',
-  }).first();
+  const quizScore = page.getByRole('row', { name: /Fictional Pupil/ })
+    .getByRole('textbox').first();
   await expect(quizScore).toHaveValue('94', { timeout: 30_000 });
   await typeExact(quizScore, '96');
   await quizScore.press('Enter');
@@ -136,9 +139,8 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Gradebook').first()).toBeVisible();
-  await expect(page.getByRole('textbox', {
-    name: 'Fictional Pupil Fictional Quiz',
-  }).first()).toHaveValue('96', { timeout: 30_000 });
+  await expect(page.getByRole('row', { name: /Fictional Pupil/ })
+    .getByRole('textbox').first()).toHaveValue('96', { timeout: 30_000 });
 
   // Returning from Classroom to Home retains authorization and class
   // context; the browser connects only to localhost demo Firebase emulators.
