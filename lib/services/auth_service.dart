@@ -43,9 +43,7 @@ class AuthService extends ChangeNotifier {
           _currentUser = _userFromFirebase(u);
           await RepositoryFactory.initialize(userId: u.uid);
           if (!PlannerV2StagingSafety.stagingEnabled) {
-            if (!PlannerV2StagingSafety.stagingEnabled) {
-          await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
-        }
+            await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
           }
           return;
         }
@@ -170,7 +168,9 @@ class AuthService extends ChangeNotifier {
 
       _currentUser = _userFromFirebase(u);
       await RepositoryFactory.initialize(userId: u.uid);
-      await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+      if (!PlannerV2StagingSafety.stagingEnabled) {
+        await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+      }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
@@ -203,8 +203,8 @@ class AuthService extends ChangeNotifier {
             _currentUser = _userFromFirebase(u);
             await RepositoryFactory.initialize(userId: u.uid);
             if (!PlannerV2StagingSafety.stagingEnabled) {
-          await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
-        }
+              await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+            }
 
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString(
