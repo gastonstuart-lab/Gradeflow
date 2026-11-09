@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Strictly isolated test environment: every Firestore path is denied
+    // except the signed-in teacher's own private GradeFlow document subtree.
+    match /{path=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{teacherUid}/{document=**} {
+      allow read, write: if request.auth != null
+          && request.auth.uid == teacherUid;
+    }
+
+    // School communication data requires a separate school-membership
+    // authorization design. Staging does not expose these collections.
+    match /schools/{schoolKey}/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
