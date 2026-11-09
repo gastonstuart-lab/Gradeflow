@@ -315,9 +315,16 @@ class _HomeSurfaceState extends State<HomeSurface> {
   @override
   Widget build(BuildContext context) {
     final shell = context.watch<GlobalSystemShellController>();
-    final snapshot = shell.workspaceSnapshot;
     final auth = context.watch<AuthService>();
-    final user = auth.currentUser ?? snapshot?.user;
+    final signedInTeacherId = auth.currentUser?.userId;
+    final rawSnapshot = shell.workspaceSnapshot;
+    // The OS controller may still hold a previous user's snapshot during
+    // account transitions. Never show that user's classes or reminders.
+    final snapshot = signedInTeacherId != null &&
+            rawSnapshot?.user.userId == signedInTeacherId
+        ? rawSnapshot
+        : null;
+    final user = auth.currentUser;
     final wallpaperUserId = _homeStorageUserId(auth);
     if (wallpaperUserId != null &&
         _loadedUserId != wallpaperUserId &&
@@ -327,7 +334,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
       });
     }
     final classService = context.watch<ClassService>();
-    final serviceClasses = classService.activeClasses;
+    final serviceClasses = signedInTeacherId == null
+        ? <Class>[]
+        : classService.activeClasses
+            .where((c) => c.teacherId == signedInTeacherId).toList();
     final classes = serviceClasses.isNotEmpty
         ? serviceClasses
         : (snapshot?.activeClasses ?? const <Class>[]);
@@ -340,6 +350,7 @@ class _HomeSurfaceState extends State<HomeSurface> {
     final primaryClass = resolveHomeTeachingClass(
       loadedClasses: classes,
       snapshotClasses: snapshot?.activeClasses,
+      signedInTeacherId: signedInTeacherId,
       selectedClassId: _selectedHomeClassId,
       lastRoutedClassId: controller.lastSelectedClassId,
     );
