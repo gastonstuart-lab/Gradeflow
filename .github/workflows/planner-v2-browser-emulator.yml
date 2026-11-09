@@ -158,11 +158,33 @@ jobs:
           flutter build web --release --no-wasm-dry-run --target lib/main.dart \
             --base-href / \
             --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
-      - name: Save preview-only web build for review (no deployment)
+      - name: Assemble safe Windows preview deployment package
+        run: |
+          cp scripts/deploy-gradeflow-preview.cmd ./deploy-gradeflow-preview.cmd
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(fs.readFileSync('firebase.preview.json', 'utf8'));
+          if (!config.hosting || config.firestore || config.functions || config.storage || config.database) {
+            throw new Error('Preview package must use Hosting ONLY');
+          }
+          if (!fs.existsSync('build/web/index.html')) {
+            throw new Error('Missing compiled preview app');
+          }
+          const script = fs.readFileSync('deploy-gradeflow-preview.cmd', 'utf8');
+          if (!script.includes('hosting:channel:deploy classroom-v2') ||
+              !script.includes('--project gradeflow-20260113') ||
+              script.includes('firebase.cmd deploy --only hosting')) {
+            throw new Error('Preview script must target only the temporary channel');
+          }
+          NODE
+      - name: Save Windows-ready preview package (no deployment)
         uses: actions/upload-artifact@v4
         with:
           name: gradeflow-classroom-v2-existing-project-preview
-          path: build/web/
+          path: |
+            build/web/
+            firebase.preview.json
+            deploy-gradeflow-preview.cmd
           retention-days: 7
 
   # This runs independently of the authenticated browser emulator gate so
