@@ -49,6 +49,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   final _picker = ClassroomPickerAnimator();
   String? _scoreCategory;
   bool _setupMode = false;
+  int _fitRevision = 0;
 
   @override
   void initState() {
@@ -172,6 +173,20 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
       }
     });
   }
+
+  Future<void> _randomSeating() async {
+    final proceed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Random seating'),
+      content: const Text('Shuffle student assignments across the existing seats? Locked seats stay unchanged. Tables and chairs will keep their positions.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Shuffle'))]));
+    if (proceed != true || !mounted) return;
+    await context.read<SeatingService>().shuffleStudentPlacements(widget.classId, context.read<StudentService>().students);
+    if (mounted) setState(() { _pickedStudent = null; _pickedTable = null; _pickLabel = null; });
+  }
+
+  void _openTimer() => Navigator.of(context).push(MaterialPageRoute<void>(
+    fullscreenDialog: true, builder: (_) => const ClassroomTimer(fullPage: true)));
 
   Widget _toolsPanel(List<Student> students, SeatingService service) {
     final layout = service.activeLayout(widget.classId);
@@ -520,6 +535,12 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                         child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(children: [
+                              TextButton.icon(onPressed: _randomSeating,
+                                  icon: const Icon(Icons.shuffle), label: const Text('Random seating')),
+                              TextButton.icon(onPressed: () => setState(() => _fitRevision++),
+                                  icon: const Icon(Icons.fit_screen), label: const Text('Fit to screen')),
+                              TextButton.icon(onPressed: _openTimer,
+                                  icon: const Icon(Icons.timer_outlined), label: const Text('Full-page timer')),
                               TextButton.icon(
                                   onPressed: () => _pick(),
                                   icon:
@@ -574,6 +595,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                           classId: widget.classId,
                                           students: students,
                                           setupMode: _setupMode,
+                                          fitRevision: _fitRevision,
                                           cleanCanvas: widget.cleanCanvas,
                                           plannerV2: widget.plannerV2,
                                           selectedTableId: _selectedTableId,
@@ -740,6 +762,7 @@ class _ClassroomHeader extends StatelessWidget {
 
 class _ClassroomMapPanel extends StatelessWidget {
   const _ClassroomMapPanel({
+    this.fitRevision = 0,
     required this.classId,
     required this.students,
     required this.setupMode,
@@ -753,6 +776,7 @@ class _ClassroomMapPanel extends StatelessWidget {
     this.highlightedTableId,
   });
 
+  final int fitRevision;
   final String classId;
   final List<Student> students;
   final bool setupMode;
@@ -779,6 +803,7 @@ class _ClassroomMapPanel extends StatelessWidget {
             ),
       child: SeatingDesignerView(
         classId: classId,
+        fitRevision: fitRevision,
         students: students,
         autoLoad: false,
         onSeatSelected: onSeatSelected,

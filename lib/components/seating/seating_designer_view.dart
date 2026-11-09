@@ -20,6 +20,7 @@ class SeatingDesignerView extends StatefulWidget {
   final bool premiumAppearance;
   final bool simplifiedArrange;
   final bool plannerV2;
+  final int fitRevision;
   final String? selectedTableId;
   final ValueChanged<String>? onTableSelected;
   final bool allowSeatReassignment;
@@ -48,6 +49,7 @@ class SeatingDesignerView extends StatefulWidget {
     this.premiumAppearance = false,
     this.simplifiedArrange = false,
     this.plannerV2 = false,
+    this.fitRevision = 0,
     this.selectedTableId,
     this.onTableSelected,
     this.allowSeatReassignment = true,
@@ -305,7 +307,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                 constraints.maxWidth > 0 &&
                 constraints.maxHeight > 0) {
               final key =
-                  '${widget.classId}:${active.layoutId}:${widget.plannerV2 ? "workspace" : "${active.canvasWidth}:${active.canvasHeight}"}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}:${widget.simplifiedArrange}';
+                  '${widget.fitRevision}:${widget.classId}:${active.layoutId}:${widget.plannerV2 ? "workspace" : "${active.canvasWidth}:${active.canvasHeight}"}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}:${widget.simplifiedArrange}';
               if (_framedLayoutAndSize != key) {
                 _framedLayoutAndSize = key;
                 final viewport = Size(constraints.maxWidth, constraints.maxHeight);

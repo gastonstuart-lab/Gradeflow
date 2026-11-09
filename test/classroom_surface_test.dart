@@ -41,6 +41,30 @@ void main() {
     return services;
   }
 
+  testWidgets('restored tools preserve furniture and full-page timer returns to classroom', (tester) async {
+    final services = await open(tester, 'restored-tools');
+    final before = services.seatingService.activeLayout('restored-tools')!;
+    await tester.tap(find.text('Random seating')); await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel')); await tester.pumpAndSettle();
+    expect(services.seatingService.activeLayout('restored-tools')!.toJson(), before.toJson());
+    await tester.tap(find.text('Random seating')); await tester.pumpAndSettle();
+    await tester.tap(find.text('Shuffle')); await tester.pumpAndSettle();
+    final after = services.seatingService.activeLayout('restored-tools')!;
+    expect(after.tables.map((t) => t.toJson()), before.tables.map((t) => t.toJson()));
+    expect(after.seats.map((s) => [s.seatId, s.x, s.y]), before.seats.map((s) => [s.seatId, s.x, s.y]));
+    await tester.tap(find.text('Fit to screen')); await tester.pumpAndSettle();
+    expect(services.seatingService.activeLayout('restored-tools')!.toJson(), after.toJson());
+    await tester.tap(find.text('Full-page timer')); await tester.pumpAndSettle();
+    expect(find.text('Classroom timer'), findsOneWidget);
+    await tester.tap(find.text('Start 03:00')); await tester.pump(const Duration(seconds: 2));
+    expect(find.textContaining('Pause'), findsOneWidget);
+    await tester.tap(find.byTooltip('Reset timer')); await tester.pump();
+    expect(find.text('Start 03:00'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close timer')); await tester.pumpAndSettle();
+    expect(find.text('Full-page timer'), findsOneWidget);
+    expect(services.seatingService.activeLayout('restored-tools')!.toJson(), after.toJson());
+  });
+
   testWidgets(
       'tools start closed and slide from the right without resizing room',
       (tester) async {
