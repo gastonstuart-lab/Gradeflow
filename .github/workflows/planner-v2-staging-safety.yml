@@ -1,0 +1,31 @@
+name: Planner V2 staging safety release gate
+on:
+  push:
+    branches:
+      - release/classroom-v2-staging-isolation-20261109
+  pull_request:
+    branches:
+      - release/classroom-v2-integration-review-20261109
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test test/planner_v2_staging_safety_test.dart
+      - run: flutter test
+      - name: Compile main app with V2 off (production-safe default)
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href /
+      - name: Compile staging app with fail-closed guard
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_PLANNER_V2_STAGING=true
+      - name: Compile isolated synthetic preview
+        run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
