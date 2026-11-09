@@ -44,8 +44,14 @@ class LocalRepository implements DataRepository {
   int _outstandingWrites = 0;
 
   Future<void> _enqueueWrite(Future<void> Function() operation) {
+    // An idle queue starts immediately, as the original repository did.
+    // Deferring even the first operation via Future.then can deadlock
+    // Flutter's fake-async widget tests before their first pump.
+    final wasIdle = _outstandingWrites == 0;
     _outstandingWrites++;
-    final write = _writeTail.then((_) => operation());
+    final Future<void> write = wasIdle
+        ? Future<void>.sync(operation)
+        : _writeTail.then((_) => operation());
 
     // Keep the serialization chain alive after a rejected write, while the
     // *individual caller* still receives that write's original exception.
