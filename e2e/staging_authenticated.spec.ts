@@ -129,7 +129,12 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     .toBeVisible({ timeout: 30_000 });
   const quizScore = page.getByRole('row', { name: /Fictional Pupil/ })
     .getByRole('textbox').first();
-  await expect(quizScore).toHaveValue('94', { timeout: 30_000 });
+  // The Flutter semantics input is an editing proxy and can be empty
+  // until focused even while the painted score is 94. The computed Average
+  // cell is user-visible read-back from the loaded gradebook model.
+  await expect(page.getByRole('row', { name: /Fictional Pupil/ })
+    .getByRole('cell', { name: '94', exact: true }))
+    .toBeVisible({ timeout: 30_000 });
   await typeExact(quizScore, '96');
   await quizScore.press('Enter');
   await expect(page.getByText('Saved', { exact: true }).first())
@@ -139,8 +144,11 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Gradebook').first()).toBeVisible();
+  // After a full reload, the computed average must reflect the saved quiz.
+  // This checks durable Firestore data, not the transient DOM editing proxy.
   await expect(page.getByRole('row', { name: /Fictional Pupil/ })
-    .getByRole('textbox').first()).toHaveValue('96', { timeout: 30_000 });
+    .getByRole('cell', { name: '96', exact: true }))
+    .toBeVisible({ timeout: 30_000 });
 
   // Returning from Classroom to Home retains authorization and class
   // context; the browser connects only to localhost demo Firebase emulators.
