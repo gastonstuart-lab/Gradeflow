@@ -320,7 +320,7 @@ class ClassroomTimerState extends State<ClassroomTimer> {
     if (!widget.fullPage) return controls;
     return Scaffold(
       backgroundColor: const Color(0xff102a30),
-      appBar: AppBar(title: const Text('Classroom timer'),
+      appBar: AppBar(backgroundColor: const Color(0xff102a30), foregroundColor: Colors.white, title: const Text('Classroom timer'),
         leading: IconButton(tooltip: 'Close timer', onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close))),
       body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
         Semantics(liveRegion: _remainingSeconds == 0, child: Text('$mm:$ss',
