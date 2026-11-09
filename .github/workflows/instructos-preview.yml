@@ -1,9 +1,15 @@
 name: InstructOS Integration Preview
 
-# This workflow ALREADY EXISTS on the default branch, so GitHub exposes
-# "Run workflow". Select the reviewed V2 integration branch manually.
-# Never publish automatically, and never run on main.
+# GitHub's default branch has no registered manual preview workflow.
+# Invoke this from the draft integration branch using an intentional
+# [preview-deploy] commit to THIS workflow file only.
+# Never run on main or deploy the Hosting live channel.
 on:
+  push:
+    branches:
+      - integration/v2-flutterfire-auth-refresh-20261109
+    paths:
+      - '.github/workflows/instructos-preview.yml'
   workflow_dispatch:
 
 permissions:
@@ -15,7 +21,10 @@ concurrency:
 
 jobs:
   build-and-deploy-classroom-v2-preview:
-    if: github.ref == 'refs/heads/integration/v2-flutterfire-auth-refresh-20261109'
+    if: >-
+      github.ref == 'refs/heads/integration/v2-flutterfire-auth-refresh-20261109' &&
+      (github.event_name == 'workflow_dispatch' ||
+       contains(github.event.head_commit.message, '[preview-deploy]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     steps:
@@ -57,6 +66,9 @@ jobs:
           flutter test test/gradeflow_existing_project_preview_test.dart \
             test/planner_v2_staging_safety_test.dart \
             test/planner_v2_firebase_config_test.dart
+
+      - name: Run all application regression tests before publishing
+        run: flutter test
 
       - name: Build authenticated V2 with production-host fail-closed guard
         run: |
