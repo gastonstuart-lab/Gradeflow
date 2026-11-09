@@ -24,6 +24,19 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Concurrent save ordering and failure propagation
         run: flutter test test/local_repository_write_queue_test.dart --reporter expanded
+  local-storage-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Existing gradebook and seating service regressions
+        run: flutter test test/gradebook_workspace_test.dart test/seating_service_test.dart --reporter expanded
   browser:
     # Playwright 1.57 is not compatible with Ubuntu 26.04 on latest runner.
     runs-on: ubuntu-24.04
