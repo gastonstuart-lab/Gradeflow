@@ -282,7 +282,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     return Container(
       decoration: widget.premiumAppearance
           ? widget.simplifiedArrange
-              ? BoxDecoration(color: widget.plannerV2 ? (isDark ? const Color(0xff071820) : const Color(0xffd0dad6)) : (isDark ? const Color(0xff102a30) : const Color(0xffe7eee9)))
+              ? BoxDecoration(color: isDark ? const Color(0xff102a30) : const Color(0xffe7eee9))
               : ClassroomMaterials.floor(isDark)
           : BoxDecoration(
               color: theme.colorScheme.surface.withValues(
@@ -305,7 +305,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                 constraints.maxWidth > 0 &&
                 constraints.maxHeight > 0) {
               final key =
-                  '${widget.classId}:${active.layoutId}:${active.canvasWidth}:${active.canvasHeight}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}:${widget.simplifiedArrange}';
+                  '${widget.classId}:${active.layoutId}:${widget.plannerV2 ? "workspace" : "${active.canvasWidth}:${active.canvasHeight}"}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}:${widget.simplifiedArrange}';
               if (_framedLayoutAndSize != key) {
                 _framedLayoutAndSize = key;
                 final viewport = Size(constraints.maxWidth, constraints.maxHeight);
@@ -316,20 +316,26 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                 _premiumViewport.value = transform;
               }
             }
+            final scale = _premiumViewport.value.getMaxScaleOnAxis();
+            final workspace = widget.plannerV2
+                ? active.copyWith(
+                    canvasWidth: constraints.maxWidth / scale,
+                    canvasHeight: constraints.maxHeight / scale)
+                : active;
             return Stack(
               fit: StackFit.expand,
               children: [
                 SeatingCanvas(
                   transformationController:
                       widget.premiumAppearance ? _premiumViewport : null,
-                  layout: active,
+                  layout: workspace,
                   premiumAppearance: widget.premiumAppearance,
                   simplifiedArrange: widget.simplifiedArrange,
                   plannerV2: widget.plannerV2,
                   selectedTableId: widget.selectedTableId,
                   onPlannerV2SeatCommit: (proposal) async {
                     try {
-                      await service.commitPlannerV2SeatGeometry(widget.classId, proposal);
+                      await service.commitPlannerV2SeatGeometry(widget.classId, proposal, workspaceWidth: workspace.canvasWidth, workspaceHeight: workspace.canvasHeight);
                     } catch (_) {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -339,7 +345,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                   onPlannerV2Commit: (proposal) async {
                     try {
                       await service.commitPlannerV2TableGeometry(
-                          widget.classId, proposal);
+                          widget.classId, proposal, workspaceWidth: workspace.canvasWidth, workspaceHeight: workspace.canvasHeight);
                     } catch (_) {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(

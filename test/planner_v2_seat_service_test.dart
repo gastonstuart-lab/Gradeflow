@@ -45,6 +45,25 @@ void main() {
     store.writes = 0;
   });
   tearDown(() => service.dispose());
+  test('expanded viewport saves beyond old room and restores through history/reload', () async {
+    final before = service.activeLayout('synthetic')!;
+    final table = before.tables.single;
+    await service.commitPlannerV2TableGeometry('synthetic', table.copyWith(x: 1800),
+      workspaceWidth: 2200, workspaceHeight: 1000);
+    expect(service.activeLayout('synthetic')!.canvasWidth, 2200);
+    expect(service.activeLayout('synthetic')!.tables.single.x, 1800);
+    await service.undoPlannerV2('synthetic');
+    expect(service.activeLayout('synthetic')!.tables.single.x, table.x);
+    await service.redoPlannerV2('synthetic');
+    final seat = service.activeLayout('synthetic')!.seats.first;
+    await service.commitPlannerV2SeatGeometry('synthetic', seat.copyWith(x: 350),
+      workspaceWidth: 2200, workspaceHeight: 1000);
+    final reopened = SeatingService(); await reopened.loadLayouts('synthetic');
+    expect(reopened.activeLayout('synthetic')!.tables.single.x, 1800);
+    expect(reopened.activeLayout('synthetic')!.seats.first.x, 350);
+    expect(reopened.activeLayout('synthetic')!.canvasWidth, 2200);
+    reopened.dispose();
+  });
   test(
       'one save beyond legacy clamp preserves metadata, siblings and table; reload is durable',
       () async {

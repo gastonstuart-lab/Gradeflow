@@ -6,11 +6,14 @@ import 'package:gradeflow/models/seating_layout.dart';
 /// Frames the *saved* furniture rather than a fictional preview layout.
 /// Read-only: never changes table coordinates, seat coordinates or identifiers.
 class ClassroomMapFraming {
-  /// V2 uses the physical room, not the current furniture cluster. Fit the
-  /// entire room from its origin so saved boundaries match the visible floor.
+  /// Frame existing furniture from the canvas origin. The visible workspace
+  /// expands to the viewport's aspect ratio; furniture keeps a uniform scale.
   static Matrix4 plannerRoom(SeatingLayout layout, Size viewport) {
-    final scale = math.min(viewport.width / layout.canvasWidth,
-        viewport.height / layout.canvasHeight);
+    final occupied = roomBounds(layout, compact: true);
+    final width = math.max(400.0, occupied.right);
+    final height = math.max(300.0, occupied.bottom);
+    final scale = math.min(2.6,
+        math.min(viewport.width / width, viewport.height / height));
     return Matrix4.identity()
       ..setEntry(0, 0, scale)
       ..setEntry(1, 1, scale);
