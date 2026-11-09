@@ -41,16 +41,9 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
       }
     }
   });
-  // FlutterFire's web SDK can restore a persisted user before Dart code has
-  // connected the Auth emulator. Preconfigure only this loopback browser
-  // fixture before any Firebase scripts execute. No real API key is used.
-  // The strict network assertion below still rejects every cloud endpoint.
-  await page.addInitScript(() => {
-    if (window.location.hostname !== '127.0.0.1' ||
-        window.location.port !== '7357') return;
-    window.sessionStorage.setItem(
-      'firebaseEmulatorOrigin', 'http://127.0.0.1:9099');
-  });
+  // Let FlutterFire itself store the per-app emulator origin in debug mode.
+  // The previous fixture wrote the wrong sessionStorage key and masked
+  // the fact that the app was compiled in release mode.
   await page.goto('/');
   await ensureFlutterSemantics(page);
 
@@ -88,8 +81,9 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
 
-  console.log('Auth emulator origin after sign-in:', await page.evaluate(
-    () => window.sessionStorage.getItem('firebaseEmulatorOrigin')));
+  const emulatorOrigin = () => page.evaluate(
+    () => window.sessionStorage.getItem('[DEFAULT]-firebaseEmulatorOrigin'));
+  await expect.poll(emulatorOrigin).toBe('http://127.0.0.1:9099');
   browserPhase = 'open-class';
   const directResponse = await page.goto('/os/class/class-science-browser');
   console.log('Class direct-request status and final HTTP URL:',
@@ -165,8 +159,9 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await expect(page).toHaveURL(/\/os\/home$/);
   await expect(page.getByText('Welcome, browser-teacher@example.invalid.').first())
     .toBeVisible({ timeout: 30_000 });
-  console.log('Auth emulator origin after refresh:', await page.evaluate(
-    () => window.sessionStorage.getItem('firebaseEmulatorOrigin')));
+  // Reconnection must be driven by FlutterFire's actual per-app origin key,
+  // rather than a test-injected key ignored by the SDK.
+  await expect.poll(emulatorOrigin).toBe('http://127.0.0.1:9099');
   expect(unexpectedCloudRequests,
     'A local-emulator build contacted live Firebase endpoints').toEqual([]);
 });
