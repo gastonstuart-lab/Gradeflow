@@ -39,8 +39,16 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
 
   await page.goto('/os/class/class-science-browser');
   await ensureFlutterSemantics(page);
-  await expect(page.getByText('Synthetic Science 2B').first())
-    .toBeVisible({ timeout: 45_000 });
+  try {
+    await expect(page.getByText('Synthetic Science 2B').first())
+      .toBeVisible({ timeout: 15_000 });
+  } catch (error) {
+    console.log('Class workspace URL:', page.url());
+    console.log('Class workspace diagnostics:', browserDiagnostics);
+    console.log('Class workspace visible text:',
+      (await page.locator('body').innerText().catch(() => '')).slice(0, 3500));
+    throw error;
+  }
 
   await page.goto('/os/class/class-science-browser/classroom');
   await ensureFlutterSemantics(page);
