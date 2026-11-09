@@ -24,6 +24,25 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Concurrent save ordering and failure propagation
         run: flutter test test/local_repository_write_queue_test.dart --reporter expanded
+  classroom-widget-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Verify approved Classroom initial load and room tools
+        run: |
+          flutter test test/classroom_surface_test.dart \
+            --plain-name 'V2 zoom controls are reversible and fit resets without saving geometry' \
+            --timeout 90s --reporter expanded
+          flutter test test/classroom_surface_test.dart \
+            --plain-name 'tools start closed and slide from the right without resizing room' \
+            --timeout 90s --reporter expanded
   local-storage-integration:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
