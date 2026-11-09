@@ -36,40 +36,33 @@ class LocalRepository implements DataRepository {
   static const String _seatingAssignedRoomPrefix = 'seating_room_setup_';
   static const String _roomSetupsKey = 'room_setups';
 
-  // Write queue to serialize SharedPreferences operations
-  final List<Future<void> Function()> _writeQueue = [];
-  final Set<Future<void>> _pendingWrites = {};
+  // Every write must wait for the preceding write to finish. The previous
+  // queue removed the in-flight operation before awaiting it, so a second
+  // enqueue could start a concurrent processor and even report completion
+  // while the first write was still pending.
+  Future<void> _writeTail = Future<void>.value();
+  int _outstandingWrites = 0;
 
-  Future<void> _enqueueWrite(Future<void> Function() operation) async {
-    _writeQueue.add(operation);
-    if (_writeQueue.length == 1) {
-      await _processQueue();
-    }
-  }
+  Future<void> _enqueueWrite(Future<void> Function() operation) {
+    _outstandingWrites++;
+    final write = _writeTail.then((_) => operation());
 
-  Future<void> _processQueue() async {
-    while (_writeQueue.isNotEmpty) {
-      final operation = _writeQueue.removeAt(0);
-      final future = operation();
-      _pendingWrites.add(future);
-      try {
-        await future;
-      } finally {
-        _pendingWrites.remove(future);
-      }
-    }
-  }
-
-  @override
-  Future<bool> hasPendingWrites() async {
-    return _pendingWrites.isNotEmpty || _writeQueue.isNotEmpty;
+    // Keep the serialization chain alive after a rejected write, while the
+    // *individual caller* still receives that write's original exception.
+    _writeTail = write.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    return write.whenComplete(() {
+      _outstandingWrites--;
+    });
   }
 
   @override
-  Future<void> flushPendingWrites() async {
-    await _processQueue();
-    await Future.wait(_pendingWrites.toList());
-  }
+  Future<bool> hasPendingWrites() async => _outstandingWrites > 0;
+
+  @override
+  Future<void> flushPendingWrites() => _writeTail;
 
   // A failed SharedPreferences write may already have changed its cache.
   // Reload it before exposing failure so a retry cannot mistake cached data
