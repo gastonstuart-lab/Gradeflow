@@ -103,6 +103,8 @@ class _SeatingCanvasState extends State<SeatingCanvas> {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
+              if (widget.plannerV2)
+                const Positioned.fill(child: IgnorePointer(child: ColoredBox(color: Color(0xffe7eee9)))),
               if (widget.premiumAppearance && !widget.simplifiedArrange)
                 Positioned.fromRect(
                     rect: ClassroomMapFraming.roomBounds(widget.layout),

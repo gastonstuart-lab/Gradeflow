@@ -282,7 +282,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     return Container(
       decoration: widget.premiumAppearance
           ? widget.simplifiedArrange
-              ? BoxDecoration(color: isDark ? const Color(0xff102a30) : const Color(0xffe7eee9))
+              ? BoxDecoration(color: widget.plannerV2 ? (isDark ? const Color(0xff071820) : const Color(0xffd0dad6)) : (isDark ? const Color(0xff102a30) : const Color(0xffe7eee9)))
               : ClassroomMaterials.floor(isDark)
           : BoxDecoration(
               color: theme.colorScheme.surface.withValues(
@@ -308,9 +308,11 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                   '${widget.classId}:${active.layoutId}:${active.canvasWidth}:${active.canvasHeight}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}:${widget.simplifiedArrange}';
               if (_framedLayoutAndSize != key) {
                 _framedLayoutAndSize = key;
-                final transform = ClassroomMapFraming.fit(
-                    active, Size(constraints.maxWidth, constraints.maxHeight),
-                    compact: widget.simplifiedArrange);
+                final viewport = Size(constraints.maxWidth, constraints.maxHeight);
+                final transform = widget.plannerV2
+                    ? ClassroomMapFraming.plannerRoom(active, viewport)
+                    : ClassroomMapFraming.fit(active, viewport,
+                        compact: widget.simplifiedArrange);
                 _premiumViewport.value = transform;
               }
             }
