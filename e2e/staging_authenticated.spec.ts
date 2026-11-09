@@ -3,7 +3,7 @@ import { ensureFlutterSemantics } from './helpers';
 
 test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators',
     async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   const browserDiagnostics: string[] = [];
   const unexpectedCloudRequests: string[] = [];
   let browserPhase = 'sign-in';
@@ -113,6 +113,32 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await expect(page.getByText('Fit to screen').first())
     .toBeVisible({ timeout: 45_000 });
   await expect(page.getByText('Present').first()).toBeVisible();
+
+  // The real Flutter gradebook must read canonical fictional Firestore data,
+  // save a changed score, and restore it after a full document reload.
+  // This closes the gap left by navigation-only UI tests and SDK-only writes.
+  browserPhase = 'save-grade';
+  await page.goto('/os/class/class-science-browser/gradebook');
+  await ensureFlutterSemantics(page);
+  await expect(page.getByText('Gradebook').first()).toBeVisible();
+  await expect(page.getByText('Fictional Quiz').first())
+    .toBeVisible({ timeout: 30_000 });
+  const quizScore = page.getByRole('textbox', {
+    name: 'Fictional Pupil Fictional Quiz',
+  }).first();
+  await expect(quizScore).toHaveValue('94', { timeout: 30_000 });
+  await typeExact(quizScore, '96');
+  await quizScore.press('Enter');
+  await expect(page.getByText('Saved', { exact: true }).first())
+    .toBeVisible({ timeout: 30_000 });
+
+  browserPhase = 'reload-grade';
+  await page.reload();
+  await ensureFlutterSemantics(page);
+  await expect(page.getByText('Gradebook').first()).toBeVisible();
+  await expect(page.getByRole('textbox', {
+    name: 'Fictional Pupil Fictional Quiz',
+  }).first()).toHaveValue('96', { timeout: 30_000 });
 
   // Returning from Classroom to Home retains authorization and class
   // context; the browser connects only to localhost demo Firebase emulators.
