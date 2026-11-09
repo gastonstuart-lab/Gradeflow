@@ -14,6 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/components/home/teacher_home_integration_panel.dart';
+import 'package:gradeflow/components/home/home_teaching_class_context.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_app_model.dart';
@@ -336,10 +337,11 @@ class _HomeSurfaceState extends State<HomeSurface> {
     final unread = context.watch<CommunicationService>().totalUnreadCount;
     final now = DateTime.now();
     final controller = context.watch<GradeFlowOSController>();
-    final primaryClass = _selectPrimaryClass(
-      snapshot?.activeClasses,
-      classes,
-      controller.lastSelectedClassId,
+    final primaryClass = resolveHomeTeachingClass(
+      loadedClasses: classes,
+      snapshotClasses: snapshot?.activeClasses,
+      selectedClassId: _selectedHomeClassId,
+      lastRoutedClassId: controller.lastSelectedClassId,
     );
     final primaryReminder = reminders.isNotEmpty ? reminders.first : null;
     final teacherName = _firstName(user?.fullName ?? '');
@@ -473,25 +475,6 @@ class _HomeSurfaceState extends State<HomeSurface> {
         ),
       ),
     );
-  }
-
-  Class? _selectPrimaryClass(
-    List<Class>? snapshotClasses,
-    List<Class> serviceClasses,
-    String? previousClassId,
-  ) {
-    // Never trust a remembered class ID without checking it belongs to the
-    // classes currently loaded for this account. An obsolete selection,
-    // including a prior signed-in teacher's ID, must not be used as a route.
-    final candidates = serviceClasses.isNotEmpty
-        ? serviceClasses
-        : (snapshotClasses ?? const <Class>[]);
-    for (final preferredId in [_selectedHomeClassId, previousClassId]) {
-      for (final classItem in candidates) {
-        if (classItem.classId == preferredId) return classItem;
-      }
-    }
-    return candidates.isNotEmpty ? candidates.first : null;
   }
 
   void _scheduleStudentCountSync(List<Class> classes) {
