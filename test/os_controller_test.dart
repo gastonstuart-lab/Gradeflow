@@ -46,6 +46,41 @@ void main() {
       ]);
     });
 
+    test('returning Home retains last class context but not active route', () {
+      final controller = GradeFlowOSController();
+      controller.setSurface(OSSurface.classWorkspace, classId: 'science-a');
+      expect(controller.lastSelectedClassId, 'science-a');
+      controller.setSurface(OSSurface.home);
+      expect(controller.activeSurface, OSSurface.home);
+      expect(controller.activeClassId, isNull);
+      expect(controller.lastSelectedClassId, 'science-a');
+
+      controller.setSurface(OSSurface.classWorkspace, classId: 'english-b');
+      controller.setSurface(OSSurface.home);
+      expect(controller.lastSelectedClassId, 'english-b');
+    });
+
+    test('Home dropdown changes context without rerouting or saving data', () {
+      final controller = GradeFlowOSController();
+      controller.rememberSelectedClass('class-one');
+      expect(controller.activeSurface, OSSurface.home);
+      expect(controller.activeClassId, isNull);
+      expect(controller.lastSelectedClassId, 'class-one');
+
+      controller.rememberSelectedClass('class-two');
+      expect(controller.lastSelectedClassId, 'class-two');
+      controller.setSurface(OSSurface.planner);
+      controller.setSurface(OSSurface.home);
+      expect(controller.lastSelectedClassId, 'class-two');
+    });
+
+    test('empty route class IDs never replace remembered class', () {
+      final controller = GradeFlowOSController();
+      controller.rememberSelectedClass('class-one');
+      controller.setSurface(OSSurface.classWorkspace, classId: '');
+      expect(controller.lastSelectedClassId, 'class-one');
+    });
+
     test('opening overlays is mutually exclusive', () {
       final controller = GradeFlowOSController();
 
