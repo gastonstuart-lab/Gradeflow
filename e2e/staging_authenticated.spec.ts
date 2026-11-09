@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 import { ensureFlutterSemantics } from './helpers';
 
 test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators',
@@ -50,10 +50,20 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // Flutter text editing can receive fast DOM fill events before the
   // framework's controller has processed the final value. Enter keys as
   // native keyboard events and wait for the next frame before submission.
-  await email.click();
-  await email.pressSequentially('browser-teacher@example.invalid', { delay: 16 });
-  await password.click();
-  await password.pressSequentially('FakePassword-Teacher123!', { delay: 16 });
+  // Flutter may ignore the first native key while bringing an editable
+  // semantics node into focus. Retry the same actual keyboard input only
+  // when the complete, exact value is not present; never bypass this check.
+  async function typeExact(field: Locator, expectedValue: string) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await field.click();
+      await field.press('ControlOrMeta+A');
+      await field.pressSequentially(expectedValue, { delay: 24 });
+      if ((await field.inputValue()) === expectedValue) return;
+    }
+    await expect(field).toHaveValue(expectedValue);
+  }
+  await typeExact(email, 'browser-teacher@example.invalid');
+  await typeExact(password, 'FakePassword-Teacher123!');
   await expect(email).toHaveValue('browser-teacher@example.invalid');
   await expect(password).toHaveValue('FakePassword-Teacher123!');
   await page.waitForTimeout(300);
