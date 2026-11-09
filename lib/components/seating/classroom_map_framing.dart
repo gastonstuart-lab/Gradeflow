@@ -6,17 +6,27 @@ import 'package:gradeflow/models/seating_layout.dart';
 /// Frames the *saved* furniture rather than a fictional preview layout.
 /// Read-only: never changes table coordinates, seat coordinates or identifiers.
 class ClassroomMapFraming {
-  /// Frame existing furniture from the canvas origin. The visible workspace
-  /// expands to the viewport's aspect ratio; furniture keeps a uniform scale.
+  /// Fit the *occupied furniture*, not the entire historical room extent.
+  /// The saved room coordinates are unchanged: this is only a camera matrix.
+  /// A caller in Arrange Mode can constrain positive camera translation so
+  /// every on-screen point is reachable by the 0-based room geometry.
   static Matrix4 plannerRoom(SeatingLayout layout, Size viewport) {
-    final occupied = roomBounds(layout, compact: true);
-    final width = math.max(400.0, occupied.right);
-    final height = math.max(300.0, occupied.bottom);
-    final scale = math.min(2.6,
-        math.min(viewport.width / width, viewport.height / height));
-    return Matrix4.identity()
-      ..setEntry(0, 0, scale)
-      ..setEntry(1, 1, scale);
+    if (!viewport.width.isFinite ||
+        !viewport.height.isFinite ||
+        viewport.width <= 0 ||
+        viewport.height <= 0) {
+      return Matrix4.identity();
+    }
+    if (layout.tables.isEmpty) {
+      final roomWidth = math.max(1.0, layout.canvasWidth);
+      final roomHeight = math.max(1.0, layout.canvasHeight);
+      final scale = math.min(2.6,
+          math.min(viewport.width / roomWidth, viewport.height / roomHeight));
+      return Matrix4.identity()
+        ..setEntry(0, 0, scale)
+        ..setEntry(1, 1, scale);
+    }
+    return fit(layout, viewport, compact: true);
   }
 
   static Matrix4 fit(SeatingLayout layout, Size viewport, {bool compact = false}) {
