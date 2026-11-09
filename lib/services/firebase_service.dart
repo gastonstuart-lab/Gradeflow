@@ -31,8 +31,11 @@ class FirebaseService {
       if (PlannerV2EmulatorSafety.enabled) {
         // Guarded in main.dart before this function can run. Never direct
         // an authenticated production or public web build to local emulators.
-        FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8180);
+        // Connect Auth first: Firestore may request the current identity
+        // when its instance is created. Creating Firestore before the Auth
+        // emulator connection can start token refresh on a live endpoint.
         await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
+        FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8180);
         // Firebase Auth restores web persistence asynchronously. Wait until
         // the first emulator-backed auth state has been resolved before the
         // application's AuthService reads currentUser or GoRouter redirects.
