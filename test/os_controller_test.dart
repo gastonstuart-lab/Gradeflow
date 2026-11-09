@@ -81,6 +81,34 @@ void main() {
       expect(controller.lastSelectedClassId, 'class-one');
     });
 
+    test('changing signed-in teacher clears class navigation history', () {
+      final controller = GradeFlowOSController();
+      controller.bindSelectionToUser('teacher-a');
+      controller.setSurface(
+        OSSurface.classWorkspace, classId: 'teacher-a-class');
+      controller.setSurface(OSSurface.home);
+      expect(controller.lastSelectedClassId, 'teacher-a-class');
+
+      controller.bindSelectionToUser('teacher-b');
+      expect(controller.lastSelectedClassId, isNull);
+      expect(controller.activeClassId, isNull);
+      controller.rememberSelectedClass('teacher-b-class');
+      expect(controller.lastSelectedClassId, 'teacher-b-class');
+
+      controller.bindSelectionToUser(null);
+      expect(controller.lastSelectedClassId, isNull);
+    });
+
+    test('same teacher retains class when route changes', () {
+      final controller = GradeFlowOSController();
+      controller.bindSelectionToUser('teacher-a');
+      controller.setSurface(
+        OSSurface.classWorkspace, classId: 'science');
+      controller.setSurface(OSSurface.home);
+      controller.bindSelectionToUser('teacher-a');
+      expect(controller.lastSelectedClassId, 'science');
+    });
+
     test('opening overlays is mutually exclusive', () {
       final controller = GradeFlowOSController();
 
