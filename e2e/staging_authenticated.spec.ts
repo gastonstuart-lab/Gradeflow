@@ -124,6 +124,11 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Staging safety check')).toHaveCount(0);
+  // A successful refresh must restore this actual teacher workspace, not
+  // merely avoid the safety-blocked screen or show an unauthenticated shell.
+  await expect(page).toHaveURL(/\/os\/home$/);
+  await expect(page.getByText('Welcome, browser-teacher@example.invalid.').first())
+    .toBeVisible({ timeout: 30_000 });
   console.log('Auth emulator origin after refresh:', await page.evaluate(
     () => window.sessionStorage.getItem('firebaseEmulatorOrigin')));
   expect(unexpectedCloudRequests,
