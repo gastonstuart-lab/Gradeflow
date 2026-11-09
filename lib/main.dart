@@ -7,6 +7,7 @@ import 'package:gradeflow/components/gradeflow_launch_experience.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/config/planner_v2_staging_safety.dart';
 import 'package:gradeflow/config/planner_v2_firebase_config.dart';
+import 'package:gradeflow/config/planner_v2_emulator_safety.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/providers/app_providers.dart';
@@ -21,6 +22,21 @@ void main() async {
     // Makes the web app accessible (and allows Playwright to use role/text selectors).
     RendererBinding.instance.ensureSemantics();
     usePathUrlStrategy();
+  }
+
+  // Emulator connections are never allowed on public domains or any
+  // Firebase project other than this fixed, synthetic-only demo project.
+  if (!PlannerV2EmulatorSafety.permitted(
+    enabled: PlannerV2EmulatorSafety.enabled,
+    stagingEnabled: PlannerV2StagingSafety.stagingEnabled,
+    projectId: PlannerV2StagingSafety.requiredStagingProjectId,
+    originHost: Uri.base.host,
+  )) {
+    runApp(const _PlannerV2StagingBlocked(
+      reason: 'Local Firebase emulators are allowed only on localhost '
+          'with the synthetic demo GradeFlow staging project.',
+    ));
+    return;
   }
 
   // Fail closed BEFORE building providers/auth. The normal application
