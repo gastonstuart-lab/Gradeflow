@@ -53,7 +53,7 @@ class AppRouter {
   // reload. Flutter web can expose '/' as its platform default route even
   // when the browser address points to an authenticated class workspace.
   static String get _stagingInitialLocation {
-    if (!kIsWeb || !PlannerV2StagingSafety.stagingEnabled) {
+    if (!kIsWeb || !PlannerV2StagingSafety.protectedTestingMode) {
       return AppRoutes.home;
     }
     final originalPath = browser_entry.capturedBrowserEntryPath();
@@ -68,11 +68,11 @@ class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: _stagingInitialLocation,
     overridePlatformDefaultLocation:
-        kIsWeb && PlannerV2StagingSafety.stagingEnabled,
+        kIsWeb && PlannerV2StagingSafety.protectedTestingMode,
     redirect: (context, state) {
       try {
         final auth = Provider.of<AuthService>(context, listen: false);
-        if (PlannerV2StagingSafety.stagingEnabled) {
+        if (PlannerV2StagingSafety.protectedTestingMode) {
           debugPrint('GRADEFLOW_STAGING_REDIRECT uri=${state.uri} '
               'authenticated=${auth.isAuthenticated} '
               'initialized=${auth.isInitialized}');
@@ -238,17 +238,12 @@ class AppRouter {
             child: ClassroomSurface(
               classId: classId,
               startInSetup: state.uri.queryParameters['setup'] == '1',
-              // The approved V2 Classroom is enabled only in a separately
-              // configured authenticated staging build. Default builds
-              // retain their existing production route behaviour.
-              cleanCanvas: const bool.fromEnvironment(
-                'GRADEFLOW_PLANNER_V2_STAGING',
-                defaultValue: false,
-              ),
-              plannerV2: const bool.fromEnvironment(
-                'GRADEFLOW_PLANNER_V2_STAGING',
-                defaultValue: false,
-              ),
+              // The approved V2 Classroom is available only in guarded,
+              // authenticated review modes (dedicated staging or the
+              // existing project's Hosting preview channel). Normal live
+              // builds retain their previous Classroom behaviour.
+              cleanCanvas: PlannerV2StagingSafety.protectedTestingMode,
+              plannerV2: PlannerV2StagingSafety.protectedTestingMode,
             ),
           );
         },
