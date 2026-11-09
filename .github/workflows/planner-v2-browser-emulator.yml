@@ -123,6 +123,48 @@ jobs:
             playwright-report/
           if-no-files-found: ignore
   
+  # Compile the owner-approved V2 for a Hosting *preview channel* of
+  # the existing Firebase project. Do not publish to live Hosting or alter
+  # Firestore rules, users, records or Functions. Firebase Auth/Firestore
+  # continue to require actual sign-in, and local data migration is disabled.
+  existing-project-preview-build:
+    needs: [candidate-regression]
+    if: github.ref == 'refs/heads/integration/v2-flutterfire-auth-refresh-20261109' || github.head_ref == 'integration/v2-flutterfire-auth-refresh-20261109'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Hosting manifest cannot deploy backend configuration
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(fs.readFileSync('firebase.preview.json', 'utf8'));
+          if (!config.hosting || config.firestore || config.functions || config.storage || config.database) process.exit(1);
+          if (config.hosting.public !== 'build/web' || !config.hosting.rewrites?.some(r => r.source === '**' && r.destination === '/index.html')) process.exit(1);
+          NODE
+      - run: flutter pub get --enforce-lockfile
+      - name: Confirm preview host restrictions in Flutter
+        run: flutter test test/gradeflow_existing_project_preview_test.dart --reporter expanded
+      - name: Compile approved authenticated Classroom V2 for the existing project's preview channel
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+            --base-href / \
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
+      - name: Save preview-only web build for review (no deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-classroom-v2-existing-project-preview
+          path: build/web/
+          retention-days: 7
+
   # This runs independently of the authenticated browser emulator gate so
   # routing/auth failures cannot conceal regressions in the approved app.
   candidate-regression:
