@@ -21,18 +21,35 @@ try {
   const anonymous = env.unauthenticatedContext().firestore();
   const aClass = 'users/teacher-a/classes/science';
   const aSeats = 'users/teacher-a/classes/science/seatingLayouts/main';
+  const aStudent = 'users/teacher-a/classes/science/students/student-one';
+  const aGrade = 'users/teacher-a/classes/science/gradeItems/quiz-one';
+  const aScore = 'users/teacher-a/classes/science/gradeItems/quiz-one/scores/student-one';
   const bClass = 'users/teacher-b/classes/math';
   const shared = 'schools/school-one/communicationChannels/class-news';
 
   // Own school-data namespace works, including nested seating plans.
   await assertSucceeds(teacherA.doc(aClass).set({ name: 'Synthetic Science' }));
   await assertSucceeds(teacherA.doc(aSeats).set({ tables: [], seats: [] }));
+  await assertSucceeds(teacherA.doc(aStudent).set({ name: 'Fictional student' }));
+  await assertSucceeds(teacherA.doc(aGrade).set({ title: 'Synthetic quiz' }));
+  await assertSucceeds(teacherA.doc(aScore).set({ score: 92 }));
   await assertSucceeds(teacherA.doc(aClass).get());
   await assertSucceeds(teacherA.doc(aSeats).get());
+  await assertSucceeds(teacherA.doc(aScore).get());
+  await assertSucceeds(
+    teacherA.collection('users/teacher-a/classes/science/students').get(),
+  );
 
   // Changing the class ID must not cross the authenticated teacher boundary.
   await assertFails(teacherB.doc(aClass).get());
   await assertFails(teacherB.doc(aSeats).get());
+  await assertFails(teacherB.doc(aStudent).get());
+  await assertFails(teacherB.doc(aGrade).get());
+  await assertFails(teacherB.doc(aScore).get());
+  await assertFails(teacherB.doc(aScore).set({ score: 0 }));
+  await assertFails(
+    teacherB.collection('users/teacher-a/classes/science/students').get(),
+  );
   await assertFails(teacherB.doc(aClass).set({ name: 'Tampered' }));
   await assertFails(teacherA.doc(bClass).set({ name: 'Tampered' }));
 
