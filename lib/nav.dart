@@ -53,7 +53,7 @@ class AppRouter {
   // reload. Flutter web can expose '/' as its platform default route even
   // when the browser address points to an authenticated class workspace.
   static String get _stagingInitialLocation {
-    if (!kIsWeb || !PlannerV2StagingSafety.protectedTestingMode) {
+    if (!kIsWeb || !PlannerV2StagingSafety.authenticatedV2Mode) {
       return AppRoutes.home;
     }
     final originalPath = browser_entry.capturedBrowserEntryPath();
@@ -68,11 +68,11 @@ class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: _stagingInitialLocation,
     overridePlatformDefaultLocation:
-        kIsWeb && PlannerV2StagingSafety.protectedTestingMode,
+        kIsWeb && PlannerV2StagingSafety.authenticatedV2Mode,
     redirect: (context, state) {
       try {
         final auth = Provider.of<AuthService>(context, listen: false);
-        if (PlannerV2StagingSafety.protectedTestingMode) {
+        if (PlannerV2StagingSafety.authenticatedV2Mode) {
           debugPrint('GRADEFLOW_STAGING_REDIRECT uri=${state.uri} '
               'authenticated=${auth.isAuthenticated} '
               'initialized=${auth.isInitialized}');
@@ -242,8 +242,8 @@ class AppRouter {
               // authenticated review modes (dedicated staging or the
               // existing project's Hosting preview channel). Normal live
               // builds retain their previous Classroom behaviour.
-              cleanCanvas: PlannerV2StagingSafety.protectedTestingMode,
-              plannerV2: PlannerV2StagingSafety.protectedTestingMode,
+              cleanCanvas: PlannerV2StagingSafety.authenticatedV2Mode,
+              plannerV2: PlannerV2StagingSafety.authenticatedV2Mode,
             ),
           );
         },
