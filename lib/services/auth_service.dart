@@ -8,6 +8,7 @@ import 'package:gradeflow/services/firebase_service.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/migration_service.dart';
+import 'package:gradeflow/config/planner_v2_staging_safety.dart';
 
 class AuthService extends ChangeNotifier {
   static const String _currentUserKey = 'current_user';
@@ -41,10 +42,16 @@ class AuthService extends ChangeNotifier {
         if (u != null) {
           _currentUser = _userFromFirebase(u);
           await RepositoryFactory.initialize(userId: u.uid);
-          await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+          if (!PlannerV2StagingSafety.stagingEnabled) {
+            await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+          }
           return;
         }
       }
+
+      // Staging must not treat remembered production/local browser users as
+      // authenticated, or migrate their local data into the test project.
+      if (PlannerV2StagingSafety.stagingEnabled) return;
 
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString(_currentUserKey);
@@ -116,7 +123,9 @@ class AuthService extends ChangeNotifier {
 
         _currentUser = _userFromFirebase(u);
         await RepositoryFactory.initialize(userId: u.uid);
-        await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+        if (!PlannerV2StagingSafety.stagingEnabled) {
+          await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+        }
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
@@ -159,7 +168,9 @@ class AuthService extends ChangeNotifier {
 
       _currentUser = _userFromFirebase(u);
       await RepositoryFactory.initialize(userId: u.uid);
-      await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+      if (!PlannerV2StagingSafety.stagingEnabled) {
+        await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+      }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
@@ -191,7 +202,9 @@ class AuthService extends ChangeNotifier {
           if (u != null) {
             _currentUser = _userFromFirebase(u);
             await RepositoryFactory.initialize(userId: u.uid);
-            await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+            if (!PlannerV2StagingSafety.stagingEnabled) {
+              await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
+            }
 
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString(
@@ -205,6 +218,14 @@ class AuthService extends ChangeNotifier {
           // Fall back to local login (demo/offline) if Firebase login fails.
           debugPrint('Firebase email/password login failed (falling back): $e');
         }
+      }
+
+      // Staging requires a genuine Firebase authenticated user. Never
+      // silently sign into a local account when Firebase login fails.
+      if (PlannerV2StagingSafety.stagingEnabled) {
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
 
       // Local-only account login (demo/offline mode).
@@ -243,6 +264,9 @@ class AuthService extends ChangeNotifier {
 
   Future<bool> register(
       String email, String fullName, String? schoolName) async {
+    // The local-only registration screen is not allowed to create demo users
+    // in the authenticated staging deployment.
+    if (PlannerV2StagingSafety.stagingEnabled) return false;
     _isLoading = true;
     notifyListeners();
 
