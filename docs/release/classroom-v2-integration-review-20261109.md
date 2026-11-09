@@ -23,7 +23,7 @@
 
 ### A. Integrated authenticated Classroom (not the synthetic entrypoint)
 
-- Integrate latest V2 behind a controlled flag into real `ClassroomSurface` route and main app providers. Keep the existing class-specific seating repository and access rules. Do not touch production until separately approved.
+- **Implemented in release review branch, not deployed:** the real authenticated `osClassroom` route now passes V2 and clean-canvas options when built with `--dart-define=GRADEFLOW_PLANNER_V2_STAGING=true`. Default builds keep the legacy Classroom because this flag is false. This wiring still requires staging auth/browser tests before it is release-ready.
 - Confirm teacher account can navigate premium Teacher Home → class → Classroom → gradebook → student records → Home with a real class ID, rather than fixed `_classId` or temporary redirects.
 - Confirm selected teacher/class and gradebook return path; verify no old routes or dead toolbar controls.
 - Verify role enforcement, class isolation, Firebase security rules, and persistence with permitted test accounts, before using any real student data.
@@ -45,7 +45,7 @@
 
 ### C. Reliability, security, migration and approval
 
-- Build the **actual integrated app** (not only `lib/main_classroom_preview.dart`) and run full test suites.
+- Build the **actual integrated app** in both modes (production-default flag off, staging flag on), plus the synthetic review target, and run full test suites. The release-review CI now includes all three web builds; only treat this gate as passed once the GitHub run succeeds.
 - Explicitly test load/save failures and recovery, same-class reload, switching between classes, and legacy room layouts migrated into V2 geometry without data loss.
 - Validate undo/redo scope for non-geometry actions; existing V2 history is only promised for geometry.
 - Capture desktop and Surface screenshots and browser interaction traces, not just successful builds.
