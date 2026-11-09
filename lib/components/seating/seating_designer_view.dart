@@ -337,34 +337,27 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
               final currentScale = current.getMaxScaleOnAxis();
               if ((currentScale - nextScale).abs() > .000001 &&
                   currentScale > 0) {
-                // Zoom towards the viewport centre, retaining camera pan.
-                final centreX = constraints.maxWidth / 2;
-                final centreY = constraints.maxHeight / 2;
-                final worldX = (centreX - current.entry(0, 3)) / currentScale;
-                final worldY = (centreY - current.entry(1, 3)) / currentScale;
-                var tx = centreX - worldX * nextScale;
-                var ty = centreY - worldY * nextScale;
-                if (widget.editRoomMode) {
-                  tx = math.min(0, tx);
-                  ty = math.min(0, ty);
-                }
-                _premiumViewport.value = Matrix4.identity()
-                  ..setEntry(0, 0, nextScale)
-                  ..setEntry(1, 1, nextScale)
-                  ..setEntry(0, 3, tx)
-                  ..setEntry(1, 3, ty);
+                _premiumViewport.value =
+                    ClassroomMapFraming.zoomKeepingCentre(
+                  current,
+                  Size(constraints.maxWidth, constraints.maxHeight),
+                  nextScale,
+                  zeroBasedFloor: widget.editRoomMode,
+                );
               }
             }
-            final view = _premiumViewport.value;
-            final scale = view.getMaxScaleOnAxis();
-            // Include the logical space to the visible right/bottom edges
-            // after camera pan; otherwise an invisible drag wall appears.
             final workspace = widget.plannerV2
-                ? active.copyWith(
-                    canvasWidth: math.max(active.canvasWidth,
-                        (constraints.maxWidth - view.entry(0, 3)) / scale),
-                    canvasHeight: math.max(active.canvasHeight,
-                        (constraints.maxHeight - view.entry(1, 3)) / scale))
+                ? (() {
+                    final visible = ClassroomMapFraming.visibleWorkspace(
+                      active,
+                      Size(constraints.maxWidth, constraints.maxHeight),
+                      _premiumViewport.value,
+                    );
+                    return active.copyWith(
+                      canvasWidth: visible.width,
+                      canvasHeight: visible.height,
+                    );
+                  })()
                 : active;
             return Stack(
               fit: StackFit.expand,
