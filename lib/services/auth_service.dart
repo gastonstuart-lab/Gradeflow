@@ -42,7 +42,7 @@ class AuthService extends ChangeNotifier {
         if (u != null) {
           _currentUser = _userFromFirebase(u);
           await RepositoryFactory.initialize(userId: u.uid);
-          if (!PlannerV2StagingSafety.protectedTestingMode) {
+          if (!PlannerV2StagingSafety.authenticatedV2Mode) {
             await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
           }
           return;
@@ -51,7 +51,7 @@ class AuthService extends ChangeNotifier {
 
       // Non-live reviews must not treat remembered production/local browser users as
       // authenticated, or migrate their local data into the test project.
-      if (PlannerV2StagingSafety.protectedTestingMode) return;
+      if (PlannerV2StagingSafety.authenticatedV2Mode) return;
 
       final prefs = await SharedPreferences.getInstance();
       final userJson = prefs.getString(_currentUserKey);
@@ -123,7 +123,7 @@ class AuthService extends ChangeNotifier {
 
         _currentUser = _userFromFirebase(u);
         await RepositoryFactory.initialize(userId: u.uid);
-        if (!PlannerV2StagingSafety.protectedTestingMode) {
+        if (!PlannerV2StagingSafety.authenticatedV2Mode) {
           await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
         }
 
@@ -168,7 +168,7 @@ class AuthService extends ChangeNotifier {
 
       _currentUser = _userFromFirebase(u);
       await RepositoryFactory.initialize(userId: u.uid);
-      if (!PlannerV2StagingSafety.protectedTestingMode) {
+      if (!PlannerV2StagingSafety.authenticatedV2Mode) {
         await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
       }
 
@@ -202,7 +202,7 @@ class AuthService extends ChangeNotifier {
           if (u != null) {
             _currentUser = _userFromFirebase(u);
             await RepositoryFactory.initialize(userId: u.uid);
-            if (!PlannerV2StagingSafety.protectedTestingMode) {
+            if (!PlannerV2StagingSafety.authenticatedV2Mode) {
               await MigrationService.maybeMigrateLocalToFirestore(userId: u.uid);
             }
 
@@ -222,7 +222,7 @@ class AuthService extends ChangeNotifier {
 
       // Non-live previews require a genuine Firebase authenticated user. Never
       // silently sign into a local account when Firebase login fails.
-      if (PlannerV2StagingSafety.protectedTestingMode) {
+      if (PlannerV2StagingSafety.authenticatedV2Mode) {
         _isLoading = false;
         notifyListeners();
         return false;
@@ -266,7 +266,7 @@ class AuthService extends ChangeNotifier {
       String email, String fullName, String? schoolName) async {
     // The local-only registration screen is not allowed to create demo users
     // in the authenticated staging deployment.
-    if (PlannerV2StagingSafety.protectedTestingMode) return false;
+    if (PlannerV2StagingSafety.authenticatedV2Mode) return false;
     _isLoading = true;
     notifyListeners();
 
