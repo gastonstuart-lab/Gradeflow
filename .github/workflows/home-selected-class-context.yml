@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - integration/home-selected-class-context-20261109
+  pull_request:
+    branches:
+      - golden/classroom-v2-approved-513bb31-20261109
 permissions:
   contents: read
 jobs:
