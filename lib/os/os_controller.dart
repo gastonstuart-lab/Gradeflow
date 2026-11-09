@@ -49,6 +49,18 @@ class GradeFlowOSController extends ChangeNotifier {
   // class on the Home route. It is held only in this signed-in app session;
   // Home must still validate it against the current teacher's class list.
   String? _lastSelectedClassId;
+  String? _selectionUserId;
+
+  /// Selection history must never survive a change of authenticated account.
+  /// The first binding establishes the current owner; subsequent account
+  /// changes and sign-out invalidate any class navigation context.
+  void bindSelectionToUser(String? userId) {
+    if (_selectionUserId == userId) return;
+    _selectionUserId = userId;
+    _lastSelectedClassId = null;
+    _activeClassId = null;
+    notifyListeners();
+  }
 
   OSSurface get activeSurface => _activeSurface;
   String? get activeClassId => _activeClassId;
