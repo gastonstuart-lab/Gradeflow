@@ -16,12 +16,17 @@ import 'package:gradeflow/services/firebase_service.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 
 void main() async {
+  // Configure path routing before Flutter initializes the browser binding.
+  // Otherwise the initial platform route can be captured as '/' and a class
+  // deep link is lost before GoRouter is created.
+  if (kIsWeb) {
+    usePathUrlStrategy();
+  }
   WidgetsFlutterBinding.ensureInitialized();
 
   if (kIsWeb) {
     // Makes the web app accessible (and allows Playwright to use role/text selectors).
     RendererBinding.instance.ensureSemantics();
-    usePathUrlStrategy();
   }
 
   // Emulator connections are never allowed on public domains or any
