@@ -94,7 +94,12 @@ class _SeatingCanvasState extends State<SeatingCanvas> {
         minScale: widget.premiumAppearance ? 0.001 : 0.6,
         boundaryMargin:
             EdgeInsets.all(widget.premiumAppearance ? double.infinity : 200),
-        panEnabled: !widget.premiumAppearance && !widget.plannerV2,
+        // In Teach/Present, dragging empty floor pans the camera without
+        // altering any furniture. In Arrange Mode the same gesture remains
+        // exclusively assigned to seats and tables.
+        panEnabled: widget.plannerV2
+            ? !widget.designMode
+            : !widget.premiumAppearance,
         scaleEnabled: !widget.premiumAppearance && !widget.plannerV2,
         constrained: false,
         child: SizedBox(
