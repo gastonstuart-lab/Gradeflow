@@ -54,6 +54,8 @@ class AppRouter {
       return AppRoutes.home;
     }
     final uri = Uri.base;
+    debugPrint('GRADEFLOW_STAGING_INIT uri=$uri platformRoute='
+        '${WidgetsBinding.instance.platformDispatcher.defaultRouteName}');
     return uri.path == '/' ? AppRoutes.home
         : uri.path + (uri.hasQuery ? '?${uri.query}' : '');
   }
@@ -65,6 +67,11 @@ class AppRouter {
     redirect: (context, state) {
       try {
         final auth = Provider.of<AuthService>(context, listen: false);
+        if (PlannerV2StagingSafety.stagingEnabled) {
+          debugPrint('GRADEFLOW_STAGING_REDIRECT uri=${state.uri} '
+              'authenticated=${auth.isAuthenticated} '
+              'initialized=${auth.isInitialized}');
+        }
         final loggingIn = state.matchedLocation == AppRoutes.home;
         final previewing =
             kDebugMode && state.matchedLocation == AppRoutes.previewDashboard;
