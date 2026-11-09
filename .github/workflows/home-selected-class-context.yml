@@ -1,0 +1,27 @@
+name: Home class context integration
+on:
+  push:
+    branches:
+      - integration/home-selected-class-context-20261109
+  pull_request:
+    branches:
+      - golden/classroom-v2-approved-513bb31-20261109
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test test/home_teaching_class_context_test.dart test/os_controller_test.dart test/approved_teacher_home_bindings_test.dart test/classroom_surface_test.dart
+      - run: flutter test
+      - run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
+      - run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href /

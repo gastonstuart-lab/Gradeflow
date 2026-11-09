@@ -14,6 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/components/home/teacher_home_integration_panel.dart';
+import 'package:gradeflow/components/home/home_teaching_class_context.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_app_model.dart';
@@ -314,9 +315,16 @@ class _HomeSurfaceState extends State<HomeSurface> {
   @override
   Widget build(BuildContext context) {
     final shell = context.watch<GlobalSystemShellController>();
-    final snapshot = shell.workspaceSnapshot;
     final auth = context.watch<AuthService>();
-    final user = auth.currentUser ?? snapshot?.user;
+    final signedInTeacherId = auth.currentUser?.userId;
+    final rawSnapshot = shell.workspaceSnapshot;
+    // The OS controller may still hold a previous user's snapshot during
+    // account transitions. Never show that user's classes or reminders.
+    final snapshot = signedInTeacherId != null &&
+            rawSnapshot?.user.userId == signedInTeacherId
+        ? rawSnapshot
+        : null;
+    final user = auth.currentUser;
     final wallpaperUserId = _homeStorageUserId(auth);
     if (wallpaperUserId != null &&
         _loadedUserId != wallpaperUserId &&
@@ -326,7 +334,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
       });
     }
     final classService = context.watch<ClassService>();
-    final serviceClasses = classService.activeClasses;
+    final serviceClasses = signedInTeacherId == null
+        ? <Class>[]
+        : classService.activeClasses
+            .where((c) => c.teacherId == signedInTeacherId).toList();
     final classes = serviceClasses.isNotEmpty
         ? serviceClasses
         : (snapshot?.activeClasses ?? const <Class>[]);
@@ -335,11 +346,17 @@ class _HomeSurfaceState extends State<HomeSurface> {
     final totalStudents = snapshot?.totalStudents ?? 0;
     final unread = context.watch<CommunicationService>().totalUnreadCount;
     final now = DateTime.now();
-    final primaryClass = _selectPrimaryClass(snapshot?.activeClasses, classes);
+    final controller = context.watch<GradeFlowOSController>();
+    final primaryClass = resolveHomeTeachingClass(
+      loadedClasses: classes,
+      snapshotClasses: snapshot?.activeClasses,
+      signedInTeacherId: signedInTeacherId,
+      selectedClassId: _selectedHomeClassId,
+      lastRoutedClassId: controller.lastSelectedClassId,
+    );
     final primaryReminder = reminders.isNotEmpty ? reminders.first : null;
     final teacherName = _firstName(user?.fullName ?? '');
     final schoolName = _schoolName(user?.schoolName);
-    final controller = context.read<GradeFlowOSController>();
     final themeMode = context.watch<ThemeModeNotifier>().themeMode;
     final toggleTheme = context.read<ThemeModeNotifier>().toggleTheme;
     _scheduleStudentCountSync(classes);
@@ -363,7 +380,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
                 auth.isLoading ||
                 shell.isWorkspaceLoading ||
                 classService.isLoading,
-            onSelectClass: (id) => setState(() => _selectedHomeClassId = id),
+            onSelectClass: (id) {
+              controller.rememberSelectedClass(id);
+              setState(() => _selectedHomeClassId = id);
+            },
             onMoreHomeTools: () =>
                 setState(() => _showExistingHomeTools = true),
             onToggleTheme: toggleTheme,
@@ -466,19 +486,6 @@ class _HomeSurfaceState extends State<HomeSurface> {
         ),
       ),
     );
-  }
-
-  Class? _selectPrimaryClass(
-    List<Class>? snapshotClasses,
-    List<Class> serviceClasses,
-  ) {
-    for (final classItem in serviceClasses) {
-      if (classItem.classId == _selectedHomeClassId) return classItem;
-    }
-    final candidates = snapshotClasses != null && snapshotClasses.isNotEmpty
-        ? snapshotClasses
-        : serviceClasses;
-    return candidates.isNotEmpty ? candidates.first : null;
   }
 
   void _scheduleStudentCountSync(List<Class> classes) {

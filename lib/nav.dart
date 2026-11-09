@@ -596,10 +596,15 @@ class _OSRouteFrameState extends State<_OSRouteFrame> {
       context
           .read<GlobalSystemShellController>()
           .updateLocation(widget.location);
-      context.read<GradeFlowOSController>().setSurface(
-            widget.surface,
-            classId: widget.classId,
-          );
+      final auth = context.read<AuthService>();
+      final controller = context.read<GradeFlowOSController>();
+      if (auth.isInitialized) {
+        controller.bindSelectionToUser(auth.currentUser?.userId);
+      }
+      controller.setSurface(
+        widget.surface,
+        classId: widget.classId,
+      );
     });
   }
 
