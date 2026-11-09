@@ -80,8 +80,7 @@ class PlannerV2Gesture {
   final double minHeight;
 
   SeatingTable update(Offset viewportPointer) {
-    final current =
-        PlannerV2Geometry.roomPoint(viewTransform, viewportPointer);
+    final current = PlannerV2Geometry.roomPoint(viewTransform, viewportPointer);
     final delta = current - startRoomPointer;
     if (action == PlannerV2Action.move) {
       return table.copyWith(
@@ -99,7 +98,8 @@ class PlannerV2Gesture {
         .clamp(math.min(minWidth, roomSize.width - left), roomSize.width - left)
         .toDouble();
     final height = (table.height + delta.dy)
-        .clamp(math.min(minHeight, roomSize.height - top), roomSize.height - top)
+        .clamp(
+            math.min(minHeight, roomSize.height - top), roomSize.height - top)
         .toDouble();
     return table.copyWith(
       x: left + width / 2,
@@ -112,5 +112,37 @@ class PlannerV2Gesture {
   static double _clampCentre(double position, double span, double roomSpan) {
     if (span >= roomSpan) return roomSpan / 2;
     return position.clamp(span / 2, roomSpan - span / 2).toDouble();
+  }
+}
+
+/// Seat positions are stored relative to their table, but bounded in room space.
+/// The table and transform are snapshots: neither changes during a seat drag.
+class PlannerV2SeatGesture {
+  PlannerV2SeatGesture(
+      {required this.seat,
+      required this.table,
+      required Offset pointer,
+      required Matrix4 viewTransform,
+      required this.roomSize,
+      this.seatSize = 56})
+      : transform = Matrix4.copy(viewTransform),
+        start = PlannerV2Geometry.roomPoint(viewTransform, pointer);
+
+  final SeatingSeat seat;
+  final SeatingTable table;
+  final Matrix4 transform;
+  final Offset start;
+  final Size roomSize;
+  final double seatSize;
+
+  SeatingSeat update(Offset pointer) {
+    final delta = PlannerV2Geometry.roomPoint(transform, pointer) - start;
+    final radius = seatSize / 2;
+    return seat.copyWith(
+      x: (table.x + seat.x + delta.dx).clamp(radius, roomSize.width - radius) -
+          table.x,
+      y: (table.y + seat.y + delta.dy).clamp(radius, roomSize.height - radius) -
+          table.y,
+    );
   }
 }

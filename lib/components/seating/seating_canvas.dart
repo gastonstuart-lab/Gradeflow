@@ -12,7 +12,7 @@ const double _presentationSeatAreaPadding = 120;
 const double _editorSeatSize = 56;
 const double _presentationSeatSize = 70;
 
-class SeatingCanvas extends StatelessWidget {
+class SeatingCanvas extends StatefulWidget {
   final SeatingLayout layout;
   final Map<String, Student> studentsById;
   final bool designMode;
@@ -23,6 +23,7 @@ class SeatingCanvas extends StatelessWidget {
   final bool plannerV2;
   final String? selectedTableId;
   final ValueChanged<SeatingTable>? onPlannerV2Commit;
+  final ValueChanged<SeatingSeat>? onPlannerV2SeatCommit;
   final ValueChanged<String>? onTableSelected;
   final TransformationController? transformationController;
 
@@ -56,6 +57,7 @@ class SeatingCanvas extends StatelessWidget {
     this.plannerV2 = false,
     this.selectedTableId,
     this.onPlannerV2Commit,
+    this.onPlannerV2SeatCommit,
     this.onTableSelected,
     this.transformationController,
     this.allowSeatReassignment = true,
@@ -76,17 +78,24 @@ class SeatingCanvas extends StatelessWidget {
   });
 
   @override
+  State<SeatingCanvas> createState() => _SeatingCanvasState();
+}
+
+class _SeatingCanvasState extends State<SeatingCanvas> {
+  final Map<String, SeatingTable> _tablePreviews = {};
+  @override
   Widget build(BuildContext context) {
-    final boundary = Size(layout.canvasWidth, layout.canvasHeight);
+    final boundary =
+        Size(widget.layout.canvasWidth, widget.layout.canvasHeight);
     return RepaintBoundary(
       child: InteractiveViewer(
-        transformationController: transformationController,
-        maxScale: 2.6,
-        minScale: premiumAppearance ? 0.001 : 0.6,
+        transformationController: widget.transformationController,
+        maxScale: widget.plannerV2 ? 10 : 2.6,
+        minScale: widget.premiumAppearance ? 0.001 : 0.6,
         boundaryMargin:
-            EdgeInsets.all(premiumAppearance ? double.infinity : 200),
-        panEnabled: !premiumAppearance,
-        scaleEnabled: !premiumAppearance,
+            EdgeInsets.all(widget.premiumAppearance ? double.infinity : 200),
+        panEnabled: !widget.premiumAppearance && !widget.plannerV2,
+        scaleEnabled: !widget.premiumAppearance && !widget.plannerV2,
         constrained: false,
         child: SizedBox(
           width: boundary.width,
@@ -94,9 +103,11 @@ class SeatingCanvas extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              if (premiumAppearance && !simplifiedArrange)
+              if (widget.plannerV2)
+                const Positioned.fill(child: IgnorePointer(child: ColoredBox(color: Color(0xffe7eee9)))),
+              if (widget.premiumAppearance && !widget.simplifiedArrange)
                 Positioned.fromRect(
-                    rect: ClassroomMapFraming.roomBounds(layout),
+                    rect: ClassroomMapFraming.roomBounds(widget.layout),
                     child: IgnorePointer(
                         child: DecoratedBox(
                             decoration: ClassroomMaterials.floor(
@@ -106,12 +117,17 @@ class SeatingCanvas extends StatelessWidget {
                                 painter: ClassroomFloorPainter(
                                     Theme.of(context).brightness ==
                                         Brightness.dark))))),
-              if (showFrontMarker && !premiumAppearance)
+              if (widget.showFrontMarker && !widget.premiumAppearance)
                 _FrontMarker(width: boundary.width),
-              if (showFrontMarker && premiumAppearance)
+              if (widget.showFrontMarker && widget.premiumAppearance)
                 Positioned(
-                    left: ClassroomMapFraming.roomBounds(layout, compact: simplifiedArrange).center.dx - 90,
-                    top: ClassroomMapFraming.roomBounds(layout, compact: simplifiedArrange).top + 20,
+                    left:
+                        ClassroomMapFraming.roomBounds(widget.layout, compact: widget.simplifiedArrange)
+                                .center
+                                .dx -
+                            90,
+                    top: ClassroomMapFraming.roomBounds(widget.layout, compact: widget.simplifiedArrange).top +
+                        20,
                     width: 180,
                     height: 32,
                     child: IgnorePointer(
@@ -128,73 +144,142 @@ class SeatingCanvas extends StatelessWidget {
                                     fontSize: 11,
                                     letterSpacing: 1.4,
                                     fontWeight: FontWeight.w700))))),
-              if (layout.tables.isEmpty) const _BlankCanvasHint(),
-              for (final table in layout.tables)
+              if (widget.layout.tables.isEmpty) const _BlankCanvasHint(),
+              for (final table in widget.layout.tables)
                 _SeatingTableDraggable(
                   table: table,
-                  onMove: (delta) => onMoveTable?.call(table.tableId, delta),
+                  onMove: (delta) =>
+                      widget.onMoveTable?.call(table.tableId, delta),
                   onResize: (delta) =>
-                      onResizeTable?.call(table.tableId, delta),
-                  padding: _seatAreaPadding(presentationMode),
-                  enabled: designMode,
-                  directDrag: simplifiedArrange && !plannerV2,
-                  plannerV2: plannerV2 && designMode && interactive,
-                  selected: selectedTableId == table.tableId,
-                  viewTransform: transformationController,
+                      widget.onResizeTable?.call(table.tableId, delta),
+                  padding: _seatAreaPadding(widget.presentationMode),
+                  enabled: widget.designMode,
+                  directDrag: widget.simplifiedArrange && !widget.plannerV2,
+                  plannerV2: widget.plannerV2 &&
+                      widget.designMode &&
+                      widget.interactive,
+                  selected: widget.selectedTableId == table.tableId,
+                  viewTransform: widget.transformationController,
                   roomSize: boundary,
-                  toViewport: (global) => (context.findRenderObject()! as RenderBox).globalToLocal(global),
-                  onProposalCommitted: onPlannerV2Commit,
-                  previewBuilder: plannerV2
+                  toViewport: (global) =>
+                      (context.findRenderObject()! as RenderBox)
+                          .globalToLocal(global),
+                  onProposalCommitted: widget.onPlannerV2Commit,
+                  onPreview: (proposal) => setState(() {
+                    if (proposal == null) {
+                      _tablePreviews.remove(table.tableId);
+                    } else {
+                      _tablePreviews[table.tableId] = proposal;
+                    }
+                  }),
+                  previewBuilder: widget.plannerV2
                       ? (candidate) => TableWidget(
-                          table: candidate,
-                          seats: layout.seats.where((seat) =>
-                              seat.tableId == table.tableId).toList(),
-                          studentsById: studentsById,
-                          designMode: designMode,
-                          interactive: interactive,
-                          presentationMode: presentationMode,
-                          premiumAppearance: premiumAppearance,
-                          simplifiedArrange: simplifiedArrange,
-                          allowSeatReassignment: allowSeatReassignment,
-                          highlightedStudentId: highlightedStudentId,
-                          highlightedTableId: selectedTableId == table.tableId
-                              ? table.tableId : highlightedTableId,
-                          onTableSelected: onTableSelected == null
-                              ? null : () => onTableSelected!(table.tableId),
-                          onSeatTap: (seatId) => onSeatTap?.call(seatId),
-                        )
+                            table: candidate,
+                            seats: widget.plannerV2
+                                ? []
+                                : widget.layout.seats
+                                    .where(
+                                        (seat) => seat.tableId == table.tableId)
+                                    .toList(),
+                            studentsById: widget.studentsById,
+                            designMode: widget.designMode,
+                            interactive: widget.interactive,
+                            presentationMode: widget.presentationMode,
+                            premiumAppearance: widget.premiumAppearance,
+                            simplifiedArrange: widget.simplifiedArrange,
+                            allowSeatReassignment: widget.allowSeatReassignment,
+                            highlightedStudentId: widget.highlightedStudentId,
+                            highlightedTableId:
+                                widget.selectedTableId == table.tableId
+                                    ? table.tableId
+                                    : widget.highlightedTableId,
+                            onTableSelected: widget.onTableSelected == null
+                                ? null
+                                : () => widget.onTableSelected!(table.tableId),
+                            onSeatTap: (seatId) =>
+                                widget.onSeatTap?.call(seatId),
+                          )
                       : null,
                   child: TableWidget(
                     table: table,
-                    seats: layout.seats
-                        .where((seat) => seat.tableId == table.tableId)
-                        .toList(),
-                    studentsById: studentsById,
-                    designMode: designMode,
-                    interactive: interactive,
-                    presentationMode: presentationMode,
-                    premiumAppearance: premiumAppearance,
-                    simplifiedArrange: simplifiedArrange,
-                    onTableSelected: onTableSelected == null ? null : () => onTableSelected!(table.tableId),
-                    allowSeatReassignment: allowSeatReassignment,
-                    highlightedStudentId: highlightedStudentId,
-                    highlightedTableId: highlightedTableId,
-                    onRemove: () => onRemoveTable?.call(table.tableId),
+                    seats: widget.plannerV2
+                        ? []
+                        : widget.layout.seats
+                            .where((seat) => seat.tableId == table.tableId)
+                            .toList(),
+                    studentsById: widget.studentsById,
+                    designMode: widget.designMode,
+                    interactive: widget.interactive,
+                    presentationMode: widget.presentationMode,
+                    premiumAppearance: widget.premiumAppearance,
+                    simplifiedArrange: widget.simplifiedArrange,
+                    onTableSelected: widget.onTableSelected == null
+                        ? null
+                        : () => widget.onTableSelected!(table.tableId),
+                    allowSeatReassignment: widget.allowSeatReassignment,
+                    highlightedStudentId: widget.highlightedStudentId,
+                    highlightedTableId: widget.highlightedTableId,
+                    onRemove: () => widget.onRemoveTable?.call(table.tableId),
                     onUpdateTable: (type, count) =>
-                        onUpdateTable?.call(table.tableId, type, count),
-                    onEditTable: () => onEditTable?.call(table.tableId),
+                        widget.onUpdateTable?.call(table.tableId, type, count),
+                    onEditTable: () => widget.onEditTable?.call(table.tableId),
                     onDuplicateTable: () =>
-                        onDuplicateTable?.call(table.tableId),
-                    onRotateTable: () => onRotateTable?.call(table.tableId),
+                        widget.onDuplicateTable?.call(table.tableId),
+                    onRotateTable: () =>
+                        widget.onRotateTable?.call(table.tableId),
                     onMoveSeat: (seatId, delta) =>
-                        onMoveSeat?.call(seatId, delta),
+                        widget.onMoveSeat?.call(seatId, delta),
                     onTableDrop: (data) =>
-                        onTableDrop?.call(table.tableId, data),
+                        widget.onTableDrop?.call(table.tableId, data),
                     onSeatDrop: (seatId, data) =>
-                        onSeatDrop?.call(seatId, data),
-                    onSeatTap: (seatId) => onSeatTap?.call(seatId),
+                        widget.onSeatDrop?.call(seatId, data),
+                    onSeatTap: (seatId) => widget.onSeatTap?.call(seatId),
                   ),
                 ),
+              if (widget.plannerV2)
+                for (final seat in widget.layout.seats)
+                  if (widget.layout.tables
+                      .any((t) => t.tableId == seat.tableId))
+                    _PlannerV2SeatDraggable(
+                      key: ValueKey('v2-seat-${seat.seatId}'),
+                      seat: seat,
+                      table: _tablePreviews[seat.tableId] ??
+                          widget.layout.tables
+                              .firstWhere((t) => t.tableId == seat.tableId),
+                      roomSize: boundary,
+                      size: widget.presentationMode
+                          ? _presentationSeatSize
+                          : _editorSeatSize,
+                      enabled: widget.designMode && widget.interactive,
+                      viewTransform: widget.transformationController,
+                      toViewport: (global) =>
+                          (context.findRenderObject()! as RenderBox)
+                              .globalToLocal(global),
+                      onCommit: widget.onPlannerV2SeatCommit,
+                      onTap: widget.interactive
+                          ? () => widget.onSeatTap?.call(seat.seatId)
+                          : null,
+                      child: SeatWidget(
+                        seat: seat,
+                        student: widget.studentsById[seat.studentId],
+                        acceptDrops:
+                            widget.interactive && widget.allowSeatReassignment,
+                        allowStudentDrag: widget.interactive &&
+                            widget.allowSeatReassignment &&
+                            !widget.designMode,
+                        presentationMode: widget.presentationMode,
+                        premiumAppearance: widget.premiumAppearance,
+                        highlighted: (seat.studentId != null &&
+                                seat.studentId ==
+                                    widget.highlightedStudentId) ||
+                            seat.tableId == widget.highlightedTableId,
+                        onSeatDrop: (data) =>
+                            widget.onSeatDrop?.call(seat.seatId, data),
+                        onTap: widget.designMode
+                            ? null
+                            : () => widget.onSeatTap?.call(seat.seatId),
+                      ),
+                    ),
             ],
           ),
         ),
@@ -802,7 +887,11 @@ class SeatWidget extends StatelessWidget {
       );
     }
 
-    return content;
+    return Semantics(
+      identifier: 'classroom-seat-${seat.seatId}',
+      label: student == null ? 'Empty seat' : 'Seat for $label',
+      child: content,
+    );
   }
 
   Widget _buildStudentDraggable({
@@ -1046,6 +1135,7 @@ enum _TableAction {
 
 class _SeatingTableDraggable extends StatefulWidget {
   final SeatingTable table;
+  final ValueChanged<SeatingTable?>? onPreview;
   final Widget child;
   final bool enabled;
   final bool directDrag;
@@ -1062,6 +1152,7 @@ class _SeatingTableDraggable extends StatefulWidget {
 
   const _SeatingTableDraggable({
     required this.table,
+    this.onPreview,
     required this.child,
     required this.enabled,
     this.directDrag = false,
@@ -1096,8 +1187,10 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
   }
 
   void _start(PointerDownEvent event) {
-    if (!widget.enabled || !widget.plannerV2 ||
-        widget.toViewport == null || widget.roomSize == null ||
+    if (!widget.enabled ||
+        !widget.plannerV2 ||
+        widget.toViewport == null ||
+        widget.roomSize == null ||
         widget.viewTransform == null) return;
     final offset = event.localPosition;
     final inTable = offset.dx >= widget.padding &&
@@ -1113,8 +1206,8 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
       pointer: widget.toViewport!(event.position),
       viewTransform: widget.viewTransform!.value,
       roomSize: widget.roomSize!,
-      action: nearCorner ? PlannerV2Action.resizeBottomRight
-          : PlannerV2Action.move,
+      action:
+          nearCorner ? PlannerV2Action.resizeBottomRight : PlannerV2Action.move,
     );
     _activePointer = event.pointer;
     _gestureFocus.requestFocus();
@@ -1122,8 +1215,9 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
 
   void _move(PointerMoveEvent event) {
     if (_gesture == null || _activePointer != event.pointer) return;
-    setState(() => _proposal = _gesture!.update(
-        widget.toViewport!(event.position)));
+    setState(
+        () => _proposal = _gesture!.update(widget.toViewport!(event.position)));
+    widget.onPreview?.call(_proposal);
   }
 
   void _finish(int pointer, {bool cancel = false}) {
@@ -1132,6 +1226,7 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
     _gesture = null;
     _activePointer = null;
     setState(() => _proposal = null);
+    widget.onPreview?.call(null);
     if (!cancel && next != null) widget.onProposalCommitted?.call(next);
   }
 
@@ -1145,7 +1240,8 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
     final content = widget.enabled && widget.directDrag
         ? GestureDetector(
             behavior: HitTestBehavior.deferToChild,
-            onPanUpdate: (details) => setState(() => _localOffset += details.delta),
+            onPanUpdate: (details) =>
+                setState(() => _localOffset += details.delta),
             onPanEnd: (_) {
               final delta = _localOffset;
               if (delta != Offset.zero) widget.onMove?.call(delta);
@@ -1169,76 +1265,78 @@ class _SeatingTableDraggableState extends State<_SeatingTableDraggable> {
           return KeyEventResult.ignored;
         },
         child: Listener(
-        onPointerDown: widget.plannerV2 ? _start : null,
-        onPointerMove: widget.plannerV2 ? _move : null,
-        onPointerUp: widget.plannerV2 ? (e) => _finish(e.pointer) : null,
-        onPointerCancel: widget.plannerV2 ? (e) => _finish(e.pointer, cancel: true) : null,
-        child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          content,
-          if (widget.enabled && !widget.directDrag)
-            Positioned(
-              left: handleInset,
-              top: handleInset,
-              child: _EditorHandle(
-                icon: Icons.open_with,
-                tooltip: 'Move table',
-                cursor: SystemMouseCursors.grab,
-                onPanUpdate: (delta) => setState(() => _localOffset += delta),
-                onPanEnd: () {
-                  final delta = _localOffset;
-                  if (delta != Offset.zero) {
-                    widget.onMove?.call(delta);
-                  }
-                  setState(() => _localOffset = Offset.zero);
-                },
-              ),
-            ),
-          if (widget.enabled && !widget.directDrag)
-            Positioned(
-              left: widget.padding + widget.table.width - 14,
-              top: widget.padding + widget.table.height - 14,
-              child: Transform.translate(
-                offset: _resizeOffset,
-                child: _EditorHandle(
-                  icon: Icons.drag_handle,
-                  tooltip: 'Resize table',
-                  cursor: SystemMouseCursors.resizeUpLeftDownRight,
-                  onPanUpdate: (delta) =>
-                      setState(() => _resizeOffset += delta),
-                  onPanEnd: () {
-                    final delta = _resizeOffset;
-                    if (delta != Offset.zero) {
-                      widget.onResize?.call(delta);
-                    }
-                    setState(() => _resizeOffset = Offset.zero);
-                  },
-                ),
-              ),
-            ),
-          if (widget.plannerV2 && widget.enabled && widget.selected)
-            Positioned(
-              left: widget.padding + shown.width - 15,
-              top: widget.padding + shown.height - 15,
-              child: const IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Color(0xff176f73),
-                    shape: BoxShape.circle,
-                  ),
-                  child: SizedBox(
-                    width: 30,
-                    height: 30,
-                    child: Icon(Icons.open_in_full,
-                        size: 15, color: Colors.white),
+          onPointerDown: widget.plannerV2 ? _start : null,
+          onPointerMove: widget.plannerV2 ? _move : null,
+          onPointerUp: widget.plannerV2 ? (e) => _finish(e.pointer) : null,
+          onPointerCancel:
+              widget.plannerV2 ? (e) => _finish(e.pointer, cancel: true) : null,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              content,
+              if (widget.enabled && !widget.directDrag && !widget.plannerV2)
+                Positioned(
+                  left: handleInset,
+                  top: handleInset,
+                  child: _EditorHandle(
+                    icon: Icons.open_with,
+                    tooltip: 'Move table',
+                    cursor: SystemMouseCursors.grab,
+                    onPanUpdate: (delta) =>
+                        setState(() => _localOffset += delta),
+                    onPanEnd: () {
+                      final delta = _localOffset;
+                      if (delta != Offset.zero) {
+                        widget.onMove?.call(delta);
+                      }
+                      setState(() => _localOffset = Offset.zero);
+                    },
                   ),
                 ),
-              ),
-            ),
-        ],
-      ),
-      ),
+              if (widget.enabled && !widget.directDrag && !widget.plannerV2)
+                Positioned(
+                  left: widget.padding + widget.table.width - 14,
+                  top: widget.padding + widget.table.height - 14,
+                  child: Transform.translate(
+                    offset: _resizeOffset,
+                    child: _EditorHandle(
+                      icon: Icons.drag_handle,
+                      tooltip: 'Resize table',
+                      cursor: SystemMouseCursors.resizeUpLeftDownRight,
+                      onPanUpdate: (delta) =>
+                          setState(() => _resizeOffset += delta),
+                      onPanEnd: () {
+                        final delta = _resizeOffset;
+                        if (delta != Offset.zero) {
+                          widget.onResize?.call(delta);
+                        }
+                        setState(() => _resizeOffset = Offset.zero);
+                      },
+                    ),
+                  ),
+                ),
+              if (widget.plannerV2 && widget.enabled && widget.selected)
+                Positioned(
+                  left: widget.padding + shown.width - 15,
+                  top: widget.padding + shown.height - 15,
+                  child: const IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Color(0xff176f73),
+                        shape: BoxShape.circle,
+                      ),
+                      child: SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: Icon(Icons.open_in_full,
+                            size: 15, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1267,7 +1365,8 @@ class _SeatPositionDraggableState extends State<_SeatPositionDraggable> {
     final content = widget.directDrag
         ? GestureDetector(
             behavior: HitTestBehavior.deferToChild,
-            onPanUpdate: (details) => setState(() => _localOffset += details.delta),
+            onPanUpdate: (details) =>
+                setState(() => _localOffset += details.delta),
             onPanEnd: (_) {
               final delta = _localOffset;
               if (delta != Offset.zero) widget.onMove?.call(delta);
@@ -1282,25 +1381,26 @@ class _SeatPositionDraggableState extends State<_SeatPositionDraggable> {
         clipBehavior: Clip.none,
         children: [
           content,
-          if (!widget.directDrag) Positioned(
-            right: -6,
-            bottom: -6,
-            child: _EditorHandle(
-              icon: Icons.drag_indicator,
-              tooltip: 'Move seat',
-              cursor: SystemMouseCursors.grab,
-              size: 20,
-              iconSize: 12,
-              onPanUpdate: (delta) => setState(() => _localOffset += delta),
-              onPanEnd: () {
-                final delta = _localOffset;
-                if (delta != Offset.zero) {
-                  widget.onMove?.call(delta);
-                }
-                setState(() => _localOffset = Offset.zero);
-              },
+          if (!widget.directDrag)
+            Positioned(
+              right: -6,
+              bottom: -6,
+              child: _EditorHandle(
+                icon: Icons.drag_indicator,
+                tooltip: 'Move seat',
+                cursor: SystemMouseCursors.grab,
+                size: 20,
+                iconSize: 12,
+                onPanUpdate: (delta) => setState(() => _localOffset += delta),
+                onPanEnd: () {
+                  final delta = _localOffset;
+                  if (delta != Offset.zero) {
+                    widget.onMove?.call(delta);
+                  }
+                  setState(() => _localOffset = Offset.zero);
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -1466,6 +1566,146 @@ class _BlankCanvasHint extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A room-level target stays hittable after leaving its original table area.
+/// Flutter retains the pointer-down hit path until up/cancel, even when the
+/// target moves. Only that pointer may update or finish this gesture.
+class _PlannerV2SeatDraggable extends StatefulWidget {
+  const _PlannerV2SeatDraggable(
+      {super.key,
+      required this.seat,
+      required this.table,
+      required this.roomSize,
+      required this.size,
+      required this.enabled,
+      required this.viewTransform,
+      required this.toViewport,
+      required this.onCommit,
+      required this.onTap,
+      required this.child});
+  final SeatingSeat seat;
+  final SeatingTable table;
+  final Size roomSize;
+  final double size;
+  final bool enabled;
+  final TransformationController? viewTransform;
+  final Offset Function(Offset) toViewport;
+  final ValueChanged<SeatingSeat>? onCommit;
+  final VoidCallback? onTap;
+  final Widget child;
+  @override
+  State<_PlannerV2SeatDraggable> createState() =>
+      _PlannerV2SeatDraggableState();
+}
+
+class _PlannerV2SeatDraggableState extends State<_PlannerV2SeatDraggable> {
+  final _focus = FocusNode(debugLabel: 'Planner V2 seat');
+  int? _pointer;
+  Offset? _down;
+  PlannerV2SeatGesture? _gesture;
+  SeatingSeat? _proposal;
+  bool _dragged = false;
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PlannerV2SeatDraggable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.enabled ||
+        oldWidget.seat.x != widget.seat.x ||
+        oldWidget.seat.y != widget.seat.y ||
+        oldWidget.table.x != widget.table.x ||
+        oldWidget.table.y != widget.table.y) {
+      _pointer = null;
+      _gesture = null;
+      _proposal = null;
+      _dragged = false;
+    }
+  }
+
+  void _start(PointerDownEvent event) {
+    if (_pointer != null || event.buttons != 1) return;
+    _pointer = event.pointer;
+    _down = event.position;
+    _dragged = false;
+    _gesture = PlannerV2SeatGesture(
+        seat: widget.seat,
+        table: widget.table,
+        pointer: widget.toViewport(event.position),
+        viewTransform: widget.viewTransform?.value ?? Matrix4.identity(),
+        roomSize: widget.roomSize,
+        seatSize: widget.size);
+    _focus.requestFocus();
+  }
+
+  void _move(PointerMoveEvent event) {
+    if (event.pointer != _pointer || _gesture == null) return;
+    if (!_dragged && (event.position - _down!).distance < 5) return;
+    _dragged = true;
+    setState(
+        () => _proposal = _gesture!.update(widget.toViewport(event.position)));
+  }
+
+  void _finish(int pointer, {bool cancel = false}) {
+    if (pointer != _pointer) return;
+    final proposal = _proposal;
+    final tapped = !_dragged;
+    _pointer = null;
+    _gesture = null;
+    setState(() {
+      _proposal = null;
+      _dragged = false;
+    });
+    if (cancel) return;
+    if (tapped) {
+      widget.onTap?.call();
+    } else if (proposal != null &&
+        (proposal.x != widget.seat.x || proposal.y != widget.seat.y)) {
+      widget.onCommit?.call(proposal);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = _proposal ?? widget.seat;
+    return Positioned(
+      left: widget.table.x + shown.x - widget.size / 2,
+      top: widget.table.y + shown.y - widget.size / 2,
+      width: widget.size,
+      height: widget.size,
+      child: Focus(
+          focusNode: _focus,
+          onKeyEvent: (_, event) {
+            if (event is KeyDownEvent &&
+                event.logicalKey == LogicalKeyboardKey.escape &&
+                _pointer != null) {
+              _finish(_pointer!, cancel: true);
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: MouseRegion(
+              cursor:
+                  widget.enabled ? SystemMouseCursors.grab : MouseCursor.defer,
+              child: Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: widget.enabled ? _start : null,
+                  onPointerMove: widget.enabled ? _move : null,
+                  onPointerUp:
+                      widget.enabled ? (e) => _finish(e.pointer) : null,
+                  onPointerCancel: widget.enabled
+                      ? (e) => _finish(e.pointer, cancel: true)
+                      : null,
+                  child: Semantics(
+                      onTap: widget.enabled ? widget.onTap : null,
+                      child: widget.child)))),
     );
   }
 }

@@ -20,6 +20,7 @@ class ClassroomPresentationView extends StatefulWidget {
     required this.subject,
     this.picker,
     this.cleanCanvas = false,
+    this.plannerV2 = false,
   });
 
   final String classId;
@@ -27,6 +28,7 @@ class ClassroomPresentationView extends StatefulWidget {
   final String subject;
   final ClassroomPickerAnimator? picker;
   final bool cleanCanvas;
+  final bool plannerV2;
 
   @override
   State<ClassroomPresentationView> createState() =>
@@ -178,7 +180,7 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
                             foregroundColor: Colors.white),
                       ),
                       const SizedBox(width: 12),
-                      const _FullscreenTimer(),
+                      const ClassroomTimer(),
                       if (_selectedLabel != null) ...[
                         const SizedBox(width: 12),
                         InputChip(
@@ -208,6 +210,7 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
                     presentationMode: true,
                     premiumAppearance: true,
                     simplifiedArrange: widget.cleanCanvas,
+                    plannerV2: widget.plannerV2,
                     interactive: false,
                     editRoomMode: false,
                     highlightedStudentId: _highlightedStudent,
@@ -228,14 +231,15 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
   }
 }
 
-class _FullscreenTimer extends StatefulWidget {
-  const _FullscreenTimer();
+class ClassroomTimer extends StatefulWidget {
+  const ClassroomTimer({super.key, this.fullPage = false});
+  final bool fullPage;
 
   @override
-  State<_FullscreenTimer> createState() => _FullscreenTimerState();
+  State<ClassroomTimer> createState() => ClassroomTimerState();
 }
 
-class _FullscreenTimerState extends State<_FullscreenTimer> {
+class ClassroomTimerState extends State<ClassroomTimer> {
   int _selectedMinutes = 3;
   int _remainingSeconds = 180;
   DateTime? _deadline;
@@ -288,7 +292,7 @@ class _FullscreenTimerState extends State<_FullscreenTimer> {
   Widget build(BuildContext context) {
     final mm = (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
     final ss = (_remainingSeconds % 60).toString().padLeft(2, '0');
-    return Row(mainAxisSize: MainAxisSize.min, children: [
+    final controls = Row(mainAxisSize: MainAxisSize.min, children: [
       PopupMenuButton<int>(
         tooltip: 'Set timer duration',
         icon: const Icon(Icons.timer_outlined, color: Colors.white),
@@ -304,7 +308,7 @@ class _FullscreenTimerState extends State<_FullscreenTimer> {
         onPressed: _toggle,
         icon: Icon(
             _deadline == null ? Icons.play_arrow_rounded : Icons.pause_rounded),
-        label: Text('$mm:$ss'),
+        label: Text(widget.fullPage ? '${_deadline == null ? 'Start' : 'Pause'} $mm:$ss' : '$mm:$ss'),
         style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
       ),
       IconButton(
@@ -313,5 +317,18 @@ class _FullscreenTimerState extends State<_FullscreenTimer> {
         icon: const Icon(Icons.restart_alt_rounded, color: Colors.white),
       ),
     ]);
+    if (!widget.fullPage) return controls;
+    return Scaffold(
+      backgroundColor: const Color(0xff102a30),
+      appBar: AppBar(backgroundColor: const Color(0xff102a30), foregroundColor: Colors.white, title: const Text('Classroom timer'),
+        leading: IconButton(tooltip: 'Close timer', onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close))),
+      body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Semantics(liveRegion: _remainingSeconds == 0, child: Text('$mm:$ss',
+          style: TextStyle(fontSize: MediaQuery.sizeOf(context).shortestSide * .24,
+            color: Colors.white, fontWeight: FontWeight.w700))),
+        if (_remainingSeconds == 0) const Text('Time is up', style: TextStyle(color: Colors.white, fontSize: 28)),
+        controls,
+      ])),
+    );
   }
 }

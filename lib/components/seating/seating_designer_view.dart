@@ -20,6 +20,8 @@ class SeatingDesignerView extends StatefulWidget {
   final bool premiumAppearance;
   final bool simplifiedArrange;
   final bool plannerV2;
+  final int fitRevision;
+  final double zoomFactor;
   final String? selectedTableId;
   final ValueChanged<String>? onTableSelected;
   final bool allowSeatReassignment;
@@ -48,6 +50,8 @@ class SeatingDesignerView extends StatefulWidget {
     this.premiumAppearance = false,
     this.simplifiedArrange = false,
     this.plannerV2 = false,
+    this.fitRevision = 0,
+    this.zoomFactor = 1,
     this.selectedTableId,
     this.onTableSelected,
     this.allowSeatReassignment = true,
@@ -77,6 +81,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
   String? _loadedClassId;
   final TransformationController _premiumViewport = TransformationController();
   String? _framedLayoutAndSize;
+  double _fitScale = 1;
 
   @override
   void dispose() {
@@ -305,30 +310,54 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                 constraints.maxWidth > 0 &&
                 constraints.maxHeight > 0) {
               final key =
-                  '${widget.classId}:${active.layoutId}:${active.canvasWidth}:${active.canvasHeight}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}:${widget.simplifiedArrange}';
+                  '${widget.fitRevision}:${widget.classId}:${active.layoutId}:${widget.plannerV2 ? "workspace" : "${active.canvasWidth}:${active.canvasHeight}"}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}:${widget.simplifiedArrange}';
               if (_framedLayoutAndSize != key) {
                 _framedLayoutAndSize = key;
-                final transform = ClassroomMapFraming.fit(
-                    active, Size(constraints.maxWidth, constraints.maxHeight),
-                    compact: widget.simplifiedArrange);
+                final viewport = Size(constraints.maxWidth, constraints.maxHeight);
+                final transform = widget.plannerV2
+                    ? ClassroomMapFraming.plannerRoom(active, viewport)
+                    : ClassroomMapFraming.fit(active, viewport,
+                        compact: widget.simplifiedArrange);
                 _premiumViewport.value = transform;
+                _fitScale = transform.getMaxScaleOnAxis();
               }
             }
+            if (widget.plannerV2) {
+              final nextScale = (_fitScale * widget.zoomFactor).clamp(.001, 10.0);
+              if ((_premiumViewport.value.getMaxScaleOnAxis() - nextScale).abs() > .000001) {
+                _premiumViewport.value = Matrix4.diagonal3Values(nextScale, nextScale, 1);
+              }
+            }
+            final scale = _premiumViewport.value.getMaxScaleOnAxis();
+            final workspace = widget.plannerV2
+                ? active.copyWith(
+                    canvasWidth: constraints.maxWidth / scale,
+                    canvasHeight: constraints.maxHeight / scale)
+                : active;
             return Stack(
               fit: StackFit.expand,
               children: [
                 SeatingCanvas(
                   transformationController:
                       widget.premiumAppearance ? _premiumViewport : null,
-                  layout: active,
+                  layout: workspace,
                   premiumAppearance: widget.premiumAppearance,
                   simplifiedArrange: widget.simplifiedArrange,
                   plannerV2: widget.plannerV2,
                   selectedTableId: widget.selectedTableId,
+                  onPlannerV2SeatCommit: (proposal) async {
+                    try {
+                      await service.commitPlannerV2SeatGeometry(widget.classId, proposal, workspaceWidth: workspace.canvasWidth, workspaceHeight: workspace.canvasHeight);
+                    } catch (_) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Could not save the seat move. The previous position has been restored.')));
+                    }
+                  },
                   onPlannerV2Commit: (proposal) async {
                     try {
                       await service.commitPlannerV2TableGeometry(
-                          widget.classId, proposal);
+                          widget.classId, proposal, workspaceWidth: workspace.canvasWidth, workspaceHeight: workspace.canvasHeight);
                     } catch (_) {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(

@@ -28,7 +28,7 @@ void main() {
   });
 
   Future<_Services> open(WidgetTester tester, String id,
-      {double width = 1400}) async {
+      {double width = 1400, bool plannerV2 = false}) async {
     tester.view.physicalSize = Size(width, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
@@ -36,10 +36,51 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
     final services = await _buildServices(id);
-    await tester.pumpWidget(_harness(services, id));
+    await tester.pumpWidget(_harness(services, id, plannerV2: plannerV2));
     await tester.pumpAndSettle();
     return services;
   }
+
+  testWidgets('V2 zoom controls are reversible and fit resets without saving geometry', (tester) async {
+    final services = await open(tester, 'zoom-controls', plannerV2: true);
+    final before = services.seatingService.activeLayout('zoom-controls')!.toJson();
+    double scale() => tester.widget<InteractiveViewer>(find.byType(InteractiveViewer).first)
+        .transformationController!.value.getMaxScaleOnAxis();
+    final original = scale();
+    await tester.tap(find.text('Zoom in')); await tester.pumpAndSettle();
+    expect(scale(), closeTo(original * 1.2, .0001));
+    await tester.tap(find.text('Zoom out')); await tester.pumpAndSettle();
+    expect(scale(), closeTo(original, .0001));
+    await tester.tap(find.text('Zoom out')); await tester.pumpAndSettle();
+    expect(scale(), lessThan(original));
+    await tester.tap(find.text('Fit to screen')); await tester.pumpAndSettle();
+    expect(scale(), closeTo(original, .0001));
+    expect(services.seatingService.activeLayout('zoom-controls')!.toJson(), before);
+  });
+
+  testWidgets('restored tools preserve furniture and full-page timer returns to classroom', (tester) async {
+    final services = await open(tester, 'restored-tools');
+    final before = services.seatingService.activeLayout('restored-tools')!;
+    await tester.tap(find.text('Random seating')); await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel')); await tester.pumpAndSettle();
+    expect(services.seatingService.activeLayout('restored-tools')!.toJson(), before.toJson());
+    await tester.tap(find.text('Random seating')); await tester.pumpAndSettle();
+    await tester.tap(find.text('Shuffle')); await tester.pumpAndSettle();
+    final after = services.seatingService.activeLayout('restored-tools')!;
+    expect(after.tables.map((t) => t.toJson()), before.tables.map((t) => t.toJson()));
+    expect(after.seats.map((s) => [s.seatId, s.x, s.y]), before.seats.map((s) => [s.seatId, s.x, s.y]));
+    await tester.tap(find.text('Fit to screen')); await tester.pumpAndSettle();
+    expect(services.seatingService.activeLayout('restored-tools')!.toJson(), after.toJson());
+    await tester.tap(find.text('Full-page timer')); await tester.pumpAndSettle();
+    expect(find.text('Classroom timer'), findsOneWidget);
+    await tester.tap(find.text('Start 03:00')); await tester.pump(const Duration(seconds: 2));
+    expect(find.textContaining('Pause'), findsOneWidget);
+    await tester.tap(find.byTooltip('Reset timer')); await tester.pump();
+    expect(find.text('Start 03:00'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close timer')); await tester.pumpAndSettle();
+    expect(find.text('Full-page timer'), findsOneWidget);
+    expect(services.seatingService.activeLayout('restored-tools')!.toJson(), after.toJson());
+  });
 
   testWidgets(
       'tools start closed and slide from the right without resizing room',
@@ -405,7 +446,7 @@ Future<_Services> _buildServices(String classId) async {
   );
 }
 
-Widget _harness(_Services services, String classId) {
+Widget _harness(_Services services, String classId, {bool plannerV2 = false}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
@@ -417,7 +458,7 @@ Widget _harness(_Services services, String classId) {
     ],
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: ClassroomSurface(classId: classId),
+      home: ClassroomSurface(classId: classId, plannerV2: plannerV2, cleanCanvas: plannerV2),
     ),
   );
 }
