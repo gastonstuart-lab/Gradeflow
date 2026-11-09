@@ -182,8 +182,18 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
         FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Shuffle'))]));
     if (proceed != true || !mounted) return;
-    await context.read<SeatingService>().shuffleStudentPlacements(widget.classId, context.read<StudentService>().students);
-    if (mounted) setState(() { _pickedStudent = null; _pickedTable = null; _pickLabel = null; });
+    try {
+      await context.read<SeatingService>().shuffleStudentPlacements(
+        widget.classId, context.read<StudentService>().students);
+      if (!mounted) return;
+      setState(() { _pickedStudent = null; _pickedTable = null; _pickLabel = null; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Random seating saved.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Could not save random seating. Previous assignments restored.')));
+    }
   }
 
   void _openTimer() => Navigator.of(context).push(MaterialPageRoute<void>(
