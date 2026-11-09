@@ -21,6 +21,7 @@ class SeatingDesignerView extends StatefulWidget {
   final bool simplifiedArrange;
   final bool plannerV2;
   final int fitRevision;
+  final double zoomFactor;
   final String? selectedTableId;
   final ValueChanged<String>? onTableSelected;
   final bool allowSeatReassignment;
@@ -50,6 +51,7 @@ class SeatingDesignerView extends StatefulWidget {
     this.simplifiedArrange = false,
     this.plannerV2 = false,
     this.fitRevision = 0,
+    this.zoomFactor = 1,
     this.selectedTableId,
     this.onTableSelected,
     this.allowSeatReassignment = true,
@@ -79,6 +81,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
   String? _loadedClassId;
   final TransformationController _premiumViewport = TransformationController();
   String? _framedLayoutAndSize;
+  double _fitScale = 1;
 
   @override
   void dispose() {
@@ -316,6 +319,13 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                     : ClassroomMapFraming.fit(active, viewport,
                         compact: widget.simplifiedArrange);
                 _premiumViewport.value = transform;
+                _fitScale = transform.getMaxScaleOnAxis();
+              }
+            }
+            if (widget.plannerV2) {
+              final nextScale = (_fitScale * widget.zoomFactor).clamp(.001, 10.0);
+              if ((_premiumViewport.value.getMaxScaleOnAxis() - nextScale).abs() > .000001) {
+                _premiumViewport.value = Matrix4.diagonal3Values(nextScale, nextScale, 1);
               }
             }
             final scale = _premiumViewport.value.getMaxScaleOnAxis();

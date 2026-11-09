@@ -90,7 +90,7 @@ class _SeatingCanvasState extends State<SeatingCanvas> {
     return RepaintBoundary(
       child: InteractiveViewer(
         transformationController: widget.transformationController,
-        maxScale: 2.6,
+        maxScale: widget.plannerV2 ? 10 : 2.6,
         minScale: widget.premiumAppearance ? 0.001 : 0.6,
         boundaryMargin:
             EdgeInsets.all(widget.premiumAppearance ? double.infinity : 200),

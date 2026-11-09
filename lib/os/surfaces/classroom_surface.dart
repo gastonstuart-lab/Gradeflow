@@ -50,6 +50,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   String? _scoreCategory;
   bool _setupMode = false;
   int _fitRevision = 0;
+  double _zoomFactor = 1;
 
   @override
   void initState() {
@@ -537,8 +538,12 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                             child: Row(children: [
                               TextButton.icon(onPressed: _randomSeating,
                                   icon: const Icon(Icons.shuffle), label: const Text('Random seating')),
-                              TextButton.icon(onPressed: () => setState(() => _fitRevision++),
+                              TextButton.icon(onPressed: () => setState(() { _fitRevision++; _zoomFactor = 1; }),
                                   icon: const Icon(Icons.fit_screen), label: const Text('Fit to screen')),
+                              if (widget.plannerV2) TextButton.icon(onPressed: _zoomFactor >= 3 ? null : () => setState(() => _zoomFactor = (_zoomFactor * 1.2).clamp(.25, 3)),
+                                  icon: const Icon(Icons.zoom_in), label: const Text('Zoom in')),
+                              if (widget.plannerV2) TextButton.icon(onPressed: _zoomFactor <= .25 ? null : () => setState(() => _zoomFactor = (_zoomFactor / 1.2).clamp(.25, 3)),
+                                  icon: const Icon(Icons.zoom_out), label: const Text('Zoom out')),
                               TextButton.icon(onPressed: _openTimer,
                                   icon: const Icon(Icons.timer_outlined), label: const Text('Full-page timer')),
                               TextButton.icon(
@@ -596,6 +601,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                           students: students,
                                           setupMode: _setupMode,
                                           fitRevision: _fitRevision,
+                                          zoomFactor: _zoomFactor,
                                           cleanCanvas: widget.cleanCanvas,
                                           plannerV2: widget.plannerV2,
                                           selectedTableId: _selectedTableId,
@@ -763,6 +769,7 @@ class _ClassroomHeader extends StatelessWidget {
 class _ClassroomMapPanel extends StatelessWidget {
   const _ClassroomMapPanel({
     this.fitRevision = 0,
+    this.zoomFactor = 1,
     required this.classId,
     required this.students,
     required this.setupMode,
@@ -777,6 +784,7 @@ class _ClassroomMapPanel extends StatelessWidget {
   });
 
   final int fitRevision;
+  final double zoomFactor;
   final String classId;
   final List<Student> students;
   final bool setupMode;
@@ -804,6 +812,7 @@ class _ClassroomMapPanel extends StatelessWidget {
       child: SeatingDesignerView(
         classId: classId,
         fitRevision: fitRevision,
+        zoomFactor: zoomFactor,
         students: students,
         autoLoad: false,
         onSeatSelected: onSeatSelected,
