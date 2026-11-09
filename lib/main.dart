@@ -5,6 +5,8 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/gradeflow_launch_experience.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
+import 'package:gradeflow/config/planner_v2_staging_safety.dart';
+import 'package:gradeflow/config/planner_v2_firebase_config.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/providers/app_providers.dart';
@@ -19,6 +21,38 @@ void main() async {
     // Makes the web app accessible (and allows Playwright to use role/text selectors).
     RendererBinding.instance.ensureSemantics();
     usePathUrlStrategy();
+  }
+
+  // Fail closed BEFORE building providers/auth. The normal application
+  // continues unchanged; a staging build pointing to the production
+  // Firebase project must never load school or student data.
+  final reason = PlannerV2StagingSafety.stagingEnabled &&
+          !PlannerV2FirebaseConfig.stagingConfigured
+      ? 'Planner V2 staging requires complete, separate Firebase web '
+          'configuration. No authentication or student data was loaded.'
+      : PlannerV2StagingSafety.blockingReason(
+          stagingEnabled: PlannerV2StagingSafety.stagingEnabled,
+          configuredProjectId:
+              PlannerV2FirebaseConfig.currentPlatform.projectId,
+          requiredStagingProjectId:
+              PlannerV2StagingSafety.requiredStagingProjectId,
+        );
+  if (reason != null) {
+    runApp(_PlannerV2StagingBlocked(reason: reason));
+    return;
+  }
+
+  if (PlannerV2StagingSafety.stagingEnabled) {
+    // Staging must never degrade into a local-only demo/login when Firebase
+    // initialization fails. Normal production startup stays unchanged.
+    final ok = await FirebaseService.maybeInitialize();
+    if (!ok) {
+      runApp(const _PlannerV2StagingBlocked(
+        reason: 'Staging Firebase could not be initialized. '
+            'Authentication and classroom data have not been loaded.',
+      ));
+      return;
+    }
   }
 
   // Initialize Firebase if configured. On web this must not block runApp(),
@@ -84,6 +118,43 @@ class _MyAppState extends State<MyApp> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _PlannerV2StagingBlocked extends StatelessWidget {
+  const _PlannerV2StagingBlocked({required this.reason});
+
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'GradeFlow — staging blocked',
+      home: Scaffold(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.shield_outlined, size: 48),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Staging safety check',
+                    style: TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(reason, textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

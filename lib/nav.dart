@@ -209,8 +209,20 @@ class AppRouter {
             surface: OSSurface.classWorkspace,
             classId: classId,
             child: ClassroomSurface(
-                classId: classId,
-                startInSetup: state.uri.queryParameters['setup'] == '1'),
+              classId: classId,
+              startInSetup: state.uri.queryParameters['setup'] == '1',
+              // The approved V2 Classroom is enabled only in a separately
+              // configured authenticated staging build. Default builds
+              // retain their existing production route behaviour.
+              cleanCanvas: const bool.fromEnvironment(
+                'GRADEFLOW_PLANNER_V2_STAGING',
+                defaultValue: false,
+              ),
+              plannerV2: const bool.fromEnvironment(
+                'GRADEFLOW_PLANNER_V2_STAGING',
+                defaultValue: false,
+              ),
+            ),
           );
         },
       ),
