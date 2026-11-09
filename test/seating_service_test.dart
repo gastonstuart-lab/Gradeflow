@@ -688,8 +688,15 @@ void main() {
       );
     }
 
+    final beforeRoom = service.activeLayout('class-a')!;
+    final originalTables = beforeRoom.tables
+        .map((t) => '${t.tableId}:${t.x}:${t.y}:${t.width}:${t.height}')
+        .toList();
+    final originalSeats = beforeRoom.seats
+        .map((s) => '${s.seatId}:${s.tableId}:${s.x}:${s.y}')
+        .toList();
     final before = service
-        .orderedSeatsForLayout(service.activeLayout('class-a')!)
+        .orderedSeatsForLayout(beforeRoom)
         .map((seat) => seat.studentId)
         .toList();
 
@@ -706,6 +713,24 @@ void main() {
 
     expect(after.toSet(), before.toSet());
     expect(after, isNot(before));
+    expect(service.plannerV2SaveState('class-a'), PlannerV2SaveState.saved);
+
+    // The completed Future must mean persistent storage is updated, not
+    // merely that an optimistic in-memory seating map has changed.
+    final reopened = SeatingService();
+    await reopened.loadLayouts('class-a');
+    final persistedRoom = reopened.activeLayout('class-a')!;
+    expect(
+      reopened.orderedSeatsForLayout(persistedRoom)
+          .map((seat) => seat.studentId).toList(),
+      after,
+    );
+    expect(persistedRoom.tables
+        .map((t) => '${t.tableId}:${t.x}:${t.y}:${t.width}:${t.height}')
+        .toList(), originalTables);
+    expect(persistedRoom.seats
+        .map((s) => '${s.seatId}:${s.tableId}:${s.x}:${s.y}')
+        .toList(), originalSeats);
   });
 
   test('shuffleStudentPlacements keeps locked seats fixed', () async {
