@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - integration/v2-authenticated-browser-emulator-20261109
+      - integration/v2-flutterfire-auth-refresh-20261109
   pull_request:
     branches:
       - integration/v2-auth-firestore-emulator-e2e-20261109
