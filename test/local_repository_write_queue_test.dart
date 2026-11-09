@@ -19,7 +19,7 @@ class _PausedFirstScoreWrite extends InMemorySharedPreferencesStore {
 
   @override
   Future<bool> setValue(String type, String key, Object value) async {
-    if (key == 'scores_class-a_quiz-a') {
+    if (key.endsWith('scores_class-a_quiz-a')) {
       scoreWritesStarted++;
       if (scoreWritesStarted == 1) {
         firstStarted.complete();
@@ -39,7 +39,7 @@ class _RejectFirstScoreWrite extends InMemorySharedPreferencesStore {
 
   @override
   Future<bool> setValue(String type, String key, Object value) async {
-    if (key == 'scores_class-a_quiz-a' && ++scoreWrites == 1) {
+    if (key.endsWith('scores_class-a_quiz-a') && ++scoreWrites == 1) {
       return false;
     }
     return super.setValue(type, key, value);
@@ -69,7 +69,7 @@ void main() {
     final repo = LocalRepository();
 
     final first = repo.saveScores('class-a', 'quiz-a', [_score(94)]);
-    await store.firstStarted.future;
+    await store.firstStarted.future.timeout(const Duration(seconds: 5));
     final second = repo.saveScores('class-a', 'quiz-a', [_score(96)]);
 
     // First write is deliberately blocked. A second save must not begin
