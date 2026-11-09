@@ -29,7 +29,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await password.fill('FakePassword-Teacher123!');
   await page.getByRole('button', { name: /^Sign in$/i }).first().click();
   try {
-    await expect(page).toHaveURL(/\\/os\\/home/, { timeout: 15_000 });
+    await expect.poll(() => new URL(page.url()).pathname, { timeout: 15_000 }).toBe('/os/home');
   } catch (error) {
     console.log('Authentication failure diagnostics:', browserDiagnostics);
     console.log('Visible browser text:',
