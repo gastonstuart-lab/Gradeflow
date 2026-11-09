@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/config/planner_v2_staging_safety.dart';
+import 'package:gradeflow/config/browser_entry_path_stub.dart'
+    if (dart.library.js_interop) 'package:gradeflow/config/browser_entry_path_web.dart'
+    as browser_entry;
 import 'package:gradeflow/screens/login_screen.dart';
 import 'package:gradeflow/screens/class_list_screen.dart';
 import 'package:gradeflow/screens/class_detail_screen.dart';
@@ -53,11 +56,13 @@ class AppRouter {
     if (!kIsWeb || !PlannerV2StagingSafety.stagingEnabled) {
       return AppRoutes.home;
     }
-    final uri = Uri.base;
-    debugPrint('GRADEFLOW_STAGING_INIT uri=$uri platformRoute='
+    final originalPath = browser_entry.capturedBrowserEntryPath();
+    debugPrint('GRADEFLOW_STAGING_INIT uri=${Uri.base} originalPath='
+        '$originalPath platformRoute='
         '${WidgetsBinding.instance.platformDispatcher.defaultRouteName}');
-    return uri.path == '/' ? AppRoutes.home
-        : uri.path + (uri.hasQuery ? '?${uri.query}' : '');
+    // A staging browser deep link must survive an early engine URL rewrite.
+    // Reject external/protocol-relative values and reuse normal route rules.
+    return _validatedInternalAppLocation(originalPath) ?? AppRoutes.home;
   }
 
   static final GoRouter router = GoRouter(
