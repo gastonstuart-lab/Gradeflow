@@ -5,6 +5,17 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     async ({ page }) => {
   test.setTimeout(180_000);
   const browserDiagnostics: string[] = [];
+  const unexpectedCloudRequests: string[] = [];
+  // Emulator-only builds must never silently contact live Firebase Auth or
+  // Firestore. A real API-key rejection after refresh is a release blocker,
+  // not a reason to weaken the navigation assertions.
+  page.on('request', (request) => {
+    const endpoint = new URL(request.url());
+    if (['identitytoolkit.googleapis.com', 'securetoken.googleapis.com',
+         'firestore.googleapis.com'].includes(endpoint.hostname)) {
+      unexpectedCloudRequests.push(endpoint.hostname + endpoint.pathname);
+    }
+  });
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
       browserDiagnostics.push(message.type() + ': ' + message.text());
@@ -80,4 +91,6 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Staging safety check')).toHaveCount(0);
+  expect(unexpectedCloudRequests,
+    'A local-emulator build contacted live Firebase endpoints').toEqual([]);
 });
