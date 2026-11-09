@@ -155,6 +155,37 @@ void main() {
     expect(find.text('Add note or reminder'), findsNothing);
   });
 
+  testWidgets('V2 presentation uses most of the viewport and pans the view',
+      (tester) async {
+    final services = await open(tester, 'v2-presentation-camera',
+        plannerV2: true);
+    final saved = services.seatingService
+        .activeLayout('v2-presentation-camera')!.toJson();
+    await tester.tap(find.text('Present'));
+    await tester.pumpAndSettle();
+
+    final viewer = tester.widget<InteractiveViewer>(
+        find.byType(InteractiveViewer).last);
+    final frame = tester.getRect(find.byType(InteractiveViewer).last);
+    expect(viewer.panEnabled, isTrue);
+    expect(frame.height, greaterThan(700));
+    expect(find.text('Exit presentation'), findsOneWidget);
+    final controller = viewer.transformationController!;
+    final before = controller.value.entry(0, 3);
+    final pointer = await tester.startGesture(
+        Offset(frame.left + 20, frame.top + 20));
+    await pointer.moveBy(const Offset(85, 20));
+    await tester.pump();
+    await pointer.up();
+    await tester.pumpAndSettle();
+    expect(controller.value.entry(0, 3), isNot(closeTo(before, 0.1)));
+    expect(
+      services.seatingService
+          .activeLayout('v2-presentation-camera')!.toJson(),
+      saved,
+    );
+  });
+
   testWidgets('compact right panel can be closed without hiding the map',
       (tester) async {
     await open(tester, 'classroom-d', width: 700);

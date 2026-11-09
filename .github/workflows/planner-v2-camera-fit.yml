@@ -1,0 +1,26 @@
+name: Planner V2 fit and presentation review
+on:
+  push:
+    branches:
+      - review/classroom-v2-camera-presentation-20261109
+  pull_request:
+    branches:
+      - recovery/planner-v2-zoom-validated-20261109
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test test/planner_v2_camera_fit_test.dart test/planner_v2_gesture_widget_test.dart
+      - run: flutter test
+      - run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /

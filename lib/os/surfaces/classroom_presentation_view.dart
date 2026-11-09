@@ -120,49 +120,33 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
       backgroundColor: OSColors.teachBg,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          padding: const EdgeInsets.fromLTRB(7, 5, 7, 6),
           child: Column(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(widget.className,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white)),
-                        Text(widget.subject,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: OSColors.teachAccent)),
-                      ],
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_fullscreen_rounded),
-                    label: const Text('Exit presentation'),
-                    style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.24))),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 50,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
+              LayoutBuilder(
+                builder: (context, width) {
+                  final title = Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.className,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white)),
+                      Text(widget.subject,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: OSColors.teachAccent)),
+                    ],
+                  );
+                  final controls = Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       OutlinedButton.icon(
                         onPressed: () => _pick(),
@@ -171,7 +155,7 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
                         style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       OutlinedButton.icon(
                         onPressed: () => _pick(table: true),
                         icon: const Icon(Icons.table_restaurant_outlined),
@@ -179,10 +163,10 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
                         style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 6),
                       const ClassroomTimer(),
                       if (_selectedLabel != null) ...[
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 6),
                         InputChip(
                           label: Text(_selectedLabel!),
                           avatar: const Icon(Icons.auto_awesome, size: 16),
@@ -190,13 +174,60 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
                         ),
                       ],
                     ],
-                  ),
-                ),
+                  );
+                  final exit = OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_fullscreen_rounded,
+                        size: 17),
+                    label: const Text('Exit presentation'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.24),
+                      ),
+                    ),
+                  );
+                  if (width.maxWidth < 900) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(children: [
+                          Expanded(child: title),
+                          exit,
+                        ]),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          height: 42,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: controls,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      SizedBox(
+                        width: width.maxWidth < 1150 ? 230 : 320,
+                        child: title,
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: controls,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      exit,
+                    ],
+                  );
+                },
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 5),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
                     color: OSColors.teachSurface,
                     borderRadius: OSRadius.mdBr,

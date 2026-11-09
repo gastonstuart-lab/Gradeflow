@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:gradeflow/components/classroom/classroom_materials.dart';
 import 'package:gradeflow/screens/native_gradebook_screen.dart';
 import 'package:flutter/material.dart';
@@ -310,7 +312,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                 constraints.maxWidth > 0 &&
                 constraints.maxHeight > 0) {
               final key =
-                  '${widget.fitRevision}:${widget.classId}:${active.layoutId}:${widget.plannerV2 ? "workspace" : "${active.canvasWidth}:${active.canvasHeight}"}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}:${widget.simplifiedArrange}';
+                  '${widget.fitRevision}:${widget.classId}:${active.layoutId}:${widget.plannerV2 ? "workspace" : "${active.canvasWidth}:${active.canvasHeight}"}:${constraints.maxWidth}:${constraints.maxHeight}:${active.tables.length}:${widget.simplifiedArrange}:${widget.editRoomMode}';
               if (_framedLayoutAndSize != key) {
                 _framedLayoutAndSize = key;
                 final viewport = Size(constraints.maxWidth, constraints.maxHeight);
@@ -318,21 +320,44 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                     ? ClassroomMapFraming.plannerRoom(active, viewport)
                     : ClassroomMapFraming.fit(active, viewport,
                         compact: widget.simplifiedArrange);
+                if (widget.plannerV2 && widget.editRoomMode) {
+                  // Arrange uses a zero-based movable workspace. Avoid camera
+                  // offsets exposing unreachable negative-coordinate strips.
+                  transform.setEntry(0, 3, math.min(0, transform.entry(0, 3)));
+                  transform.setEntry(1, 3, math.min(0, transform.entry(1, 3)));
+                }
                 _premiumViewport.value = transform;
                 _fitScale = transform.getMaxScaleOnAxis();
               }
             }
             if (widget.plannerV2) {
-              final nextScale = (_fitScale * widget.zoomFactor).clamp(.001, 10.0);
-              if ((_premiumViewport.value.getMaxScaleOnAxis() - nextScale).abs() > .000001) {
-                _premiumViewport.value = Matrix4.diagonal3Values(nextScale, nextScale, 1);
+              final nextScale =
+                  (_fitScale * widget.zoomFactor).clamp(.001, 10.0).toDouble();
+              final current = _premiumViewport.value;
+              final currentScale = current.getMaxScaleOnAxis();
+              if ((currentScale - nextScale).abs() > .000001 &&
+                  currentScale > 0) {
+                _premiumViewport.value =
+                    ClassroomMapFraming.zoomKeepingCentre(
+                  current,
+                  Size(constraints.maxWidth, constraints.maxHeight),
+                  nextScale,
+                  zeroBasedFloor: widget.editRoomMode,
+                );
               }
             }
-            final scale = _premiumViewport.value.getMaxScaleOnAxis();
             final workspace = widget.plannerV2
-                ? active.copyWith(
-                    canvasWidth: constraints.maxWidth / scale,
-                    canvasHeight: constraints.maxHeight / scale)
+                ? (() {
+                    final visible = ClassroomMapFraming.visibleWorkspace(
+                      active,
+                      Size(constraints.maxWidth, constraints.maxHeight),
+                      _premiumViewport.value,
+                    );
+                    return active.copyWith(
+                      canvasWidth: visible.width,
+                      canvasHeight: visible.height,
+                    );
+                  })()
                 : active;
             return Stack(
               fit: StackFit.expand,
