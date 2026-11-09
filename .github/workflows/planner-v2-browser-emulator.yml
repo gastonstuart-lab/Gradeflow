@@ -65,7 +65,7 @@ jobs:
   # This runs independently of the authenticated browser emulator gate so
   # routing/auth failures cannot conceal regressions in the approved app.
   candidate-regression:
-    if: github.ref == 'refs/heads/integration/v2-flutterfire-auth-refresh-20261109'
+    if: github.ref == 'refs/heads/integration/v2-flutterfire-auth-refresh-20261109' || github.head_ref == 'integration/v2-flutterfire-auth-refresh-20261109'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
