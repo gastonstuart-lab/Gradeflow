@@ -210,7 +210,18 @@ class AppRouter {
             classId: classId,
             child: ClassroomSurface(
                 classId: classId,
-                startInSetup: state.uri.queryParameters['setup'] == '1'),
+                startInSetup: state.uri.queryParameters['setup'] == '1',
+                // Opt-in staging only. Default production builds stay on
+                // the approved legacy Classroom until owner sign-off.
+                cleanCanvas: const bool.fromEnvironment(
+                  'GRADEFLOW_PLANNER_V2_STAGING',
+                  defaultValue: false,
+                ),
+                plannerV2: const bool.fromEnvironment(
+                  'GRADEFLOW_PLANNER_V2_STAGING',
+                  defaultValue: false,
+                ),
+              ),
           );
         },
       ),

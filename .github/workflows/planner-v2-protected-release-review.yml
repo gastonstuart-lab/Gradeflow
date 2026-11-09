@@ -1,0 +1,41 @@
+name: Planner V2 protected release review
+on:
+  push:
+    branches:
+      - release/classroom-v2-integration-review-20261109
+  pull_request:
+    branches:
+      - recovery/planner-v2-zoom-validated-20261109
+permissions:
+  contents: read
+jobs:
+  synthetic-review-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Verify synthetic review stays isolated
+        shell: bash
+        run: |
+          grep -Fq 'RepositoryFactory.useLocal()' lib/main_classroom_preview.dart
+          grep -Fq 'plannerV2: true' lib/main_classroom_preview.dart
+          grep -Fq 'Random seating' lib/os/surfaces/classroom_surface.dart
+          grep -Fq 'Fit to screen' lib/os/surfaces/classroom_surface.dart
+          grep -Fq 'Zoom in' lib/os/surfaces/classroom_surface.dart
+          grep -Fq 'Zoom out' lib/os/surfaces/classroom_surface.dart
+          grep -Fq 'Full-page timer' lib/os/surfaces/classroom_surface.dart
+          grep -Fq 'onOpenClassroom' lib/main_classroom_preview.dart
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Compile synthetic V2 release only
+        run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
+      - name: Compile authenticated app with V2 disabled (production default)
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href /
+      - name: Compile authenticated app with V2 staging flag enabled
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_PLANNER_V2_STAGING=true
