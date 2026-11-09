@@ -64,5 +64,16 @@ void main() {
       ),
       isFalse,
     );
+    expect(
+      PlannerV2FirebaseConfig.isComplete(
+        projectId: 'gradeflow-v2-staging',
+        apiKey: 'api',
+        appId: 'app',
+        senderId: 'sender',
+        authDomain: 'gradeflow-v2-staging.firebaseapp.com',
+        storageBucket: 'some-other-project.firebasestorage.app',
+      ),
+      isFalse,
+    );
   });
 }
