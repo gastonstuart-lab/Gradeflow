@@ -41,6 +41,16 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
       }
     }
   });
+  // FlutterFire's web SDK can restore a persisted user before Dart code has
+  // connected the Auth emulator. Preconfigure only this loopback browser
+  // fixture before any Firebase scripts execute. No real API key is used.
+  // The strict network assertion below still rejects every cloud endpoint.
+  await page.addInitScript(() => {
+    if (window.location.hostname !== '127.0.0.1' ||
+        window.location.port !== '7357') return;
+    window.sessionStorage.setItem(
+      'firebaseEmulatorOrigin', 'http://127.0.0.1:9099');
+  });
   await page.goto('/');
   await ensureFlutterSemantics(page);
 
