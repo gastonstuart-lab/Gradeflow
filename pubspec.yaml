@@ -37,7 +37,7 @@ dependencies:
   cloud_firestore: ^6.1.1
   firebase_auth: ^6.7.1
   # Auth web >=6.3.1 repairs emulator reconnect after browser reload.
-  firebase_auth_web: ^6.3.2
+  firebase_auth_web: 6.3.1
   responsive_framework: ^1.5.1
   icalendar_parser: ^2.1.0
   cloud_functions: ^6.0.5
