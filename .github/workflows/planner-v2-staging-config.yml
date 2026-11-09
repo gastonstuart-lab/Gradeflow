@@ -1,0 +1,31 @@
+name: Planner V2 dedicated Firebase staging configuration
+on:
+  push:
+    branches:
+      - release/classroom-v2-staging-firebase-config-20261109
+  pull_request:
+    branches:
+      - release/classroom-v2-staging-isolation-20261109
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test test/planner_v2_staging_safety_test.dart test/planner_v2_firebase_config_test.dart
+      - run: flutter test
+      - name: Verify normal authenticated app still builds
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href /
+      - name: Verify missing staging config produces a safe blocked build
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_PLANNER_V2_STAGING=true
+      - name: Verify synthetic review is independent
+        run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
