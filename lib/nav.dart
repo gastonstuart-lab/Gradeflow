@@ -55,7 +55,7 @@ class AppRouter {
     }
     final uri = Uri.base;
     return uri.path == '/' ? AppRoutes.home
-        : uri.path + (uri.hasQuery ? '?'+uri.query : '');
+        : uri.path + (uri.hasQuery ? '?${uri.query}' : '');
   }
 
   static final GoRouter router = GoRouter(
