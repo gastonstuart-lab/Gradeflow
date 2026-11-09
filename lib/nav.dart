@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/config/planner_v2_staging_safety.dart';
 import 'package:gradeflow/screens/login_screen.dart';
 import 'package:gradeflow/screens/class_list_screen.dart';
 import 'package:gradeflow/screens/class_detail_screen.dart';
@@ -45,8 +46,22 @@ class AppRouter {
     return _validatedInternalAppLocation(rawLocation) ?? AppRoutes.osHome;
   }
 
+  // The synthetic-only staging build must respect deep links on full page
+  // reload. Flutter web can expose '/' as its platform default route even
+  // when the browser address points to an authenticated class workspace.
+  static String get _stagingInitialLocation {
+    if (!kIsWeb || !PlannerV2StagingSafety.stagingEnabled) {
+      return AppRoutes.home;
+    }
+    final uri = Uri.base;
+    return uri.path == '/' ? AppRoutes.home
+        : uri.path + (uri.hasQuery ? '?'+uri.query : '');
+  }
+
   static final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: _stagingInitialLocation,
+    overridePlatformDefaultLocation:
+        kIsWeb && PlannerV2StagingSafety.stagingEnabled,
     redirect: (context, state) {
       try {
         final auth = Provider.of<AuthService>(context, listen: false);
