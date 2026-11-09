@@ -2,13 +2,13 @@
 
 ## Protected source of truth
 
-- **Verified latest review commit:** `a44a066a0603559080dfc3f5e2d2433ab11b38c0` from draft PR #84 (`engineering/planner-v2-seat-drag-20261109`).
-- **Immutable recovery branch:** `recovery/planner-v2-zoom-validated-20261109`.
-- **Review staging branch:** `release/classroom-v2-integration-review-20261109`.
-- **Verified Ready Vercel deployment:** `dpl_4eMCDjBrx9S71bxEXNrYtmBDak7o`, at https://gradeflow-classroom-zoom-review-iuy35tk3s.vercel.app/#/preview/classroom.
-- **Passing source CI:** GitHub Actions run #42541830670, including `flutter analyze`, the focused V2 geometry/seating/widget tests, full Flutter tests (reported 189), and the isolated synthetic web release build.
-- **Separate older Ready deployment:** full canvas `dpl_EbrmDjmuHaZJJTRVQZtjk6eAvY7N`; tools/timer `dpl_3G7n5Xn5MBTtNWsagQDRtTX1FqaS`.
-- **Do not merge** older independent drafts #68–#83 piecemeal; latest PR #84 contains the newer combined V2 evolution. Do not overwrite the approved Classroom checkpoint, local Surface checkout, or existing immutable review links.
+- **Owner-approved Classroom visual source:** `513bb31d7b5df57581270adc699641a73bcf88f8`, PR #89, including full-canvas furniture movement, corrected Fit to Screen, compact Present and zoom/pan.
+- **Golden-master branch:** `golden/classroom-v2-approved-513bb31-20261109`. Do not change its appearance or replace it with older builds.
+- **Owner-approved Ready synthetic preview:** `dpl_UqZwrQtr2H6hMaPeLM9AcoJSXEui`, https://gradeflow-classroom-zoom-review-hmc13sx9b.vercel.app/#/preview/classroom.
+- **Approved visual source CI:** GitHub Actions run #42555675216 passed Flutter analysis, full tests and synthetic web build.
+- **Integrated code review:** draft PR #91, `integration/approved-v2-auth-staging-candidate-20261109`, based on Home continuity draft #90 and the golden master, with isolated Firebase staging safeguards from drafts #85–#88.
+- **Earlier review checkpoints:** `recovery/planner-v2-zoom-validated-20261109` and https://gradeflow-classroom-zoom-review-iuy35tk3s.vercel.app/#/preview/classroom are retained as historical fallbacks, not the owner-approved current target.
+- **Do not merge** older independent experimental drafts piecemeal or overwrite production, the owner's approved Classroom checkpoint, or any existing preview links.
 
 ## Verified implementation from source
 
@@ -54,4 +54,4 @@
 
 ## Decision at this checkpoint
 
-**HOLD FOR PRODUCTION.** The latest synthetic-only Planner V2 is a Ready review deployment and the protected baseline. There is no evidence yet in this audit of the complete authenticated Teacher Home/Classroom integration or of end-to-end production-route validation. Proceed with a separate integrated staging candidate. Do not promote this synthetic entrypoint as the real school system.
+**HOLD FOR PRODUCTION.** The owner approved the appearance of PR #89; draft PR #91 now integrates the staging-only V2 route, signed-in teacher class selection, and fail-closed Firebase configuration. Automated builds and local emulator security tests are necessary but cannot substitute for an actual distinct Firebase staging project, authenticated multi-class browser tests, migration checks, and owner release approval. Do not promote the synthetic preview or deploy to the real school domain yet.
