@@ -335,11 +335,15 @@ class _HomeSurfaceState extends State<HomeSurface> {
     final totalStudents = snapshot?.totalStudents ?? 0;
     final unread = context.watch<CommunicationService>().totalUnreadCount;
     final now = DateTime.now();
-    final primaryClass = _selectPrimaryClass(snapshot?.activeClasses, classes);
+    final controller = context.watch<GradeFlowOSController>();
+    final primaryClass = _selectPrimaryClass(
+      snapshot?.activeClasses,
+      classes,
+      controller.lastSelectedClassId,
+    );
     final primaryReminder = reminders.isNotEmpty ? reminders.first : null;
     final teacherName = _firstName(user?.fullName ?? '');
     final schoolName = _schoolName(user?.schoolName);
-    final controller = context.read<GradeFlowOSController>();
     final themeMode = context.watch<ThemeModeNotifier>().themeMode;
     final toggleTheme = context.read<ThemeModeNotifier>().toggleTheme;
     _scheduleStudentCountSync(classes);
@@ -363,7 +367,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
                 auth.isLoading ||
                 shell.isWorkspaceLoading ||
                 classService.isLoading,
-            onSelectClass: (id) => setState(() => _selectedHomeClassId = id),
+            onSelectClass: (id) {
+              controller.rememberSelectedClass(id);
+              setState(() => _selectedHomeClassId = id);
+            },
             onMoreHomeTools: () =>
                 setState(() => _showExistingHomeTools = true),
             onToggleTheme: toggleTheme,
@@ -471,13 +478,19 @@ class _HomeSurfaceState extends State<HomeSurface> {
   Class? _selectPrimaryClass(
     List<Class>? snapshotClasses,
     List<Class> serviceClasses,
+    String? previousClassId,
   ) {
-    for (final classItem in serviceClasses) {
-      if (classItem.classId == _selectedHomeClassId) return classItem;
+    // Never trust a remembered class ID without checking it belongs to the
+    // classes currently loaded for this account. An obsolete selection,
+    // including a prior signed-in teacher's ID, must not be used as a route.
+    final candidates = serviceClasses.isNotEmpty
+        ? serviceClasses
+        : (snapshotClasses ?? const <Class>[]);
+    for (final preferredId in [_selectedHomeClassId, previousClassId]) {
+      for (final classItem in candidates) {
+        if (classItem.classId == preferredId) return classItem;
+      }
     }
-    final candidates = snapshotClasses != null && snapshotClasses.isNotEmpty
-        ? snapshotClasses
-        : serviceClasses;
     return candidates.isNotEmpty ? candidates.first : null;
   }
 
