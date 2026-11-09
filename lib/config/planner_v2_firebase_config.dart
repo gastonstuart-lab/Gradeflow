@@ -48,7 +48,8 @@ class PlannerV2FirebaseConfig {
     // Reject production domains and buckets, and require the expected Firebase
     // Auth hostname. A custom staging domain must be explicitly designed later.
     if (authDomain.trim() != '$id.firebaseapp.com') return false;
-    if (storageBucket.trim() == 'gradeflow-20260113.firebasestorage.app') {
+    if (storageBucket.trim() != '$id.firebasestorage.app' &&
+        storageBucket.trim() != '$id.appspot.com') {
       return false;
     }
     return true;
