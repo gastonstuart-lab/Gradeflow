@@ -77,9 +77,12 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - run: flutter analyze
       - run: flutter test test/planner_v2_emulator_safety_test.dart test/planner_v2_staging_safety_test.dart
-      - name: Build authenticated app for loopback demo emulators
+      - name: Build local-only debug app for Firebase emulators
+        # FlutterFire 6.3.1 deliberately persists/reuses emulator origins
+        # only when kDebugMode is true. A release build must NEVER rely on
+        # Firebase's debug-only emulator reconnection behaviour.
         run: |
-          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+          flutter build web --debug --no-wasm-dry-run --target lib/main.dart \
             --base-href / \
             --dart-define=GRADEFLOW_PLANNER_V2_STAGING=true \
             --dart-define=GRADEFLOW_V2_LOCAL_EMULATORS=true \
