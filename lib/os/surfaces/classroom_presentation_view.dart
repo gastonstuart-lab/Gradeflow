@@ -179,7 +179,7 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close_fullscreen_rounded,
                         size: 17),
-                    label: const Text('Exit'),
+                    label: const Text('Exit presentation'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
                       side: BorderSide(
