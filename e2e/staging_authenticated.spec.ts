@@ -6,6 +6,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   test.setTimeout(180_000);
   const browserDiagnostics: string[] = [];
   const unexpectedCloudRequests: string[] = [];
+  let browserPhase = 'sign-in';
   // Emulator-only builds must never silently contact live Firebase Auth or
   // Firestore. A real API-key rejection after refresh is a release blocker,
   // not a reason to weaken the navigation assertions.
@@ -13,7 +14,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     const endpoint = new URL(request.url());
     if (['identitytoolkit.googleapis.com', 'securetoken.googleapis.com',
          'firestore.googleapis.com'].includes(endpoint.hostname)) {
-      unexpectedCloudRequests.push(endpoint.hostname + endpoint.pathname);
+      unexpectedCloudRequests.push(browserPhase + ': ' + endpoint.hostname + endpoint.pathname);
     }
   });
   page.on('console', (message) => {
@@ -77,6 +78,9 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
 
+  console.log('Auth emulator origin after sign-in:', await page.evaluate(
+    () => window.sessionStorage.getItem('firebaseEmulatorOrigin')));
+  browserPhase = 'open-class';
   const directResponse = await page.goto('/os/class/class-science-browser');
   console.log('Class direct-request status and final HTTP URL:',
     directResponse?.status(), directResponse?.url());
@@ -93,6 +97,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
 
+  browserPhase = 'open-classroom';
   await page.goto('/os/class/class-science-browser/classroom');
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Fit to screen').first())
@@ -101,12 +106,16 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
 
   // Returning from Classroom to Home retains authorization and class
   // context; the browser connects only to localhost demo Firebase emulators.
+  browserPhase = 'return-home';
   await page.goto('/os/home');
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Staging safety check')).toHaveCount(0);
+  browserPhase = 'refresh-home';
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Staging safety check')).toHaveCount(0);
+  console.log('Auth emulator origin after refresh:', await page.evaluate(
+    () => window.sessionStorage.getItem('firebaseEmulatorOrigin')));
   expect(unexpectedCloudRequests,
     'A local-emulator build contacted live Firebase endpoints').toEqual([]);
 });
