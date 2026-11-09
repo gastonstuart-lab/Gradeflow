@@ -4,6 +4,20 @@ import { ensureFlutterSemantics } from './helpers';
 test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators',
     async ({ page }) => {
   test.setTimeout(180_000);
+  const browserDiagnostics: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error' || message.type() === 'warning') {
+      browserDiagnostics.push(message.type() + ': ' + message.text());
+    }
+  });
+  page.on('pageerror', (error) => browserDiagnostics.push('page: ' + error.message));
+  page.on('response', (response) => {
+    if (response.url().includes('identitytoolkit') ||
+        response.url().includes('securetoken')) {
+      browserDiagnostics.push('auth-http: ' + response.status() + ' ' +
+        new URL(response.url()).pathname);
+    }
+  });
   await page.goto('/');
   await ensureFlutterSemantics(page);
 
@@ -14,7 +28,14 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await email.fill('browser-teacher@example.invalid');
   await password.fill('FakePassword-Teacher123!');
   await page.getByRole('button', { name: /^Sign in$/i }).first().click();
-  await expect(page).toHaveURL(/\/os\/home/, { timeout: 45_000 });
+  try {
+    await expect(page).toHaveURL(/\\/os\\/home/, { timeout: 15_000 });
+  } catch (error) {
+    console.log('Authentication failure diagnostics:', browserDiagnostics);
+    console.log('Visible browser text:',
+      (await page.locator('body').innerText().catch(() => '')).slice(0, 2500));
+    throw error;
+  }
 
   await page.goto('/os/class/class-science-browser');
   await ensureFlutterSemantics(page);
