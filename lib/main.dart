@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:gradeflow/components/gradeflow_launch_experience.dart';
 import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/config/planner_v2_staging_safety.dart';
-import 'package:gradeflow/firebase_options.dart';
+import 'package:gradeflow/config/planner_v2_firebase_config.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/providers/app_providers.dart';
@@ -26,15 +26,33 @@ void main() async {
   // Fail closed BEFORE building providers/auth. The normal application
   // continues unchanged; a staging build pointing to the production
   // Firebase project must never load school or student data.
-  final reason = PlannerV2StagingSafety.blockingReason(
-    stagingEnabled: PlannerV2StagingSafety.stagingEnabled,
-    configuredProjectId: DefaultFirebaseOptions.currentPlatform.projectId,
-    requiredStagingProjectId:
-        PlannerV2StagingSafety.requiredStagingProjectId,
-  );
+  final reason = PlannerV2StagingSafety.stagingEnabled &&
+          !PlannerV2FirebaseConfig.stagingConfigured
+      ? 'Planner V2 staging requires complete, separate Firebase web '
+          'configuration. No authentication or student data was loaded.'
+      : PlannerV2StagingSafety.blockingReason(
+          stagingEnabled: PlannerV2StagingSafety.stagingEnabled,
+          configuredProjectId:
+              PlannerV2FirebaseConfig.currentPlatform.projectId,
+          requiredStagingProjectId:
+              PlannerV2StagingSafety.requiredStagingProjectId,
+        );
   if (reason != null) {
     runApp(_PlannerV2StagingBlocked(reason: reason));
     return;
+  }
+
+  if (PlannerV2StagingSafety.stagingEnabled) {
+    // Staging must never degrade into a local-only demo/login when Firebase
+    // initialization fails. Normal production startup stays unchanged.
+    final ok = await FirebaseService.maybeInitialize();
+    if (!ok) {
+      runApp(const _PlannerV2StagingBlocked(
+        reason: 'Staging Firebase could not be initialized. '
+            'Authentication and classroom data have not been loaded.',
+      ));
+      return;
+    }
   }
 
   // Initialize Firebase if configured. On web this must not block runApp(),
