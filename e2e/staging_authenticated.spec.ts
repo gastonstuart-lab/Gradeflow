@@ -67,7 +67,9 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
 
-  await page.goto('/os/class/class-science-browser');
+  const directResponse = await page.goto('/os/class/class-science-browser');
+  console.log('Class direct-request status and final HTTP URL:',
+    directResponse?.status(), directResponse?.url());
   await ensureFlutterSemantics(page);
   try {
     await expect(page.getByText('Synthetic Science 2B').first())
