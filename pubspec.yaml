@@ -33,12 +33,14 @@ dependencies:
   image_picker: '>=1.1.2'
   fl_chart: 0.68.0
   google_sign_in: ^6.2.1
-  firebase_core: ^3.8.1
-  cloud_firestore: ^5.6.1
-  firebase_auth: ^5.5.1
+  firebase_core: ^4.3.0
+  cloud_firestore: ^6.1.1
+  firebase_auth: ^6.7.1
+  # Auth web >=6.3.1 repairs emulator reconnect after browser reload.
+  firebase_auth_web: ^6.3.2
   responsive_framework: ^1.5.1
   icalendar_parser: ^2.1.0
-  cloud_functions: ^5.6.2
+  cloud_functions: ^6.0.5
 
 dev_dependencies:
   flutter_test:
