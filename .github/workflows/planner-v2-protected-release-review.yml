@@ -32,3 +32,7 @@ jobs:
       - run: flutter test
       - name: Compile synthetic V2 release only
         run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
+      - name: Compile authenticated app with V2 disabled (production default)
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href /
+      - name: Compile authenticated app with V2 staging flag enabled
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_PLANNER_V2_STAGING=true
