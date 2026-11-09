@@ -1,6 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
-import 'package:gradeflow/firebase_options.dart';
+import 'package:gradeflow/config/planner_v2_firebase_config.dart';
 
 /// Centralized Firebase initialization.
 /// Call [maybeInitialize] once at app startup (from main.dart).
@@ -23,7 +23,7 @@ class FirebaseService {
 
     try {
       await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
+        options: PlannerV2FirebaseConfig.currentPlatform,
       ).timeout(const Duration(seconds: 4));
       _initialized = true;
       _available = true;
