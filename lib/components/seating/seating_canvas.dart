@@ -723,6 +723,7 @@ class SeatWidget extends StatelessWidget {
                           ]))),
                   const SizedBox(height: 3),
                   SizedBox(
+                      width: size,
                       height: 15,
                       child: Text(label,
                           maxLines: 1,
