@@ -11,6 +11,18 @@ on:
 permissions:
   contents: read
 jobs:
+  online-staging-configuration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reject wrong Firebase project and credentials before any hosting deploy
+        run: |
+          node --test staging-tests/online-project-guard.test.mjs
+          node -e "const fs=require('node:fs'); const config=JSON.parse(fs.readFileSync('firebase.staging.deploy.json')); if(!config.hosting||config.functions||config.firestore?.rules!=='firestore.staging.rules') process.exit(1);"
   local-storage-queue:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
