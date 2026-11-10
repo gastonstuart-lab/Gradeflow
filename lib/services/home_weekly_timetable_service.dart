@@ -196,6 +196,7 @@ class HomeWeeklyTimetableService {
     final parsed = inspectBytes(filename: filename, bytes: bytes);
     final grid = parsed.grid;
     final classes = parsed.classes;
+    final extension = filename.split('.').last.toLowerCase();
     final previous = await _prefs.readScopedJsonList(
       scopedKey: _prefs.scopedKey(baseKey: _timetablesKey, userId: userId),
     );
