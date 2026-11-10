@@ -332,8 +332,9 @@ class _ClassroomQuickGradeEditorState extends State<ClassroomQuickGradeEditor> {
               const Text('No assessments yet. Add one in the full Gradebook.')
             else ...[
               DropdownButtonFormField<String>(
+                key: ValueKey('assessment:$itemId'),
                 isExpanded: true,
-                value: itemId,
+                initialValue: itemId,
                 decoration: const InputDecoration(
                   labelText: 'Assessment',
                   isDense: true,
