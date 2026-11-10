@@ -75,8 +75,10 @@ jobs:
           project_id: gradeflow-20260113
           create_credentials_file: true
           export_environment_variables: true
-      - name: Install Firebase CLI
-        run: npm install --global firebase-tools
+      - name: Install Firebase CLI version with verified WIF support
+        run: |
+          npm install --global firebase-tools@15.22.1
+          firebase --version
       - name: Deploy ONLY temporary classroom-v2 preview channel, NEVER live
         shell: bash
         run: |
