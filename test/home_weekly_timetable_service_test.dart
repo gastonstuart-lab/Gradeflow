@@ -92,9 +92,9 @@ void main() {
       'existing-week',
     );
     final bytes = Uint8List.fromList(utf8.encode(
-      'Time,Monday,Tuesday,Wednesday,Thursday,Friday\\n'
-      '09:00-09:50,Synthetic English,,Synthetic Science,,\\n'
-      '10:00-10:50,Synthetic Maths,,,,\\n',
+      'Time,Monday,Tuesday,Wednesday,Thursday,Friday\n'
+      '09:00-09:50,Synthetic English,,Synthetic Science,,\n'
+      '10:00-10:50,Synthetic Maths,,,,\n',
     ));
     final inspected = HomeWeeklyTimetableService.inspectBytes(
       filename: 'timetable.csv',
