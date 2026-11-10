@@ -30,6 +30,9 @@ class ApprovedTeacherHome extends StatelessWidget {
     required this.onToggleTheme,
     required this.onAttention,
     required this.onAssistant,
+    this.heroGradientColors = const [Color(0xff103553), Color(0xff1a5875), Color(0xff148b88)],
+    this.heroBackgroundImage,
+    this.onCustomiseHome,
   });
 
   final String teacherName;
@@ -51,6 +54,9 @@ class ApprovedTeacherHome extends StatelessWidget {
   final VoidCallback onToggleTheme;
   final VoidCallback onAttention;
   final VoidCallback onAssistant;
+  final List<Color> heroGradientColors;
+  final ImageProvider<Object>? heroBackgroundImage;
+  final VoidCallback? onCustomiseHome;
 
   bool _dark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
@@ -133,6 +139,16 @@ class ApprovedTeacherHome extends StatelessWidget {
         ]),
       );
 
+  void _moveClass(int direction) {
+    if (loading || classes.length < 2) return;
+    final currentIndex = classes.indexWhere(
+      (c) => c.classId == primaryClass?.classId,
+    );
+    if (currentIndex < 0) return;
+    final nextIndex = (currentIndex + direction + classes.length) % classes.length;
+    onSelectClass(classes[nextIndex].classId);
+  }
+
   Widget _classCard(BuildContext context) {
     final item = primaryClass;
     final count = item == null ? null : studentCounts[item.classId];
@@ -140,8 +156,8 @@ class ApprovedTeacherHome extends StatelessWidget {
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-            colors: [Color(0xff103553), Color(0xff1a5875), Color(0xff148b88)],
+        gradient: LinearGradient(
+            colors: heroGradientColors,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(28),
@@ -149,9 +165,39 @@ class ApprovedTeacherHome extends StatelessWidget {
           BoxShadow(
               color: Color(0x35234b74), blurRadius: 34, offset: Offset(0, 14))
         ],
-        border: Border.all(color: const Color(0xff3a8093)),
+        border: Border.all(color: Colors.white.withValues(alpha: .22)),
       ),
-      child: Stack(children: [
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: classes.length < 2 || loading
+            ? null
+            : (details) {
+                final velocity = details.primaryVelocity ?? 0;
+                if (velocity < -150) _moveClass(1);
+                if (velocity > 150) _moveClass(-1);
+              },
+        child: Stack(children: [
+          if (heroBackgroundImage != null) ...[
+            Positioned.fill(
+              child: Image(image: heroBackgroundImage!, fit: BoxFit.cover),
+            ),
+            const Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Color(0xf20b2438),
+                      Color(0xd10b2438),
+                      Color(0x9c0b2438),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        if (heroBackgroundImage == null)
         const Positioned(
             right: -18,
             top: -22,
@@ -199,19 +245,58 @@ class ApprovedTeacherHome extends StatelessWidget {
                       if (classes.isNotEmpty && !loading)
                         SizedBox(
                             width: 220, child: _classSelector(context, item)),
+                      if (onCustomiseHome != null)
+                        TextButton.icon(
+                          onPressed: onCustomiseHome,
+                          icon: const Icon(Icons.palette_outlined, size: 18),
+                          label: const Text('Personalise'),
+                          style: TextButton.styleFrom(foregroundColor: Colors.white),
+                        ),
                     ],
                   )),
               const SizedBox(height: 18),
-              Text(
-                  loading
-                      ? 'Loading your classes…'
-                      : item?.className ?? 'No class selected',
-                  style: const TextStyle(
-                      fontSize: 42,
-                      height: 1,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -1.4)),
+              Row(children: [
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: Text(
+                      loading
+                          ? 'Loading your classes…'
+                          : item?.className ?? 'No class selected',
+                      key: ValueKey('home-class-title-${item?.classId}'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 42,
+                        height: 1.05,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1.4,
+                      ),
+                    ),
+                  ),
+                ),
+                if (classes.length > 1 && !loading) ...[
+                  IconButton(
+                    tooltip: 'Previous class',
+                    onPressed: () => _moveClass(-1),
+                    icon: const Icon(Icons.chevron_left_rounded, color: Colors.white),
+                  ),
+                  Text(
+                    '${classes.indexWhere((c) => c.classId == item?.classId) + 1} / ${classes.length}',
+                    style: const TextStyle(
+                      color: Color(0xffd6e6ef),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Next class',
+                    onPressed: () => _moveClass(1),
+                    icon: const Icon(Icons.chevron_right_rounded, color: Colors.white),
+                  ),
+                ],
+              ]),
               const SizedBox(height: 9),
               Text(
                   item == null
@@ -262,6 +347,7 @@ class ApprovedTeacherHome extends StatelessWidget {
               ]),
             ])),
       ]),
+      ),
     );
   }
 
