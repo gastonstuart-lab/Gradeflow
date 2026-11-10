@@ -214,14 +214,14 @@ class _HomeSurfaceState extends State<HomeSurface> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Home background',
+                      'Personalise Home',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Choose a built-in wallpaper or add your own image. Dark mode stays available from the moon button.',
+                      'Choose a colour theme or a photo for the main classroom card. Text stays readable with a protective overlay. The older Home tools use these preferences too.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color:
                                 Theme.of(context).colorScheme.onSurfaceVariant,
@@ -312,6 +312,20 @@ class _HomeSurfaceState extends State<HomeSurface> {
     );
   }
 
+  List<Color> _approvedHomeHeroColors() {
+    switch (_wallpaperStyle) {
+      case _HomeWallpaperStyle.sky:
+        return const [Color(0xff183855), Color(0xff245b80), Color(0xff247b91)];
+      case _HomeWallpaperStyle.meadow:
+        return const [Color(0xff173c38), Color(0xff225e50), Color(0xff28735b)];
+      case _HomeWallpaperStyle.aurora:
+        return const [Color(0xff282748), Color(0xff45406d), Color(0xff376478)];
+      case _HomeWallpaperStyle.customImage:
+      case _HomeWallpaperStyle.defaultStyle:
+        return const [Color(0xff103553), Color(0xff1a5875), Color(0xff148b88)];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final shell = context.watch<GlobalSystemShellController>();
@@ -389,6 +403,13 @@ class _HomeSurfaceState extends State<HomeSurface> {
             onToggleTheme: toggleTheme,
             onAttention: controller.openShade,
             onAssistant: controller.openAssistant,
+            heroGradientColors: _approvedHomeHeroColors(),
+            heroBackgroundImage:
+                _wallpaperStyle == _HomeWallpaperStyle.customImage &&
+                        _wallpaperImageBytes != null
+                    ? MemoryImage(_wallpaperImageBytes!)
+                    : null,
+            onCustomiseHome: _showWallpaperSheet,
           ),
         ),
       );
