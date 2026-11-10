@@ -44,6 +44,7 @@ class _HomeSurfaceState extends State<HomeSurface> {
   static const String _wallpaperStyleBaseKey = 'os_home_wallpaper_style_v1';
   static const String _wallpaperImageBaseKey = 'os_home_wallpaper_image_v1';
   static const String _readabilityBaseKey = 'os_home_readability_v1';
+  static const String _combinePeriodsBaseKey = 'os_home_combine_periods_v1';
 
   final DashboardPreferencesService _preferences =
       const DashboardPreferencesService();
@@ -61,6 +62,7 @@ class _HomeSurfaceState extends State<HomeSurface> {
   HomeWeeklyTimetable? _homeTimetable;
   String? _homeTimetableUserId;
   bool _importingHomeTimetable = false;
+  bool _combineConsecutivePeriods = true;
 
   @override
   void didChangeDependencies() {
@@ -77,6 +79,7 @@ class _HomeSurfaceState extends State<HomeSurface> {
     _loadedUserId = userId;
     _homeTimetable = null;
     _homeTimetableUserId = null;
+    _combineConsecutivePeriods = true;
     _loadWallpaper(userId);
     _loadHomeTimetable(userId);
   }
@@ -102,10 +105,17 @@ class _HomeSurfaceState extends State<HomeSurface> {
           userId: userId,
         ),
       );
+      final combinePeriods = await _preferences.readScopedString(
+        scopedKey: _preferences.scopedKey(
+          baseKey: _combinePeriodsBaseKey,
+          userId: userId,
+        ),
+      );
       if (!mounted || _loadedUserId != userId) return;
       setState(() {
         _wallpaperStyle = _HomeWallpaperStyleX.fromId(style);
         _readabilityPreset = _HomeReadabilityPresetX.fromId(readability);
+        _combineConsecutivePeriods = combinePeriods != 'false';
         _wallpaperImageBase64 = image;
         _wallpaperImageBytes = _decodeWallpaperImage(image);
         _loadingWallpaper = false;
@@ -114,6 +124,19 @@ class _HomeSurfaceState extends State<HomeSurface> {
       if (!mounted || _loadedUserId != userId) return;
       setState(() => _loadingWallpaper = false);
     }
+  }
+
+  Future<void> _setCombineConsecutivePeriods(bool enabled) async {
+    final userId = _homeStorageUserId(context.read<AuthService>());
+    if (userId == null || userId != _loadedUserId) return;
+    setState(() => _combineConsecutivePeriods = enabled);
+    await _preferences.writeString(
+      key: _preferences.scopedKey(
+        baseKey: _combinePeriodsBaseKey,
+        userId: userId,
+      ),
+      value: enabled ? 'true' : 'false',
+    );
   }
 
   Future<void> _loadHomeTimetable(String userId) async {
@@ -477,6 +500,9 @@ class _HomeSurfaceState extends State<HomeSurface> {
                 ? _homeTimetable
                 : null,
             onUploadTimetable: _importHomeTimetable,
+            combineConsecutivePeriods: _combineConsecutivePeriods,
+            onCombineConsecutivePeriodsChanged: (enabled) =>
+                unawaited(_setCombineConsecutivePeriods(enabled)),
           ),
         ),
       );
