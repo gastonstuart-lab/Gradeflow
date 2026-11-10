@@ -42,6 +42,8 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
     this.onCustomiseHome,
     this.timetable,
     this.onUploadTimetable,
+    this.combineConsecutivePeriods = true,
+    this.onCombineConsecutivePeriodsChanged,
   });
 
   final Class? primaryClass;
@@ -71,6 +73,8 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
   final VoidCallback? onCustomiseHome;
   final HomeWeeklyTimetable? timetable;
   final VoidCallback? onUploadTimetable;
+  final bool combineConsecutivePeriods;
+  final ValueChanged<bool>? onCombineConsecutivePeriodsChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +104,8 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
         onCustomiseHome: onCustomiseHome,
         timetable: timetable,
         onUploadTimetable: onUploadTimetable,
+        combineConsecutivePeriods: combineConsecutivePeriods,
+        onCombineConsecutivePeriodsChanged: onCombineConsecutivePeriodsChanged,
       );
     }
     final dark = context.isDark;
