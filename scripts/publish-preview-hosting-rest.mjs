@@ -48,6 +48,7 @@ async function call(url, method = 'GET', body) {
     throw new Error(method + ' Hosting API returned HTTP ' + res.status +
       ': ' + content.slice(0, 600));
   }
+  if (Buffer.isBuffer(body)) return {};
   return content && content.trim() ? JSON.parse(content) : {};
 }
 
@@ -83,7 +84,6 @@ const version = await call(apiBase + '/sites/' + site + '/versions', 'POST', {
 if (!version.name?.startsWith('sites/' + site + '/versions/')) {
   throw new Error('Unexpected version resource');
 }
-const hashes = Object.fromEntries(files.map((f) => [f.uri, f.hash]));
 let uploadRequiredHashes = new Set();
 let uploadUrl;
 for (let i = 0; i < files.length; i += 900) {
