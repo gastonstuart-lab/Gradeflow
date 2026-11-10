@@ -54,13 +54,16 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     book.addListener(_changed);
     book.load().then((_) {
       if (mounted)
-        setState(() => category = book.categories
+        setState(() {
+          summary = widget.studentId == null;
+          category = book.categories
                 .where((c) =>
                     GradebookWorkspace.canonical(c.name) ==
                     widget.initialCategory)
                 .firstOrNull
                 ?.categoryId ??
-            book.categories.firstOrNull?.categoryId);
+            book.categories.firstOrNull?.categoryId;
+        });
     }).catchError((Object e) {
       if (mounted) setState(() => loadError = e.toString());
     });
@@ -177,9 +180,14 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
 
   Widget scoreField(Student s, GradeItem? item) {
     final key = book.key(s.studentId, item?.gradeItemId ?? 'exam');
-    return SizedBox(
-      width: 78,
-      child: TextField(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _gradeStepButton(s, item, -1),
+        const SizedBox(width: 2),
+        SizedBox(
+          width: 68,
+          child: TextField(
         key: ValueKey(key),
         controller: controller(
           key,
@@ -211,6 +219,41 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
           commit(s, item);
           FocusScope.of(context).nextFocus();
         },
+          ),
+        ),
+        const SizedBox(width: 2),
+        _gradeStepButton(s, item, 1),
+      ],
+    );
+  }
+
+  Widget _gradeStepButton(Student student, GradeItem? item, int delta) {
+    final key = book.key(student.studentId, item?.gradeItemId ?? 'exam');
+    return SizedBox(
+      width: 26,
+      height: 32,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(minWidth: 26, minHeight: 32),
+        tooltip: delta > 0 ? 'Increase score by 1' : 'Decrease score by 1',
+        onPressed: working || dirty.contains(key)
+            ? null
+            : () async {
+                final field = controller(
+                  key,
+                  item == null
+                      ? book.exam(student.studentId)
+                      : book.score(student.studentId, item.gradeItemId),
+                );
+                final value = double.tryParse(field.text.trim()) ?? 0;
+                final next = (value + delta).clamp(0, item?.maxScore ?? 100);
+                if (next == value && field.text.trim().isNotEmpty) return;
+                field.text = fmt(next.toDouble());
+                setState(() => dirty.add(key));
+                await commit(student, item);
+              },
+        icon: Icon(delta > 0 ? Icons.add : Icons.remove, size: 16),
       ),
     );
   }
