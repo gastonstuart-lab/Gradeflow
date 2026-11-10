@@ -216,7 +216,8 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('First class'), findsOneWidget);
+    expect(find.byKey(const ValueKey('home-class-title-existing-a')),
+        findsOneWidget);
     expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
 
     await tester.tap(find.byTooltip('Next class'));
@@ -228,7 +229,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(selected.classId, 'existing-a');
 
-    await tester.fling(find.text('First class'), const Offset(-260, 0), 900);
+    await tester.fling(
+      find.byKey(const ValueKey('home-class-title-existing-a')),
+      const Offset(-260, 0),
+      900,
+    );
     await tester.pumpAndSettle();
     expect(selected.classId, 'existing-b');
 
