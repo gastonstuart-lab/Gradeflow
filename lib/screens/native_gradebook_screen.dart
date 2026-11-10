@@ -322,6 +322,12 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     setState(() => working = true);
     try {
       await book.setCourseworkWeightPercent(chosen);
+      if (mounted) {
+        final teacher = context.read<AuthService>().currentUser?.userId;
+        if (teacher != null) {
+          await context.read<ClassService>().loadClasses(teacher);
+        }
+      }
       message('Class weights saved. Student scores were not changed.');
     } catch (e) {
       message('Weights not changed: $e');
@@ -1225,8 +1231,8 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                                     .clamp(0, 1320).toDouble(),
                                               ),
                                               child: DataTable(
-                                                dataRowMinHeight: 50,
-                                                dataRowMaxHeight: 50,
+                                                dataRowMinHeight: 44,
+                                                dataRowMaxHeight: 44,
                                                 columnSpacing: 14,
                                               headingRowColor:
                                                   WidgetStatePropertyAll(
