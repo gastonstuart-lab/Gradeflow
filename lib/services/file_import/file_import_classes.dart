@@ -345,7 +345,7 @@ extension FileImportServiceClasses on FileImportService {
           final text = decodeTextFromBytes(bytes);
           if (text.trim().isNotEmpty) {
             // Heuristic: only treat as CSV if looks like delimited text
-            final hasNewline = text.contains('\n');
+            final hasNewline = text.contains('\n') || text.contains('\r');
             final hasSeparator =
                 text.contains(',') || text.contains(';') || text.contains('\t');
             // Ratio of printable ASCII characters
@@ -474,7 +474,7 @@ extension FileImportServiceClasses on FileImportService {
         final text = decodeTextFromBytes(bytes);
         if (text.trim().isEmpty) return [];
         // Only accept if it looks like CSV
-        final hasNewline = text.contains('\n');
+        final hasNewline = text.contains('\n') || text.contains('\r');
         final hasSeparator =
             text.contains(',') || text.contains(';') || text.contains('\t');
         final printable = text.runes
