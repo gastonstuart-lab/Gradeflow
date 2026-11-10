@@ -542,6 +542,39 @@ void main() {
     );
   });
 
+  test('shared room preserves an already arranged but unassigned class map', () async {
+    final service = SeatingService();
+    await service.loadLayouts('room-source');
+    await service.addTable('room-source', SeatingTableType.rectangular,
+        seatCount: 4);
+    final saved = await service.saveRoomSetupFromLayout(
+      classId: 'room-source', name: 'Shared science room',
+    );
+
+    await service.loadLayouts('other-class');
+    await service.addTable('other-class', SeatingTableType.round,
+        seatCount: 5);
+    final original = service.activeLayout('other-class')!;
+    expect(original.tables, hasLength(1));
+    expect(original.seats.every((s) => s.studentId == null), true);
+
+    final applied = await service.applyRoomSetupToClass(
+      classId: 'other-class', roomSetupId: saved!.roomSetupId,
+    );
+    expect(applied, isNotNull);
+    expect(applied!.createdNewLayout, true);
+    expect(service.layoutsForClass('other-class'), hasLength(2));
+    expect(
+      service.layoutsForClass('other-class')
+          .any((layout) => layout.layoutId == original.layoutId),
+      true,
+    );
+    expect(service.activeLayout('other-class')!.tables.first.type,
+        SeatingTableType.rectangular);
+    expect(service.activeLayout('other-class')!.seats
+        .every((seat) => seat.studentId == null), true);
+  });
+
   test(
       'refreshLinkedClassesFromRoomSetup updates linked rooms and preserves seat annotations',
       () async {
