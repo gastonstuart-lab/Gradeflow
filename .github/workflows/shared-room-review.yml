@@ -1,0 +1,25 @@
+name: Shared classroom layout review
+on:
+  pull_request:
+    branches:
+      - feat/gradebook-compact-overview-20261110
+concurrency:
+  group: gradeflow-shared-room-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  check-shared-room:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true

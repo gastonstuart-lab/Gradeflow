@@ -18,6 +18,7 @@ import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/seating_service.dart';
+import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
 import 'package:gradeflow/services/student_service.dart';
 
 class ClassroomSurface extends StatefulWidget {
@@ -359,6 +360,11 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                         service.selectLayout(widget.classId, value);
                     },
                   )),
+              action(Icons.meeting_room_outlined,
+                  'Use existing shared room', _chooseSharedRoom),
+              action(Icons.copy_all_outlined,
+                  'Use this room for other classes', _shareRoom),
+              const Divider(indent: 20, endIndent: 20),
               action(
                   Icons.table_restaurant_outlined,
                   'Add table',
@@ -395,6 +401,161 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         ])),
       ]),
     );
+  }
+
+  void _roomMessage(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text)),
+    );
+  }
+
+  /// The room template contains furniture, NOT the originating class's pupils.
+  Future<void> _shareRoom() async {
+    if (GradeFlowExistingProjectPreview.enabled) {
+      _roomMessage('This preview is read-only. Room changes are disabled.');
+      return;
+    }
+    final seats = context.read<SeatingService>();
+    final otherClasses = context.read<ClassService>().classes
+        .where((item) => item.classId != widget.classId)
+        .toList();
+    if (seats.activeLayout(widget.classId)?.tables.isEmpty ?? true) {
+      _roomMessage('Arrange the physical classroom before sharing it.');
+      return;
+    }
+    if (otherClasses.isEmpty) {
+      _roomMessage('There are no other classes to share this room with.');
+      return;
+    }
+    final selectedIds = otherClasses.map((c) => c.classId).toSet();
+    final chosen = await showDialog<Set<String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, update) => AlertDialog(
+          title: const Text('Use this room for other classes'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Copy the physical room only. Students and grades '
+                    'remain separate for each class. Existing assigned '
+                    'seating maps are kept as alternatives.'),
+                CheckboxListTile(
+                  title: const Text('All other classes'),
+                  dense: true,
+                  value: selectedIds.length == otherClasses.length,
+                  onChanged: (value) => update(() {
+                    if (value == true) {
+                      selectedIds.addAll(otherClasses.map((c) => c.classId));
+                    } else {
+                      selectedIds.clear();
+                    }
+                  }),
+                ),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final other in otherClasses)
+                        CheckboxListTile(
+                          title: Text(other.className),
+                          dense: true,
+                          value: selectedIds.contains(other.classId),
+                          onChanged: (value) => update(() {
+                            if (value == true) {
+                              selectedIds.add(other.classId);
+                            } else {
+                              selectedIds.remove(other.classId);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel')),
+            FilledButton(
+              onPressed: selectedIds.isEmpty ? null
+                  : () => Navigator.pop(dialogContext, Set.of(selectedIds)),
+              child: const Text('Reuse room'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (chosen == null || chosen.isEmpty || !mounted) return;
+    try {
+      final saved = await seats.saveRoomSetupFromLayout(
+        classId: widget.classId,
+        name: seats.assignedRoomSetup(widget.classId)?.name ?? 'Shared classroom',
+        roomSetupId: seats.assignedRoomSetupId(widget.classId),
+      );
+      if (saved == null) throw StateError('Could not save source room.');
+      var completed = 0;
+      for (final targetClassId in chosen) {
+        if (await seats.applyRoomSetupToClass(
+          classId: targetClassId,
+          roomSetupId: saved.roomSetupId,
+        ) != null) completed++;
+      }
+      _roomMessage('Room shared with $completed of ${chosen.length} classes. '
+          'Student assignments remain independent.');
+    } catch (error) {
+      _roomMessage('Room sharing did not complete: $error');
+    }
+  }
+
+  Future<void> _chooseSharedRoom() async {
+    if (GradeFlowExistingProjectPreview.enabled) {
+      _roomMessage('This preview is read-only. Room changes are disabled.');
+      return;
+    }
+    final seats = context.read<SeatingService>();
+    if (seats.roomSetups.isEmpty) {
+      _roomMessage('No shared rooms yet. In your arranged J1 classroom, '
+          'choose "Use this room for other classes".');
+      return;
+    }
+    final id = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Use an existing classroom'),
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Text('Copies furniture and positions, not students. '
+                'Existing class seating maps remain available.'),
+          ),
+          for (final setup in seats.roomSetups)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogContext, setup.roomSetupId),
+              child: Text(setup.name),
+            ),
+        ],
+      ),
+    );
+    if (id == null || !mounted) return;
+    try {
+      final result = await seats.applyRoomSetupToClass(
+          classId: widget.classId, roomSetupId: id);
+      if (result == null) throw StateError('Selected room was not available.');
+      if (!mounted) return;
+      setState(() {
+        _selectedSeat = null;
+        _selectedTableId = null;
+        _fitRevision++;
+      });
+      _roomMessage('Shared room applied; now arrange this class\'s students.');
+    } catch (error) {
+      _roomMessage('Could not apply room: $error');
+    }
   }
 
   void _openPresentation({

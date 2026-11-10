@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/screens/school_data_inbox_screen.dart';
+import 'package:gradeflow/services/file_import_service.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
@@ -18,6 +19,27 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+
+  test('file inspection detects distinct calendar, roster and grade files', () {
+    Uint8List bytes(String csv) => Uint8List.fromList(utf8.encode(csv));
+    final reader = FileImportService();
+    final calendar = reader.detectFileType(
+      bytes('Date,Event,Notes\n2026-11-20,Assembly,Auditorium\n'),
+      filename: 'school-events.csv',
+    );
+    final roster = reader.detectFileType(
+      bytes('Student ID,Name,Class\n2001,Test Student,J1FG\n'),
+      filename: 'roster.csv',
+    );
+    final grades = reader.detectFileType(
+      bytes('Student ID,Student Name,Exam Score\n2001,Test Student,98\n'),
+      filename: 'midterm-results.csv',
+    );
+    expect(calendar.type, ImportFileType.calendar);
+    expect(roster.type, ImportFileType.roster);
+    expect(grades.type, ImportFileType.examResults);
   });
 
   test('school calendar parser reads dated CSV events', () {
@@ -93,6 +115,75 @@ void main() {
       result.events.map((event) => event.title),
       isNot(contains('Overflow event')),
     );
+  });
+
+
+  test('reimporting a calendar skips identical events and keeps done flags', () {
+    final assembly = SchoolCalendarInboxEvent(
+      title: 'Assembly',
+      date: DateTime(2026, 11, 18, 9),
+    );
+    final existing = [
+      {
+        'text': ' Assembly ',
+        'timestamp': DateTime(2026, 11, 18, 9).toIso8601String(),
+        'done': true,
+        'classIds': <String>[],
+      },
+      {
+        'text': 'Class worksheet reminder',
+        'timestamp': DateTime(2026, 11, 18, 10).toIso8601String(),
+        'done': false,
+        'classIds': ['class-id'],
+      },
+    ];
+    final merged = mergeSchoolCalendarReminders(
+      existing: existing,
+      events: [
+        assembly,
+        assembly,
+        SchoolCalendarInboxEvent(
+          title: 'Science assessment',
+          date: DateTime(2026, 11, 19, 10),
+        ),
+      ],
+    );
+    expect(merged.added, 1);
+    expect(merged.skipped, 2);
+    expect(merged.items, hasLength(3));
+    expect((merged.items.first as Map)['done'], isTrue);
+    expect((merged.items.last as Map)['text'], 'Science assessment');
+  });
+
+  test('school events at different times and class-scoped reminders stay distinct', () {
+    final start = DateTime(2026, 11, 20, 9);
+    final existing = [
+      {
+        'text': 'Conference',
+        'timestamp': start.toIso8601String(),
+        'done': false,
+        'classIds': ['class-a'],
+      },
+      {
+        'text': 'Conference',
+        'timestamp': start.toIso8601String(),
+        'done': true,
+        'classIds': <String>[],
+      },
+    ];
+    final merged = mergeSchoolCalendarReminders(
+      existing: existing,
+      events: [
+        SchoolCalendarInboxEvent(title: 'conference', date: start),
+        SchoolCalendarInboxEvent(
+          title: 'Conference',
+          date: DateTime(2026, 11, 20, 14),
+        ),
+      ],
+    );
+    expect(merged.skipped, 1);
+    expect(merged.added, 1);
+    expect(merged.items.length, 3);
   });
 
   testWidgets('SchoolDataInboxScreen renders School Knowledge Hub layout',
@@ -234,16 +325,14 @@ void main() {
     expect(find.text('Warnings'), findsNothing);
     expect(find.text('Action before saving'), findsNothing);
 
+    // The first action is now to select a file. The platform picker itself
+    // cannot be opened in a pure widget test without native FilePicker setup.
     await tester.scrollUntilVisible(
       find.text('Choose file'),
       260,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('Choose file'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('What are you importing?'), findsOneWidget);
-    expect(find.text('Class schedule'), findsOneWidget);
-    expect(find.text('School calendar'), findsOneWidget);
+    expect(find.text('Choose file'), findsOneWidget);
+    expect(find.text('What are you importing?'), findsNothing);
   });
 }

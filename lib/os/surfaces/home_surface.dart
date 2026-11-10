@@ -4,6 +4,7 @@
 // a desktop stage, pinned apps, glanceable live signals, and secondary
 // portals tucked off to the side instead of one long dashboard feed.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
@@ -26,6 +27,7 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
+import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 import 'package:gradeflow/services/dashboard_weather_service.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/services/instructos_assistant_service.dart';
@@ -43,6 +45,7 @@ class _HomeSurfaceState extends State<HomeSurface> {
   static const String _wallpaperStyleBaseKey = 'os_home_wallpaper_style_v1';
   static const String _wallpaperImageBaseKey = 'os_home_wallpaper_image_v1';
   static const String _readabilityBaseKey = 'os_home_readability_v1';
+  static const String _combinePeriodsBaseKey = 'os_home_combine_periods_v1';
 
   final DashboardPreferencesService _preferences =
       const DashboardPreferencesService();
@@ -57,6 +60,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
   bool _loadingStudentCounts = false;
   bool _showExistingHomeTools = false;
   String? _selectedHomeClassId;
+  HomeWeeklyTimetable? _homeTimetable;
+  String? _homeTimetableUserId;
+  bool _importingHomeTimetable = false;
+  bool _combineConsecutivePeriods = true;
 
   @override
   void didChangeDependencies() {
@@ -71,7 +78,11 @@ class _HomeSurfaceState extends State<HomeSurface> {
   void _syncWallpaperForUser(String userId) {
     if (_loadedUserId == userId) return;
     _loadedUserId = userId;
+    _homeTimetable = null;
+    _homeTimetableUserId = null;
+    _combineConsecutivePeriods = true;
     _loadWallpaper(userId);
+    _loadHomeTimetable(userId);
   }
 
   Future<void> _loadWallpaper(String userId) async {
@@ -95,10 +106,17 @@ class _HomeSurfaceState extends State<HomeSurface> {
           userId: userId,
         ),
       );
+      final combinePeriods = await _preferences.readScopedString(
+        scopedKey: _preferences.scopedKey(
+          baseKey: _combinePeriodsBaseKey,
+          userId: userId,
+        ),
+      );
       if (!mounted || _loadedUserId != userId) return;
       setState(() {
         _wallpaperStyle = _HomeWallpaperStyleX.fromId(style);
         _readabilityPreset = _HomeReadabilityPresetX.fromId(readability);
+        _combineConsecutivePeriods = combinePeriods != 'false';
         _wallpaperImageBase64 = image;
         _wallpaperImageBytes = _decodeWallpaperImage(image);
         _loadingWallpaper = false;
@@ -106,6 +124,75 @@ class _HomeSurfaceState extends State<HomeSurface> {
     } catch (_) {
       if (!mounted || _loadedUserId != userId) return;
       setState(() => _loadingWallpaper = false);
+    }
+  }
+
+  Future<void> _setCombineConsecutivePeriods(bool enabled) async {
+    final userId = _homeStorageUserId(context.read<AuthService>());
+    if (userId == null || userId != _loadedUserId) return;
+    setState(() => _combineConsecutivePeriods = enabled);
+    await _preferences.writeString(
+      key: _preferences.scopedKey(
+        baseKey: _combinePeriodsBaseKey,
+        userId: userId,
+      ),
+      value: enabled ? 'true' : 'false',
+    );
+  }
+
+  Future<void> _loadHomeTimetable(String userId) async {
+    try {
+      final timetable =
+          await const HomeWeeklyTimetableService().loadSelected(userId);
+      if (!mounted || _loadedUserId != userId) return;
+      setState(() {
+        _homeTimetable = timetable;
+        _homeTimetableUserId = userId;
+      });
+    } catch (e) {
+      debugPrint('Could not read the saved timetable: $e');
+      if (!mounted || _loadedUserId != userId) return;
+      setState(() {
+        _homeTimetable = null;
+        _homeTimetableUserId = userId;
+      });
+    }
+  }
+
+  Future<void> _importHomeTimetable() async {
+    if (_importingHomeTimetable) return;
+    final userId = _homeStorageUserId(context.read<AuthService>());
+    if (userId == null) return;
+    setState(() => _importingHomeTimetable = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['xlsx', 'csv', 'docx'],
+        withData: true,
+      );
+      final picked = result?.files.single;
+      if (picked == null) return;
+      final bytes = picked.bytes;
+      if (bytes == null) {
+        throw const FormatException('Could not read the selected file.');
+      }
+      final timetable = await const HomeWeeklyTimetableService()
+          .importForTeacher(userId: userId, filename: picked.name, bytes: bytes);
+      if (!mounted || _loadedUserId != userId) return;
+      setState(() {
+        _homeTimetable = timetable;
+        _homeTimetableUserId = userId;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Timetable ready: ${timetable.classes.length} weekly periods. Review the class labels before using them.'),
+      ));
+    } catch (e) {
+      if (!mounted || _loadedUserId != userId) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Timetable not imported: $e'),
+      ));
+    } finally {
+      if (mounted) setState(() => _importingHomeTimetable = false);
     }
   }
 
@@ -214,14 +301,14 @@ class _HomeSurfaceState extends State<HomeSurface> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Home background',
+                      'Personalise Home',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Choose a built-in wallpaper or add your own image. Dark mode stays available from the moon button.',
+                      'Choose a colour theme or a photo for the main classroom card. Text stays readable with a protective overlay. The older Home tools use these preferences too.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color:
                                 Theme.of(context).colorScheme.onSurfaceVariant,
@@ -312,6 +399,20 @@ class _HomeSurfaceState extends State<HomeSurface> {
     );
   }
 
+  List<Color> _approvedHomeHeroColors() {
+    switch (_wallpaperStyle) {
+      case _HomeWallpaperStyle.sky:
+        return const [Color(0xff183855), Color(0xff245b80), Color(0xff247b91)];
+      case _HomeWallpaperStyle.meadow:
+        return const [Color(0xff173c38), Color(0xff225e50), Color(0xff28735b)];
+      case _HomeWallpaperStyle.aurora:
+        return const [Color(0xff282748), Color(0xff45406d), Color(0xff376478)];
+      case _HomeWallpaperStyle.customImage:
+      case _HomeWallpaperStyle.defaultStyle:
+        return const [Color(0xff103553), Color(0xff1a5875), Color(0xff148b88)];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final shell = context.watch<GlobalSystemShellController>();
@@ -389,6 +490,20 @@ class _HomeSurfaceState extends State<HomeSurface> {
             onToggleTheme: toggleTheme,
             onAttention: controller.openShade,
             onAssistant: controller.openAssistant,
+            heroGradientColors: _approvedHomeHeroColors(),
+            heroBackgroundImage:
+                _wallpaperStyle == _HomeWallpaperStyle.customImage &&
+                        _wallpaperImageBytes != null
+                    ? MemoryImage(_wallpaperImageBytes!)
+                    : null,
+            onCustomiseHome: _showWallpaperSheet,
+            timetable: _homeTimetableUserId == wallpaperUserId
+                ? _homeTimetable
+                : null,
+            onUploadTimetable: _importHomeTimetable,
+            combineConsecutivePeriods: _combineConsecutivePeriods,
+            onCombineConsecutivePeriodsChanged: (enabled) =>
+                unawaited(_setCombineConsecutivePeriods(enabled)),
           ),
         ),
       );

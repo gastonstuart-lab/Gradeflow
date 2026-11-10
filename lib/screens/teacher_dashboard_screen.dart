@@ -34,6 +34,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
+import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 import 'package:gradeflow/services/dashboard_news_service.dart';
 import 'package:gradeflow/services/dashboard_weather_service.dart';
 import 'package:gradeflow/services/communication_service.dart';

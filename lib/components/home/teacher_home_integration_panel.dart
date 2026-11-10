@@ -5,6 +5,7 @@ import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
+import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 import 'package:gradeflow/components/home/approved_teacher_home.dart';
 
 /// The calm integration layer on InstructOS Home.
@@ -36,6 +37,13 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
     this.onToggleTheme,
     this.onAttention,
     this.onAssistant,
+    this.heroGradientColors = const [Color(0xff103553), Color(0xff1a5875), Color(0xff148b88)],
+    this.heroBackgroundImage,
+    this.onCustomiseHome,
+    this.timetable,
+    this.onUploadTimetable,
+    this.combineConsecutivePeriods = true,
+    this.onCombineConsecutivePeriodsChanged,
   });
 
   final Class? primaryClass;
@@ -60,6 +68,13 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
   final VoidCallback? onToggleTheme;
   final VoidCallback? onAttention;
   final VoidCallback? onAssistant;
+  final List<Color> heroGradientColors;
+  final ImageProvider<Object>? heroBackgroundImage;
+  final VoidCallback? onCustomiseHome;
+  final HomeWeeklyTimetable? timetable;
+  final VoidCallback? onUploadTimetable;
+  final bool combineConsecutivePeriods;
+  final ValueChanged<bool>? onCombineConsecutivePeriodsChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +99,13 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
         onToggleTheme: onToggleTheme ?? () {},
         onAttention: onAttention ?? () {},
         onAssistant: onAssistant ?? () {},
+        heroGradientColors: heroGradientColors,
+        heroBackgroundImage: heroBackgroundImage,
+        onCustomiseHome: onCustomiseHome,
+        timetable: timetable,
+        onUploadTimetable: onUploadTimetable,
+        combineConsecutivePeriods: combineConsecutivePeriods,
+        onCombineConsecutivePeriodsChanged: onCombineConsecutivePeriodsChanged,
       );
     }
     final dark = context.isDark;

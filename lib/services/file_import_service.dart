@@ -1191,10 +1191,16 @@ class FileImportService {
 
   List<List<String>> _parseDelimitedText(String text) {
     if (text.trim().isEmpty) return [];
-    final delimiter = _guessDelimiter(text);
+    // The CSV converter defaults to CRLF; many school exports use LF only.
+    // Normalize line endings so data rows never become part of the headers.
+    final normalizedText = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    final delimiter = _guessDelimiter(normalizedText);
     final converter = CsvToListConverter(
-        fieldDelimiter: delimiter, shouldParseNumbers: false);
-    final parsed = converter.convert(text);
+      fieldDelimiter: delimiter,
+      eol: '\n',
+      shouldParseNumbers: false,
+    );
+    final parsed = converter.convert(normalizedText);
     final rows = parsed
         .map((r) => r.map((c) => (c ?? '').toString().trim()).toList())
         .toList();

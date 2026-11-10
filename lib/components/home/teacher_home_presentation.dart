@@ -9,6 +9,7 @@ class TeacherHomePresentation extends StatelessWidget {
     required this.now,
     required this.header,
     required this.classCard,
+    this.teachingDay,
     required this.shortcuts,
     required this.calendar,
     required this.reminders,
@@ -19,6 +20,7 @@ class TeacherHomePresentation extends StatelessWidget {
   final DateTime now;
   final Widget header;
   final Widget classCard;
+  final Widget? teachingDay;
   final Widget shortcuts;
   final Widget calendar;
   final Widget reminders;
@@ -103,6 +105,10 @@ class TeacherHomePresentation extends StatelessWidget {
                       final main = Column(children: [
                         classCard,
                         const SizedBox(height: 18),
+                        if (teachingDay != null) ...[
+                          teachingDay!,
+                          const SizedBox(height: 18),
+                        ],
                         shortcuts
                       ]);
                       final side = Column(children: [

@@ -225,7 +225,7 @@ extension FileImportServiceDetection on FileImportService {
       }
 
       // Calendar detection
-      if (_looksLikeCalendarScheduleHeaders(headers)) {
+      if (_looksLikeCalendarScheduleHeaders(headers) || _looksLikeDatedEvents(headers)) {
         return const FileTypeDetection(
           type: ImportFileType.calendar,
           message: 'This looks like a school calendar or schedule.',
@@ -276,6 +276,23 @@ extension FileImportServiceDetection on FileImportService {
         suggestion: 'Try re-saving the file as CSV (UTF-8)',
       );
     }
+  }
+
+  /// Detect ordinary dated school-event exports (Date + Event/Title).
+  /// The older weekly-calendar detector expects weekday columns and misses
+  /// straightforward CSVs, so keep the two formats separate.
+  bool _looksLikeDatedEvents(List<String> headers) {
+    final columns = headers.map(_normalizeName).toList(growable: false);
+    final hasDate = columns.any(
+      (h) => h == 'date' || h == 'eventdate' ||
+          h == 'activitydate' || h == '日期' || h == '活動日期',
+    );
+    final hasEvent = columns.any(
+      (h) => h == 'event' || h == 'eventname' || h == 'title' ||
+          h == 'activity' || h == 'activityname' ||
+          h == '活動' || h == '行事',
+    );
+    return hasDate && hasEvent;
   }
 
   bool _looksLikeTimetable(List<String> headers) {

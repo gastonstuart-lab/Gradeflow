@@ -18,6 +18,7 @@ import 'package:gradeflow/services/class_schedule_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
 import 'package:gradeflow/services/file_import_service.dart';
+import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/google_drive_service.dart';
 import 'package:gradeflow/theme.dart';
@@ -56,25 +57,25 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
     return auth.currentUser?.userId ?? 'local';
   }
 
-  Future<void> _runImport(_InboxDestination destination) async {
+  // File-first triage: inspect one uploaded file, then send it only to a
+  // supported destination. Nothing is written until that destination confirms.
+  Future<void> _chooseSourceAndRun(_InboxSource source) async {
     if (_busy) return;
-    setState(() => _busy = true);
+    setState(() {
+      _source = source;
+      _busy = true;
+    });
     try {
-      final picked = await _pickInboxFile(destination);
+      final picked = await _pickInboxFile(null);
       if (picked == null || !mounted) return;
-      switch (destination) {
-        case _InboxDestination.classSchedule:
-          await _importClassSchedule(picked);
-        case _InboxDestination.schoolCalendar:
-          await _importSchoolCalendar(picked);
-      }
+      await _inspectPickedSchoolFile(picked);
     } catch (e) {
-      debugPrint('School Data Inbox import failed: $e');
+      debugPrint('School Data Inbox inspection failed: $e');
       if (mounted) {
         _showFeedback(
-          'Import failed: $e',
+          'Could not inspect this file: $e',
           tone: WorkspaceFeedbackTone.error,
-          title: 'Inbox import',
+          title: 'School file inspection',
         );
       }
     } finally {
@@ -82,12 +83,153 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
     }
   }
 
-  Future<void> _chooseSourceAndRun(_InboxSource source) async {
-    if (_busy) return;
-    setState(() => _source = source);
-    final destination = await _chooseImportDestination();
-    if (destination == null || !mounted) return;
-    await _runImport(destination);
+  Future<void> _inspectPickedSchoolFile(_InboxPickedFile file) async {
+    final filename = file.name.toLowerCase();
+    final detection = FileImportService().detectFileType(
+      file.bytes,
+      filename: file.name,
+    );
+
+    // Prefer actual weekly time slots over filename-only classifications.
+    // This is only a preview; the timetable is not saved here.
+    if (!filename.endsWith('.ics')) {
+      try {
+        final candidate = HomeWeeklyTimetableService.inspectBytes(
+          filename: file.name,
+          bytes: file.bytes,
+        );
+        if (candidate.classes.isNotEmpty) {
+          await _confirmAndImportWeeklyTimetable(file, candidate.classes.length);
+          return;
+        }
+      } on FormatException {
+        // This may be a class schedule, roster or another document.
+      } catch (e) {
+        debugPrint('Weekly timetable preview not available: $e');
+      }
+    }
+
+    final isSyllabus = RegExp(
+      r'syllabus|curriculum|scheme[ _-]?of[ _-]?work|unit[ _-]?plan',
+    ).hasMatch(filename);
+    if (isSyllabus && detection.type == ImportFileType.unknown) {
+      await _showImportProblem(
+        title: 'Syllabus identified',
+        message: 'This looks like a syllabus or curriculum document. '
+            'An unstructured syllabus cannot yet be imported as an approved '
+            'lesson sequence here. Nothing has been saved. '
+            'A structured week/topic table may be imported through a '
+            'Class Workspace schedule instead.',
+      );
+      return;
+    }
+
+    switch (detection.type) {
+      case ImportFileType.roster:
+        await _offerExistingClassImporter(
+          file: file,
+          title: 'Student roster detected',
+          destination: 'Students',
+          routeForClass: AppRoutes.osClassStudents,
+        );
+      case ImportFileType.examResults:
+        await _offerExistingClassImporter(
+          file: file,
+          title: 'Grade or exam file detected',
+          destination: 'Exams',
+          routeForClass: AppRoutes.osClassExams,
+        );
+      case ImportFileType.calendar:
+      case ImportFileType.timetable:
+      case ImportFileType.unknown:
+        final destination = await _chooseImportDestination();
+        if (destination == null || !mounted) return;
+        switch (destination) {
+          case _InboxDestination.classSchedule:
+            await _importClassSchedule(file);
+          case _InboxDestination.schoolCalendar:
+            await _importSchoolCalendar(file);
+        }
+    }
+  }
+
+  Future<void> _confirmAndImportWeeklyTimetable(
+    _InboxPickedFile file,
+    int count,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Weekly timetable detected'),
+        content: Text(
+          'File: ${file.name}\n'
+          'Recognised teaching periods: $count\n\n'
+          'Import this as your selected weekly timetable? '
+          'You can review Now / Next / Following on Teacher Home. '
+          'Your existing classes, student records and grades are not changed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Import timetable'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final userId = _storageUserId(context.read<AuthService>());
+    if (userId == null) return;
+    final saved = await const HomeWeeklyTimetableService().importForTeacher(
+      userId: userId,
+      filename: file.name,
+      bytes: file.bytes,
+    );
+    if (!mounted) return;
+    _showFeedback(
+      'Imported ${saved.classes.length} teaching periods. '
+      'Open Teacher Home to see Now / Next / Following.',
+      tone: WorkspaceFeedbackTone.success,
+      title: 'Timetable imported',
+    );
+  }
+
+  Future<void> _offerExistingClassImporter({
+    required _InboxPickedFile file,
+    required String title,
+    required String destination,
+    required String Function(String) routeForClass,
+  }) async {
+    final open = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(
+          'GradeFlow recognised "${file.name}" as a $destination file. '
+          'To avoid matching records to the wrong students, '
+          'the existing class-specific $destination importer must confirm '
+          'the target class. This file has not been saved or transferred; '
+          'choose it again when you open that importer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Open $destination'),
+          ),
+        ],
+      ),
+    );
+    if (open != true || !mounted) return;
+    final selected = await _chooseClass();
+    if (selected == null || !mounted) return;
+    context.go(routeForClass(selected.classId));
   }
 
   Future<_InboxDestination?> _chooseImportDestination() {
@@ -125,14 +267,16 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
   }
 
   Future<_InboxPickedFile?> _pickInboxFile(
-    _InboxDestination destination,
+    _InboxDestination? destination,
   ) async {
     switch (_source) {
       case _InboxSource.computer:
         final picked = await FilePicker.platform.pickFiles(
           withData: true,
           type: FileType.custom,
-          allowedExtensions: _allowedExtensions(destination),
+          allowedExtensions: destination == null
+              ? const ['csv', 'xlsx', 'docx', 'ics']
+              : _allowedExtensions(destination),
         );
         final file = picked?.files.single;
         final bytes = file?.bytes;
@@ -145,8 +289,12 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
           context: context,
           builder: (ctx) => DriveFilePickerDialog(
             driveService: drive,
-            allowedExtensions: _allowedExtensions(destination),
-            title: _driveTitle(destination),
+            allowedExtensions: destination == null
+              ? const ['csv', 'xlsx', 'docx', 'ics']
+              : _allowedExtensions(destination),
+            title: destination == null
+                ? 'Inspect a school document'
+                : _driveTitle(destination),
           ),
         );
         if (picked == null) return null;
@@ -267,15 +415,20 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
 
     final userId = _storageUserId(context.read<AuthService>());
     if (userId == null) return;
-    await _appendCalendarEvents(userId: userId, events: result.events);
+    final merged = await _appendCalendarEvents(userId: userId, events: result.events);
     _showFeedback(
-      'Added ${result.events.length} calendar event${result.events.length == 1 ? '' : 's'} to Planner.',
-      tone: WorkspaceFeedbackTone.success,
-      title: 'School calendar imported',
+      merged.added == 0
+          ? 'Nothing new to import. ${merged.skipped} event${merged.skipped == 1 ? '' : 's'} already in Planner.'
+          : 'Added ${merged.added} calendar event${merged.added == 1 ? '' : 's'} to Planner'
+              '${merged.skipped == 0 ? '.' : ' (${merged.skipped} duplicate${merged.skipped == 1 ? '' : 's'} skipped).'}',
+      tone: merged.added == 0
+          ? WorkspaceFeedbackTone.info
+          : WorkspaceFeedbackTone.success,
+      title: merged.added == 0 ? 'Calendar already imported' : 'School calendar imported',
     );
   }
 
-  Future<void> _appendCalendarEvents({
+  Future<SchoolCalendarReminderMerge> _appendCalendarEvents({
     required String userId,
     required List<SchoolCalendarInboxEvent> events,
   }) async {
@@ -288,20 +441,17 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
       legacyKey: _legacyRemindersPrefsKey,
       migrationFlagKey: _remindersMigrationFlagKey,
     );
-    final next = <Object?>[
-      ...existing,
-      for (final event in events)
-        {
-          'text': event.title,
-          'timestamp': event.date.toIso8601String(),
-          'done': false,
-          'classIds': const <String>[],
-        },
-    ];
-    await _dashboardPreferencesService.writeJsonList(
-      key: scopedKey,
-      items: next,
+    final merge = mergeSchoolCalendarReminders(
+      existing: existing,
+      events: events,
     );
+    if (merge.added > 0) {
+      await _dashboardPreferencesService.writeJsonList(
+        key: scopedKey,
+        items: merge.items,
+      );
+    }
+    return merge;
   }
 
   Future<Class?> _chooseClass() async {
@@ -746,6 +896,70 @@ List<List<String>> _rowsFromInboxBytes(
         .toList(growable: false);
   }
   return FileImportService().rowsFromAnyBytes(bytes);
+}
+
+/// Preview-safe merge: importing the same school calendar again must not
+/// duplicate reminders or reset the completion state of existing entries.
+/// Class-specific reminders are never used to suppress school-wide events.
+@visibleForTesting
+SchoolCalendarReminderMerge mergeSchoolCalendarReminders({
+  required List<dynamic> existing,
+  required List<SchoolCalendarInboxEvent> events,
+}) {
+  String? identity(String title, DateTime date) {
+    final normalized = title.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+    if (normalized.isEmpty) return null;
+    return '${date.millisecondsSinceEpoch}:$normalized';
+  }
+
+  final known = <String>{};
+  final combined = <Object?>[...existing];
+  for (final item in existing) {
+    if (item is! Map) continue;
+    final classIds = item['classIds'];
+    if (classIds is List && classIds.isNotEmpty) continue;
+    final title = item['text'];
+    final timestamp = item['timestamp'];
+    if (title is! String || timestamp is! String) continue;
+    final date = DateTime.tryParse(timestamp);
+    if (date == null) continue;
+    final key = identity(title, date);
+    if (key != null) known.add(key);
+  }
+
+  var added = 0;
+  var skipped = 0;
+  for (final event in events) {
+    final key = identity(event.title, event.date);
+    if (key == null || !known.add(key)) {
+      skipped++;
+      continue;
+    }
+    combined.add(<String, Object?>{
+      'text': event.title.trim(),
+      'timestamp': event.date.toIso8601String(),
+      'done': false,
+      'classIds': const <String>[],
+    });
+    added++;
+  }
+  return SchoolCalendarReminderMerge(
+    items: combined,
+    added: added,
+    skipped: skipped,
+  );
+}
+
+class SchoolCalendarReminderMerge {
+  const SchoolCalendarReminderMerge({
+    required this.items,
+    required this.added,
+    required this.skipped,
+  });
+
+  final List<Object?> items;
+  final int added;
+  final int skipped;
 }
 
 class SchoolCalendarInboxImport {
