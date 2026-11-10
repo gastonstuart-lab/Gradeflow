@@ -4,6 +4,7 @@
 // a desktop stage, pinned apps, glanceable live signals, and secondary
 // portals tucked off to the side instead of one long dashboard feed.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
