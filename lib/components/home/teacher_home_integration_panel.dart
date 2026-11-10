@@ -5,6 +5,7 @@ import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
+import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 import 'package:gradeflow/components/home/approved_teacher_home.dart';
 
 /// The calm integration layer on InstructOS Home.
@@ -39,6 +40,8 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
     this.heroGradientColors = const [Color(0xff103553), Color(0xff1a5875), Color(0xff148b88)],
     this.heroBackgroundImage,
     this.onCustomiseHome,
+    this.timetable,
+    this.onUploadTimetable,
   });
 
   final Class? primaryClass;
@@ -66,6 +69,8 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
   final List<Color> heroGradientColors;
   final ImageProvider<Object>? heroBackgroundImage;
   final VoidCallback? onCustomiseHome;
+  final HomeWeeklyTimetable? timetable;
+  final VoidCallback? onUploadTimetable;
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +98,8 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
         heroGradientColors: heroGradientColors,
         heroBackgroundImage: heroBackgroundImage,
         onCustomiseHome: onCustomiseHome,
+        timetable: timetable,
+        onUploadTimetable: onUploadTimetable,
       );
     }
     final dark = context.isDark;
