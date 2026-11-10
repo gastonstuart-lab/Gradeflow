@@ -267,15 +267,20 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
 
     final userId = _storageUserId(context.read<AuthService>());
     if (userId == null) return;
-    await _appendCalendarEvents(userId: userId, events: result.events);
+    final merged = await _appendCalendarEvents(userId: userId, events: result.events);
     _showFeedback(
-      'Added ${result.events.length} calendar event${result.events.length == 1 ? '' : 's'} to Planner.',
-      tone: WorkspaceFeedbackTone.success,
-      title: 'School calendar imported',
+      merged.added == 0
+          ? 'Nothing new to import. ${merged.skipped} event${merged.skipped == 1 ? '' : 's'} already in Planner.'
+          : 'Added ${merged.added} calendar event${merged.added == 1 ? '' : 's'} to Planner'
+              '${merged.skipped == 0 ? '.' : ' (${merged.skipped} duplicate${merged.skipped == 1 ? '' : 's'} skipped).'}',
+      tone: merged.added == 0
+          ? WorkspaceFeedbackTone.info
+          : WorkspaceFeedbackTone.success,
+      title: merged.added == 0 ? 'Calendar already imported' : 'School calendar imported',
     );
   }
 
-  Future<void> _appendCalendarEvents({
+  Future<SchoolCalendarReminderMerge> _appendCalendarEvents({
     required String userId,
     required List<SchoolCalendarInboxEvent> events,
   }) async {
@@ -288,20 +293,17 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
       legacyKey: _legacyRemindersPrefsKey,
       migrationFlagKey: _remindersMigrationFlagKey,
     );
-    final next = <Object?>[
-      ...existing,
-      for (final event in events)
-        {
-          'text': event.title,
-          'timestamp': event.date.toIso8601String(),
-          'done': false,
-          'classIds': const <String>[],
-        },
-    ];
-    await _dashboardPreferencesService.writeJsonList(
-      key: scopedKey,
-      items: next,
+    final merge = mergeSchoolCalendarReminders(
+      existing: existing,
+      events: events,
     );
+    if (merge.added > 0) {
+      await _dashboardPreferencesService.writeJsonList(
+        key: scopedKey,
+        items: merge.items,
+      );
+    }
+    return merge;
   }
 
   Future<Class?> _chooseClass() async {
@@ -746,6 +748,70 @@ List<List<String>> _rowsFromInboxBytes(
         .toList(growable: false);
   }
   return FileImportService().rowsFromAnyBytes(bytes);
+}
+
+/// Preview-safe merge: importing the same school calendar again must not
+/// duplicate reminders or reset the completion state of existing entries.
+/// Class-specific reminders are never used to suppress school-wide events.
+@visibleForTesting
+SchoolCalendarReminderMerge mergeSchoolCalendarReminders({
+  required List<dynamic> existing,
+  required List<SchoolCalendarInboxEvent> events,
+}) {
+  String? identity(String title, DateTime date) {
+    final normalized = title.trim().replaceAll(RegExp(r'\\s+'), ' ').toLowerCase();
+    if (normalized.isEmpty) return null;
+    return '${date.millisecondsSinceEpoch}:$normalized';
+  }
+
+  final known = <String>{};
+  final combined = <Object?>[...existing];
+  for (final item in existing) {
+    if (item is! Map) continue;
+    final classIds = item['classIds'];
+    if (classIds is List && classIds.isNotEmpty) continue;
+    final title = item['text'];
+    final timestamp = item['timestamp'];
+    if (title is! String || timestamp is! String) continue;
+    final date = DateTime.tryParse(timestamp);
+    if (date == null) continue;
+    final key = identity(title, date);
+    if (key != null) known.add(key);
+  }
+
+  var added = 0;
+  var skipped = 0;
+  for (final event in events) {
+    final key = identity(event.title, event.date);
+    if (key == null || !known.add(key)) {
+      skipped++;
+      continue;
+    }
+    combined.add(<String, Object?>{
+      'text': event.title.trim(),
+      'timestamp': event.date.toIso8601String(),
+      'done': false,
+      'classIds': const <String>[],
+    });
+    added++;
+  }
+  return SchoolCalendarReminderMerge(
+    items: combined,
+    added: added,
+    skipped: skipped,
+  );
+}
+
+class SchoolCalendarReminderMerge {
+  const SchoolCalendarReminderMerge({
+    required this.items,
+    required this.added,
+    required this.skipped,
+  });
+
+  final List<Object?> items;
+  final int added;
+  final int skipped;
 }
 
 class SchoolCalendarInboxImport {
