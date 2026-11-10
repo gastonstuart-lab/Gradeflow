@@ -75,23 +75,16 @@ jobs:
           project_id: gradeflow-20260113
           create_credentials_file: true
           export_environment_variables: true
-      - name: Install Firebase CLI version with verified WIF support
-        run: |
-          npm install --global firebase-tools@15.22.3
-          firebase --version
-      - name: Deploy ONLY temporary classroom-v2 preview channel, NEVER live
+      - name: Set up gcloud for short-lived Workload Identity tokens
+        uses: google-github-actions/setup-gcloud@v3
+      - name: Checkout independently reviewed Hosting-only REST publisher
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: preview-tools
+          persist-credentials: false
+      - name: Publish ONLY temporary classroom-v2 channel via Firebase Hosting REST
         shell: bash
         run: |
           set -euo pipefail
-          firebase hosting:channel:deploy classroom-v2 \
-            --project gradeflow-20260113 \
-            --config firebase.preview.json \
-            --expires 7d \
-            --non-interactive | tee "$RUNNER_TEMP/pr96-preview-output.txt"
-          {
-            echo "## GradeFlow PR96 review preview"
-            echo "Pinned source: `0eba27dfe358f7a48fb6d45073732697a23fc657`"
-            echo "Live gradeflow-20260113 Hosting channel has NOT been modified."
-            echo "The preview blocks academic repository writes. It reads the same authenticated project."
-            grep -Eo 'https://gradeflow-20260113--classroom-v2-[a-z0-9-]+\.web\.app' "$RUNNER_TEMP/pr96-preview-output.txt" | head -1 || true
-          } >> "$GITHUB_STEP_SUMMARY"
+          node preview-tools/scripts/publish-preview-hosting-rest.mjs
