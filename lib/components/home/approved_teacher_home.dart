@@ -494,7 +494,7 @@ class ApprovedTeacherHome extends StatelessWidget {
         '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
     final when = moment == null
         ? (label == 'Now' ? 'Free period' : 'Nothing scheduled')
-        : '${sameDay ? 'Today' : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day.weekday - 1]} ${time(moment.startAt)}–${time(moment.endAt)}';
+        : '${sameDay ? 'Today' : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][moment.startAt.weekday - 1]} ${time(moment.startAt)}–${time(moment.endAt)}';
     return SizedBox(
       width: width,
       child: Container(
