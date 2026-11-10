@@ -22,6 +22,8 @@ class GradebookWorkspace extends ChangeNotifier {
   List<GradeItem> items = [];
   final Map<String, double?> values = {};
   List<FinalExam> exams = [];
+  /// Saved class GPA/coursework percentage; exam uses the remainder.
+  double courseworkWeightPercent = 40;
   GradebookSaveState saveState = GradebookSaveState.ready;
   String? error;
   bool loaded = false;
@@ -69,6 +71,14 @@ class GradebookWorkspace extends ChangeNotifier {
       }
     }
     exams = await repository.loadExams(classId);
+    final classRecords = await repository.loadClasses();
+    final classRecord =
+        classRecords.where((c) => c.classId == classId).firstOrNull;
+    final storedSplit = classRecord?.courseworkWeightPercent ?? 40;
+    courseworkWeightPercent =
+        storedSplit.isFinite && storedSplit >= 0 && storedSplit <= 100
+            ? storedSplit
+            : 40;
     students = roster.where((s) => s.classId == classId).toList();
     categories = cats.where((c) => c.classId == classId && c.isActive).toList();
     items =
@@ -143,8 +153,27 @@ class GradebookWorkspace extends ChangeNotifier {
 
   double? finalGrade(String student) {
     final p = process(student), e = exam(student);
-    return p == null || e == null ? null : p * .4 + e * .6;
+    return p == null || e == null
+        ? null
+        : p * courseworkWeightPercent / 100 +
+            e * (100 - courseworkWeightPercent) / 100;
   }
+
+  /// Adjust grading policy without modifying any existing assessment scores.
+  Future<void> setCourseworkWeightPercent(double percent) => _write(() async {
+    if (!percent.isFinite || percent < 0 || percent > 100) {
+      throw ArgumentError.value(percent, 'percent', 'Expected 0–100');
+    }
+    final records = await repository.loadClasses();
+    final index = records.indexWhere((c) => c.classId == classId);
+    if (index < 0) throw StateError('Class not found; no policy was changed.');
+    records[index] = records[index].copyWith(
+      courseworkWeightPercent: percent,
+      updatedAt: DateTime.now(),
+    );
+    await repository.saveClasses(records);
+    courseworkWeightPercent = percent;
+  });
 
   Future<T> _write<T>(Future<T> Function() task) {
     final completer = Completer<T>();
