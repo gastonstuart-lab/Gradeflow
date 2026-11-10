@@ -1,5 +1,5 @@
-name: Review combined GradeFlow PR96 + PR97 on Firebase Hosting PREVIEW only
-run-name: Preview PR96 + PR97 / ${{ github.actor }}
+name: Review GradeFlow V2 + personalised Home and timetable on Firebase PREVIEW only
+run-name: Preview personalised GradeFlow Home / ${{ github.actor }}
 on:
   push:
     branches:
@@ -28,7 +28,7 @@ jobs:
       - name: Checkout exact reviewed PR97 combined candidate (not main UI)
         uses: actions/checkout@v4
         with:
-          ref: 8ff32d1c35f18708ac0f4e0f9fbed75240a8eeed
+          ref: 21c1bce9d65e2913a016daaa9dfab1b2f905dd3c
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "8ff32d1c35f18708ac0f4e0f9fbed75240a8eeed"
+          test "$(git rev-parse HEAD)" = "21c1bce9d65e2913a016daaa9dfab1b2f905dd3c"
           grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
           node - <<'NODE'
           const c=require('./firebase.preview.json');
