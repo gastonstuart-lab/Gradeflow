@@ -228,7 +228,7 @@ class _ClassroomQuickGradeEditorState extends State<ClassroomQuickGradeEditor> {
   }
 
   void _selectItem(String? preferred) {
-    final options = book.items.where((item) => item.isActive).toList();
+    final options = book.items.where((item) => item.isActive && item.name.toLowerCase() != 'category total').toList();
     final preferredCategory = book.categories
         .where((c) => GradebookWorkspace.canonical(c.name) == preferred)
         .firstOrNull?.categoryId;
@@ -328,7 +328,7 @@ class _ClassroomQuickGradeEditorState extends State<ClassroomQuickGradeEditor> {
             const SizedBox(height: 8),
             if (!loaded)
               Text(status ?? 'Loading assessments…')
-            else if (book.items.isEmpty)
+            else if (book.items.where((i) => i.isActive && i.name.toLowerCase() != 'category total').isEmpty)
               const Text('No assessments yet. Add one in the full Gradebook.')
             else ...[
               DropdownButtonFormField<String>(
@@ -340,7 +340,7 @@ class _ClassroomQuickGradeEditorState extends State<ClassroomQuickGradeEditor> {
                   isDense: true,
                   border: OutlineInputBorder(),
                 ),
-                items: book.items.where((i) => i.isActive).map((i) =>
+                items: book.items.where((i) => i.isActive && i.name.toLowerCase() != 'category total').map((i) =>
                   DropdownMenuItem<String>(
                     value: i.gradeItemId,
                     child: Text(i.name, overflow: TextOverflow.ellipsis),
