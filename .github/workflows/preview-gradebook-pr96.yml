@@ -19,6 +19,10 @@ jobs:
   reviewed-preview:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    # Reuse existing OIDC subject authorized for the production approval environment.
+    # This job's only publishing API endpoint is /channels/classroom-v2/releases,
+    # never the live-channel release endpoint.
+    environment: production
     timeout-minutes: 55
     steps:
       - name: Checkout exact reviewed PR96 candidate (not main UI)
