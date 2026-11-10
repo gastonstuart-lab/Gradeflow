@@ -142,11 +142,12 @@ class HomeWeeklyTimetableService {
     );
   }
 
-  Future<HomeWeeklyTimetable> importForTeacher({
-    required String userId,
+  /// Validate a weekly schedule without storing anything. Use this result
+  /// to show a confirmation preview before choosing to save the import.
+  static ({List<List<String>> grid, List<TimeSlotClass> classes}) inspectBytes({
     required String filename,
     required Uint8List bytes,
-  }) async {
+  }) {
     if (bytes.isEmpty || bytes.lengthInBytes > 2 * 1024 * 1024) {
       throw const FormatException('Choose a non-empty timetable smaller than 2 MB.');
     }
@@ -184,6 +185,17 @@ class HomeWeeklyTimetableService {
       );
     }
 
+    return (grid: grid, classes: classes);
+  }
+
+  Future<HomeWeeklyTimetable> importForTeacher({
+    required String userId,
+    required String filename,
+    required Uint8List bytes,
+  }) async {
+    final parsed = inspectBytes(filename: filename, bytes: bytes);
+    final grid = parsed.grid;
+    final classes = parsed.classes;
     final previous = await _prefs.readScopedJsonList(
       scopedKey: _prefs.scopedKey(baseKey: _timetablesKey, userId: userId),
     );
