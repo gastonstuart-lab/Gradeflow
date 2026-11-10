@@ -36,6 +36,9 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
     this.onToggleTheme,
     this.onAttention,
     this.onAssistant,
+    this.heroGradientColors = const [Color(0xff103553), Color(0xff1a5875), Color(0xff148b88)],
+    this.heroBackgroundImage,
+    this.onCustomiseHome,
   });
 
   final Class? primaryClass;
@@ -60,6 +63,9 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
   final VoidCallback? onToggleTheme;
   final VoidCallback? onAttention;
   final VoidCallback? onAssistant;
+  final List<Color> heroGradientColors;
+  final ImageProvider<Object>? heroBackgroundImage;
+  final VoidCallback? onCustomiseHome;
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +90,9 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
         onToggleTheme: onToggleTheme ?? () {},
         onAttention: onAttention ?? () {},
         onAssistant: onAssistant ?? () {},
+        heroGradientColors: heroGradientColors,
+        heroBackgroundImage: heroBackgroundImage,
+        onCustomiseHome: onCustomiseHome,
       );
     }
     final dark = context.isDark;
