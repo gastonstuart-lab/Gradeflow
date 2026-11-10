@@ -35,7 +35,7 @@ class NativeGradebookScreen extends StatefulWidget {
 class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
   late GradebookWorkspace book;
   String? category;
-  bool summary = false;
+  bool summary = true;
   String search = '';
   String? loadError;
   final Map<String, TextEditingController> fields = {};
@@ -82,7 +82,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
       fields.clear();
       dirty.clear();
       category = null;
-      summary = false;
+      summary = true;
       loadError = null;
       _open();
     }
@@ -178,7 +178,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
   Widget scoreField(Student s, GradeItem? item) {
     final key = book.key(s.studentId, item?.gradeItemId ?? 'exam');
     return SizedBox(
-      width: 96,
+      width: 78,
       child: TextField(
         key: ValueKey(key),
         controller: controller(
@@ -194,6 +194,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
           labelText: '${s.englishFullName} ${item?.name ?? 'Exam'}',
           floatingLabelBehavior: FloatingLabelBehavior.never,
           isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           filled: true,
           fillColor: dirty.contains(key)
               ? const Color(0xfffff1d5)
@@ -760,7 +761,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1380),
                     child: Padding(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -851,7 +852,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                           ),
                           const SizedBox(height: 16),
                           Container(
-                            padding: const EdgeInsets.all(18),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
                                 colors: [Color(0xff133c67), Color(0xff14817b)],
@@ -901,7 +902,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                   borderRadius: BorderRadius.circular(24),
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(10),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
@@ -1076,10 +1077,15 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                         child: SingleChildScrollView(
                                           child: SingleChildScrollView(
                                             scrollDirection: Axis.horizontal,
-                                            child: DataTable(
-                                              dataRowMinHeight: 72,
-                                              dataRowMaxHeight: 72,
-                                              columnSpacing: 20,
+                                            child: ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                minWidth: (MediaQuery.sizeOf(context).width - 96)
+                                                    .clamp(0, 1320).toDouble(),
+                                              ),
+                                              child: DataTable(
+                                                dataRowMinHeight: 50,
+                                                dataRowMaxHeight: 50,
+                                                columnSpacing: 14,
                                               headingRowColor:
                                                   WidgetStatePropertyAll(
                                                 theme.colorScheme.primary
@@ -1248,6 +1254,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                                     ),
                                                   )
                                                   .toList(),
+                                            ),
                                             ),
                                           ),
                                         ),
