@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -28,6 +29,25 @@ void main() {
         hasLength(valid.length),
         reason: 'Some parsed rows in $path are missing student IDs',
       );
+    }
+  });
+
+
+  test('school CSV imports split LF, CRLF and CR rows identically', () {
+    final importer = FileImportService();
+    for (final endOfLine in const ['\n', '\r\n', '\r']) {
+      final csv = [
+        'Student ID,Name,Class',
+        '2001,Test Student,J1FG',
+        '2002,Demo Student,J2FG',
+      ].join(endOfLine);
+      final rows = importer.rowsFromAnyBytes(
+        Uint8List.fromList(utf8.encode(csv)),
+      );
+      expect(rows.length, 3, reason: 'Failed for ${endOfLine.codeUnits}');
+      expect(rows[0], ['Student ID', 'Name', 'Class']);
+      expect(rows[1], ['2001', 'Test Student', 'J1FG']);
+      expect(rows[2], ['2002', 'Demo Student', 'J2FG']);
     }
   });
 
