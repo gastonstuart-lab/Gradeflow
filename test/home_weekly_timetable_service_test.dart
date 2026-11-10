@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gradeflow/services/home_weekly_timetable_service.dart';
-import 'package:gradeflow/services/file_import_service.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -56,12 +55,6 @@ void main() {
       '09:00-09:50,Synthetic English,,Synthetic Science,,\n'
       '10:00-10:50,Synthetic Maths,,,,\n',
     ));
-    final csvRows = FileImportService().rowsFromAnyBytes(bytes);
-    // Diagnostics for real-world CSV import compatibility.
-    // ignore: avoid_print
-    print('Home timetable CSV rows: $csvRows');
-    // ignore: avoid_print
-    print('Home timetable cleaned: ${FileImportService().cleanTimetableGrid(csvRows)}');
     final imported = await service.importForTeacher(
       userId: 'teacher-c',
       filename: 'school-timetable.csv',
