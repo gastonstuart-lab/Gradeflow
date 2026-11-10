@@ -1,4 +1,4 @@
-name: Gradebook dense overview and quick-score validation
+name: Gradebook dense overview and safe visual preview
 on:
   push:
     branches:
@@ -6,20 +6,88 @@ on:
   pull_request:
     branches:
       - integration/v2-flutterfire-auth-refresh-20261109
+
 permissions:
   contents: read
+  id-token: write
+
+concurrency:
+  group: gradebook-review-preview-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   gradebook-check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.0'
           channel: stable
           cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - run: flutter pub get --enforce-lockfile
       - run: flutter analyze
       - run: flutter test
-      - run: flutter build web --release --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - name: Verify Hosting-only preview manifest and approved branch
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/feat/gradebook-compact-overview-20261110"
+          node - <<'NODE'
+          const c=require('./firebase.preview.json');
+          if (!c.hosting || c.hosting.public !== 'build/web' ||
+              !c.hosting.rewrites?.some(r => r.source === '**' && r.destination === '/index.html') ||
+              ['firestore','functions','storage','database','remoteconfig'].some(k => !!c[k]))
+            throw Error('Expected a Hosting-only Flutter SPA preview manifest');
+          NODE
+      - name: Compile read-only existing-project preview
+        if: github.event_name == 'push'
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+            --base-href / \
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
+          test -s build/web/main.dart.js
+      - name: Compile normal V2 regression build (never deploy)
+        if: github.event_name == 'pull_request'
+        run: flutter build web --release --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - name: Verify short-lived preview deployment authentication
+        if: github.event_name == 'push'
+        env:
+          WIF_PROVIDER: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          [[ "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]]
+          [[ "$WIF_SERVICE_ACCOUNT" =~ ^[^@]+@gradeflow-20260113\.iam\.gserviceaccount\.com$ ]]
+      - name: Authenticate for Hosting preview only
+        if: github.event_name == 'push'
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          service_account: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+          project_id: gradeflow-20260113
+          create_credentials_file: true
+          export_environment_variables: true
+      - name: Install Firebase tools
+        if: github.event_name == 'push'
+        run: npm install --global firebase-tools
+      - name: Publish short-lived Classroom V2 PREVIEW CHANNEL only
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase hosting:channel:deploy classroom-v2 \
+            --expires 7d \
+            --project gradeflow-20260113 \
+            --config firebase.preview.json \
+            --non-interactive | tee "$RUNNER_TEMP/hosting-preview-output.txt"
+          echo "## GradeFlow read-only review preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "This is a temporary Firebase Hosting preview channel. The LIVE Hosting channel was NOT changed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Do not enter or alter real student scores while reviewing. Academic repository writes are blocked in this preview build." >> "$GITHUB_STEP_SUMMARY"
+          grep -Eo 'https://gradeflow-20260113--classroom-v2-[a-z0-9-]+\.web\.app' "$RUNNER_TEMP/hosting-preview-output.txt" | head -1 >> "$GITHUB_STEP_SUMMARY" || true
