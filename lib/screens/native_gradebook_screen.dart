@@ -997,6 +997,25 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                               icon: const Icon(Icons.undo),
                                               label:
                                                   const Text('Undo last edit')),
+                                          if (widget.studentId == null)
+                                            OutlinedButton.icon(
+                                              onPressed: working || dirty.isNotEmpty
+                                                  ? null
+                                                  : () async {
+                                                      await context.push<void>(
+                                                        AppRoutes.osClassCategories(widget.classId),
+                                                      );
+                                                      if (!mounted) return;
+                                                      try {
+                                                        await book.load();
+                                                        if (mounted) setState(() {});
+                                                      } catch (e) {
+                                                        message('Could not reload weights: $e');
+                                                      }
+                                                    },
+                                              icon: const Icon(Icons.tune, size: 18),
+                                              label: const Text('Edit category weights'),
+                                            ),
                                           ChoiceChip(
                                             label: const Text('Summary'),
                                             selected: summary,
