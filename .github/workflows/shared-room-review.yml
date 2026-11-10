@@ -1,11 +1,11 @@
 name: Shared classroom layout review
 on:
-  push:
-    branches:
-      - feat/classroom-shared-room-reuse-20261110
   pull_request:
     branches:
       - feat/gradebook-compact-overview-20261110
+concurrency:
+  group: gradeflow-shared-room-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
