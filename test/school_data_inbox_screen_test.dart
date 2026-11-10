@@ -95,6 +95,75 @@ void main() {
     );
   });
 
+
+  test('reimporting a calendar skips identical events and keeps done flags', () {
+    final assembly = SchoolCalendarInboxEvent(
+      title: 'Assembly',
+      date: DateTime(2026, 11, 18, 9),
+    );
+    final existing = [
+      {
+        'text': ' Assembly ',
+        'timestamp': DateTime(2026, 11, 18, 9).toIso8601String(),
+        'done': true,
+        'classIds': <String>[],
+      },
+      {
+        'text': 'Class worksheet reminder',
+        'timestamp': DateTime(2026, 11, 18, 10).toIso8601String(),
+        'done': false,
+        'classIds': ['class-id'],
+      },
+    ];
+    final merged = mergeSchoolCalendarReminders(
+      existing: existing,
+      events: [
+        assembly,
+        assembly,
+        SchoolCalendarInboxEvent(
+          title: 'Science assessment',
+          date: DateTime(2026, 11, 19, 10),
+        ),
+      ],
+    );
+    expect(merged.added, 1);
+    expect(merged.skipped, 2);
+    expect(merged.items, hasLength(3));
+    expect((merged.items.first as Map)['done'], isTrue);
+    expect((merged.items.last as Map)['text'], 'Science assessment');
+  });
+
+  test('school events at different times and class-scoped reminders stay distinct', () {
+    final start = DateTime(2026, 11, 20, 9);
+    final existing = [
+      {
+        'text': 'Conference',
+        'timestamp': start.toIso8601String(),
+        'done': false,
+        'classIds': ['class-a'],
+      },
+      {
+        'text': 'Conference',
+        'timestamp': start.toIso8601String(),
+        'done': true,
+        'classIds': <String>[],
+      },
+    ];
+    final merged = mergeSchoolCalendarReminders(
+      existing: existing,
+      events: [
+        SchoolCalendarInboxEvent(title: 'conference', date: start),
+        SchoolCalendarInboxEvent(
+          title: 'Conference',
+          date: DateTime(2026, 11, 20, 14),
+        ),
+      ],
+    );
+    expect(merged.skipped, 1);
+    expect(merged.added, 1);
+    expect(merged.items.length, 3);
+  });
+
   testWidgets('SchoolDataInboxScreen renders School Knowledge Hub layout',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
