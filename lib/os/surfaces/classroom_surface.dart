@@ -18,6 +18,7 @@ import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/seating_service.dart';
+import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
 import 'package:gradeflow/services/student_service.dart';
 
 class ClassroomSurface extends StatefulWidget {
@@ -411,6 +412,10 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
 
   /// The room template contains furniture, NOT the originating class's pupils.
   Future<void> _shareRoom() async {
+    if (GradeFlowExistingProjectPreview.enabled) {
+      _roomMessage('This preview is read-only. Room changes are disabled.');
+      return;
+    }
     final seats = context.read<SeatingService>();
     final otherClasses = context.read<ClassService>().classes
         .where((item) => item.classId != widget.classId)
@@ -508,6 +513,10 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   }
 
   Future<void> _chooseSharedRoom() async {
+    if (GradeFlowExistingProjectPreview.enabled) {
+      _roomMessage('This preview is read-only. Room changes are disabled.');
+      return;
+    }
     final seats = context.read<SeatingService>();
     if (seats.roomSetups.isEmpty) {
       _roomMessage('No shared rooms yet. In your arranged J1 classroom, '
