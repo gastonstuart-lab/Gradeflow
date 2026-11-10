@@ -84,6 +84,30 @@ void main() {
     expect(await service.loadSelected('teacher-b'), isNull);
   });
 
+
+  test('timetable inspection never changes a saved timetable', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'dashboard_selected_timetable_v1:inspection-teacher',
+      'existing-week',
+    );
+    final bytes = Uint8List.fromList(utf8.encode(
+      'Time,Monday,Tuesday,Wednesday,Thursday,Friday\\n'
+      '09:00-09:50,Synthetic English,,Synthetic Science,,\\n'
+      '10:00-10:50,Synthetic Maths,,,,\\n',
+    ));
+    final inspected = HomeWeeklyTimetableService.inspectBytes(
+      filename: 'timetable.csv',
+      bytes: bytes,
+    );
+    expect(inspected.classes.length, 3);
+    expect(
+      prefs.getString('dashboard_selected_timetable_v1:inspection-teacher'),
+      'existing-week',
+    );
+    expect(prefs.getString('dashboard_timetables_v1:inspection-teacher'), isNull);
+  });
+
   test('valid CSV import saves the selected timetable in existing format',
       () async {
     const service = HomeWeeklyTimetableService();
