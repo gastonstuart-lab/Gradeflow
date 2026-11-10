@@ -1,5 +1,5 @@
-name: Review GradeFlow V2 + personalised Home and timetable on Firebase PREVIEW only
-run-name: Preview personalised GradeFlow Home / ${{ github.actor }}
+name: Review GradeFlow Home with combined double periods on Firebase PREVIEW only
+run-name: Preview GradeFlow double-period Home / ${{ github.actor }}
 on:
   push:
     branches:
@@ -28,7 +28,7 @@ jobs:
       - name: Checkout exact reviewed PR97 combined candidate (not main UI)
         uses: actions/checkout@v4
         with:
-          ref: 21c1bce9d65e2913a016daaa9dfab1b2f905dd3c
+          ref: d5ee43fc3cc6407905fe3ef0ebb60ad1de130ad2
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "21c1bce9d65e2913a016daaa9dfab1b2f905dd3c"
+          test "$(git rev-parse HEAD)" = "d5ee43fc3cc6407905fe3ef0ebb60ad1de130ad2"
           grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
           node - <<'NODE'
           const c=require('./firebase.preview.json');
