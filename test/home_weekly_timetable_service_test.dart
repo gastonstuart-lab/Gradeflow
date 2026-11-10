@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gradeflow/services/home_weekly_timetable_service.dart';
+import 'package:gradeflow/components/time_slot_timetable.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -24,6 +25,42 @@ void main() {
     expect(sequence.current?.title, 'Synthetic English');
     expect(sequence.next?.title, 'Synthetic Maths');
     expect(sequence.following?.title, 'Synthetic Science');
+  });
+
+
+  test('two consecutive periods are one session with original slots intact', () {
+    final original = [
+      TimeSlotClass(title: 'J1FG G1', dayOfWeek: 1, startMinutes: 540, endMinutes: 590),
+      TimeSlotClass(title: 'J1FG G1 ', dayOfWeek: 1, startMinutes: 600, endMinutes: 650),
+      TimeSlotClass(title: 'J2 Science', dayOfWeek: 1, startMinutes: 660, endMinutes: 710),
+    ];
+    final now = DateTime(2026, 11, 10, 9, 55); // short break inside the block
+    final joined = HomeTeachingSequence.fromSchedule(original, now);
+    expect(joined.current?.title, 'J1FG G1');
+    expect(joined.current?.periodCount, 2);
+    expect(joined.current?.startAt.hour, 9);
+    expect(joined.current?.endAt.hour, 10);
+    expect(joined.current?.endAt.minute, 50);
+    expect(joined.next?.title, 'J2 Science');
+    expect(original.length, 3); // no underlying timetable modifications
+    final separate = HomeTeachingSequence.fromSchedule(
+      original, now, combineConsecutivePeriods: false);
+    expect(separate.current, isNull); // short break remains visible
+    expect(separate.next?.title.trim(), 'J1FG G1');
+    expect(separate.next?.periodCount, 1);
+  });
+
+  test('distinct classes and long breaks remain separate sessions', () {
+    final original = [
+      TimeSlotClass(title: 'EEP1', dayOfWeek: 1, startMinutes: 540, endMinutes: 590),
+      TimeSlotClass(title: 'EEP2', dayOfWeek: 1, startMinutes: 600, endMinutes: 650),
+      TimeSlotClass(title: 'EEP2', dayOfWeek: 1, startMinutes: 690, endMinutes: 740),
+    ];
+    final seq = HomeTeachingSequence.fromSchedule(original, DateTime(2026, 11, 10, 8, 0));
+    expect(seq.next?.title, 'EEP1');
+    expect(seq.next?.periodCount, 1);
+    expect(seq.following?.title, 'EEP2');
+    expect(seq.following?.periodCount, 1);
   });
 
   test('prior teacher timetable cannot leak into a different user account',
