@@ -28,7 +28,7 @@ jobs:
       - name: Checkout exact reviewed PR96 candidate (not main UI)
         uses: actions/checkout@v4
         with:
-          ref: 0eba27dfe358f7a48fb6d45073732697a23fc657
+          ref: 51fcac721b02dda07055e10c7f43d26b2a25e8a6
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "0eba27dfe358f7a48fb6d45073732697a23fc657"
+          test "$(git rev-parse HEAD)" = "51fcac721b02dda07055e10c7f43d26b2a25e8a6"
           grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
           node - <<'NODE'
           const c=require('./firebase.preview.json');
