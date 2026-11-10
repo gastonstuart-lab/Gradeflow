@@ -1,3 +1,6 @@
+import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
+import 'package:gradeflow/config/gradeflow_live_v2_release.dart';
+
 /// Prevent authenticated Planner V2 staging builds from quietly accessing
 /// the production GradeFlow Firebase project.
 ///
@@ -13,6 +16,18 @@ class PlannerV2StagingSafety {
     'GRADEFLOW_PLANNER_V2_STAGING',
     defaultValue: false,
   );
+
+  // Both non-live review modes require real Firebase authentication and must
+  // never migrate old local data into the connected Firestore project. The
+  // dedicated-staging safety checks below remain unchanged.
+  static const protectedTestingMode =
+      stagingEnabled || GradeFlowExistingProjectPreview.enabled;
+
+  // Approved V2 can also be released to the existing live Hosting domain,
+  // but only when its independent project-and-host guard passes at startup.
+  // This keeps the default production build unchanged.
+  static const authenticatedV2Mode =
+      protectedTestingMode || GradeFlowLiveV2Release.enabled;
 
   static const requiredStagingProjectId = String.fromEnvironment(
     'GRADEFLOW_STAGING_FIREBASE_PROJECT_ID',

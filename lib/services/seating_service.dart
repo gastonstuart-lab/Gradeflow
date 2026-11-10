@@ -1413,13 +1413,41 @@ class SeatingService extends ChangeNotifier {
         .map((seat) => seat.copyWith(studentId: assignments[seat.seatId]))
         .toList();
 
-    _replaceLayout(
-      classId,
-      layout.copyWith(
+    // Unlike ordinary optimistic edits, the teacher must not be told that
+    // a random seating change has finished before the layout is durable.
+    // Use the same await/rollback discipline as Planner V2 geometry edits.
+    if (!_plannerV2Busy.add(classId)) {
+      throw StateError('A room change is still being saved');
+    }
+    try {
+      final layouts = List<SeatingLayout>.from(layoutsForClass(classId));
+      final index = layouts.indexWhere((item) => item.layoutId == layout.layoutId);
+      if (index < 0) throw StateError('Active room changed');
+      final before = layouts[index];
+      layouts[index] = before.copyWith(
         seats: updatedSeats,
         updatedAt: DateTime.now(),
-      ),
-    );
+      );
+      _layoutsByClass[classId] = layouts;
+      _plannerV2SaveStates[classId] = PlannerV2SaveState.saving;
+      notifyListeners();
+
+      try {
+        await RepositoryFactory.instance.saveSeatingLayouts(classId, layouts);
+        _plannerV2SaveStates[classId] = PlannerV2SaveState.saved;
+      } catch (_) {
+        final restored = List<SeatingLayout>.from(layoutsForClass(classId));
+        final restoreIndex =
+            restored.indexWhere((item) => item.layoutId == before.layoutId);
+        if (restoreIndex >= 0) restored[restoreIndex] = before;
+        _layoutsByClass[classId] = restored;
+        _plannerV2SaveStates[classId] = PlannerV2SaveState.failed;
+        rethrow;
+      }
+    } finally {
+      _plannerV2Busy.remove(classId);
+      notifyListeners();
+    }
   }
 
   Future<void> setSeatStatus(

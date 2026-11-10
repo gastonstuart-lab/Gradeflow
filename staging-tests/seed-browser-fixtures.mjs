@@ -53,13 +53,24 @@ try {
       locked: false, note: '', reminder: false }],
     createdAt: now, updatedAt: now,
   });
+  // Use the canonical Flutter model schemas, not abbreviated Firestore
+  // documents that happen to work in direct SDK tests but fail UI parsing.
+  await setDoc(doc(db, ...classPath, 'categories', 'fictional-quizzes'), {
+    categoryId: 'fictional-quizzes', classId: 'class-science-browser',
+    name: 'Quizzes', weightPercent: 30,
+    aggregationMethod: 'average', aggregationParam: null,
+    isActive: true, createdAt: now, updatedAt: now,
+  });
   await setDoc(doc(db, ...classPath, 'gradeItems', 'fictional-quiz'), {
-    gradeItemId: 'fictional-quiz', title: 'Fictional Quiz',
-    classId: 'class-science-browser',
+    gradeItemId: 'fictional-quiz', classId: 'class-science-browser',
+    categoryId: 'fictional-quizzes', name: 'Fictional Quiz',
+    maxScore: 100, isActive: true, createdAt: now, updatedAt: now,
   });
   await setDoc(doc(db, ...classPath, 'gradeItems', 'fictional-quiz',
     'scores', 'synthetic-student-one'), {
-      studentId: 'synthetic-student-one', score: 94,
+      studentId: 'synthetic-student-one',
+      gradeItemId: 'fictional-quiz', score: 94,
+      createdAt: now, updatedAt: now,
   });
   process.stdout.write('Browser test fixtures created for local emulator only\\n');
 } finally {

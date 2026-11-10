@@ -3,14 +3,74 @@ on:
   push:
     branches:
       - integration/v2-authenticated-browser-emulator-20261109
+      - integration/v2-flutterfire-auth-refresh-20261109
   pull_request:
     branches:
       - integration/v2-auth-firestore-emulator-e2e-20261109
+      - integration/v2-authenticated-browser-emulator-20261109
 permissions:
   contents: read
 jobs:
+  online-staging-configuration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reject wrong Firebase project and credentials before any hosting deploy
+        run: |
+          node --test staging-tests/online-project-guard.test.mjs
+          node -e "const fs=require('node:fs'); const config=JSON.parse(fs.readFileSync('firebase.staging.deploy.json')); if(!config.hosting||config.functions||config.firestore?.rules!=='firestore.staging.rules') process.exit(1);"
+  local-storage-queue:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Concurrent save ordering and failure propagation
+        run: flutter test test/local_repository_write_queue_test.dart --reporter expanded
+  classroom-widget-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Verify approved Classroom initial load and room tools
+        run: |
+          flutter test test/classroom_surface_test.dart \
+            --plain-name 'V2 zoom controls are reversible and fit resets without saving geometry' \
+            --timeout 90s --reporter expanded
+          flutter test test/classroom_surface_test.dart \
+            --plain-name 'tools start closed and slide from the right without resizing room' \
+            --timeout 90s --reporter expanded
+  local-storage-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Existing gradebook and seating service regressions
+        run: flutter test test/gradebook_workspace_test.dart test/seating_service_test.dart --reporter expanded
   browser:
-    runs-on: ubuntu-latest
+    # Playwright 1.57 is not compatible with Ubuntu 26.04 on latest runner.
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -26,12 +86,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile
       - run: flutter analyze
       - run: flutter test test/planner_v2_emulator_safety_test.dart test/planner_v2_staging_safety_test.dart
-      - name: Build authenticated app for loopback demo emulators
+      - name: Build local-only debug app for Firebase emulators
+        # FlutterFire 6.3.1 deliberately persists/reuses emulator origins
+        # only when kDebugMode is true. A release build must NEVER rely on
+        # Firebase's debug-only emulator reconnection behaviour.
         run: |
-          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+          flutter build web --debug --no-wasm-dry-run --target lib/main.dart \
             --base-href / \
             --dart-define=GRADEFLOW_PLANNER_V2_STAGING=true \
             --dart-define=GRADEFLOW_V2_LOCAL_EMULATORS=true \
@@ -59,3 +122,171 @@ jobs:
             test-results/
             playwright-report/
           if-no-files-found: ignore
+  
+  # Compile the owner-approved V2 for a Hosting *preview channel* of
+  # the existing Firebase project. Do not publish to live Hosting or alter
+  # Firestore rules, users, records or Functions. Firebase Auth/Firestore
+  # continue to require actual sign-in, and local data migration is disabled.
+  existing-project-preview-build:
+    needs: [candidate-regression]
+    if: github.ref == 'refs/heads/integration/v2-flutterfire-auth-refresh-20261109' || github.head_ref == 'integration/v2-flutterfire-auth-refresh-20261109'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Hosting manifest cannot deploy backend configuration
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(fs.readFileSync('firebase.preview.json', 'utf8'));
+          if (!config.hosting || config.firestore || config.functions || config.storage || config.database) process.exit(1);
+          if (config.hosting.public !== 'build/web' || !config.hosting.rewrites?.some(r => r.source === '**' && r.destination === '/index.html')) process.exit(1);
+          NODE
+      - run: flutter pub get --enforce-lockfile
+      - name: Confirm preview host restrictions in Flutter
+        run: flutter test test/gradeflow_existing_project_preview_test.dart --reporter expanded
+      - name: Compile approved authenticated Classroom V2 for the existing project's preview channel
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+            --base-href / \
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
+      - name: Assemble safe Windows preview deployment package
+        run: |
+          cp scripts/deploy-gradeflow-preview.cmd ./deploy-gradeflow-preview.cmd
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(fs.readFileSync('firebase.preview.json', 'utf8'));
+          if (!config.hosting || config.firestore || config.functions || config.storage || config.database) {
+            throw new Error('Preview package must use Hosting ONLY');
+          }
+          if (!fs.existsSync('build/web/index.html')) {
+            throw new Error('Missing compiled preview app');
+          }
+          const script = fs.readFileSync('deploy-gradeflow-preview.cmd', 'utf8');
+          if (!script.includes('hosting:channel:deploy classroom-v2') ||
+              !script.includes('--project gradeflow-20260113') ||
+              script.includes('firebase.cmd deploy --only hosting')) {
+            throw new Error('Preview script must target only the temporary channel');
+          }
+          NODE
+      - name: Save Windows-ready preview package (no deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-classroom-v2-existing-project-preview
+          path: |
+            build/web/
+            firebase.preview.json
+            deploy-gradeflow-preview.cmd
+          retention-days: 7
+
+  # This job prepares the owner-approved V2 live-site update but NEVER
+  # deploys. The owner manually runs the packaged Windows script on their
+  # already authenticated Surface Pro, with rollback-first confirmation.
+  live-classroom-v2-package:
+    needs:
+      - browser
+      - candidate-regression
+      - classroom-widget-smoke
+      - local-storage-queue
+      - local-storage-integration
+    if: github.ref == 'refs/heads/integration/v2-flutterfire-auth-refresh-20261109' || github.head_ref == 'integration/v2-flutterfire-auth-refresh-20261109'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify site-only manifest and rollback-first Windows scripts
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const c = JSON.parse(fs.readFileSync('firebase.live.json'));
+          if (!c.hosting || c.functions || c.firestore || c.storage || c.database || c.remoteconfig) {
+            throw new Error('Only Firebase Hosting may be deployed in the live V2 package');
+          }
+          if (c.hosting.public !== 'build/web' || !c.hosting.rewrites?.some(r => r.source === '**' && r.destination === '/index.html')) {
+            throw new Error('Unexpected Firebase Hosting output or routing');
+          }
+          const deploy = fs.readFileSync('scripts/deploy-gradeflow-live.cmd', 'utf8');
+          const backup = deploy.indexOf('hosting:clone gradeflow-20260113:live');
+          const publish = deploy.indexOf('deploy --only hosting --project gradeflow-20260113 --config firebase.live.json');
+          if (backup === -1 || publish === -1 || backup >= publish || !deploy.includes('Type REPLACE')) {
+            throw new Error('The live deployment must explicitly confirm and back up before publishing');
+          }
+          const rollback = fs.readFileSync('scripts/rollback-gradeflow-live.cmd', 'utf8');
+          if (!rollback.includes('gradeflow-20260113:live') || !rollback.includes('Type ROLLBACK')) {
+            throw new Error('Rollback script does not target the original live site');
+          }
+          NODE
+      - run: flutter pub get --enforce-lockfile
+      - name: Verify live project-and-host guards
+        run: |
+          flutter test test/gradeflow_live_v2_release_test.dart test/gradeflow_existing_project_preview_test.dart
+      - name: Build new V2 interface for the EXISTING live GradeFlow website
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+            --base-href / \
+            --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - name: Assemble reviewed live package with one-click rollback
+        shell: bash
+        run: |
+          cp scripts/deploy-gradeflow-live.cmd ./deploy-gradeflow-live.cmd
+          cp scripts/rollback-gradeflow-live.cmd ./rollback-gradeflow-live.cmd
+          printf '%s\n' "GradeFlow LIVE V2 build from $GITHUB_SHA" \
+            'Target: gradeflow-20260113.web.app' \
+            'GRADEFLOW_LIVE_CLASSROOM_V2=true' \
+            'Build includes authenticated V2 and no backend deployment' \
+            > release-gradeflow-live-v2.txt
+          test -s build/web/index.html
+      - name: Upload Surface Pro live release package - NOT DEPLOYED
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-v2-live-surface-package
+          path: |
+            build/web/
+            firebase.live.json
+            deploy-gradeflow-live.cmd
+            rollback-gradeflow-live.cmd
+            release-gradeflow-live-v2.txt
+          retention-days: 14
+
+  # This runs independently of the authenticated browser emulator gate so
+  # routing/auth failures cannot conceal regressions in the approved app.
+  candidate-regression:
+    if: github.ref == 'refs/heads/integration/v2-flutterfire-auth-refresh-20261109' || github.head_ref == 'integration/v2-flutterfire-auth-refresh-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Verify reviewed candidate dependency lockfile
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze integrated app
+        run: flutter analyze
+      - name: Complete Flutter regression suite
+        run: flutter test
+      - name: Compile owner-approved synthetic Classroom preview
+        run: flutter build web --release --no-wasm-dry-run --target lib/main_classroom_preview.dart --base-href /
+      - name: Compile authenticated production-default app (V2 flag disabled)
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href /
+      - name: Compile authenticated staging app (fails closed without real config)
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_PLANNER_V2_STAGING=true

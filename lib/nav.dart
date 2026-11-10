@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/config/planner_v2_staging_safety.dart';
+import 'package:gradeflow/config/browser_entry_path_stub.dart'
+    if (dart.library.js_interop) 'package:gradeflow/config/browser_entry_path_web.dart'
+    as browser_entry;
 import 'package:gradeflow/screens/login_screen.dart';
 import 'package:gradeflow/screens/class_list_screen.dart';
 import 'package:gradeflow/screens/class_detail_screen.dart';
@@ -45,11 +49,34 @@ class AppRouter {
     return _validatedInternalAppLocation(rawLocation) ?? AppRoutes.osHome;
   }
 
+  // The synthetic-only staging build must respect deep links on full page
+  // reload. Flutter web can expose '/' as its platform default route even
+  // when the browser address points to an authenticated class workspace.
+  static String get _stagingInitialLocation {
+    if (!kIsWeb || !PlannerV2StagingSafety.authenticatedV2Mode) {
+      return AppRoutes.home;
+    }
+    final originalPath = browser_entry.capturedBrowserEntryPath();
+    debugPrint('GRADEFLOW_STAGING_INIT uri=${Uri.base} originalPath='
+        '$originalPath platformRoute='
+        '${WidgetsBinding.instance.platformDispatcher.defaultRouteName}');
+    // A staging browser deep link must survive an early engine URL rewrite.
+    // Reject external/protocol-relative values and reuse normal route rules.
+    return _validatedInternalAppLocation(originalPath) ?? AppRoutes.home;
+  }
+
   static final GoRouter router = GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: _stagingInitialLocation,
+    overridePlatformDefaultLocation:
+        kIsWeb && PlannerV2StagingSafety.authenticatedV2Mode,
     redirect: (context, state) {
       try {
         final auth = Provider.of<AuthService>(context, listen: false);
+        if (PlannerV2StagingSafety.authenticatedV2Mode) {
+          debugPrint('GRADEFLOW_STAGING_REDIRECT uri=${state.uri} '
+              'authenticated=${auth.isAuthenticated} '
+              'initialized=${auth.isInitialized}');
+        }
         final loggingIn = state.matchedLocation == AppRoutes.home;
         final previewing =
             kDebugMode && state.matchedLocation == AppRoutes.previewDashboard;
@@ -211,17 +238,12 @@ class AppRouter {
             child: ClassroomSurface(
               classId: classId,
               startInSetup: state.uri.queryParameters['setup'] == '1',
-              // The approved V2 Classroom is enabled only in a separately
-              // configured authenticated staging build. Default builds
-              // retain their existing production route behaviour.
-              cleanCanvas: const bool.fromEnvironment(
-                'GRADEFLOW_PLANNER_V2_STAGING',
-                defaultValue: false,
-              ),
-              plannerV2: const bool.fromEnvironment(
-                'GRADEFLOW_PLANNER_V2_STAGING',
-                defaultValue: false,
-              ),
+              // The approved V2 Classroom is available only in guarded,
+              // authenticated review modes (dedicated staging or the
+              // existing project's Hosting preview channel). Normal live
+              // builds retain their previous Classroom behaviour.
+              cleanCanvas: PlannerV2StagingSafety.authenticatedV2Mode,
+              plannerV2: PlannerV2StagingSafety.authenticatedV2Mode,
             ),
           );
         },

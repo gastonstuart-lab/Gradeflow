@@ -1,50 +1,135 @@
 name: InstructOS Integration Preview
 
+# GitHub's default branch has no registered manual preview workflow.
+# Invoke this from the draft integration branch using an intentional
+# [preview-deploy] commit to THIS workflow file only.
+# Never run on main or deploy the Hosting live channel.
 on:
+  push:
+    branches:
+      - integration/v2-flutterfire-auth-refresh-20261109
+    paths:
+      - '.github/workflows/instructos-preview.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: instructos-preview-${{ github.ref }}
-  cancel-in-progress: true
+  group: gradeflow-approved-classroom-v2-firebase-preview
+  cancel-in-progress: false
 
 jobs:
-  build-and-deploy-preview:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+  build-and-deploy-classroom-v2-preview:
+    if: >-
+      github.ref == 'refs/heads/integration/v2-flutterfire-auth-refresh-20261109' &&
+      (github.event_name == 'workflow_dispatch' ||
+       contains(github.event.head_commit.message, '[preview-deploy]'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
     steps:
-      - name: Checkout
+      - name: Checkout reviewed GradeFlow V2 branch
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Verify target branch and Hosting-only configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/integration/v2-flutterfire-auth-refresh-20261109"
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const c = JSON.parse(fs.readFileSync('firebase.preview.json', 'utf8'));
+          if (!c.hosting || c.firestore || c.functions || c.storage || c.database || c.remoteconfig) {
+            throw new Error('Preview manifest must contain Hosting only');
+          }
+          if (c.hosting.public !== 'build/web' ||
+              !c.hosting.rewrites?.some(r => r.source === '**' && r.destination === '/index.html')) {
+            throw new Error('Preview manifest is not the approved Flutter SPA configuration');
+          }
+          NODE
+
+      - name: Require valid existing-project Hosting deployment credentials
+        env:
+          GRADEFLOW_PREVIEW_SERVICE_ACCOUNT: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const raw = process.env.GRADEFLOW_PREVIEW_SERVICE_ACCOUNT ?? '';
+          if (!raw) {
+            console.error('::error::Missing GitHub Actions secret FIREBASE_SERVICE_ACCOUNT. Configure it in repository Settings > Secrets and variables > Actions. Do not paste it into chat or source code.');
+            process.exit(1);
+          }
+          let credential;
+          try { credential = JSON.parse(raw); }
+          catch {
+            console.error('::error::FIREBASE_SERVICE_ACCOUNT must contain a JSON service-account key.');
+            process.exit(1);
+          }
+          if (credential?.type !== 'service_account' ||
+              credential.project_id !== 'gradeflow-20260113' ||
+              typeof credential.private_key !== 'string' ||
+              typeof credential.client_email !== 'string' ||
+              !credential.client_email.endsWith('@gradeflow-20260113.iam.gserviceaccount.com')) {
+            console.error('::error::Deployment credential must belong to the existing GradeFlow Firebase project.');
+            process.exit(1);
+          }
+          console.log('Firebase Hosting deployment credential accepted (key contents not printed).');
+          NODE
+
+      - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.10'
+          flutter-version: '3.38.0'
           channel: stable
           cache: true
 
-      - name: Install dependencies
-        run: flutter pub get
+      - name: Use locked dependencies
+        run: flutter pub get --enforce-lockfile
 
-      - name: Analyze
-        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+      - name: Analyze release candidate
+        run: flutter analyze
 
-      - name: Build InstructOS web preview
-        run: flutter build web --release
+      - name: Verify preview host/production isolation tests
+        run: |
+          flutter test test/gradeflow_existing_project_preview_test.dart \
+            test/planner_v2_staging_safety_test.dart \
+            test/planner_v2_firebase_config_test.dart
 
-      - name: Deploy Firebase preview channel
+      - name: Run all application regression tests before publishing
+        run: flutter test
+
+      - name: Build authenticated V2 with production-host fail-closed guard
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+            --base-href / \
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
+
+      - name: Replace local CLI manifest with Hosting-only preview manifest
+        # GitHub Action uses the root firebase.json. This temporary overwrite
+        # does not edit repository files, live Hosting, Firestore rules or functions.
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp firebase.preview.json firebase.json
+          node - <<'NODE'
+          const c = JSON.parse(require('node:fs').readFileSync('firebase.json'));
+          if (!c.hosting || c.firestore || c.functions || c.storage || c.database) process.exit(1);
+          NODE
+
+      - name: Deploy ONLY to existing-project Classroom V2 preview channel
         id: firebase_preview
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
           projectId: gradeflow-20260113
-          channelId: instructos-unification
-          expires: 30d
+          channelId: classroom-v2
+          expires: 7d
 
-      - name: Print preview URL
+      - name: Display temporary preview URL for owner review
+        shell: bash
+        env:
+          GRADEFLOW_PREVIEW_URL: '${{ steps.firebase_preview.outputs.details_url }}'
         run: |
-          echo "Preview URL: ${{ steps.firebase_preview.outputs.details_url }}"
-          echo "All URLs: ${{ steps.firebase_preview.outputs.urls }}"
+          echo "GradeFlow approved Classroom V2 preview: $GRADEFLOW_PREVIEW_URL"
+          echo "This is not the GradeFlow live Hosting channel."
+          echo "For Firebase Google sign-in, authorize this exact preview hostname under Authentication > Settings > Authorized domains if needed."

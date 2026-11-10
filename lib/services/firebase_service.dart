@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gradeflow/config/planner_v2_emulator_safety.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/config/planner_v2_firebase_config.dart';
+import 'package:gradeflow/config/planner_v2_staging_safety.dart';
 
 /// Centralized Firebase initialization.
 /// Call [maybeInitialize] once at app startup (from main.dart).
@@ -31,12 +32,22 @@ class FirebaseService {
       if (PlannerV2EmulatorSafety.enabled) {
         // Guarded in main.dart before this function can run. Never direct
         // an authenticated production or public web build to local emulators.
-        FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8180);
+        // Connect Auth first: Firestore may request the current identity
+        // when its instance is created. Creating Firestore before the Auth
+        // emulator connection can start token refresh on a live endpoint.
         await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
+        FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8180);
         // Firebase Auth restores web persistence asynchronously. Wait until
         // the first emulator-backed auth state has been resolved before the
         // application's AuthService reads currentUser or GoRouter redirects.
         await FirebaseAuth.instance.authStateChanges().first;
+      } else if (PlannerV2StagingSafety.authenticatedV2Mode && kIsWeb) {
+        // In release mode, Firebase Auth restores persisted browser state
+        // asynchronously. Do not decide whether the user is logged in
+        // until the first restored auth state is available: otherwise an
+        // authenticated deep link can redirect to Login after a refresh.
+        await FirebaseAuth.instance.authStateChanges().first
+            .timeout(const Duration(seconds: 8));
       }
       _initialized = true;
       _available = true;
