@@ -759,7 +759,7 @@ SchoolCalendarReminderMerge mergeSchoolCalendarReminders({
   required List<SchoolCalendarInboxEvent> events,
 }) {
   String? identity(String title, DateTime date) {
-    final normalized = title.trim().replaceAll(RegExp(r'\\s+'), ' ').toLowerCase();
+    final normalized = title.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
     if (normalized.isEmpty) return null;
     return '${date.millisecondsSinceEpoch}:$normalized';
   }
