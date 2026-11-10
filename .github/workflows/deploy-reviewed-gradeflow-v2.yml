@@ -1,0 +1,127 @@
+name: Deploy reviewed GradeFlow V2 to existing Firebase Hosting
+run-name: GradeFlow V2 / ${{ inputs.action }} / ${{ github.actor }}
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "check = build and test without publishing; deploy = backup then replace live Hosting"
+        type: choice
+        required: true
+        default: check
+        options:
+          - check
+          - deploy
+      confirmation:
+        description: "For deploy, type REPLACE (check mode does not need it)"
+        required: false
+        type: string
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: gradeflow-existing-firebase-hosting-live
+  cancel-in-progress: false
+jobs:
+  reviewed-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    environment: ${{ inputs.action == 'deploy' && 'production' || 'release-check' }}
+    steps:
+      - name: Validate release action before doing anything
+        shell: bash
+        env:
+          RELEASE_ACTION: ${{ inputs.action }}
+          RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE_ACTION" == "deploy" && "$RELEASE_CONFIRMATION" != "REPLACE" ]]; then
+            echo "::error::Live deployment requires exact confirmation REPLACE"
+            exit 1
+          fi
+          if [[ "$RELEASE_ACTION" != "deploy" && "$RELEASE_ACTION" != "check" ]]; then
+            exit 1
+          fi
+      - name: Checkout exact tested GradeFlow V2 candidate (not old main)
+        uses: actions/checkout@v4
+        with:
+          ref: f70314afc88e458e5b2cd6cdac486be0f45bfe4f
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source and Hosting-only configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "f70314afc88e458e5b2cd6cdac486be0f45bfe4f"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const c=JSON.parse(fs.readFileSync('firebase.live.json','utf8'));
+          if(!c.hosting || c.hosting.public!=='build/web' || !c.hosting.rewrites?.some(x=>x.source==='**'&&x.destination==='/index.html')) process.exit(1);
+          for(const key of ['firestore','functions','storage','database','remoteconfig','extensions']) if(c[key]) process.exit(1);
+          NODE
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - name: Run complete Flutter tests
+        run: flutter test
+      - name: Build only the reviewed LIVE Classroom V2 website
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+            --base-href / \
+            --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+          test -s build/web/index.html
+          test -s build/web/main.dart.js
+      - name: Check mode finishes here — no Firebase access
+        if: inputs.action == 'check'
+        run: echo "Validated candidate and live build. Firebase Hosting was NOT changed." >> "$GITHUB_STEP_SUMMARY"
+      - name: Require Workload Identity Federation configuration
+        if: inputs.action == 'deploy'
+        env:
+          WIF_PROVIDER: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$WIF_PROVIDER" || -z "$WIF_SERVICE_ACCOUNT" ]]; then
+            echo "::error::Configure GRADEFLOW_WIF_PROVIDER and GRADEFLOW_WIF_SERVICE_ACCOUNT repository variables first."
+            exit 1
+          fi
+          if [[ ! "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]]; then
+            echo "::error::Invalid Workload Identity Federation provider ID"
+            exit 1
+          fi
+          if [[ ! "$WIF_SERVICE_ACCOUNT" =~ ^[^@]+@gradeflow-20260113\.iam\.gserviceaccount\.com$ ]]; then
+            echo "::error::Service account must belong to the EXISTING Firebase project."
+            exit 1
+          fi
+      - name: Authenticate with Google Cloud using short-lived GitHub OIDC identity
+        if: inputs.action == 'deploy'
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          service_account: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+          project_id: gradeflow-20260113
+          create_credentials_file: true
+          export_environment_variables: true
+      - name: Install Firebase CLI
+        if: inputs.action == 'deploy'
+        run: npm install --global firebase-tools
+      - name: Backup current LIVE Hosting release FIRST, then deploy Hosting files ONLY
+        if: inputs.action == 'deploy'
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup="before-v2-$(date -u +%Y%m%d%H%M%S)"
+          echo "Backing up gradeflow-20260113:live as $backup"
+          firebase hosting:clone gradeflow-20260113:live "gradeflow-20260113:$backup" --project gradeflow-20260113 --non-interactive
+          {
+            echo "## Prior LIVE Hosting release backed up"
+            echo "Backup channel: \`$backup\`"
+            echo "Restore command: \`firebase hosting:clone gradeflow-20260113:$backup gradeflow-20260113:live --project gradeflow-20260113\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          firebase deploy --only hosting --project gradeflow-20260113 --config firebase.live.json --non-interactive
+          echo "## Deployed Hosting ONLY: https://gradeflow-20260113.web.app/os/home" >> "$GITHUB_STEP_SUMMARY"
