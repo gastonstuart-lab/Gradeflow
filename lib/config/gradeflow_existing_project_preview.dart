@@ -29,8 +29,9 @@ class GradeFlowExistingProjectPreview {
   static bool isSyntheticDemoLogin({
     required String email,
     required String password,
+    bool? previewEnabled,
   }) =>
-      enabled &&
+      (previewEnabled ?? enabled) &&
       email.trim().toLowerCase() == 'teacher@demo.com' &&
       password == 'demo';
 
