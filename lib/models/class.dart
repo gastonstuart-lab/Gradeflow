@@ -9,6 +9,8 @@ class Class {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isArchived;
+  /// Percentage of the final grade derived from GPA/coursework. Exam is the remainder.
+  final double courseworkWeightPercent;
   final ClassSyllabus? syllabus;
 
   Class({
@@ -22,6 +24,7 @@ class Class {
     required this.createdAt,
     required this.updatedAt,
     this.isArchived = false,
+    this.courseworkWeightPercent = 40,
     this.syllabus,
   });
 
@@ -36,6 +39,7 @@ class Class {
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     'isArchived': isArchived,
+    'courseworkWeightPercent': courseworkWeightPercent,
     'syllabus': syllabus?.toJson(),
   };
 
@@ -50,6 +54,7 @@ class Class {
     createdAt: DateTime.parse(json['createdAt'] as String),
     updatedAt: DateTime.parse(json['updatedAt'] as String),
     isArchived: (json['isArchived'] as bool?) ?? false,
+    courseworkWeightPercent: (json['courseworkWeightPercent'] as num?)?.toDouble() ?? 40,
     syllabus: (json['syllabus'] is Map)
         ? ClassSyllabus.fromJson(Map<String, dynamic>.from(json['syllabus'] as Map))
         : null,
@@ -66,6 +71,7 @@ class Class {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isArchived,
+    double? courseworkWeightPercent,
     ClassSyllabus? syllabus,
   }) => Class(
     classId: classId ?? this.classId,
@@ -78,6 +84,7 @@ class Class {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     isArchived: isArchived ?? this.isArchived,
+    courseworkWeightPercent: courseworkWeightPercent ?? this.courseworkWeightPercent,
     syllabus: syllabus ?? this.syllabus,
   );
 }
