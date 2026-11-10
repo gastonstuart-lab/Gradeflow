@@ -8,6 +8,7 @@ import 'package:gradeflow/repositories/local_repository.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/models/student_score.dart';
 import 'package:gradeflow/models/change_history.dart';
+import 'package:gradeflow/models/class.dart' as school;
 import 'package:gradeflow/services/gradebook_import_plan.dart';
 
 class FailingRepository extends LocalRepository {
@@ -78,11 +79,44 @@ void main(){
     await expectLater(LocalRepository().saveScores('c','i',[]),throwsStateError);
     expect(await LocalRepository().loadScores('c','i'),isEmpty);
   });
-  test('opening a different GPA policy does not silently change it',()async{
+  test('valid custom category weights persist without resetting scores',()async{
     final cats=book.categories.map((c)=>c.copyWith(weightPercent:25)).toList();
-    await repo.saveCategories('c',cats);await book.load();expect(book.policyMatches,false);expect(book.process('s'),isNull);
+    await repo.saveCategories('c',cats);await book.load();
+    expect(book.policyMatches,true);
+    expect(book.process('s'),isNull);
     expect((await repo.loadCategories('c')).first.weightPercent,25);
-    await book.setUpCategories();expect(book.policyMatches,true);
+    for(final i in book.items){await book.saveScore('s',i,80,'teacher');}
+    expect(book.process('s'),closeTo(80,1e-9));
+    await book.setUpCategories();
+    expect(book.policyMatches,true);
+    expect((await repo.loadCategories('c')).first.weightPercent,20);
+  });
+  test('invalid category totals do not produce a misleading final grade',()async{
+    final cats=book.categories.map((c)=>c.copyWith(weightPercent:30)).toList();
+    await repo.saveCategories('c',cats);
+    await book.load();
+    expect(book.policyMatches,false);
+    expect(book.process('s'),isNull);
+  });
+  test('per-class GPA/exam split saves and remains after reload',()async{
+    final now=DateTime(2026);
+    await repo.saveClasses([school.Class(
+      classId:'c',className:'Test',subject:'English',schoolYear:'2026',
+      term:'Fall',teacherId:'teacher',createdAt:now,updatedAt:now,
+    )]);
+    await book.load();
+    for(final i in book.items){await book.saveScore('s',i,80,'teacher');}
+    await book.saveExam('s',90);
+    expect(book.finalGrade('s'),closeTo(86,1e-9));
+    await book.setCourseworkWeightPercent(70);
+    expect(book.finalGrade('s'),closeTo(83,1e-9));
+    final reopened=GradebookWorkspace(repo,'c');
+    await reopened.load();
+    expect(reopened.courseworkWeightPercent,70);
+    expect(reopened.finalGrade('s'),closeTo(83,1e-9));
+    reopened.dispose();
+    await expectLater(book.setCourseworkWeightPercent(120),throwsArgumentError);
+    expect(book.courseworkWeightPercent,70);
   });
   test('standalone import validates every ID and value before writes',(){
     final source={'columns':{for(final k in GradebookWorkspace.processWeights.keys)k:['Score']},'scores':{'s':{'exam':80,for(final k in GradebookWorkspace.processWeights.keys)k:[null]}}};
