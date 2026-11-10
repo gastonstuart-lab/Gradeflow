@@ -20,7 +20,11 @@ class CategoryManagementScreen extends StatefulWidget {
 
 class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
   void _goToClassWorkspace() {
-    context.go('${AppRoutes.osClass}/${widget.classId}');
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('${AppRoutes.osClass}/${widget.classId}');
+    }
   }
 
   @override
