@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/screens/school_data_inbox_screen.dart';
+import 'package:gradeflow/services/file_import_service.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
@@ -18,6 +19,27 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+
+  test('file inspection detects distinct calendar, roster and grade files', () {
+    Uint8List bytes(String csv) => Uint8List.fromList(utf8.encode(csv));
+    final reader = FileImportService();
+    final calendar = reader.detectFileType(
+      bytes('Date,Event,Notes\\n2026-11-20,Assembly,Auditorium\\n'),
+      filename: 'school-events.csv',
+    );
+    final roster = reader.detectFileType(
+      bytes('Student ID,Name,Class\\n2001,Test Student,J1FG\\n'),
+      filename: 'roster.csv',
+    );
+    final grades = reader.detectFileType(
+      bytes('Student ID,Student Name,Exam Score\\n2001,Test Student,98\\n'),
+      filename: 'midterm-results.csv',
+    );
+    expect(calendar.type, ImportFileType.calendar);
+    expect(roster.type, ImportFileType.roster);
+    expect(grades.type, ImportFileType.examResults);
   });
 
   test('school calendar parser reads dated CSV events', () {
