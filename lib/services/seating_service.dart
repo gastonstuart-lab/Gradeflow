@@ -2121,15 +2121,9 @@ class SeatingService extends ChangeNotifier {
   }
 
   bool _canReplaceLayoutWithRoomSetup(SeatingLayout layout) {
-    if (_isBlankStarterLayout(layout)) return true;
-    return !layout.seats.any((seat) {
-      final hasStudent = seat.studentId != null && seat.studentId!.isNotEmpty;
-      return hasStudent ||
-          seat.statusColor != SeatStatusColor.none ||
-          seat.locked ||
-          seat.note.trim().isNotEmpty ||
-          seat.reminder;
-    });
+    // A teacher-created room is worth preserving even before pupils are seated.
+    // Only the disposable, completely empty starter canvas is replaceable.
+    return _isBlankStarterLayout(layout);
   }
 
   String _layoutNameForAppliedRoomSetup({
