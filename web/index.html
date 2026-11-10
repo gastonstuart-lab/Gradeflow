@@ -69,20 +69,25 @@
       overflow: auto;
     }
 
+    /* Browser bootstrap only: show the same understated box grid as Flutter.
+       The Flutter launch gate owns branding, so users do not see the same
+       InstructOS title and tagline on two consecutive loading screens. */
     #gradeflow-loader {
       position: fixed;
       inset: 0;
       display: grid;
       place-items: center;
       padding: 24px;
-      background:
-        radial-gradient(circle at 24% 38%, rgba(255, 62, 165, 0.16), transparent 32%),
-        radial-gradient(circle at 72% 52%, rgba(34, 211, 238, 0.13), transparent 34%),
-        radial-gradient(circle at 50% 88%, rgba(139, 92, 246, 0.14), transparent 38%),
-        linear-gradient(140deg, #050711 0%, #0a1023 56%, var(--gf-bg-soft) 100%);
+      background-color: #07101d;
+      background-image:
+        radial-gradient(circle at 53% 42%, rgba(57, 213, 190, 0.085), transparent 25%),
+        linear-gradient(rgba(187, 211, 231, 0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(187, 211, 231, 0.07) 1px, transparent 1px),
+        linear-gradient(135deg, #07101d, #0c162a 56%, #070f1d);
+      background-size: auto, 54px 54px, 54px 54px, auto;
       opacity: 1;
       visibility: visible;
-      transition: opacity 360ms ease, visibility 360ms ease;
+      transition: opacity 280ms ease, visibility 280ms ease;
       z-index: 9999;
     }
 
@@ -93,64 +98,40 @@
     }
 
     .gf-loader-shell {
-      position: relative;
-      width: min(100%, 430px);
-      text-align: center;
-    }
-
-    .gf-loader-head {
+      width: 38px;
+      height: 38px;
       display: grid;
-      justify-items: center;
-      gap: 6px;
-    }
-
-    .gf-loader-title {
-      margin: 0;
-      font-size: clamp(1.5rem, 4vw, 1.65rem);
-      font-weight: 900;
-      letter-spacing: 0;
-      line-height: 1.1;
-    }
-
-    .gf-loader-copy {
-      margin: 0 auto;
-      color: var(--gf-muted);
-      line-height: 1.4;
-      font-size: 0.95rem;
-      font-weight: 600;
+      place-items: center;
+      border: 1px solid rgba(94, 234, 212, 0.18);
+      border-radius: 10px;
+      background: rgba(18, 42, 58, 0.52);
+      box-shadow: 0 0 36px rgba(57, 213, 190, 0.055);
     }
 
     .gf-loader-dot {
+      display: block;
       width: 7px;
       height: 7px;
-      margin: 24px auto 0;
       border-radius: 999px;
-      background: rgba(184, 195, 255, 0.9);
-      box-shadow: 0 0 18px rgba(139, 92, 246, 0.42);
+      background: #a5f3e9;
+      box-shadow: 0 0 14px rgba(94, 234, 212, 0.3);
       animation: instructos-pulse 1.5s ease-in-out infinite alternate;
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      .gf-loader-dot { animation: none; }
+      #gradeflow-loader { transition: none; }
+    }
+
     @keyframes instructos-pulse {
-      from {
-        opacity: 0.36;
-        transform: scale(0.86);
-      }
-      to {
-        opacity: 0.88;
-        transform: scale(1);
-      }
+      from { opacity: 0.36; transform: scale(0.85); }
+      to { opacity: 0.86; transform: scale(1); }
     }
   </style>
 </head>
 <body>
   <div id="gradeflow-loader" aria-hidden="true">
-    <div class="gf-loader-shell">
-      <div class="gf-loader-head">
-        <h1 class="gf-loader-title">InstructOS</h1>
-        <p class="gf-loader-copy">Teaching, organised.</p>
-      </div>
-      <div class="gf-loader-dot"></div>
-    </div>
+    <div class="gf-loader-shell"><span class="gf-loader-dot"></span></div>
   </div>
   <script>
     (function () {
