@@ -258,6 +258,78 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     );
   }
 
+  Future<void> editOverallWeights() async {
+    if (working || dirty.isNotEmpty) {
+      message('Save unfinished scores before changing grading weights.');
+      return;
+    }
+    final input = TextEditingController(text: fmt(book.courseworkWeightPercent));
+    final chosen = await showDialog<double>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, refresh) {
+          final percent = double.tryParse(input.text.trim());
+          final valid = percent != null &&
+              percent.isFinite && percent >= 0 && percent <= 100;
+          final coursework = valid ? percent : 40.0;
+          return AlertDialog(
+            title: const Text('Overall grade weighting'),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Coursework (GPA) and exam must total 100%. '
+                      'This changes calculated final grades but does not edit saved student scores.'),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: input,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Coursework / GPA percentage',
+                      suffixText: '%',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => refresh(() {}),
+                  ),
+                  const SizedBox(height: 10),
+                  Text('Exam percentage: ${valid ? fmt(100 - coursework) : '—'}%'),
+                  const SizedBox(height: 10),
+                  if (valid)
+                    Text('Example: coursework 90 and exam 70 → final '
+                         '${fmt(90 * coursework / 100 + 70 * (100 - coursework) / 100)}'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: valid ? () => Navigator.pop(ctx, percent) : null,
+                child: const Text('Apply to this class'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    input.dispose();
+    if (chosen == null || !mounted) return;
+    setState(() => working = true);
+    try {
+      await book.setCourseworkWeightPercent(chosen);
+      message('Class weights saved. Student scores were not changed.');
+    } catch (e) {
+      message('Weights not changed: $e');
+    } finally {
+      if (mounted) setState(() => working = false);
+    }
+  }
+
   Future<void> addAssessment() async {
     if (category == null) return;
     final name = TextEditingController(),
@@ -918,9 +990,9 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                   status,
                                   style: const TextStyle(color: Colors.white),
                                 ),
-                                const Text(
-                                  'GPA 40% + Exam 60%',
-                                  style: TextStyle(color: Colors.white),
+                                Text(
+                                  'GPA ${fmt(book.courseworkWeightPercent)}% + Exam ${fmt(100 - book.courseworkWeightPercent)}%',
+                                  style: const TextStyle(color: Colors.white),
                                 ),
                                 const Text(
                                   'Participation 20% · Homework 30% · Quizzes 30% · Classwork 20%',
@@ -997,6 +1069,14 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                               icon: const Icon(Icons.undo),
                                               label:
                                                   const Text('Undo last edit')),
+                                          if (widget.studentId == null)
+                                            OutlinedButton.icon(
+                                              onPressed: working || dirty.isNotEmpty
+                                                  ? null
+                                                  : editOverallWeights,
+                                              icon: const Icon(Icons.pie_chart_outline, size: 18),
+                                              label: const Text('GPA / Exam split'),
+                                            ),
                                           if (widget.studentId == null)
                                             OutlinedButton.icon(
                                               onPressed: working || dirty.isNotEmpty
