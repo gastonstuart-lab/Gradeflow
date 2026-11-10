@@ -185,4 +185,62 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Selected date: $date'), findsOneWidget);
   });
+
+  testWidgets('Home carousel arrows, swipe and dropdown share class selection',
+      (tester) async {
+    size(tester);
+    final classes = [
+      _class('existing-a', 'First class'),
+      _class('existing-b', 'Second class'),
+      _class('existing-c', 'Third class'),
+    ];
+    var selected = classes.first;
+    var customisationOpens = 0;
+    await tester.pumpWidget(MaterialApp(
+      theme: lightTheme,
+      home: Scaffold(
+        body: StatefulBuilder(
+          builder: (context, setState) => TeacherHomeIntegrationPanel(
+            approvedAppearance: true,
+            teacherName: 'Synthetic',
+            primaryClass: selected,
+            classes: classes,
+            primaryReminder: null,
+            onSelectClass: (id) => setState(() =>
+                selected = classes.singleWhere((c) => c.classId == id)),
+            onCustomiseHome: () => customisationOpens++,
+            onOpenClassroom: () {},
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('First class'), findsOneWidget);
+    expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Next class'));
+    await tester.pumpAndSettle();
+    expect(selected.classId, 'existing-b');
+    expect(find.text('2 / 3'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Previous class'));
+    await tester.pumpAndSettle();
+    expect(selected.classId, 'existing-a');
+
+    await tester.fling(find.text('First class'), const Offset(-260, 0), 900);
+    await tester.pumpAndSettle();
+    expect(selected.classId, 'existing-b');
+
+    await tester.tap(find.text('Personalise'));
+    await tester.pumpAndSettle();
+    expect(customisationOpens, 1);
+
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Third class').last);
+    await tester.pumpAndSettle();
+    expect(selected.classId, 'existing-c');
+  });
+
 }
