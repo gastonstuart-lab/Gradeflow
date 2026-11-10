@@ -26,15 +26,15 @@ void main() {
     Uint8List bytes(String csv) => Uint8List.fromList(utf8.encode(csv));
     final reader = FileImportService();
     final calendar = reader.detectFileType(
-      bytes('Date,Event,Notes\\n2026-11-20,Assembly,Auditorium\\n'),
+      bytes('Date,Event,Notes\n2026-11-20,Assembly,Auditorium\n'),
       filename: 'school-events.csv',
     );
     final roster = reader.detectFileType(
-      bytes('Student ID,Name,Class\\n2001,Test Student,J1FG\\n'),
+      bytes('Student ID,Name,Class\n2001,Test Student,J1FG\n'),
       filename: 'roster.csv',
     );
     final grades = reader.detectFileType(
-      bytes('Student ID,Student Name,Exam Score\\n2001,Test Student,98\\n'),
+      bytes('Student ID,Student Name,Exam Score\n2001,Test Student,98\n'),
       filename: 'midterm-results.csv',
     );
     expect(calendar.type, ImportFileType.calendar);
@@ -325,16 +325,14 @@ void main() {
     expect(find.text('Warnings'), findsNothing);
     expect(find.text('Action before saving'), findsNothing);
 
+    // The first action is now to select a file. The platform picker itself
+    // cannot be opened in a pure widget test without native FilePicker setup.
     await tester.scrollUntilVisible(
       find.text('Choose file'),
       260,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('Choose file'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('What are you importing?'), findsOneWidget);
-    expect(find.text('Class schedule'), findsOneWidget);
-    expect(find.text('School calendar'), findsOneWidget);
+    expect(find.text('Choose file'), findsOneWidget);
+    expect(find.text('What are you importing?'), findsNothing);
   });
 }
