@@ -298,7 +298,13 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
       ],
     );
 
-    return Listener(
+    // The routed surface stops above the dock. Paint the remaining full-height
+    // shell in the active theme so dark Home never exposes a light root strip.
+    return ColoredBox(
+      color: widget.teachMode
+          ? OSColors.teachBg
+          : OSColors.appBackground(Theme.of(context).brightness == Brightness.dark),
+      child: Listener(
       onPointerDown: (_) => controller.registerActivity(),
       child: swipeNavigationEnabled
           ? GestureDetector(
@@ -311,6 +317,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
               child: shellStack,
             )
           : shellStack,
+      ),
     );
   }
 }

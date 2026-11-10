@@ -22,6 +22,8 @@ class GradebookWorkspace extends ChangeNotifier {
   List<GradeItem> items = [];
   final Map<String, double?> values = {};
   List<FinalExam> exams = [];
+  /// Saved class GPA/coursework percentage; exam uses the remainder.
+  double courseworkWeightPercent = 40;
   GradebookSaveState saveState = GradebookSaveState.ready;
   String? error;
   bool loaded = false;
@@ -69,6 +71,14 @@ class GradebookWorkspace extends ChangeNotifier {
       }
     }
     exams = await repository.loadExams(classId);
+    final classRecords = await repository.loadClasses();
+    final classRecord =
+        classRecords.where((c) => c.classId == classId).firstOrNull;
+    final storedSplit = classRecord?.courseworkWeightPercent ?? 40;
+    courseworkWeightPercent =
+        storedSplit.isFinite && storedSplit >= 0 && storedSplit <= 100
+            ? storedSplit
+            : 40;
     students = roster.where((s) => s.classId == classId).toList();
     categories = cats.where((c) => c.classId == classId && c.isActive).toList();
     items =
@@ -110,19 +120,15 @@ class GradebookWorkspace extends ChangeNotifier {
         list.length;
   }
 
+  /// Uses the saved per-class category weights, rather than assuming that
+  /// every class must retain the default 20/30/30/20 breakdown.
   double? process(String student) {
     if (!policyMatches) return null;
     double result = 0;
-    for (final entry in processWeights.entries) {
-      final matches = categories
-          .where((c) => canonical(c.name) == entry.key)
-          .toList();
-      if (matches.length != 1 ||
-          matches.single.aggregationMethod != AggregationMethod.average)
-        return null;
-      final value = average(student, matches.single.categoryId);
+    for (final category in categories) {
+      final value = average(student, category.categoryId);
       if (value == null) return null;
-      result += value * entry.value;
+      result += value * category.weightPercent / 100;
     }
     return result;
   }
@@ -130,14 +136,44 @@ class GradebookWorkspace extends ChangeNotifier {
   double? exam(String student) =>
       exams.where((e) => e.studentId == student).firstOrNull?.examScore;
 
-  bool get policyMatches => categories.length == 4 && processWeights.entries.every((e) {
-    final found = categories.where((c) => canonical(c.name) == e.key).toList();
-    return found.length == 1 && found.single.aggregationMethod == AggregationMethod.average && (found.single.weightPercent-e.value*100).abs()<.001;
-  });
+  bool get policyMatches {
+    if (categories.length != processWeights.length) return false;
+    if (categories.any((c) =>
+        c.weightPercent <= 0 ||
+        !c.weightPercent.isFinite ||
+        c.aggregationMethod != AggregationMethod.average)) return false;
+    if (!processWeights.keys.every(
+        (name) => categories.where((c) => canonical(c.name) == name).length == 1)) {
+      return false;
+    }
+    final total = categories.fold<double>(
+        0, (sum, c) => sum + c.weightPercent);
+    return (total - 100).abs() < 0.001;
+  }
+
   double? finalGrade(String student) {
     final p = process(student), e = exam(student);
-    return p == null || e == null ? null : p * .4 + e * .6;
+    return p == null || e == null
+        ? null
+        : p * courseworkWeightPercent / 100 +
+            e * (100 - courseworkWeightPercent) / 100;
   }
+
+  /// Adjust grading policy without modifying any existing assessment scores.
+  Future<void> setCourseworkWeightPercent(double percent) => _write(() async {
+    if (!percent.isFinite || percent < 0 || percent > 100) {
+      throw ArgumentError.value(percent, 'percent', 'Expected 0–100');
+    }
+    final records = await repository.loadClasses();
+    final index = records.indexWhere((c) => c.classId == classId);
+    if (index < 0) throw StateError('Class not found; no policy was changed.');
+    records[index] = records[index].copyWith(
+      courseworkWeightPercent: percent,
+      updatedAt: DateTime.now(),
+    );
+    await repository.saveClasses(records);
+    courseworkWeightPercent = percent;
+  });
 
   Future<T> _write<T>(Future<T> Function() task) {
     final completer = Completer<T>();

@@ -35,7 +35,7 @@ class NativeGradebookScreen extends StatefulWidget {
 class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
   late GradebookWorkspace book;
   String? category;
-  bool summary = false;
+  bool summary = true;
   String search = '';
   String? loadError;
   final Map<String, TextEditingController> fields = {};
@@ -54,13 +54,16 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     book.addListener(_changed);
     book.load().then((_) {
       if (mounted)
-        setState(() => category = book.categories
+        setState(() {
+          summary = widget.studentId == null;
+          category = book.categories
                 .where((c) =>
                     GradebookWorkspace.canonical(c.name) ==
                     widget.initialCategory)
                 .firstOrNull
                 ?.categoryId ??
-            book.categories.firstOrNull?.categoryId);
+            book.categories.firstOrNull?.categoryId;
+        });
     }).catchError((Object e) {
       if (mounted) setState(() => loadError = e.toString());
     });
@@ -82,7 +85,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
       fields.clear();
       dirty.clear();
       category = null;
-      summary = false;
+      summary = true;
       loadError = null;
       _open();
     }
@@ -177,9 +180,14 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
 
   Widget scoreField(Student s, GradeItem? item) {
     final key = book.key(s.studentId, item?.gradeItemId ?? 'exam');
-    return SizedBox(
-      width: 96,
-      child: TextField(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _gradeStepButton(s, item, -1),
+        const SizedBox(width: 2),
+        SizedBox(
+          width: 68,
+          child: TextField(
         key: ValueKey(key),
         controller: controller(
           key,
@@ -194,6 +202,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
           labelText: '${s.englishFullName} ${item?.name ?? 'Exam'}',
           floatingLabelBehavior: FloatingLabelBehavior.never,
           isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           filled: true,
           fillColor: dirty.contains(key)
               ? const Color(0xfffff1d5)
@@ -210,8 +219,121 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
           commit(s, item);
           FocusScope.of(context).nextFocus();
         },
+          ),
+        ),
+        const SizedBox(width: 2),
+        _gradeStepButton(s, item, 1),
+      ],
+    );
+  }
+
+  Widget _gradeStepButton(Student student, GradeItem? item, int delta) {
+    final key = book.key(student.studentId, item?.gradeItemId ?? 'exam');
+    return SizedBox(
+      width: 26,
+      height: 32,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(minWidth: 26, minHeight: 32),
+        tooltip: delta > 0 ? 'Increase score by 1' : 'Decrease score by 1',
+        onPressed: working || dirty.contains(key)
+            ? null
+            : () async {
+                final field = controller(
+                  key,
+                  item == null
+                      ? book.exam(student.studentId)
+                      : book.score(student.studentId, item.gradeItemId),
+                );
+                final value = double.tryParse(field.text.trim()) ?? 0;
+                final next = (value + delta).clamp(0, item?.maxScore ?? 100);
+                if (next == value && field.text.trim().isNotEmpty) return;
+                field.text = fmt(next.toDouble());
+                setState(() => dirty.add(key));
+                await commit(student, item);
+              },
+        icon: Icon(delta > 0 ? Icons.add : Icons.remove, size: 16),
       ),
     );
+  }
+
+  Future<void> editOverallWeights() async {
+    if (working || dirty.isNotEmpty) {
+      message('Save unfinished scores before changing grading weights.');
+      return;
+    }
+    final input = TextEditingController(text: fmt(book.courseworkWeightPercent));
+    final chosen = await showDialog<double>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, refresh) {
+          final percent = double.tryParse(input.text.trim());
+          final valid = percent != null &&
+              percent.isFinite && percent >= 0 && percent <= 100;
+          final coursework = valid ? percent : 40.0;
+          return AlertDialog(
+            title: const Text('Overall grade weighting'),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Coursework (GPA) and exam must total 100%. '
+                      'This changes calculated final grades but does not edit saved student scores.'),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: input,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Coursework / GPA percentage',
+                      suffixText: '%',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => refresh(() {}),
+                  ),
+                  const SizedBox(height: 10),
+                  Text('Exam percentage: ${valid ? fmt(100 - coursework) : '—'}%'),
+                  const SizedBox(height: 10),
+                  if (valid)
+                    Text('Example: coursework 90 and exam 70 → final '
+                         '${fmt(90 * coursework / 100 + 70 * (100 - coursework) / 100)}'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: valid ? () => Navigator.pop(ctx, percent) : null,
+                child: const Text('Apply to this class'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    input.dispose();
+    if (chosen == null || !mounted) return;
+    setState(() => working = true);
+    try {
+      await book.setCourseworkWeightPercent(chosen);
+      if (mounted) {
+        final teacher = context.read<AuthService>().currentUser?.userId;
+        if (teacher != null) {
+          await context.read<ClassService>().loadClasses(teacher);
+        }
+      }
+      message('Class weights saved. Student scores were not changed.');
+    } catch (e) {
+      message('Weights not changed: $e');
+    } finally {
+      if (mounted) setState(() => working = false);
+    }
   }
 
   Future<void> addAssessment() async {
@@ -760,7 +882,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1380),
                     child: Padding(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -851,7 +973,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                           ),
                           const SizedBox(height: 16),
                           Container(
-                            padding: const EdgeInsets.all(18),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
                                 colors: [Color(0xff133c67), Color(0xff14817b)],
@@ -874,9 +996,9 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                   status,
                                   style: const TextStyle(color: Colors.white),
                                 ),
-                                const Text(
-                                  'GPA 40% + Exam 60%',
-                                  style: TextStyle(color: Colors.white),
+                                Text(
+                                  'GPA ${fmt(book.courseworkWeightPercent)}% + Exam ${fmt(100 - book.courseworkWeightPercent)}%',
+                                  style: const TextStyle(color: Colors.white),
                                 ),
                                 const Text(
                                   'Participation 20% · Homework 30% · Quizzes 30% · Classwork 20%',
@@ -901,7 +1023,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                   borderRadius: BorderRadius.circular(24),
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(16),
+                                  padding: const EdgeInsets.all(10),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
@@ -953,6 +1075,33 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                               icon: const Icon(Icons.undo),
                                               label:
                                                   const Text('Undo last edit')),
+                                          if (widget.studentId == null)
+                                            OutlinedButton.icon(
+                                              onPressed: working || dirty.isNotEmpty
+                                                  ? null
+                                                  : editOverallWeights,
+                                              icon: const Icon(Icons.pie_chart_outline, size: 18),
+                                              label: const Text('GPA / Exam split'),
+                                            ),
+                                          if (widget.studentId == null)
+                                            OutlinedButton.icon(
+                                              onPressed: working || dirty.isNotEmpty
+                                                  ? null
+                                                  : () async {
+                                                      await context.push<void>(
+                                                        AppRoutes.osClassCategories(widget.classId),
+                                                      );
+                                                      if (!mounted) return;
+                                                      try {
+                                                        await book.load();
+                                                        if (mounted) setState(() {});
+                                                      } catch (e) {
+                                                        message('Could not reload weights: $e');
+                                                      }
+                                                    },
+                                              icon: const Icon(Icons.tune, size: 18),
+                                              label: const Text('Edit category weights'),
+                                            ),
                                           ChoiceChip(
                                             label: const Text('Summary'),
                                             selected: summary,
@@ -1076,10 +1225,15 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                         child: SingleChildScrollView(
                                           child: SingleChildScrollView(
                                             scrollDirection: Axis.horizontal,
-                                            child: DataTable(
-                                              dataRowMinHeight: 72,
-                                              dataRowMaxHeight: 72,
-                                              columnSpacing: 20,
+                                            child: ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                minWidth: (MediaQuery.sizeOf(context).width - 96)
+                                                    .clamp(0, 1320).toDouble(),
+                                              ),
+                                              child: DataTable(
+                                                dataRowMinHeight: 44,
+                                                dataRowMaxHeight: 44,
+                                                columnSpacing: 14,
                                               headingRowColor:
                                                   WidgetStatePropertyAll(
                                                 theme.colorScheme.primary
@@ -1248,6 +1402,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                                     ),
                                                   )
                                                   .toList(),
+                                            ),
                                             ),
                                           ),
                                         ),

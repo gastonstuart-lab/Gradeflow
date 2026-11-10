@@ -9,6 +9,7 @@ import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/migration_service.dart';
 import 'package:gradeflow/config/planner_v2_staging_safety.dart';
+import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
 
 class AuthService extends ChangeNotifier {
   static const String _currentUserKey = 'current_user';
@@ -192,8 +193,20 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Prefer Firebase Auth when available (production).
-      if (FirebaseService.isAvailable) {
+      // The only local login allowed in an existing-project preview is the
+      // explicitly requested synthetic demo teacher. It NEVER uses Firestore
+      // and cannot be used to bypass Firebase for real teacher accounts.
+      final previewDemo = GradeFlowExistingProjectPreview.isSyntheticDemoLogin(
+        email: email,
+        password: password,
+      );
+      if (previewDemo && FirebaseService.isAvailable &&
+          fb.FirebaseAuth.instance.currentUser != null) {
+        await fb.FirebaseAuth.instance.signOut();
+      }
+
+      // Prefer Firebase Auth for all real teachers, including on previews.
+      if (FirebaseService.isAvailable && !previewDemo) {
         try {
           final cred = await fb.FirebaseAuth.instance
               .signInWithEmailAndPassword(
@@ -222,7 +235,7 @@ class AuthService extends ChangeNotifier {
 
       // Non-live previews require a genuine Firebase authenticated user. Never
       // silently sign into a local account when Firebase login fails.
-      if (PlannerV2StagingSafety.authenticatedV2Mode) {
+      if (PlannerV2StagingSafety.authenticatedV2Mode && !previewDemo) {
         _isLoading = false;
         notifyListeners();
         return false;

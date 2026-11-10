@@ -1,6 +1,8 @@
 import 'package:gradeflow/repositories/data_repository.dart';
 import 'package:gradeflow/repositories/local_repository.dart';
 import 'package:gradeflow/repositories/firestore_repository.dart';
+import 'package:gradeflow/repositories/preview_read_only_firestore_repository.dart';
+import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
 import 'package:gradeflow/services/firebase_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -23,8 +25,12 @@ class RepositoryFactory {
   /// Call this after FirebaseService.maybeInitialize() in main().
   static Future<void> initialize({String? userId}) async {
     if (FirebaseService.isAvailable && userId != null) {
-      _instance = FirestoreRepository(userId: userId);
-      debugPrint('RepositoryFactory: Using Firestore for user $userId');
+      _instance = GradeFlowExistingProjectPreview.enabled
+          ? PreviewReadOnlyFirestoreRepository(userId: userId)
+          : FirestoreRepository(userId: userId);
+      debugPrint(GradeFlowExistingProjectPreview.enabled
+          ? 'RepositoryFactory: Read-only Firebase preview'
+          : 'RepositoryFactory: Using Firestore for user $userId');
     } else {
       _instance = LocalRepository();
       debugPrint('RepositoryFactory: Using local storage (SharedPreferences)');

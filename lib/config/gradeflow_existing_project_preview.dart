@@ -24,6 +24,17 @@ class GradeFlowExistingProjectPreview {
     ).hasMatch(hostname);
   }
 
+  /// Preview-only exception for synthetic sample data. It does not authorize
+  /// real users or permit Firestore access without Firebase authentication.
+  static bool isSyntheticDemoLogin({
+    required String email,
+    required String password,
+    bool? previewEnabled,
+  }) =>
+      (previewEnabled ?? enabled) &&
+      email.trim().toLowerCase() == 'teacher@demo.com' &&
+      password == 'demo';
+
   static bool mayStart({
     required bool enabled,
     required bool stagingEnabled,

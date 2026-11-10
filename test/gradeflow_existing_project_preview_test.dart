@@ -53,6 +53,18 @@ void main() {
     expect(allowed(isWeb: false), isFalse);
   });
 
+  test('synthetic demo credentials work only in explicitly enabled previews', () {
+    bool isDemo(String email, String password, {bool previewEnabled = true}) =>
+        GradeFlowExistingProjectPreview.isSyntheticDemoLogin(
+          email: email, password: password, previewEnabled: previewEnabled,
+        );
+    expect(isDemo('teacher@demo.com', 'demo'), true);
+    expect(isDemo(' TEACHER@DEMO.COM ', 'demo'), true);
+    expect(isDemo('teacher@demo.com', 'wrong'), false);
+    expect(isDemo('a-real-teacher@example.com', 'demo'), false);
+    expect(isDemo('teacher@demo.com', 'demo', previewEnabled: false), false);
+  });
+
   test('does not modify ordinary production or dedicated-staging builds', () {
     expect(allowed(enabled: false, host: 'gradeflow-20260113.web.app'), isTrue);
     expect(allowed(enabled: false, host: 'localhost'), isTrue);

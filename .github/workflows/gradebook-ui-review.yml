@@ -1,0 +1,25 @@
+name: Gradebook dense overview and quick-score validation
+on:
+  push:
+    branches:
+      - feat/gradebook-compact-overview-20261110
+  pull_request:
+    branches:
+      - integration/v2-flutterfire-auth-refresh-20261109
+permissions:
+  contents: read
+jobs:
+  gradebook-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
