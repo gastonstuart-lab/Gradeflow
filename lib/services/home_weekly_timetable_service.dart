@@ -19,11 +19,13 @@ class HomeTeachingMoment {
   final String title;
   final DateTime startAt;
   final DateTime endAt;
+  final int periodCount;
 
   const HomeTeachingMoment({
     required this.title,
     required this.startAt,
     required this.endAt,
+    this.periodCount = 1,
   });
 }
 
@@ -36,8 +38,9 @@ class HomeTeachingSequence {
 
   factory HomeTeachingSequence.fromSchedule(
     List<TimeSlotClass> classes,
-    DateTime now,
-  ) {
+    DateTime now, {
+    bool combineConsecutivePeriods = true,
+  }) {
     final today = DateTime(now.year, now.month, now.day);
     final monday = today.subtract(Duration(days: now.weekday - 1));
     final moments = <HomeTeachingMoment>[];
@@ -57,9 +60,39 @@ class HomeTeachingSequence {
       }
     }
     moments.sort((a, b) => a.startAt.compareTo(b.startAt));
+
+    // Merge presentation only. The saved timetable still contains its original
+    // individual class periods, so imports and period counts remain intact.
+    // A short supervised break (up to 15 minutes) between two periods counts
+    // as one session if the class label is exactly the same after trimming.
+    final sessions = <HomeTeachingMoment>[];
+    for (final moment in moments) {
+      if (combineConsecutivePeriods && sessions.isNotEmpty) {
+        final previous = sessions.last;
+        final gap = moment.startAt.difference(previous.endAt);
+        final sameDay = previous.startAt.year == moment.startAt.year &&
+            previous.startAt.month == moment.startAt.month &&
+            previous.startAt.day == moment.startAt.day;
+        final sameClass =
+            previous.title.trim().toLowerCase() ==
+            moment.title.trim().toLowerCase();
+        if (sameDay && sameClass &&
+            !gap.isNegative && gap <= const Duration(minutes: 15)) {
+          sessions[sessions.length - 1] = HomeTeachingMoment(
+            title: previous.title,
+            startAt: previous.startAt,
+            endAt: moment.endAt,
+            periodCount: previous.periodCount + moment.periodCount,
+          );
+          continue;
+        }
+      }
+      sessions.add(moment);
+    }
+
     HomeTeachingMoment? current;
     final upcoming = <HomeTeachingMoment>[];
-    for (final moment in moments) {
+    for (final moment in sessions) {
       if (!now.isBefore(moment.startAt) && now.isBefore(moment.endAt)) {
         current ??= moment;
       } else if (!moment.startAt.isBefore(now)) {
