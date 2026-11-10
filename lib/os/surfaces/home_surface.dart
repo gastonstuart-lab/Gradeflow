@@ -26,6 +26,7 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
+import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 import 'package:gradeflow/services/dashboard_weather_service.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/services/instructos_assistant_service.dart';
@@ -57,6 +58,9 @@ class _HomeSurfaceState extends State<HomeSurface> {
   bool _loadingStudentCounts = false;
   bool _showExistingHomeTools = false;
   String? _selectedHomeClassId;
+  HomeWeeklyTimetable? _homeTimetable;
+  String? _homeTimetableUserId;
+  bool _importingHomeTimetable = false;
 
   @override
   void didChangeDependencies() {
@@ -71,7 +75,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
   void _syncWallpaperForUser(String userId) {
     if (_loadedUserId == userId) return;
     _loadedUserId = userId;
+    _homeTimetable = null;
+    _homeTimetableUserId = null;
     _loadWallpaper(userId);
+    _loadHomeTimetable(userId);
   }
 
   Future<void> _loadWallpaper(String userId) async {
@@ -106,6 +113,62 @@ class _HomeSurfaceState extends State<HomeSurface> {
     } catch (_) {
       if (!mounted || _loadedUserId != userId) return;
       setState(() => _loadingWallpaper = false);
+    }
+  }
+
+  Future<void> _loadHomeTimetable(String userId) async {
+    try {
+      final timetable =
+          await const HomeWeeklyTimetableService().loadSelected(userId);
+      if (!mounted || _loadedUserId != userId) return;
+      setState(() {
+        _homeTimetable = timetable;
+        _homeTimetableUserId = userId;
+      });
+    } catch (e) {
+      debugPrint('Could not read the saved timetable: $e');
+      if (!mounted || _loadedUserId != userId) return;
+      setState(() {
+        _homeTimetable = null;
+        _homeTimetableUserId = userId;
+      });
+    }
+  }
+
+  Future<void> _importHomeTimetable() async {
+    if (_importingHomeTimetable) return;
+    final userId = _homeStorageUserId(context.read<AuthService>());
+    if (userId == null) return;
+    setState(() => _importingHomeTimetable = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['xlsx', 'csv', 'docx'],
+        withData: true,
+      );
+      final picked = result?.files.single;
+      if (picked == null) return;
+      final bytes = picked.bytes;
+      if (bytes == null) {
+        throw const FormatException('Could not read the selected file.');
+      }
+      final timetable = await const HomeWeeklyTimetableService()
+          .importForTeacher(userId: userId, filename: picked.name, bytes: bytes);
+      if (!mounted || _loadedUserId != userId) return;
+      setState(() {
+        _homeTimetable = timetable;
+        _homeTimetableUserId = userId;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Timetable ready: ${timetable.classes.length} weekly periods. Review the class labels before using them.'),
+      ));
+    } catch (e) {
+      if (!mounted || _loadedUserId != userId) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Timetable not imported: $e'),
+      ));
+    } finally {
+      if (mounted) setState(() => _importingHomeTimetable = false);
     }
   }
 
@@ -410,6 +473,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
                     ? MemoryImage(_wallpaperImageBytes!)
                     : null,
             onCustomiseHome: _showWallpaperSheet,
+            timetable: _homeTimetableUserId == wallpaperUserId
+                ? _homeTimetable
+                : null,
+            onUploadTimetable: _importHomeTimetable,
           ),
         ),
       );
