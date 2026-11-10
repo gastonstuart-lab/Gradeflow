@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:csv/csv.dart';
+
 import 'package:gradeflow/components/time_slot_timetable.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
 import 'package:gradeflow/services/file_import_service.dart';
@@ -122,7 +124,21 @@ class HomeWeeklyTimetableService {
       grid = fileService.cleanTimetableGrid(
         fileService.extractDocxBestTableGrid(bytes),
       );
-    } else if (extension == 'xlsx' || extension == 'csv') {
+    } else if (extension == 'csv') {
+      // The legacy generic CSV decoder can keep LF-only files in one row.
+      // Parse CSV here with explicit LF boundaries (including CRLF exports).
+      final text = utf8.decode(bytes, allowMalformed: true)
+          .replaceAll('\r\n', '\n')
+          .replaceAll('\r', '\n');
+      final rows = const CsvToListConverter(
+        eol: '\n',
+        shouldParseNumbers: false,
+      ).convert(text);
+      grid = fileService.cleanTimetableGrid(
+        rows.map((row) => row.map((c) => c?.toString().trim() ?? '').toList())
+            .toList(),
+      );
+    } else if (extension == 'xlsx') {
       grid = fileService.cleanTimetableGrid(fileService.rowsFromAnyBytes(bytes));
     } else {
       throw const FormatException('Use an Excel, CSV or Word timetable.');
