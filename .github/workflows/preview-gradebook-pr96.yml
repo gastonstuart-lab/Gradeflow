@@ -1,0 +1,95 @@
+name: Review GradeFlow PR96 on Firebase Hosting PREVIEW only
+run-name: Preview PR96 / ${{ github.actor }}
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/preview-gradebook-pr96.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: gradeflow-pr96-hosting-preview
+  cancel-in-progress: false
+
+jobs:
+  reviewed-preview:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Checkout exact reviewed PR96 candidate (not main UI)
+        uses: actions/checkout@v4
+        with:
+          ref: 0eba27dfe358f7a48fb6d45073732697a23fc657
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Assert pinned candidate, read-only repository, preview-only manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "0eba27dfe358f7a48fb6d45073732697a23fc657"
+          grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
+          node - <<'NODE'
+          const c=require('./firebase.preview.json');
+          if (!c.hosting || c.hosting.public !== 'build/web' ||
+              !c.hosting.rewrites?.some(r=>r.source==='**'&&r.destination==='/index.html') ||
+              ['firestore','functions','storage','database','remoteconfig','extensions'].some(k=>!!c[k])) {
+            throw Error('Preview manifest must deploy Hosting files only');
+          }
+          NODE
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build authenticated READ-ONLY preview (not live V2 release)
+        shell: bash
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+            --base-href / \
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
+          test -s build/web/main.dart.js
+      - name: Confirm existing-project GitHub keyless auth configuration
+        env:
+          WIF_PROVIDER: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]]
+          [[ "$WIF_SERVICE_ACCOUNT" =~ ^[^@]+@gradeflow-20260113\.iam\.gserviceaccount\.com$ ]]
+      - name: Authenticate via protected main-branch GitHub OIDC
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          service_account: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+          project_id: gradeflow-20260113
+          create_credentials_file: true
+          export_environment_variables: true
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+      - name: Deploy ONLY temporary classroom-v2 preview channel, NEVER live
+        shell: bash
+        run: |
+          set -euo pipefail
+          firebase hosting:channel:deploy classroom-v2 \
+            --project gradeflow-20260113 \
+            --config firebase.preview.json \
+            --expires 7d \
+            --non-interactive | tee "$RUNNER_TEMP/pr96-preview-output.txt"
+          {
+            echo "## GradeFlow PR96 review preview"
+            echo "Pinned source: `0eba27dfe358f7a48fb6d45073732697a23fc657`"
+            echo "Live gradeflow-20260113 Hosting channel has NOT been modified."
+            echo "The preview blocks academic repository writes. It reads the same authenticated project."
+            grep -Eo 'https://gradeflow-20260113--classroom-v2-[a-z0-9-]+\.web\.app' "$RUNNER_TEMP/pr96-preview-output.txt" | head -1 || true
+          } >> "$GITHUB_STEP_SUMMARY"
