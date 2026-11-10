@@ -33,7 +33,7 @@ jobs:
           cache: true
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24.18.0'
       - name: Assert pinned candidate, read-only repository, preview-only manifest
         shell: bash
         run: |
@@ -77,7 +77,7 @@ jobs:
           export_environment_variables: true
       - name: Install Firebase CLI version with verified WIF support
         run: |
-          npm install --global firebase-tools@15.22.1
+          npm install --global firebase-tools@15.22.3
           firebase --version
       - name: Deploy ONLY temporary classroom-v2 preview channel, NEVER live
         shell: bash
