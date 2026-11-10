@@ -38,6 +38,8 @@ class ApprovedTeacherHome extends StatelessWidget {
     this.onCustomiseHome,
     this.timetable,
     this.onUploadTimetable,
+    this.combineConsecutivePeriods = true,
+    this.onCombineConsecutivePeriodsChanged,
   });
 
   final String teacherName;
@@ -64,6 +66,8 @@ class ApprovedTeacherHome extends StatelessWidget {
   final VoidCallback? onCustomiseHome;
   final HomeWeeklyTimetable? timetable;
   final VoidCallback? onUploadTimetable;
+  final bool combineConsecutivePeriods;
+  final ValueChanged<bool>? onCombineConsecutivePeriodsChanged;
 
   bool _dark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
@@ -428,7 +432,19 @@ class ApprovedTeacherHome extends StatelessWidget {
                     label: const Text('Replace'),
                   ),
               ]),
-              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text('Combine double periods',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                  ),
+                  Switch.adaptive(
+                    value: combineConsecutivePeriods,
+                    onChanged: onCombineConsecutivePeriodsChanged,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               StreamBuilder<DateTime>(
                 stream: Stream<DateTime>.periodic(
                   const Duration(minutes: 1),
@@ -440,6 +456,7 @@ class ApprovedTeacherHome extends StatelessWidget {
                   final sequence = HomeTeachingSequence.fromSchedule(
                     timetable!.classes,
                     now,
+                    combineConsecutivePeriods: combineConsecutivePeriods,
                   );
                   return LayoutBuilder(builder: (context, constraints) {
                     final columns = constraints.maxWidth >= 570
@@ -522,7 +539,11 @@ class ApprovedTeacherHome extends StatelessWidget {
                 )),
             const SizedBox(height: 5),
             Text(
-              moment?.title ?? (label == 'Now' ? 'Not teaching' : '—'),
+              moment?.title == null
+                  ? (label == 'Now' ? 'Not teaching' : '—')
+                  : moment!.periodCount > 1
+                      ? '${moment.title} · ${moment.periodCount} periods'
+                      : moment.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
