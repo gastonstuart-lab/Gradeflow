@@ -21,12 +21,17 @@ class GradeFlowOSShell extends StatefulWidget {
     super.key,
     required this.child,
     this.teachMode = false,
+    this.fullBleedHome = false,
   });
 
   final Widget child;
 
   /// When true, the dock is hidden and teach-mode chrome is applied.
   final bool teachMode;
+
+  /// Only the Home surface can paint continuously beneath the floating dock.
+  /// Other OS routes retain the existing reserved content viewport.
+  final bool fullBleedHome;
 
   @override
   State<GradeFlowOSShell> createState() => _GradeFlowOSShellState();
@@ -147,7 +152,10 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final shellStack = Stack(
       children: [
         Positioned.fill(
-          bottom: dockReserve,
+          key: const ValueKey('os-routed-content'),
+          bottom: widget.fullBleedHome && !widget.teachMode
+              ? 0
+              : dockReserve,
           child: Transform.translate(
             offset: Offset(_dragDx, 0),
             child: AnimatedOpacity(
@@ -298,8 +306,9 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
       ],
     );
 
-    // The routed surface stops above the dock. Paint the remaining full-height
-    // shell in the active theme so dark Home never exposes a light root strip.
+    // Ordinary surfaces stop above the dock; Home paints under it and
+    // provides its own scrolling clearance. Preserve the themed fallback for
+    // all other OS routes (including teach mode).
     return ColoredBox(
       color: widget.teachMode
           ? OSColors.teachBg
