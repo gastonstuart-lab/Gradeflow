@@ -20,27 +20,10 @@ class InstructOSBoxesBackground extends StatefulWidget {
       _InstructOSBoxesBackgroundState();
 }
 
-class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ambient = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 28),
-  )..repeat();
-
+class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground> {
+  // The reference effect responds to interaction. A continuously repeating
+  // ticker wastes power during login, and prevents pumpAndSettle-based tests.
   final ValueNotifier<Offset?> _pointer = ValueNotifier<Offset?>(null);
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    if (reduceMotion && _ambient.isAnimating) {
-      _ambient
-        ..stop()
-        ..value = 0.25;
-    } else if (!reduceMotion && !_ambient.isAnimating) {
-      _ambient.repeat();
-    }
-  }
 
   void _movePointer(PointerEvent event, Size size) {
     if (size.width <= 0 || size.height <= 0) return;
@@ -49,7 +32,6 @@ class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground>
 
   @override
   void dispose() {
-    _ambient.dispose();
     _pointer.dispose();
     super.dispose();
   }
@@ -86,12 +68,11 @@ class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground>
                   ),
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: AnimatedBuilder(
-                        animation: Listenable.merge([_ambient, _pointer]),
-                        builder: (context, _) => CustomPaint(
+                      child: ValueListenableBuilder<Offset?>(
+                        valueListenable: _pointer,
+                        builder: (context, pointer, _) => CustomPaint(
                           painter: _BoxesPainter(
-                            progress: _ambient.value,
-                            pointer: _pointer.value,
+                            pointer: pointer,
                             reducedEffects: reduceMotion || size.width < 560,
                           ),
                         ),
@@ -131,12 +112,10 @@ class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground>
 
 class _BoxesPainter extends CustomPainter {
   const _BoxesPainter({
-    required this.progress,
     required this.pointer,
     required this.reducedEffects,
   });
 
-  final double progress;
   final Offset? pointer;
   final bool reducedEffects;
 
@@ -154,10 +133,7 @@ class _BoxesPainter extends CustomPainter {
     final cols = (size.width / boxSize).ceil() + 5;
     final rows = (size.height / boxSize).ceil() + 5;
     final center = Offset(size.width * 0.5, size.height * 0.5);
-    final ambientPoint = Offset(
-      size.width * (0.54 + (reducedEffects ? 0 : math.sin(progress * math.pi * 2) * 0.15)),
-      size.height * (0.43 + (reducedEffects ? 0 : math.cos(progress * math.pi * 2) * 0.10)),
-    );
+    final ambientPoint = Offset(size.width * 0.54, size.height * 0.43);
     final outline = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.7
@@ -207,7 +183,6 @@ class _BoxesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BoxesPainter oldDelegate) =>
-      oldDelegate.progress != progress ||
       oldDelegate.pointer != pointer ||
       oldDelegate.reducedEffects != reducedEffects;
 }
