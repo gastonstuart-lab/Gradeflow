@@ -44,11 +44,25 @@ class ClassDirectorySurface extends StatelessWidget {
                               Text('${service.classes.length} active classes',
                                   style: const TextStyle(color: Colors.white70))
                             ])),
-                        IconButton(
-                          tooltip: 'Manage class records and imports',
-                          onPressed: () => context.go(AppRoutes.classes),
-                          icon: const Icon(Icons.settings_outlined, color: Colors.white),
-                        ),
+                        if (MediaQuery.sizeOf(context).width >= 760)
+                          OutlinedButton.icon(
+                            onPressed: () => context.go(AppRoutes.classes),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white70),
+                            ),
+                            icon: const Icon(Icons.upload_file_outlined),
+                            label: const Text('Import classes / rosters'),
+                          )
+                        else
+                          IconButton(
+                            tooltip: 'Import classes / rosters',
+                            onPressed: () => context.go(AppRoutes.classes),
+                            icon: const Icon(
+                              Icons.upload_file_outlined,
+                              color: Colors.white,
+                            ),
+                          ),
                       ])))),
           if (service.isLoading)
             const SliverToBoxAdapter(child: LinearProgressIndicator()),

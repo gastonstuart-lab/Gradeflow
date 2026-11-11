@@ -20,6 +20,7 @@ import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
 import 'package:gradeflow/services/file_import_service.dart';
+import 'package:gradeflow/services/school_calendar_grid_parser.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/theme.dart';
 
@@ -146,6 +147,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
               DateTime.now(),
           done: (item['done'] as bool?) ?? false,
           classIds: classIds,
+          endDate: DateTime.tryParse((item['endDate'] ?? '').toString()),
         ),
       );
     }
@@ -230,6 +232,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
               (reminder) => {
                 'text': reminder.text,
                 'timestamp': reminder.timestamp.toIso8601String(),
+                'endDate': reminder.endDate?.toIso8601String(),
                 'done': reminder.done,
                 'classIds':
                     reminder.classIds.isEmpty ? null : reminder.classIds,
@@ -354,13 +357,88 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
         return;
       }
 
+      // Avoid duplicate calendar imports and preserve prior completion state.
+      final known = _reminders.map(_calendarImportKey).toSet();
+      final added = <_PlannerReminder>[];
+      for (final event in imported) {
+        if (known.add(_calendarImportKey(event))) added.add(event);
+      }
+      if (added.isEmpty) {
+        _showPlannerFeedback(
+          'All ${imported.length} calendar events are already in Planner.',
+          tone: WorkspaceFeedbackTone.info,
+          title: 'No duplicates added',
+        );
+        return;
+      }
+      // Confirm the detected event count before touching existing reminders.
+      // Import is additive and the teacher can cancel without making changes.
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Import school calendar?'),
+          content: SizedBox(
+            width: 520,
+            height: 320,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Found ${imported.length} events in $filename. '
+                  '${added.length} are new; '
+                  '${imported.length - added.length} already exist.',
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This adds school events to Planner. It will not replace '
+                  'your existing reminders, classes, or completed items.',
+                ),
+                const Divider(height: 22),
+                const Text('First events',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: added.length < 12 ? added.length : 12,
+                    itemBuilder: (_, index) {
+                      final event = added[index];
+                      final date = _formatDate(event.timestamp);
+                      final range = event.endDate == null
+                          ? date
+                          : '$date – ${_formatDate(event.endDate!)}';
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(event.text),
+                        subtitle: Text(range),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text('Import ${added.length} events'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || approved != true) return;
       setState(() {
-        _reminders = [..._reminders, ...imported]
+        _reminders = [..._reminders, ...added]
           ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
       });
       await _saveReminders();
       _showPlannerFeedback(
-        'Imported ${imported.length} calendar event${imported.length == 1 ? '' : 's'}.',
+        'Imported ${added.length} new event${added.length == 1 ? '' : 's'}'
+        ' (${imported.length - added.length} already present).',
         tone: WorkspaceFeedbackTone.success,
         title: 'Calendar updated',
       );
@@ -379,6 +457,18 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
   ) {
     final rows = FileImportService().rowsFromAnyBytes(bytes);
     if (rows.isEmpty) return const <_PlannerReminder>[];
+
+    // The school calendar is a weekly grid with many dated events per cell.
+    // Never parse its "Date: Event" column as both a date and a title.
+    if (SchoolCalendarGridParser.matches(rows)) {
+      return SchoolCalendarGridParser.parse(rows, filename: filename)
+          .map((event) => _PlannerReminder(
+                text: event.title,
+                timestamp: event.start,
+                endDate: event.end.isAfter(event.start) ? event.end : null,
+              ))
+          .toList();
+    }
 
     final headerRowIndex = _pickLikelyCalendarHeaderRow(rows);
     final header = rows[headerRowIndex].map(_normalize).toList();
@@ -1417,14 +1507,25 @@ class _PlannerReminder {
     required this.timestamp,
     this.done = false,
     this.classIds = const <String>[],
+    this.endDate,
   });
 
   final String text;
   final DateTime timestamp;
+  /// Inclusive last date for a multi-day school-calendar event.
+  final DateTime? endDate;
   bool done;
   final List<String> classIds;
 
   bool get isSchoolWide => classIds.isEmpty;
+
+  bool occursOn(DateTime date) {
+    final day = DateTime(date.year, date.month, date.day);
+    final start = DateTime(timestamp.year, timestamp.month, timestamp.day);
+    final last = endDate ?? timestamp;
+    final end = DateTime(last.year, last.month, last.day);
+    return !day.isBefore(start) && !day.isAfter(end);
+  }
 }
 
 class _PlannerTimetableState {
@@ -1625,7 +1726,7 @@ class _MonthDayCell extends StatelessWidget {
     final isToday = _isSameDate(today, date);
     final isSelected = selectedDate != null && _isSameDate(selectedDate!, date);
     final hasItems = reminders.any(
-        (reminder) => _isSameDate(reminder.timestamp, date) && !reminder.done);
+        (reminder) => reminder.occursOn(date) && !reminder.done);
     final theme = Theme.of(context);
 
     return Padding(
@@ -1703,7 +1804,7 @@ class _SelectedDayEditor extends StatelessWidget {
     }
 
     final items = reminders
-        .where((reminder) => _isSameDate(reminder.timestamp, selected))
+        .where((reminder) => reminder.occursOn(selected))
         .toList()
       ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
 
@@ -2019,6 +2120,10 @@ TimeOfDay? _parseTimeFlexible(String input) {
   }
   return null;
 }
+
+String _calendarImportKey(_PlannerReminder item) =>
+    '${_formatDate(item.timestamp)}|'
+    '${item.text.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ')}';
 
 bool _isSameDate(DateTime left, DateTime right) =>
     left.year == right.year &&

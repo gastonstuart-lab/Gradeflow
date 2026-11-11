@@ -156,8 +156,10 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
         return LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 900;
-            final crampedHeight = constraints.maxHeight < 460;
-            final showStudentPanel = widget.showStudentPanel && !crampedHeight;
+            // Avoid silently hiding a class's unseated roster on the
+            // Surface Pro or a compact laptop viewport.
+            final showStudentPanel =
+                widget.showStudentPanel && constraints.maxHeight >= 320;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -246,7 +248,8 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                                 ),
                                 const SizedBox(height: 12),
                                 SizedBox(
-                                  height: 220,
+                                  height: (constraints.maxHeight * .36)
+                                      .clamp(132.0, 200.0),
                                   child: StudentListPanel(
                                     students: widget.students,
                                     assignedStudentIds: assignedStudentIds,
@@ -257,15 +260,17 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                             )
                           : Row(
                               children: [
-                                Expanded(
-                                  child: _buildCanvas(
-                                      context, service, active, studentsById),
-                                ),
-                                const SizedBox(width: 12),
+                                // Keep the unseated list on the left, clear of
+                                // Classroom's contextual right slide-out.
                                 StudentListPanel(
                                   students: widget.students,
                                   assignedStudentIds: assignedStudentIds,
                                   compact: false,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildCanvas(
+                                      context, service, active, studentsById),
                                 ),
                               ],
                             ),
