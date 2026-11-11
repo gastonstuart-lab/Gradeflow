@@ -668,7 +668,27 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                 'Unseated ($unseatedCount)'),
                           ),
                         ],
+                        const Spacer(),
+                        TextButton.icon(
+                          key: const ValueKey('classroom-arrange-mode'),
+                          onPressed: () => setState(() {
+                            _selectedSeat = null;
+                            _selectedTableId = null;
+                            _setupMode = !_setupMode;
+                            _toolsOpen = _setupMode;
+                          }),
+                          icon: Icon(
+                            _setupMode
+                                ? Icons.check_circle_outline
+                                : Icons.dashboard_customize_outlined,
+                            size: 17,
+                          ),
+                          label: Text(
+                            _setupMode ? 'Finish arranging' : 'Arrange room',
+                          ),
+                        ),
                         if (MediaQuery.sizeOf(context).width >= 1000) ...[
+                          const SizedBox(width: 10),
                           const Spacer(),
                           Text(
                             _setupMode
@@ -778,18 +798,6 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                   icon: const Icon(
                                       Icons.table_restaurant_outlined),
                                   label: const Text('Pick table')),
-                              TextButton.icon(
-                                  onPressed: () => setState(() {
-                                        _selectedSeat = null;
-                                        _selectedTableId = null;
-                                        _setupMode = !_setupMode;
-                                        _toolsOpen = _setupMode;
-                                      }),
-                                  icon: const Icon(
-                                      Icons.dashboard_customize_outlined),
-                                  label: Text(_setupMode
-                                      ? 'Finish arranging'
-                                      : 'Arrange room')),
                               if (_pickLabel != null) ...[
                                 const SizedBox(width: 12),
                                 InputChip(
