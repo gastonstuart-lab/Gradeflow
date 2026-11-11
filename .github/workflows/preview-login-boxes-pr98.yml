@@ -28,7 +28,7 @@ jobs:
       - name: Checkout exact verified weekly Planner candidate
         uses: actions/checkout@v4
         with:
-          ref: bf314e91e4280dcdfa5e428fcfacf713f994a20e
+          ref: e513a5c691a2c763aeab0f4562484876d45a25c5
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "bf314e91e4280dcdfa5e428fcfacf713f994a20e"
+          test "$(git rev-parse HEAD)" = "e513a5c691a2c763aeab0f4562484876d45a25c5"
           grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
           grep -q 'InstructOSBoxesBackground(' lib/components/gradeflow_launch_experience.dart
           grep -q 'InstructOSBoxesBackground(' lib/screens/login_screen.dart
