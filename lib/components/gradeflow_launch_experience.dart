@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:gradeflow/config/instructos_branding.dart';
 import 'package:gradeflow/config/instructos_design.dart';
 import 'package:gradeflow/services/auth_service.dart';
-import 'package:gradeflow/widgets/branding/instructos_interactive_auth_background.dart';
+import 'package:gradeflow/widgets/branding/instructos_boxes_background.dart';
 
 class GradeFlowLaunchGate extends StatefulWidget {
   final Widget child;
@@ -20,7 +20,7 @@ class GradeFlowLaunchGate extends StatefulWidget {
 }
 
 class _GradeFlowLaunchGateState extends State<GradeFlowLaunchGate> {
-  static const _minimumSplash = Duration(milliseconds: 1100);
+  static const _minimumSplash = Duration(milliseconds: 350);
   bool _minimumElapsed = false;
   bool _completed = false;
   Timer? _minimumTimer;
@@ -88,7 +88,7 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
     final theme = Theme.of(context);
     return Scaffold(
         backgroundColor: InstructOSDesign.background(context),
-        body: InstructOSInteractiveAuthBackground(
+        body: InstructOSBoxesBackground(
             child: Center(
                 child: Padding(
                     padding: const EdgeInsets.all(24),
