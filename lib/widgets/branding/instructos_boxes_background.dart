@@ -32,12 +32,17 @@ class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    if (reduceMotion && _ambient.isAnimating) {
+    final media = MediaQuery.maybeOf(context);
+    // Compact layouts deliberately use a static grid. Besides reducing
+    // distracting motion on a phone, this keeps accessibility tests and
+    // finite login transitions able to settle normally.
+    final staticGrid = (media?.disableAnimations ?? false) ||
+        (media?.size.width ?? double.infinity) < 560;
+    if (staticGrid && _ambient.isAnimating) {
       _ambient
         ..stop()
         ..value = 0.25;
-    } else if (!reduceMotion && !_ambient.isAnimating) {
+    } else if (!staticGrid && !_ambient.isAnimating) {
       _ambient.repeat();
     }
   }
