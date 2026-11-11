@@ -50,6 +50,8 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   final _picker = ClassroomPickerAnimator();
   String? _scoreCategory;
   bool _setupMode = false;
+  // New classes show the unseated roster automatically for drag placement.
+  bool _showUnseatedRoster = true;
   int _fitRevision = 0;
   double _zoomFactor = 1;
 
@@ -72,6 +74,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         _selectedTableId = null;
         _loading = true;
         _setupMode = false;
+        _showUnseatedRoster = true;
         _picker.cancel(clearStudentHistory: true);
         _pickedStudent = null;
         _pickedTable = null;
@@ -116,8 +119,8 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
     }
   }
 
-  void _backToClass() {
-    context.go(AppRoutes.osClasses);
+  void _backToHome() {
+    context.go(AppRoutes.osHome);
   }
 
   void _pick({bool table = false}) {
@@ -585,13 +588,23 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         context.watch<ClassService>().getClassById(widget.classId);
     final students = context.watch<StudentService>().students;
     final seatingService = context.watch<SeatingService>();
+    final activeSeats = seatingService.activeLayout(widget.classId)?.seats;
+    final assigned = activeSeats == null
+        ? <String>{}
+        : activeSeats
+            .where((seat) => seat.studentId != null &&
+                seat.studentId!.isNotEmpty)
+            .map((seat) => seat.studentId!)
+            .toSet();
+    final unseatedCount =
+        students.where((student) => !assigned.contains(student.studentId)).length;
 
     if (_loading) {
       return _ClassroomState(
         title: 'Loading classroom',
         subtitle: 'Restoring the class roster and room map.',
         loading: true,
-        onBack: _backToClass,
+        onBack: _backToHome,
       );
     }
 
@@ -599,7 +612,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
       return _ClassroomState(
         title: 'Class not found',
         subtitle: 'Return to the class workspace and choose another class.',
-        onBack: _backToClass,
+        onBack: _backToHome,
       );
     }
 
@@ -623,7 +636,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                         roomName: roomName,
                         setupMode: _setupMode,
                         toolsOpen: _toolsOpen,
-                        onBack: _backToClass,
+                        onBack: _backToHome,
                         onToggleTools: () =>
                             setState(() => _toolsOpen = !_toolsOpen),
                         onPresent: () => _openPresentation(
@@ -707,6 +720,21 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                         child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(children: [
+                              TextButton.icon(
+                                onPressed: () =>
+                                    context.go(AppRoutes.osClassStudents(widget.classId)),
+                                icon: const Icon(Icons.groups_outlined),
+                                label: const Text('Class roster'),
+                              ),
+                              if (unseatedCount > 0)
+                                TextButton.icon(
+                                  onPressed: () => setState(() =>
+                                      _showUnseatedRoster = !_showUnseatedRoster),
+                                  icon: Icon(_showUnseatedRoster
+                                      ? Icons.view_sidebar_outlined
+                                      : Icons.person_add_alt_1_outlined),
+                                  label: Text('Unseated ($unseatedCount)'),
+                                ),
                               TextButton.icon(onPressed: _randomSeating,
                                   icon: const Icon(Icons.shuffle), label: const Text('Random seating')),
                               TextButton.icon(onPressed: () => setState(() { _fitRevision++; _zoomFactor = 1; }),
@@ -771,6 +799,8 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                           classId: widget.classId,
                                           students: students,
                                           setupMode: _setupMode,
+                                          showUnseatedRoster:
+                                              _showUnseatedRoster && unseatedCount > 0,
                                           fitRevision: _fitRevision,
                                           zoomFactor: _zoomFactor,
                                           cleanCanvas: widget.cleanCanvas,
@@ -857,7 +887,7 @@ class _ClassroomHeader extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            tooltip: 'Back to classes',
+            tooltip: 'Back to Home',
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           ),
@@ -944,6 +974,7 @@ class _ClassroomMapPanel extends StatelessWidget {
     required this.classId,
     required this.students,
     required this.setupMode,
+    required this.showUnseatedRoster,
     required this.cleanCanvas,
     required this.plannerV2,
     required this.selectedTableId,
@@ -959,6 +990,7 @@ class _ClassroomMapPanel extends StatelessWidget {
   final String classId;
   final List<Student> students;
   final bool setupMode;
+  final bool showUnseatedRoster;
   final bool cleanCanvas;
   final bool plannerV2;
   final String? selectedTableId;
@@ -996,9 +1028,11 @@ class _ClassroomMapPanel extends StatelessWidget {
         highlightedStudentId: highlightedStudentId,
         highlightedTableId: highlightedTableId,
         editRoomMode: setupMode,
-        allowSeatReassignment: setupMode,
+        // Students may be dragged between seats in Teach mode. Arrange mode
+        // separately controls the physical table/chair geometry.
+        allowSeatReassignment: true,
         showToolbar: false,
-        showStudentPanel: false,
+        showStudentPanel: showUnseatedRoster,
         showFullScreenButton: false,
         showUseHint: false,
         webMode: kIsWeb,
