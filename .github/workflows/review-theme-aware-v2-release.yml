@@ -1,0 +1,71 @@
+name: Validate GradeFlow light/dark launch and live V2 release
+
+on:
+  push:
+    branches:
+      - release/theme-aware-login-home-v2-20261111
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradeflow-theme-aware-release-check
+  cancel-in-progress: true
+
+jobs:
+  complete-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Assert Hosting-only release manifests and split build protections
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'GRADEFLOW_LIVE_CLASSROOM_V2' lib/config/gradeflow_live_v2_release.dart
+          grep -q "'login-boxes'" lib/config/gradeflow_existing_project_preview.dart
+          grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
+          node - <<'NODE'
+          const fs = require('fs');
+          for (const file of ['firebase.live.json','firebase.preview.json']) {
+            const c = JSON.parse(fs.readFileSync(file,'utf8'));
+            if (!c.hosting || c.hosting.public !== 'build/web' ||
+                Object.keys(c).some(k => k !== 'hosting') ||
+                !c.hosting.rewrites?.some(x => x.source === '**' && x.destination === '/index.html')) {
+              throw Error(file + ': Hosting only with SPA rewrite required');
+            }
+          }
+          const html=fs.readFileSync('web/index.html','utf8');
+          if (!html.includes(':root[data-theme="dark"]') ||
+              !html.includes('--boxes-start:#f7fbfe') ||
+              !html.includes('--boxes-start:#07101d')) {
+            throw Error('Both HTML bootstrap palettes must be provided');
+          }
+          NODE
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze full Flutter project
+        run: flutter analyze
+      - name: Run all tests (including both theme and dock regressions)
+        run: flutter test
+      - name: Build READ-ONLY Firebase preview
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+            --base-href / \
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true \
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW_CHANNEL=login-boxes
+          test -s build/web/main.dart.js
+      - name: Build production-bounded V2 bundle separately
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/main.dart \
+            --base-href / \
+            --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+          test -s build/web/index.html
+          test -s build/web/main.dart.js
+          echo 'Production bundle compiled, but NO deployment occurred.' >> "$GITHUB_STEP_SUMMARY"
