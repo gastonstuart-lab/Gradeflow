@@ -646,6 +646,7 @@ class _OSRouteFrameState extends State<_OSRouteFrame> {
   Widget build(BuildContext context) {
     return GradeFlowOSShell(
       teachMode: widget.surface == OSSurface.teach,
+      fullBleedHome: widget.surface == OSSurface.home,
       child: widget.child,
     );
   }
