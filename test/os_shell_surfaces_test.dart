@@ -306,21 +306,21 @@ void main() {
     expect(find.text('Selected: 2026-12-16'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('planner-view-month')));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.text('Dec 2026'), findsOneWidget);
     expect(find.text('Selected: 2026-12-16'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('planner-view-agenda')));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.text('Nothing scheduled in the next 30 days.'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('planner-view-tasks')));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.text('No unfinished tasks. Select a day to add one.'),
         findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('planner-view-week')));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.text('Selected: 2026-12-16'), findsOneWidget);
   });
 
