@@ -118,7 +118,7 @@ class _TeacherHomeClassRailState extends State<TeacherHomeClassRail> {
               visualDensity: VisualDensity.compact,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 42),
             ),
-            Expanded(child: SizedBox(height: 78, child:
+            Expanded(child: SizedBox(height: 90, child:
               ScrollConfiguration(
                 behavior: ScrollConfiguration.of(context).copyWith(
                   dragDevices: {
@@ -175,7 +175,7 @@ class _TeacherHomeClassRailState extends State<TeacherHomeClassRail> {
           borderRadius: BorderRadius.circular(14),
           child: Container(
             width: 148,
-            padding: const EdgeInsets.fromLTRB(10, 8, 9, 8),
+            padding: const EdgeInsets.fromLTRB(10, 7, 9, 7),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
