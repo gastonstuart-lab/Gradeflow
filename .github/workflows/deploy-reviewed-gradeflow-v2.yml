@@ -49,7 +49,7 @@ jobs:
       - name: Checkout exact tested GradeFlow V2 candidate (not old main)
         uses: actions/checkout@v4
         with:
-          ref: 85c1cb368a85d66a4479187f02003a0672e57b77
+          ref: e513a5c691a2c763aeab0f4562484876d45a25c5
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -63,13 +63,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "85c1cb368a85d66a4479187f02003a0672e57b77"
+          test "$(git rev-parse HEAD)" = "e513a5c691a2c763aeab0f4562484876d45a25c5"
           grep -q "'login-boxes'" lib/config/gradeflow_existing_project_preview.dart
           grep -q 'GRADEFLOW_LIVE_CLASSROOM_V2' lib/config/gradeflow_live_v2_release.dart
           test -f lib/services/school_calendar_grid_parser.dart
           grep -q 'showStudentPanel: showUnseatedRoster' lib/os/surfaces/classroom_surface.dart
           grep -q 'context.go(AppRoutes.osHome)' lib/os/surfaces/classroom_surface.dart
           test -f test/school_calendar_grid_parser_test.dart
+          test -f lib/components/home/home_planning_summary.dart
+          grep -q "HomePlanningSummary.entriesOnDay" lib/components/home/approved_teacher_home.dart
+          grep -q "title: 'Your week'" lib/components/home/approved_teacher_home.dart
+          test -f lib/components/planner/planner_date_math.dart
+          grep -q "class _PlannerWeekCard" lib/os/surfaces/planner_surface.dart
+          grep -q "class _PlannerAgendaCard" lib/os/surfaces/planner_surface.dart
+          grep -q "class _PlannerTasksCard" lib/os/surfaces/planner_surface.dart
+          test -f test/home_planning_summary_test.dart
+          test -f test/planner_date_math_test.dart
+          test -f test/approved_teacher_home_planning_test.dart
           grep -q 'instructos-boxes-base' lib/widgets/branding/instructos_boxes_background.dart
           grep -q -- '--boxes-start:#f7fbfe' web/index.html
           grep -q -- '--boxes-start:#07101d' web/index.html
