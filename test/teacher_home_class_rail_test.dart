@@ -38,7 +38,7 @@ void main() {
     var selected = 'e1';
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: Center(child: SizedBox(
-        width: 540, height: 170,
+        width: 540, height: 205,
         child: StatefulBuilder(builder: (context, setState) =>
           TeacherHomeClassRail(
             classes: classes,
@@ -67,7 +67,7 @@ void main() {
     final classes = [sample('e1', 'EEP1', 'English')];
     var toggled = false;
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: Center(
-      child: SizedBox(width: 600, height: 180, child: TeacherHomeClassRail(
+      child: SizedBox(width: 600, height: 255, child: TeacherHomeClassRail(
         classes: classes,
         selectedClassId: 'e1',
         studentCounts: const {},
@@ -91,7 +91,7 @@ void main() {
     expect(find.byKey(const ValueKey('home-rail-class-e1')), findsOneWidget);
     await tester.tap(find.byTooltip('Timetable options'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Combine double periods'));
+    await tester.tap(find.widgetWithText(CheckedPopupMenuItem<String>, 'Combine double periods'));
     await tester.pumpAndSettle();
     expect(toggled, isTrue);
     expect(tester.takeException(), isNull);
