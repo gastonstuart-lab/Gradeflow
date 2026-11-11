@@ -1,0 +1,38 @@
+name: Review GradeFlow login contrast + compact Home together
+
+on:
+  push:
+    branches:
+      - review/login-contrast-compact-home-20261111
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradeflow-review-login-home-combined
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Confirm read-only preview protection remains intact
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
+          grep -q "'login-boxes'" lib/config/gradeflow_existing_project_preview.dart
+          test -f firebase.preview.json
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release --no-wasm-dry-run --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW_CHANNEL=login-boxes
