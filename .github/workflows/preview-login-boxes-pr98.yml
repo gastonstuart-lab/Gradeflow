@@ -1,5 +1,5 @@
-name: Review GradeFlow Home planning on isolated Firebase PREVIEW
-run-name: GradeFlow Home planning preview / ${{ github.actor }}
+name: Review GradeFlow weekly Planner on isolated Firebase PREVIEW
+run-name: GradeFlow weekly Planner preview / ${{ github.actor }}
 
 on:
   push:
@@ -25,10 +25,10 @@ jobs:
     environment: production
     timeout-minutes: 55
     steps:
-      - name: Checkout exact verified Home planning candidate
+      - name: Checkout exact verified weekly Planner candidate
         uses: actions/checkout@v4
         with:
-          ref: 905cd91bb2a6da40eb8514e59b67c522efbcbf7f
+          ref: e513a5c691a2c763aeab0f4562484876d45a25c5
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "905cd91bb2a6da40eb8514e59b67c522efbcbf7f"
+          test "$(git rev-parse HEAD)" = "e513a5c691a2c763aeab0f4562484876d45a25c5"
           grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
           grep -q 'InstructOSBoxesBackground(' lib/components/gradeflow_launch_experience.dart
           grep -q 'InstructOSBoxesBackground(' lib/screens/login_screen.dart
@@ -56,6 +56,11 @@ jobs:
           grep -q "title: 'Your week'" lib/components/home/approved_teacher_home.dart
           test -f test/home_planning_summary_test.dart
           test -f test/approved_teacher_home_planning_test.dart
+          test -f lib/components/planner/planner_date_math.dart
+          grep -q "PlannerDateMath.weekStart" lib/os/surfaces/planner_surface.dart
+          grep -q "class _PlannerWeekCard" lib/os/surfaces/planner_surface.dart
+          grep -q "class _PlannerAgendaCard" lib/os/surfaces/planner_surface.dart
+          test -f test/planner_date_math_test.dart
           node - <<'NODE'
           const c = require('./firebase.preview.json');
           if (!c.hosting || c.hosting.public !== 'build/web' ||
