@@ -28,7 +28,7 @@ jobs:
       - name: Checkout reviewed PR97 with PR98 visual changes (not old main)
         uses: actions/checkout@v4
         with:
-          ref: e376b5786673bb176bede13f0f5d4190d60988d7
+          ref: 139a023eb35ccf17b7bf8a567e502c7284dc4f0a
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "e376b5786673bb176bede13f0f5d4190d60988d7"
+          test "$(git rev-parse HEAD)" = "139a023eb35ccf17b7bf8a567e502c7284dc4f0a"
           grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
           grep -q 'InstructOSBoxesBackground(' lib/components/gradeflow_launch_experience.dart
           grep -q 'InstructOSBoxesBackground(' lib/screens/login_screen.dart
