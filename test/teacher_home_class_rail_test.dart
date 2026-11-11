@@ -72,7 +72,7 @@ void main() {
         selectedClassId: 'e1',
         studentCounts: const {},
         onSelectClass: (_) {},
-        timetable: const HomeWeeklyTimetable(
+        timetable: HomeWeeklyTimetable(
           name: 'synthetic.csv',
           classes: [
             TimeSlotClass(
