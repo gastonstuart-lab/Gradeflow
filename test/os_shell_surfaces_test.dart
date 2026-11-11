@@ -284,6 +284,69 @@ void main() {
 
     expect(taps, 1);
   });
+  testWidgets('Planner switches among Week Month Agenda and Tasks without leaving the page',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_harness(
+      PlannerSurface(initialDate: DateTime(2026, 12, 15)),
+    ));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('planner-view-picker')), findsOneWidget);
+    expect(find.byKey(const ValueKey('planner-week-date-2026-12-15')), findsOneWidget);
+    expect(find.text('Selected: 2026-12-15'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('planner-week-date-2026-12-16')));
+    await tester.pump();
+    expect(find.text('Selected: 2026-12-16'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('planner-view-month')));
+    await tester.pumpAndSettle();
+    expect(find.text('Dec 2026'), findsOneWidget);
+    expect(find.text('Selected: 2026-12-16'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('planner-view-agenda')));
+    await tester.pumpAndSettle();
+    expect(find.text('Nothing scheduled in the next 30 days.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('planner-view-tasks')));
+    await tester.pumpAndSettle();
+    expect(find.text('No unfinished tasks. Select a day to add one.'),
+        findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('planner-view-week')));
+    await tester.pumpAndSettle();
+    expect(find.text('Selected: 2026-12-16'), findsOneWidget);
+  });
+
+  testWidgets('Planner week navigation crosses month and year boundaries',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_harness(
+      PlannerSurface(initialDate: DateTime(2026, 12, 31)),
+    ));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('planner-week-date-2027-01-01')),
+        findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('planner-next-week')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('planner-week-date-2027-01-07')),
+        findsOneWidget);
+    expect(find.text('Jan 2027'), findsOneWidget);
+    expect(find.text('Selected: 2027-01-07'), findsOneWidget);
+  });
+
   testWidgets('Planner accepts the date selected on Home', (tester) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1440, 1000);
