@@ -1,0 +1,40 @@
+name: GradeFlow launch and login boxes review
+
+on:
+  push:
+    branches:
+      - integration/gradeflow-unified-review-20261111
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradeflow-auth-boxes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-launch-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout review candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze app
+        run: flutter analyze
+      - name: Test all application modules
+        run: flutter test
+      - name: Verify web release compiles
+        run: flutter build web --release --no-wasm-dry-run
