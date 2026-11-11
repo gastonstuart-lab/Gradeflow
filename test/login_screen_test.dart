@@ -47,9 +47,14 @@ void main() {
         expect(candidate, findsOneWidget);
         final style = tester.widget<Text>(candidate).style;
         expect(style?.color, isNotNull, reason: 'Missing $label text colour');
-        // Dark-navy backdrop: light text must be readable regardless of the
-        // unrelated teacher workspace light/dark theme.
-        expect(style!.color!.computeLuminance(), greaterThan(0.45));
+        // Each backdrop palette must use a contrasting text colour.
+        // Avoid preserving bright dark-mode text over the pale light grid.
+        final luminance = style!.color!.computeLuminance();
+        if (brightness == Brightness.dark) {
+          expect(luminance, greaterThan(0.45), reason: label);
+        } else {
+          expect(luminance, lessThan(0.28), reason: label);
+        }
       }
       expect(tester.takeException(), isNull);
     });
