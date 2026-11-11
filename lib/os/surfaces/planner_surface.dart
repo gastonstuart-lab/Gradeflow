@@ -1741,8 +1741,9 @@ class _MonthDayCell extends StatelessWidget {
     final date = DateTime(focusedMonth.year, focusedMonth.month, dayNumber);
     final isToday = _isSameDate(today, date);
     final isSelected = selectedDate != null && _isSameDate(selectedDate!, date);
-    final hasItems = reminders.any(
-        (reminder) => reminder.occursOn(date) && !reminder.done);
+    final hasItems = reminders.any((reminder) =>
+        reminder.occursOn(date) &&
+        (reminder.kind == 'school_event' || !reminder.done));
     final theme = Theme.of(context);
 
     return Padding(
