@@ -27,10 +27,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // The login canvas is always deep navy, regardless of the workspace theme.
-  // Give everything outside the sign-in card an explicit readable foreground.
-  static const Color _backdropText = Color(0xFFF1F7FC);
-  static const Color _backdropSecondary = Color(0xFFCBDAE8);
+  // The login canvas follows the teacher's current appearance. Text outside
+  // the sign-in card uses explicit high-contrast values in either palette.
+  static Color _backdropText(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFFF1F7FC)
+          : const Color(0xFF193F5C);
+  static Color _backdropSecondary(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFFCBDAE8)
+          : const Color(0xFF536F84);
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
@@ -329,13 +335,13 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 1.08,
               letterSpacing: -1.6,
               fontWeight: FontWeight.w800,
-              color: _backdropText)),
+              color: _backdropText(context))),
       const SizedBox(height: 20),
       Text('Your classes, plans and grades.\nOne familiar workspace.',
           style: theme.textTheme.titleLarge?.copyWith(
               height: 1.5,
               fontWeight: FontWeight.w400,
-              color: _backdropSecondary)),
+              color: _backdropSecondary(context))),
       const SizedBox(height: 40),
       for (final feature in [
         (
@@ -371,11 +377,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                     Text(feature.$2,
                         style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700, color: _backdropText)),
+                            fontWeight: FontWeight.w700, color: _backdropText(context))),
                     const SizedBox(height: 4),
                     Text(feature.$3,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                            color: _backdropSecondary,
+                            color: _backdropSecondary(context),
                             height: 1.4))
                   ]))
             ])),
@@ -415,12 +421,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                         .titleLarge
                                         ?.copyWith(
                                             fontWeight: FontWeight.w800,
-                                            color: _backdropText)),
+                                            color: _backdropText(context))),
                                 Text('Teaching, organised.',
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall
-                                        ?.copyWith(color: _backdropSecondary))
+                                        ?.copyWith(color: _backdropSecondary(context)))
                               ])),
                           IconButton(
                               tooltip: 'Change appearance',
@@ -431,7 +437,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   InstructOSDesign.dark(context)
                                       ? Icons.light_mode_outlined
                                       : Icons.dark_mode_outlined,
-                                  color: _backdropText))
+                                  color: _backdropText(context)))
                         ]),
                         SizedBox(height: wide ? 64 : 32),
                         if (wide)
