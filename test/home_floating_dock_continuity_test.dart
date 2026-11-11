@@ -8,10 +8,17 @@ import 'package:gradeflow/os/os_dock.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/theme.dart';
+import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/services/class_service.dart';
+import 'package:gradeflow/services/student_service.dart';
+import 'package:gradeflow/services/communication_service.dart';
+import 'package:gradeflow/services/global_system_shell_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('only Home fills the space behind the floating OS dock',
       (tester) async {
+    SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -22,6 +29,13 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
+          ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
+          ChangeNotifierProvider<ClassService>(create: (_) => ClassService()),
+          ChangeNotifierProvider<StudentService>(create: (_) => StudentService()),
+          ChangeNotifierProvider<CommunicationService>(
+              create: (_) => CommunicationService()),
+          ChangeNotifierProvider<GlobalSystemShellController>(
+              create: (_) => GlobalSystemShellController()),
           ChangeNotifierProvider<GradeFlowOSController>.value(value: controller),
           ChangeNotifierProvider<ThemeModeNotifier>(
             create: (_) => ThemeModeNotifier(),
