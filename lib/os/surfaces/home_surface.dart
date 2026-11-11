@@ -467,6 +467,8 @@ class _HomeSurfaceState extends State<HomeSurface> {
     if (!_showExistingHomeTools) {
       return Scaffold(
         body: SafeArea(
+          // Preserve the continuous backdrop beneath the floating OS dock.
+          bottom: false,
           child: TeacherHomeIntegrationPanel(
             approvedAppearance: true,
             teacherName: teacherName,
@@ -530,7 +532,8 @@ class _HomeSurfaceState extends State<HomeSurface> {
                 horizontalPadding,
                 10,
                 horizontalPadding,
-                24,
+                24 + OSSpacing.dockHeight + OSSpacing.dockBottomMargin +
+                    MediaQuery.paddingOf(context).bottom,
               );
 
               return Stack(
