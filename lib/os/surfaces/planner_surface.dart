@@ -21,6 +21,7 @@ import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
 import 'package:gradeflow/services/file_import_service.dart';
 import 'package:gradeflow/services/school_calendar_grid_parser.dart';
+import 'package:gradeflow/components/planner/planner_date_math.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/theme.dart';
 
@@ -31,6 +32,8 @@ class PlannerSurface extends StatefulWidget {
   @override
   State<PlannerSurface> createState() => _PlannerSurfaceState();
 }
+
+enum _PlannerDisplayMode { week, month, agenda, tasks }
 
 class _PlannerSurfaceState extends State<PlannerSurface> {
   static const String _remindersPrefsBaseKey = 'dashboard_reminders_v1';
@@ -48,7 +51,8 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
   String? _loadedUserId;
   bool _planningLoading = false;
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month);
-  DateTime? _selectedDate;
+  DateTime? _selectedDate = PlannerDateMath.day(DateTime.now());
+  _PlannerDisplayMode _displayMode = _PlannerDisplayMode.week;
   List<_PlannerReminder> _reminders = const <_PlannerReminder>[];
   List<_PlannerTimetable> _timetables = const <_PlannerTimetable>[];
   String? _selectedTimetableId;
@@ -871,12 +875,16 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
 
   @override
   Widget build(BuildContext context) {
-    final schoolWideReminders = _reminders
-        .where((reminder) => reminder.isSchoolWide)
-        .toList()
+    // All entries belong to the signed-in teacher's user-scoped Planner.
+    // Keep class-linked items available in the filtered calendar as well.
+    final calendarEntries = [..._reminders]
       ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
-    final pendingSchoolWide =
-        schoolWideReminders.where((reminder) => !reminder.done).toList();
+    final today = PlannerDateMath.day(DateTime.now());
+    final endOfComingUp = today.add(const Duration(days: 29));
+    final comingUp = calendarEntries.where((reminder) =>
+        (reminder.kind == 'school_event' || !reminder.done) &&
+        PlannerDateMath.intersects(reminder.timestamp, reminder.endDate,
+            today, endOfComingUp)).toList();
     final selectedTimetable = _selectedTimetableId == null
         ? null
         : _timetables
@@ -893,8 +901,21 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
       classesCount: classes.length,
       totalStudents: totalStudents,
       unread: unread,
-      pendingReminders: pendingSchoolWide,
-      allReminders: schoolWideReminders,
+      pendingReminders: comingUp,
+      allReminders: calendarEntries,
+      displayMode: _displayMode,
+      onChangeDisplayMode: (mode) => setState(() => _displayMode = mode),
+      onShiftWeek: (weeks) => setState(() {
+        final anchor = _selectedDate ?? PlannerDateMath.day(DateTime.now());
+        final next = PlannerDateMath.shiftWeek(anchor, weeks);
+        _selectedDate = next;
+        _focusedMonth = DateTime(next.year, next.month);
+      }),
+      onGoToday: () => setState(() {
+        final today = PlannerDateMath.day(DateTime.now());
+        _selectedDate = today;
+        _focusedMonth = DateTime(today.year, today.month);
+      }),
       timetables: _timetables,
       selectedTimetable: selectedTimetable,
       focusedMonth: _focusedMonth,
@@ -913,7 +934,10 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
           _focusedMonth.month + 1,
         ),
       ),
-      onSelectDate: (date) => setState(() => _selectedDate = date),
+      onSelectDate: (date) => setState(() {
+        _selectedDate = PlannerDateMath.day(date);
+        _focusedMonth = DateTime(date.year, date.month);
+      }),
       onClearSelectedDate: () => setState(() => _selectedDate = null),
       onAddReminder: _addReminderForSelectedDate,
       onToggleReminder: _toggleReminder,
