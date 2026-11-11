@@ -129,7 +129,11 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
 
-    // Reserve dock space so routed content is not obscured.
+    // Home owns its scrolling bottom inset, so its background can continue
+    // beneath the floating dock instead of ending in a solid footer stripe.
+    // Planner, Classroom and all other routes retain their dock reservation.
+    final homeBehindFloatingDock =
+        !widget.teachMode && controller.activeSurface == OSSurface.home;
     final dockReserve = widget.teachMode
         ? 0.0
         : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
@@ -147,7 +151,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final shellStack = Stack(
       children: [
         Positioned.fill(
-          bottom: dockReserve,
+          bottom: homeBehindFloatingDock ? 0 : dockReserve,
           child: Transform.translate(
             offset: Offset(_dragDx, 0),
             child: AnimatedOpacity(
@@ -298,8 +302,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
       ],
     );
 
-    // The routed surface stops above the dock. Paint the remaining full-height
-    // shell in the active theme so dark Home never exposes a light root strip.
+    // Other routed surfaces stop above the dock; Home paints through to the
+    // bottom. This fallback still protects the unused part of other routes.
     return ColoredBox(
       color: widget.teachMode
           ? OSColors.teachBg
