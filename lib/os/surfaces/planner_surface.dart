@@ -148,6 +148,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
           done: (item['done'] as bool?) ?? false,
           classIds: classIds,
           endDate: DateTime.tryParse((item['endDate'] ?? '').toString()),
+          kind: (item['kind'] ?? 'legacy').toString(),
         ),
       );
     }
@@ -233,6 +234,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
                 'text': reminder.text,
                 'timestamp': reminder.timestamp.toIso8601String(),
                 'endDate': reminder.endDate?.toIso8601String(),
+                'kind': reminder.kind,
                 'done': reminder.done,
                 'classIds':
                     reminder.classIds.isEmpty ? null : reminder.classIds,
@@ -313,6 +315,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     final reminder = _PlannerReminder(
       text: text,
       timestamp: DateTime(selected.year, selected.month, selected.day),
+      kind: 'task',
     );
     setState(() {
       _reminders = [..._reminders, reminder]
@@ -466,6 +469,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
                 text: event.title,
                 timestamp: event.start,
                 endDate: event.end.isAfter(event.start) ? event.end : null,
+                kind: 'school_event',
               ))
           .toList();
     }
@@ -534,7 +538,11 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
         }
       }
       reminders.add(
-        _PlannerReminder(text: displayTitle, timestamp: timestamp),
+        _PlannerReminder(
+          text: displayTitle,
+          timestamp: timestamp,
+          kind: 'school_event',
+        ),
       );
     }
     return reminders;
@@ -651,7 +659,11 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
           month: monthNumber,
         );
         if (timestamp == null) continue;
-        reminders.add(_PlannerReminder(text: title, timestamp: timestamp));
+        reminders.add(_PlannerReminder(
+          text: title,
+          timestamp: timestamp,
+          kind: 'school_event',
+        ));
       }
     }
     return reminders;
@@ -1508,12 +1520,16 @@ class _PlannerReminder {
     this.done = false,
     this.classIds = const <String>[],
     this.endDate,
+    this.kind = 'legacy',
   });
 
   final String text;
   final DateTime timestamp;
   /// Inclusive last date for a multi-day school-calendar event.
   final DateTime? endDate;
+  /// New imported events and personal tasks remain distinct. Existing records
+  /// without a kind retain the neutral 'legacy' category (no data migration).
+  final String kind;
   bool done;
   final List<String> classIds;
 
@@ -1725,8 +1741,9 @@ class _MonthDayCell extends StatelessWidget {
     final date = DateTime(focusedMonth.year, focusedMonth.month, dayNumber);
     final isToday = _isSameDate(today, date);
     final isSelected = selectedDate != null && _isSameDate(selectedDate!, date);
-    final hasItems = reminders.any(
-        (reminder) => reminder.occursOn(date) && !reminder.done);
+    final hasItems = reminders.any((reminder) =>
+        reminder.occursOn(date) &&
+        (reminder.kind == 'school_event' || !reminder.done));
     final theme = Theme.of(context);
 
     return Padding(

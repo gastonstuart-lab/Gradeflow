@@ -100,9 +100,9 @@ void main() {
         ))));
     expect(find.text('Unavailable on Home'), findsNothing);
     expect(find.text('0 active classes'), findsOneWidget);
-    expect(find.text('Reminders unavailable'), findsOneWidget);
-    expect(find.text('No pending reminders loaded'), findsNothing);
-    expect(find.text('Open Planner for events and reminders'), findsOneWidget);
+    expect(find.text('Planner information unavailable'), findsOneWidget);
+    expect(find.text('No urgent tasks. Add to-dos in Planner.'), findsNothing);
+    expect(find.text('Dates with imported events or planned tasks'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
     expect(find.textContaining('10:10'), findsNothing);
     expect(find.textContaining('J2 Science'), findsNothing);
@@ -126,8 +126,9 @@ void main() {
           reminders: [
             TeacherWorkspaceReminderSnapshot(
                 text: 'Saved reminder from repository',
-                timestamp: DateTime(2026, 10, 29),
+                timestamp: DateTime.now().add(const Duration(days: 1)),
                 done: false,
+                kind: 'task',
                 classIds: const ['existing-a'])
           ],
           onOpenPlanner: () {},
@@ -146,7 +147,7 @@ void main() {
           loading: true,
         ))));
     expect(find.text('Loading your classes…'), findsOneWidget);
-    expect(find.text('Loading reminders…'), findsOneWidget);
+    expect(find.text('Loading your plan…'), findsOneWidget);
     final button = tester.widget<FilledButton>(find.ancestor(
       of: find.text('Open Classroom'),
       matching: find.byWidgetPredicate((widget) => widget is FilledButton),

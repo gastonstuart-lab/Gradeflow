@@ -8,6 +8,7 @@ import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 import 'package:gradeflow/components/home/teacher_home_clock.dart';
 import 'package:gradeflow/components/home/teacher_home_presentation.dart';
 import 'package:gradeflow/components/home/teacher_home_class_rail.dart';
+import 'package:gradeflow/components/home/home_planning_summary.dart';
 
 /// Approved desktop presentation, supplied only with existing Home data/actions.
 class ApprovedTeacherHome extends StatelessWidget {
@@ -495,100 +496,277 @@ class ApprovedTeacherHome extends StatelessWidget {
     final offset = start.weekday - 1;
     final total = ((offset + count) / 7).ceil() * 7;
     return TeacherHomeCard(
-        title: 'Calendar',
-        child: Column(children: [
-          Row(children: [
-            const SizedBox(width: 44),
-            Expanded(
-                child: Text('${_months[now.month - 1]} ${now.year}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: _text(context), fontWeight: FontWeight.w600))),
-            IconButton(
-                tooltip: 'Open Planner',
-                onPressed: onOpenPlanner,
-                icon: const Icon(Icons.open_in_new, size: 18))
-          ]),
-          Row(children: [
-            for (final day in ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
-              Expanded(
-                  child: Text(day,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: _subtle(context), fontSize: 12)))
-          ]),
-          const SizedBox(height: 8),
-          for (var row = 0; row < total ~/ 7; row++)
-            Row(children: [
-              for (var col = 0; col < 7; col++)
-                Expanded(
-                    child: _day(
-                        context, row * 7 + col - offset + 1, count, now.day))
-            ]),
-          const SizedBox(height: 12),
-          Text('Open Planner for events and reminders',
+      title: 'School calendar',
+      child: Column(children: [
+        Row(children: [
+          const SizedBox(width: 44),
+          Expanded(
+            child: Text(
+              '${_months[now.month - 1]} ${now.year}',
               textAlign: TextAlign.center,
-              style: TextStyle(color: _subtle(context), fontSize: 11.5)),
-        ]));
-  }
-
-  Widget _day(BuildContext context, int day, int count, int today) {
-    if (day < 1 || day > count) return const SizedBox(height: 40);
-    final now = DateTime.now();
-    final date =
-        DateTime(now.year, now.month, day).toIso8601String().split('T').first;
-    return Semantics(
-        key: ValueKey('home-planner-date-$date'),
-        label: 'Open Planner for $date',
-        button: true,
-        child: Material(
-            color: day == today
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => context.go('${AppRoutes.osPlanner}?date=$date'),
-                child: SizedBox(
-                    height: 44,
-                    child: Center(
-                        child: Text('$day',
-                            style: TextStyle(
-                                color: day == today
-                                    ? Theme.of(context).colorScheme.onPrimary
-                                    : _text(context))))))));
-  }
-
-  Widget _reminders(BuildContext context) => TeacherHomeCard(
-      title: 'Things to remember',
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (loading)
-          const Text('Loading reminders…')
-        else if (!remindersAvailable)
-          const Text('Reminders unavailable')
-        else if (reminders.isEmpty)
-          const Text('No pending reminders loaded')
-        else
-          for (final reminder in reminders)
-            Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.notes_outlined, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(child: Text(reminder.text))
-                    ])),
-        const SizedBox(height: 12),
-        Text('Manage your reminders in Planner.',
-            style: TextStyle(color: _subtle(context), fontSize: 13)),
+              style: TextStyle(
+                color: _text(context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Open full Planner',
+            onPressed: onOpenPlanner,
+            icon: const Icon(Icons.open_in_new, size: 18),
+          ),
+        ]),
+        Row(children: [
+          for (final day in ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
+            Expanded(
+              child: Text(
+                day,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _subtle(context), fontSize: 12),
+              ),
+            ),
+        ]),
+        const SizedBox(height: 8),
+        for (var row = 0; row < total ~/ 7; row++)
+          Row(children: [
+            for (var col = 0; col < 7; col++)
+              Expanded(
+                child: _day(
+                  context,
+                  DateTime(now.year, now.month, row * 7 + col - offset + 1),
+                  count,
+                  now,
+                ),
+              ),
+          ]),
         const SizedBox(height: 10),
-        Align(
+        Row(children: [
+          Container(
+            height: 6,
+            width: 6,
+            decoration: BoxDecoration(
+              color: _dark(context)
+                  ? const Color(0xff5eead4)
+                  : const Color(0xff127c8c),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Dates with imported events or planned tasks',
+              style: TextStyle(color: _subtle(context), fontSize: 11.5),
+            ),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _day(
+    BuildContext context,
+    DateTime date,
+    int count,
+    DateTime now,
+  ) {
+    if (date.month != now.month || date.day > count) {
+      return const SizedBox(height: 44);
+    }
+    final dateString = date.toIso8601String().split('T').first;
+    final isToday = date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+    final entryCount = HomePlanningSummary.entriesOnDay(reminders, date);
+    final marker = _dark(context)
+        ? const Color(0xff5eead4)
+        : const Color(0xff127c8c);
+    return Semantics(
+      key: ValueKey('home-planner-date-$dateString'),
+      label: '${entryCount == 0 ? "No events" : "$entryCount planned"} on $dateString. Open Planner.',
+      button: true,
+      child: Material(
+        color: isToday
+            ? Theme.of(context).colorScheme.primary
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => context.go('${AppRoutes.osPlanner}?date=$dateString'),
+          child: SizedBox(
+            height: 44,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${date.day}',
+                  style: TextStyle(
+                    color: isToday
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : _text(context),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                if (entryCount > 0)
+                  Container(
+                    key: ValueKey('home-calendar-marker-$dateString'),
+                    width: entryCount == 1 ? 5 : 13,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: isToday
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : marker,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  )
+                else
+                  const SizedBox(height: 5),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _shortPlanningDate(DateTime date) =>
+      '${date.day} ${_months[date.month - 1].substring(0, 3)}';
+
+  Widget _planningLine(
+    BuildContext context, {
+    required IconData icon,
+    required Color accent,
+    required String title,
+    required String dateLabel,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 17, color: accent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: _text(context),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    dateLabel,
+                    style: TextStyle(color: _subtle(context), fontSize: 11.5),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _reminders(BuildContext context) {
+    final now = DateTime.now();
+    final tasks = HomePlanningSummary.needsAttention(reminders, now);
+    final upcoming = HomePlanningSummary.comingUp(reminders, now);
+    final today = DateTime(now.year, now.month, now.day);
+    return TeacherHomeCard(
+      title: 'Your week',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (loading)
+            const Text('Loading your plan…')
+          else if (!remindersAvailable)
+            const Text('Planner information unavailable')
+          else ...[
+            Row(children: [
+              Icon(Icons.task_alt_outlined,
+                  size: 18, color: _subtle(context)),
+              const SizedBox(width: 8),
+              Text(
+                'Needs attention',
+                style: TextStyle(
+                  color: _text(context),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ]),
+            if (tasks.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Text(
+                  'No urgent tasks. Add to-dos in Planner.',
+                  style: TextStyle(color: _subtle(context), fontSize: 12),
+                ),
+              )
+            else
+              for (final task in tasks)
+                _planningLine(
+                  context,
+                  icon: Icons.check_circle_outline,
+                  accent: const Color(0xffb17620),
+                  title: task.text,
+                  dateLabel: task.timestamp.isBefore(today)
+                      ? 'Overdue · ${_shortPlanningDate(task.timestamp)}'
+                      : 'Due ${_shortPlanningDate(task.timestamp)}',
+                ),
+            const Divider(height: 22),
+            Row(children: [
+              Icon(Icons.event_outlined,
+                  size: 18, color: _subtle(context)),
+              const SizedBox(width: 8),
+              Text(
+                'Coming up · next 14 days',
+                style: TextStyle(
+                  color: _text(context),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ]),
+            if (upcoming.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Text(
+                  'No upcoming school events or other dated reminders.',
+                  style: TextStyle(color: _subtle(context), fontSize: 12),
+                ),
+              )
+            else
+              for (final event in upcoming)
+                _planningLine(
+                  context,
+                  icon: event.isSchoolEvent
+                      ? Icons.school_outlined
+                      : Icons.event_note_outlined,
+                  accent: const Color(0xff16829a),
+                  title: event.text,
+                  dateLabel: event.endDate == null
+                      ? _shortPlanningDate(event.timestamp)
+                      : '${_shortPlanningDate(event.timestamp)} – ${_shortPlanningDate(event.endDate!)}',
+                ),
+          ],
+          const SizedBox(height: 10),
+          Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
-                onPressed: onOpenPlanner,
-                icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-                label: const Text('Open Planner'))),
-      ]));
+              onPressed: onOpenPlanner,
+              icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+              label: const Text('See full Planner'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 const _months = [

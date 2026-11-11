@@ -6,7 +6,11 @@ import 'package:gradeflow/services/dashboard_preferences_service.dart';
 class TeacherWorkspaceReminderSnapshot {
   final String text;
   final DateTime timestamp;
+  /// Inclusive end date of a multi-day calendar entry.
+  final DateTime? endDate;
   final bool done;
+  /// 'school_event', 'task', or 'legacy' for pre-classification records.
+  final String kind;
   final List<String> classIds;
 
   const TeacherWorkspaceReminderSnapshot({
@@ -14,9 +18,22 @@ class TeacherWorkspaceReminderSnapshot {
     required this.timestamp,
     required this.done,
     required this.classIds,
+    this.endDate,
+    this.kind = 'legacy',
   });
 
   bool get isSchoolWide => classIds.isEmpty;
+  bool get isTask => kind == 'task';
+  bool get isSchoolEvent => kind == 'school_event';
+
+  /// The start and end date are inclusive; time-of-day does not affect dots.
+  bool occursOn(DateTime date) {
+    final day = DateTime(date.year, date.month, date.day);
+    final first = DateTime(timestamp.year, timestamp.month, timestamp.day);
+    final lastValue = endDate ?? timestamp;
+    final last = DateTime(lastValue.year, lastValue.month, lastValue.day);
+    return !day.isBefore(first) && !day.isAfter(last);
+  }
 }
 
 class TeacherWorkspaceSnapshot {
@@ -105,6 +122,8 @@ class TeacherWorkspaceSnapshotService {
             DateTime.now(),
         done: (item['done'] as bool?) ?? false,
         classIds: classIds,
+        endDate: DateTime.tryParse((item['endDate'] ?? '').toString()),
+        kind: (item['kind'] ?? 'legacy').toString(),
       );
     }).toList();
   }
