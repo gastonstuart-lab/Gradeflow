@@ -49,7 +49,7 @@ jobs:
       - name: Checkout exact tested GradeFlow V2 candidate (not old main)
         uses: actions/checkout@v4
         with:
-          ref: f70314afc88e458e5b2cd6cdac486be0f45bfe4f
+          ref: 595bdc3aa83dfda60da56cbef442e8b93ca64ca3
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -63,7 +63,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "f70314afc88e458e5b2cd6cdac486be0f45bfe4f"
+          test "$(git rev-parse HEAD)" = "595bdc3aa83dfda60da56cbef442e8b93ca64ca3"
+          grep -q "'login-boxes'" lib/config/gradeflow_existing_project_preview.dart
+          grep -q 'GRADEFLOW_LIVE_CLASSROOM_V2' lib/config/gradeflow_live_v2_release.dart
+          grep -q 'instructos-boxes-base' lib/widgets/branding/instructos_boxes_background.dart
+          grep -q -- '--boxes-start:#f7fbfe' web/index.html
+          grep -q -- '--boxes-start:#07101d' web/index.html
           node - <<'NODE'
           const fs=require('node:fs');
           const c=JSON.parse(fs.readFileSync('firebase.live.json','utf8'));
