@@ -12,16 +12,55 @@ class GradeFlowExistingProjectPreview {
   );
 
   static const projectId = 'gradeflow-20260113';
-  static const channelId = 'classroom-v2';
+  /// Each preview bundle is bound to ONE approved Firebase Hosting channel.
+  /// The existing Classroom review remains the default to preserve its guard.
+  static const channelId = String.fromEnvironment(
+    'GRADEFLOW_EXISTING_PROJECT_PREVIEW_CHANNEL',
+    defaultValue: 'classroom-v2',
+  );
+
+  static const allowedChannelIds = {'classroom-v2', 'login-boxes'};
 
   /// A Firebase Hosting preview URL is
   /// SITE_ID--CHANNEL_ID-RANDOM_HASH.web.app.
   /// Neither the normal production domain nor arbitrary review hosts qualify.
-  static bool isAllowedPreviewHost(String host) {
+  static bool isAllowedPreviewHost(String host, {String? expectedChannel}) {
+    final channel = expectedChannel ?? channelId;
+    if (!allowedChannelIds.contains(channel)) return false;
     final hostname = host.toLowerCase().trim();
-    return RegExp(
-      r'^gradeflow-20260113--classroom-v2-[a-z0-9-]+\.web\.app$',
-    ).hasMatch(hostname);
+    final pattern = RegExp(
+      '^gradeflow-20260113--${RegExp.escape(channel)}-[a-z0-9-]+\\.web\\.app\\
+
+  /// Preview-only exception for synthetic sample data. It does not authorize
+  /// real users or permit Firestore access without Firebase authentication.
+  static bool isSyntheticDemoLogin({
+    required String email,
+    required String password,
+    bool? previewEnabled,
+  }) =>
+      (previewEnabled ?? enabled) &&
+      email.trim().toLowerCase() == 'teacher@demo.com' &&
+      password == 'demo';
+
+  static bool mayStart({
+    required bool enabled,
+    required bool stagingEnabled,
+    required bool emulatorEnabled,
+    required bool isWeb,
+    required String projectId,
+    required String originHost,
+  }) {
+    if (!enabled) return true; // Leave normal builds unchanged.
+    return isWeb &&
+        !stagingEnabled &&
+        !emulatorEnabled &&
+        projectId == GradeFlowExistingProjectPreview.projectId &&
+        isAllowedPreviewHost(originHost);
+  }
+}
+,
+    );
+    return pattern.hasMatch(hostname);
   }
 
   /// Preview-only exception for synthetic sample data. It does not authorize
