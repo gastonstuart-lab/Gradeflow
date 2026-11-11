@@ -957,6 +957,10 @@ class _PlannerDashboardView extends StatelessWidget {
     required this.unread,
     required this.pendingReminders,
     required this.allReminders,
+    required this.displayMode,
+    required this.onChangeDisplayMode,
+    required this.onShiftWeek,
+    required this.onGoToday,
     required this.timetables,
     required this.selectedTimetable,
     required this.focusedMonth,
@@ -981,6 +985,10 @@ class _PlannerDashboardView extends StatelessWidget {
   final int unread;
   final List<_PlannerReminder> pendingReminders;
   final List<_PlannerReminder> allReminders;
+  final _PlannerDisplayMode displayMode;
+  final ValueChanged<_PlannerDisplayMode> onChangeDisplayMode;
+  final ValueChanged<int> onShiftWeek;
+  final VoidCallback onGoToday;
   final List<_PlannerTimetable> timetables;
   final _PlannerTimetable? selectedTimetable;
   final DateTime focusedMonth;
@@ -1006,19 +1014,39 @@ class _PlannerDashboardView extends StatelessWidget {
         ? user!.fullName.trim()
         : 'Teacher';
     final now = DateTime.now();
+    final chosenDay = selectedDate ?? PlannerDateMath.day(now);
 
-    final calendar = _PlannerCalendarCard(
-        reminders: allReminders,
-        focusedMonth: focusedMonth,
-        selectedDate: selectedDate,
-        reminderController: reminderController,
-        onPreviousMonth: onPreviousMonth,
-        onNextMonth: onNextMonth,
-        onSelectDate: onSelectDate,
-        onClearSelectedDate: onClearSelectedDate,
-        onAddReminder: onAddReminder,
-        onToggleReminder: onToggleReminder,
-        onDeleteReminder: onDeleteReminder);
+    final calendar = switch (displayMode) {
+      _PlannerDisplayMode.week => _PlannerWeekCard(
+          selectedDate: chosenDay,
+          reminders: allReminders,
+          onSelectDate: onSelectDate,
+          onShiftWeek: onShiftWeek,
+        ),
+      _PlannerDisplayMode.month => _PlannerCalendarCard(
+          reminders: allReminders,
+          focusedMonth: focusedMonth,
+          selectedDate: selectedDate,
+          reminderController: reminderController,
+          onPreviousMonth: onPreviousMonth,
+          onNextMonth: onNextMonth,
+          onSelectDate: onSelectDate,
+          onClearSelectedDate: onClearSelectedDate,
+          onAddReminder: onAddReminder,
+          onToggleReminder: onToggleReminder,
+          onDeleteReminder: onDeleteReminder,
+        ),
+      _PlannerDisplayMode.agenda => _PlannerAgendaCard(
+          reminders: pendingReminders,
+          selectedDate: chosenDay,
+          onSelectDate: onSelectDate,
+        ),
+      _PlannerDisplayMode.tasks => _PlannerTasksCard(
+          reminders: allReminders,
+          onToggleReminder: onToggleReminder,
+          onSelectDate: onSelectDate,
+        ),
+    };
     final reminders = _PlannerReminderCard(
         reminders: pendingReminders,
         onImportCalendar: onImportCalendar,
@@ -1029,6 +1057,33 @@ class _PlannerDashboardView extends StatelessWidget {
         timetables: timetables,
         onUpload: onUploadTimetable,
         onManage: onManageTimetables);
+    final dayDetail = _PlannerCard(
+        child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _PlannerCardHeader(title: 'Selected day'),
+        const SizedBox(height: 12),
+        _SelectedDayEditor(
+          selectedDate: chosenDay,
+          reminders: allReminders,
+          reminderController: reminderController,
+          onClearSelectedDate: onClearSelectedDate,
+          onAddReminder: onAddReminder,
+          onToggleReminder: onToggleReminder,
+          onDeleteReminder: onDeleteReminder,
+        ),
+      ],
+    ));
+    final rightRail = Column(children: [
+      if (displayMode != _PlannerDisplayMode.month) ...[
+        dayDetail,
+        const SizedBox(height: 16),
+      ],
+      reminders,
+      const SizedBox(height: 16),
+      timetable,
+    ]);
+
     return Theme(
         data: Theme.of(context),
         child: Scaffold(
@@ -1036,7 +1091,7 @@ class _PlannerDashboardView extends StatelessWidget {
               dark ? const Color(0xff07131f) : const Color(0xfff0f5fa),
           body: SafeArea(
               child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                  padding: const EdgeInsets.fromLTRB(24, 18, 24, 100),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -1046,32 +1101,408 @@ class _PlannerDashboardView extends StatelessWidget {
                             onRefresh: onRefresh),
                         if (loading)
                           const LinearProgressIndicator(minHeight: 2),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
+                        _PlannerDisplaySwitch(
+                          mode: displayMode,
+                          onChange: onChangeDisplayMode,
+                          onGoToday: onGoToday,
+                        ),
+                        const SizedBox(height: 16),
                         LayoutBuilder(
                             builder: (context, size) => size.maxWidth >= 900
                                 ? Row(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                        Expanded(flex: 6, child: calendar),
-                                        const SizedBox(width: 20),
-                                        Expanded(
-                                            flex: 5,
-                                            child: Column(children: [
-                                              reminders,
-                                              const SizedBox(height: 20),
-                                              timetable
-                                            ]))
-                                      ])
+                                      Expanded(flex: 6, child: calendar),
+                                      const SizedBox(width: 18),
+                                      Expanded(flex: 5, child: rightRail),
+                                    ])
                                 : Column(children: [
                                     calendar,
                                     const SizedBox(height: 16),
-                                    reminders,
-                                    const SizedBox(height: 16),
-                                    timetable
+                                    rightRail,
                                   ])),
                       ]))),
         ));
+  }
+}
+
+class _PlannerDisplaySwitch extends StatelessWidget {
+  const _PlannerDisplaySwitch({
+    required this.mode,
+    required this.onChange,
+    required this.onGoToday,
+  });
+
+  final _PlannerDisplayMode mode;
+  final ValueChanged<_PlannerDisplayMode> onChange;
+  final VoidCallback onGoToday;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      key: const ValueKey('planner-view-picker'),
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final entry in const [
+          (_PlannerDisplayMode.week, 'Week'),
+          (_PlannerDisplayMode.month, 'Month'),
+          (_PlannerDisplayMode.agenda, 'Agenda'),
+          (_PlannerDisplayMode.tasks, 'Tasks'),
+        ])
+          ChoiceChip(
+            key: ValueKey('planner-view-${entry.$2.toLowerCase()}'),
+            label: Text(entry.$2),
+            selected: mode == entry.$1,
+            onSelected: (_) => onChange(entry.$1),
+          ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: onGoToday,
+          icon: const Icon(Icons.today_outlined, size: 18),
+          label: const Text('Today'),
+        ),
+      ],
+    );
+  }
+}
+
+/// The default teaching calendar: a 7-day strip with real event counts,
+/// previewing the first school event or task for each day.
+class _PlannerWeekCard extends StatelessWidget {
+  const _PlannerWeekCard({
+    required this.selectedDate,
+    required this.reminders,
+    required this.onSelectDate,
+    required this.onShiftWeek,
+  });
+
+  final DateTime selectedDate;
+  final List<_PlannerReminder> reminders;
+  final ValueChanged<DateTime> onSelectDate;
+  final ValueChanged<int> onShiftWeek;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = PlannerDateMath.weekStart(selectedDate);
+    final end = start.add(const Duration(days: 6));
+    final dark = context.isDark;
+    final theme = Theme.of(context);
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return _PlannerCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PlannerCardHeader(title: 'Calendar'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              IconButton(
+                key: const ValueKey('planner-previous-week'),
+                tooltip: 'Previous week',
+                onPressed: () => onShiftWeek(-1),
+                icon: const Icon(Icons.chevron_left_rounded),
+              ),
+              Expanded(
+                child: Column(children: [
+                  Text(
+                    '${_monthName(selectedDate.month)} ${selectedDate.year}',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    '${_formatDate(start)} – ${_formatDate(end)}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: OSColors.textSecondary(dark),
+                    ),
+                  ),
+                ]),
+              ),
+              IconButton(
+                key: const ValueKey('planner-next-week'),
+                tooltip: 'Next week',
+                onPressed: () => onShiftWeek(1),
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int index = 0; index < 7; index++) ...[
+                if (index > 0) const SizedBox(width: 4),
+                Expanded(
+                  child: Builder(builder: (context) {
+                    final date = start.add(Duration(days: index));
+                    final entries = reminders.where((item) =>
+                        item.occursOn(date) &&
+                        (item.kind == 'school_event' || !item.done)).toList();
+                    final chosen = PlannerDateMath.isSameDay(date, selectedDate);
+                    final today = PlannerDateMath.isSameDay(date, DateTime.now());
+                    return InkWell(
+                      key: ValueKey('planner-week-date-${_formatDate(date)}'),
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => onSelectDate(date),
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 128),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 3),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          color: chosen
+                              ? theme.colorScheme.primaryContainer
+                              : dark
+                                  ? const Color(0xFF19293B)
+                                  : const Color(0xFFF1F6FC),
+                          border: Border.all(
+                            color: chosen
+                                ? theme.colorScheme.primary
+                                : today
+                                    ? theme.colorScheme.primary.withValues(alpha: .5)
+                                    : theme.colorScheme.outline.withValues(alpha: .12),
+                          ),
+                        ),
+                        child: Column(children: [
+                          Text(
+                            days[index],
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${date.day}',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          if (entries.isNotEmpty) ...[
+                            Container(
+                              key: ValueKey('planner-week-count-${_formatDate(date)}'),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withValues(alpha: .12),
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                '${entries.length}',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              entries.first.text,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontSize: 9.5,
+                                color: OSColors.textSecondary(dark),
+                              ),
+                            ),
+                          ] else
+                            Text(
+                              '—',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: OSColors.textSecondary(dark),
+                              ),
+                            ),
+                        ]),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Choose a day to see school events and tasks alongside this week.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: OSColors.textSecondary(dark),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlannerAgendaCard extends StatelessWidget {
+  const _PlannerAgendaCard({
+    required this.reminders,
+    required this.selectedDate,
+    required this.onSelectDate,
+  });
+
+  final List<_PlannerReminder> reminders;
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onSelectDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final items = [...reminders]..sort((a, b) =>
+        a.timestamp.compareTo(b.timestamp));
+    return _PlannerCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PlannerCardHeader(title: 'Agenda'),
+          const SizedBox(height: 4),
+          Text(
+            'Upcoming school events and tasks · next 30 days',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: OSColors.textSecondary(dark),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (items.isEmpty)
+            const Text('Nothing scheduled in the next 30 days.')
+          else
+            for (final reminder in items.take(32))
+              _PlannerDatedItem(
+                reminder: reminder,
+                onTap: () => onSelectDate(reminder.timestamp),
+                selected: PlannerDateMath.isSameDay(
+                    reminder.timestamp, selectedDate),
+              ),
+          if (items.length > 32)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                '${items.length - 32} more entries. Choose dates in Month view.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlannerTasksCard extends StatelessWidget {
+  const _PlannerTasksCard({
+    required this.reminders,
+    required this.onToggleReminder,
+    required this.onSelectDate,
+  });
+
+  final List<_PlannerReminder> reminders;
+  final void Function(_PlannerReminder reminder, bool done) onToggleReminder;
+  final ValueChanged<DateTime> onSelectDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.isDark;
+    final tasks = reminders
+        .where((item) => item.kind == 'task' && !item.done)
+        .toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return _PlannerCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PlannerCardHeader(title: 'My tasks'),
+          const SizedBox(height: 4),
+          Text(
+            'Unfinished to-dos · imported school events stay in Calendar',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: OSColors.textSecondary(dark),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (tasks.isEmpty)
+            const Text('No unfinished tasks. Select a day to add one.')
+          else
+            for (final task in tasks.take(30))
+              _PlannerDatedItem(
+                reminder: task,
+                onTap: () => onSelectDate(task.timestamp),
+                trailing: Checkbox(
+                  value: task.done,
+                  onChanged: (checked) =>
+                      onToggleReminder(task, checked ?? false),
+                ),
+              ),
+          if (tasks.length > 30)
+            Text(
+              '${tasks.length - 30} further tasks remain. Select a date to review them.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlannerDatedItem extends StatelessWidget {
+  const _PlannerDatedItem({
+    required this.reminder,
+    required this.onTap,
+    this.selected = false,
+    this.trailing,
+  });
+
+  final _PlannerReminder reminder;
+  final VoidCallback onTap;
+  final bool selected;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final kind = reminder.kind;
+    final (color, icon, label) = switch (kind) {
+      'school_event' => (const Color(0xff158a9c), Icons.school_outlined, 'School event'),
+      'task' => (const Color(0xffb47d2b), Icons.task_alt_outlined, 'Task'),
+      _ => (const Color(0xff798b9b), Icons.event_note_outlined, 'Other date'),
+    };
+    final dark = context.isDark;
+    final end = reminder.endDate;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Material(
+        color: selected
+            ? Theme.of(context).colorScheme.primaryContainer
+            : dark
+                ? const Color(0xFF1A2837)
+                : const Color(0xFFF4F8FC),
+        borderRadius: BorderRadius.circular(14),
+        child: ListTile(
+          dense: true,
+          onTap: onTap,
+          leading: CircleAvatar(
+            radius: 18,
+            backgroundColor: color.withValues(alpha: .13),
+            child: Icon(icon, color: color, size: 17),
+          ),
+          title: Text(
+            reminder.text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          subtitle: Text(
+            '$label · ${_formatDate(reminder.timestamp)}'
+            '${end == null ? '' : ' – ${_formatDate(end)}'}',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: OSColors.textSecondary(dark),
+            ),
+          ),
+          trailing: trailing ?? const Icon(Icons.chevron_right_rounded),
+        ),
+      ),
+    );
   }
 }
 
