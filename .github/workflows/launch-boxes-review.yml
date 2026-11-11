@@ -1,0 +1,88 @@
+name: GradeFlow launch and login boxes review
+
+on:
+  push:
+    branches:
+      - integration/gradeflow-unified-review-20261111
+  pull_request:
+    branches:
+      - feat/classroom-shared-room-reuse-20261110
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradeflow-auth-boxes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-launch-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout review candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze app
+        run: flutter analyze
+      - name: Test all application modules
+        run: flutter test
+      - name: Verify web release compiles
+        run: flutter build web --release --no-wasm-dry-run
+
+  existing-project-preview-package:
+    needs: flutter-launch-review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact review candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Verify preview host and no live backend deployment
+        run: |
+          flutter test test/gradeflow_existing_project_preview_test.dart --reporter expanded
+          python3 - <<'PY'
+          import json, pathlib
+          manifest=json.loads(pathlib.Path('firebase.preview.json').read_text())
+          assert set(manifest)=={'hosting'}, 'Preview manifest may only configure Hosting'
+          assert manifest['hosting']['public']=='build/web'
+          script=pathlib.Path('scripts/deploy-gradeflow-preview.cmd').read_text()
+          assert 'hosting:channel:deploy classroom-v2' in script
+          assert '--project gradeflow-20260113' in script
+          assert 'firebase.cmd deploy --only hosting' not in script
+          PY
+      - name: Compile safe existing-project preview (never live host)
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/main.dart \\
+            --base-href / \\
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
+      - name: Assemble preview package
+        run: cp scripts/deploy-gradeflow-preview.cmd ./deploy-gradeflow-preview.cmd
+      - name: Preserve preview package for owner deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-unified-review-preview-package
+          path: |
+            build/web/
+            firebase.preview.json
+            deploy-gradeflow-preview.cmd
+          retention-days: 7
+

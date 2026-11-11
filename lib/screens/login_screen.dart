@@ -16,7 +16,7 @@ import 'package:gradeflow/services/student_score_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/widgets/branding/instructos_auth_card_shell.dart';
-import 'package:gradeflow/widgets/branding/instructos_interactive_auth_background.dart';
+import 'package:gradeflow/widgets/branding/instructos_boxes_background.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -385,7 +385,7 @@ class _LoginScreenState extends State<LoginScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) router.go(_postAuthDestination());
       });
-    return Scaffold(body: InstructOSInteractiveAuthBackground(
+    return Scaffold(body: InstructOSBoxesBackground(
         child: SafeArea(child: LayoutBuilder(builder: (context, size) {
       final wide = size.maxWidth >= 900;
       return SingleChildScrollView(
