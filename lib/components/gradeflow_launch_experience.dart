@@ -104,7 +104,7 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text('Teaching, organised.',
                           style: theme.textTheme.bodyLarge?.copyWith(
-                              color: secondary))),
+                              color: secondary)),
                       const SizedBox(height: 32),
                       const _LaunchPulseDot(),
                       const SizedBox(height: 14),
@@ -112,7 +112,7 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                           liveRegion: true,
                           child: Text('Opening your workspace',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                  color: secondary)))),
+                                  color: secondary))),
                     ])))));
   }
 }
