@@ -132,7 +132,9 @@ void main() {
       'dashboard_reminders_v1:teacher-restored': jsonEncode([
         {
           'text': 'Restored user reminder',
-          'timestamp': DateTime(2026, 5, 3).toIso8601String(),
+          // The new Agenda correctly excludes events months in the past.
+          // Test authenticated scoping with a genuinely upcoming entry.
+          'timestamp': DateTime.now().add(const Duration(days: 1)).toIso8601String(),
           'done': false,
         }
       ]),
