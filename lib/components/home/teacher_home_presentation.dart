@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gradeflow/os/os_palette.dart';
 
 /// Presentation extracted from the approved 72ad2d7 teaching desktop.
 /// Slots receive functional content; this widget owns no preview or saved state.
@@ -51,7 +52,10 @@ class TeacherHomePresentation extends StatelessWidget {
               MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
               30,
               MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
-              24,
+              // Home's gradient now continues underneath the floating dock.
+              // Keep the final footer reachable when the teacher scrolls.
+              24 + OSSpacing.dockHeight + OSSpacing.dockBottomMargin +
+                  MediaQuery.paddingOf(context).bottom,
             ),
             child: Center(
               child: ConstrainedBox(
