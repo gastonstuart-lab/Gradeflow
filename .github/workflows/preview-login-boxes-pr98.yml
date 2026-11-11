@@ -28,7 +28,7 @@ jobs:
       - name: Checkout reviewed PR97 with PR98 visual changes (not old main)
         uses: actions/checkout@v4
         with:
-          ref: 83eb9aa886f34c77e78fcae1cb2fb144f601c28b
+          ref: e376b5786673bb176bede13f0f5d4190d60988d7
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "83eb9aa886f34c77e78fcae1cb2fb144f601c28b"
+          test "$(git rev-parse HEAD)" = "e376b5786673bb176bede13f0f5d4190d60988d7"
           grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
           grep -q 'InstructOSBoxesBackground(' lib/components/gradeflow_launch_experience.dart
           grep -q 'InstructOSBoxesBackground(' lib/screens/login_screen.dart
@@ -66,7 +66,8 @@ jobs:
         run: |
           flutter build web --release --no-wasm-dry-run --target lib/main.dart \
             --base-href / \
-            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true \
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW_CHANNEL=login-boxes
           test -s build/web/main.dart.js
       - name: Confirm existing-project keyless Google identity configuration
         shell: bash
