@@ -86,6 +86,9 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final foreground = dark ? const Color(0xFFF1F7FC) : const Color(0xFF183C5A);
+    final secondary = dark ? const Color(0xFFDCE5F4) : const Color(0xFF536F84);
     return Scaffold(
         backgroundColor: InstructOSDesign.background(context),
         body: InstructOSBoxesBackground(
@@ -97,11 +100,11 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                       const SizedBox(height: 24),
                       Text(InstructOSBranding.productName,
                           style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w800, letterSpacing: -1, color: Colors.white)),
+                              fontWeight: FontWeight.w800, letterSpacing: -1, color: foreground)),
                       const SizedBox(height: 8),
                       Text('Teaching, organised.',
                           style: theme.textTheme.bodyLarge?.copyWith(
-                              color: const Color(0xFFDCE5F4))),
+                              color: secondary))),
                       const SizedBox(height: 32),
                       const _LaunchPulseDot(),
                       const SizedBox(height: 14),
@@ -109,7 +112,7 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
                           liveRegion: true,
                           child: Text('Opening your workspace',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                  color: const Color(0xFFDCE5F4)))),
+                                  color: secondary)))),
                     ])))));
   }
 }
