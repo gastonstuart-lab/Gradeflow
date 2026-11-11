@@ -186,7 +186,9 @@ void main() {
 
     expect(find.text('Local-only reminder should not hydrate first'),
         findsNothing);
-    expect(find.text('Restored user reminder'), findsOneWidget);
+    // The same upcoming reminder appears in Agenda and Coming up, both scoped
+    // to the restored teacher's account.
+    expect(find.text('Restored user reminder'), findsWidgets);
     expect(find.text('Local-only class block'), findsNothing);
     expect(find.text('Restored timetable class block'), findsOneWidget);
   });
