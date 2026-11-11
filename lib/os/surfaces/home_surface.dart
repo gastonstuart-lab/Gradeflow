@@ -474,7 +474,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
             primaryClass: primaryClass,
             classes: classes,
             primaryReminder: primaryReminder,
-            reminders: reminders,
+            // The month needs all dated entries, including completed school
+            // events; the weekly summary filters them without editing data.
+            reminders: snapshot?.reminders ??
+                const <TeacherWorkspaceReminderSnapshot>[],
             remindersAvailable: snapshot != null,
             studentCounts: _classStudentCounts,
             loading: !auth.isInitialized ||
