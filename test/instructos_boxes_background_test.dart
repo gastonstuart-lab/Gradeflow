@@ -32,6 +32,9 @@ void main() {
         ),
       ),
     );
+    // Interactive background paints on pointer changes, with no persistent
+    // ticker keeping the widget test (or a logged-out screen) busy.
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Enter'));
     expect(tapped, isTrue);
 
