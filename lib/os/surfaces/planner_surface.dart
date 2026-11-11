@@ -371,6 +371,66 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
         );
         return;
       }
+      // Confirm the detected event count before touching existing reminders.
+      // Import is additive and the teacher can cancel without making changes.
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Import school calendar?'),
+          content: SizedBox(
+            width: 520,
+            height: 320,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Found ${imported.length} events in $filename. '
+                  '${added.length} are new; '
+                  '${imported.length - added.length} already exist.',
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This adds school events to Planner. It will not replace '
+                  'your existing reminders, classes, or completed items.',
+                ),
+                const Divider(height: 22),
+                const Text('First events',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: added.length < 12 ? added.length : 12,
+                    itemBuilder: (_, index) {
+                      final event = added[index];
+                      final date = _formatDate(event.timestamp);
+                      final range = event.endDate == null
+                          ? date
+                          : '$date – ${_formatDate(event.endDate!)}';
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(event.text),
+                        subtitle: Text(range),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text('Import ${added.length} events'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || approved != true) return;
       setState(() {
         _reminders = [..._reminders, ...added]
           ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
