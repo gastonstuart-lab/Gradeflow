@@ -4,6 +4,8 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:gradeflow/nav.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/models/seating_layout.dart';
@@ -83,6 +85,43 @@ void main() {
     await tester.tap(find.text('Finish arranging'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Teach Mode'), findsOneWidget);
+  });
+
+
+  testWidgets('Classroom Back returns directly to Home', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final services = await _buildServices('return-home');
+    final router = GoRouter(
+      initialLocation: AppRoutes.osClassroom('return-home'),
+      routes: [
+        GoRoute(path: AppRoutes.osHome,
+            builder: (context, state) =>
+                const Scaffold(body: Center(child: Text('Home destination')))),
+        GoRoute(path: '${AppRoutes.osClass}/:classId/classroom',
+            builder: (context, state) =>
+                ClassroomSurface(classId: state.pathParameters['classId']!)),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
+        ChangeNotifierProvider<ClassService>.value(value: services.classService),
+        ChangeNotifierProvider<StudentService>.value(
+            value: services.studentService),
+        ChangeNotifierProvider<SeatingService>.value(
+            value: services.seatingService),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Back to Home'));
+    await tester.pumpAndSettle();
+    expect(find.text('Home destination'), findsOneWidget);
+    expect(router.routeInformationProvider.value.uri.path, AppRoutes.osHome);
   });
 
   testWidgets('V2 zoom controls are reversible and fit resets without saving geometry', (tester) async {
