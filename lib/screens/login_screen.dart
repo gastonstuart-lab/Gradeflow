@@ -27,6 +27,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // The login canvas is always deep navy, regardless of the workspace theme.
+  // Give everything outside the sign-in card an explicit readable foreground.
+  static const Color _backdropText = Color(0xFFF1F7FC);
+  static const Color _backdropSecondary = Color(0xFFCBDAE8);
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
@@ -324,13 +328,14 @@ class _LoginScreenState extends State<LoginScreen> {
               fontSize: 48,
               height: 1.08,
               letterSpacing: -1.6,
-              fontWeight: FontWeight.w800)),
+              fontWeight: FontWeight.w800,
+              color: _backdropText)),
       const SizedBox(height: 20),
       Text('Your classes, plans and grades.\nOne familiar workspace.',
           style: theme.textTheme.titleLarge?.copyWith(
               height: 1.5,
               fontWeight: FontWeight.w400,
-              color: theme.colorScheme.onSurfaceVariant)),
+              color: _backdropSecondary)),
       const SizedBox(height: 40),
       for (final feature in [
         (
@@ -365,12 +370,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                     Text(feature.$2,
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700)),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700, color: _backdropText)),
                     const SizedBox(height: 4),
                     Text(feature.$3,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                            color: _backdropSecondary,
                             height: 1.4))
                   ]))
             ])),
@@ -409,19 +414,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                         .textTheme
                                         .titleLarge
                                         ?.copyWith(
-                                            fontWeight: FontWeight.w800)),
+                                            fontWeight: FontWeight.w800,
+                                            color: _backdropText)),
                                 Text('Teaching, organised.',
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall)
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(color: _backdropSecondary))
                               ])),
                           IconButton(
                               tooltip: 'Change appearance',
                               onPressed: () => context
                                   .read<ThemeModeNotifier>()
                                   .toggleTheme(),
-                              icon: Icon(InstructOSDesign.dark(context)
-                                  ? Icons.light_mode_outlined
-                                  : Icons.dark_mode_outlined))
+                              icon: Icon(
+                                  InstructOSDesign.dark(context)
+                                      ? Icons.light_mode_outlined
+                                      : Icons.dark_mode_outlined,
+                                  color: _backdropText))
                         ]),
                         SizedBox(height: wide ? 64 : 32),
                         if (wide)
