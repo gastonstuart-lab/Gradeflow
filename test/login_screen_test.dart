@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/screens/login_screen.dart';
+import 'package:gradeflow/widgets/branding/instructos_boxes_background.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:provider/provider.dart';
 
@@ -40,6 +41,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(tester.takeException(), isNull);
+    expect(find.byType(InstructOSBoxesBackground), findsOneWidget);
     expect(find.text('InstructOS'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('Open demo workspace'), findsOneWidget);
