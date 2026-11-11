@@ -31,4 +31,4 @@ jobs:
       - name: Run complete Flutter tests
         run: flutter test
       - name: Compile release preview
-        run: flutter build web --release --no-wasm-dry-run --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
+        run: flutter build web --release --no-wasm-dry-run --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW_CHANNEL=login-boxes
