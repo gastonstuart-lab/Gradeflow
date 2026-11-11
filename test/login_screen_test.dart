@@ -37,8 +37,8 @@ void main() {
       );
       await tester.pump();
       for (final label in [
-        'More time for\\nteaching.',
-        'Your classes, plans and grades.\\nOne familiar workspace.',
+        'More time for\nteaching.',
+        'Your classes, plans and grades.\nOne familiar workspace.',
         'Teach from your classroom',
         'InstructOS',
         'Teaching, organised.',
