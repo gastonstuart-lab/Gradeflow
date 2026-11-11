@@ -1049,6 +1049,7 @@ class _PlannerDashboardView extends StatelessWidget {
     };
     final reminders = _PlannerReminderCard(
         reminders: pendingReminders,
+        onSelectDate: onSelectDate,
         onImportCalendar: onImportCalendar,
         onToggleReminder: onToggleReminder,
         onDeleteReminder: onDeleteReminder);
@@ -1555,12 +1556,14 @@ class _PlannerReminderCard extends StatelessWidget {
   const _PlannerReminderCard({
     required this.reminders,
     required this.onImportCalendar,
+    required this.onSelectDate,
     required this.onToggleReminder,
     required this.onDeleteReminder,
   });
 
   final List<_PlannerReminder> reminders;
   final VoidCallback onImportCalendar;
+  final ValueChanged<DateTime> onSelectDate;
   final void Function(_PlannerReminder reminder, bool done) onToggleReminder;
   final ValueChanged<_PlannerReminder> onDeleteReminder;
 
@@ -1573,14 +1576,21 @@ class _PlannerReminderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _PlannerCardHeader(
-            title: 'Reminders',
+            title: 'Coming up',
             actionLabel: 'Import',
             onAction: onImportCalendar,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 4),
+          Text(
+            'Next 30 days · full list in Agenda',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: OSColors.textSecondary(dark),
+            ),
+          ),
+          const SizedBox(height: 12),
           if (visible.isEmpty)
             Text(
-              'No open planning messages. Import school events or select a day on the calendar.',
+              'No upcoming entries. Import your school calendar or add a task.',
               style: TextStyle(
                 color: OSColors.textSecondary(dark),
                 height: 1.45,
@@ -1588,12 +1598,18 @@ class _PlannerReminderCard extends StatelessWidget {
             )
           else
             for (final reminder in visible) ...[
-              _PlannerReminderTile(
-                reminder: reminder,
-                onToggle: onToggleReminder,
-                onDelete: onDeleteReminder,
-              ),
-              if (reminder != visible.last) const SizedBox(height: 10),
+              if (reminder.kind == 'task')
+                _PlannerReminderTile(
+                  reminder: reminder,
+                  onToggle: onToggleReminder,
+                  onDelete: onDeleteReminder,
+                )
+              else
+                _PlannerDatedItem(
+                  reminder: reminder,
+                  onTap: () => onSelectDate(reminder.timestamp),
+                ),
+              if (reminder != visible.last) const SizedBox(height: 9),
             ],
         ],
       ),
@@ -2274,87 +2290,126 @@ class _SelectedDayEditor extends StatelessWidget {
         style: WorkspaceTypography.metadata(context),
       );
     }
+    final items = reminders.where((r) => r.occursOn(selected)).toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final school = items.where((item) => item.kind == 'school_event').toList();
+    final tasks = items.where((item) => item.kind == 'task').toList();
+    final legacy = items.where((item) =>
+        item.kind != 'task' && item.kind != 'school_event').toList();
+    final dark = context.isDark;
 
-    final items = reminders
-        .where((reminder) => reminder.occursOn(selected))
-        .toList()
-      ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
+    Widget section(String title, List<_PlannerReminder> entries, IconData icon,
+        Color accent) {
+      if (entries.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(icon, color: accent, size: 17),
+              const SizedBox(width: 7),
+              Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800)),
+              const SizedBox(width: 6),
+              Text('${entries.length}', style: Theme.of(context).textTheme.labelSmall),
+            ]),
+            const SizedBox(height: 6),
+            for (final entry in entries)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: dark ? const Color(0xFF1B2938) : const Color(0xFFF3F7FB),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 9, vertical: 1),
+                    title: Text(
+                      entry.text,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        decoration: entry.done && entry.kind != 'school_event'
+                            ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                    subtitle: Text(entry.endDate != null
+                        ? '${_formatDate(entry.timestamp)} – ${_formatDate(entry.endDate!)}'
+                        : _formatDate(entry.timestamp)),
+                    trailing: entry.kind == 'school_event'
+                        ? const Tooltip(
+                            message: 'School calendar event',
+                            child: Icon(Icons.calendar_today_outlined, size: 18))
+                        : Row(mainAxisSize: MainAxisSize.min, children: [
+                            Checkbox(
+                              value: entry.done,
+                              onChanged: (value) =>
+                                  onToggleReminder(entry, value ?? false),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete reminder',
+                              icon: const Icon(Icons.delete_outline_rounded),
+                              onPressed: () => onDeleteReminder(entry),
+                            ),
+                          ]),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Selected: ${_formatDate(selected)}',
-                style: context.textStyles.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+        Row(children: [
+          Expanded(
+            child: Text(
+              'Selected: ${_formatDate(selected)}',
+              style: context.textStyles.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
               ),
             ),
-            TextButton.icon(
-              onPressed: onClearSelectedDate,
-              icon: const Icon(Icons.close_rounded),
-              label: const Text('Clear'),
-              style: WorkspaceButtonStyles.text(context),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: reminderController,
-                decoration: const InputDecoration(
-                  labelText: 'Add a reminder',
-                  hintText: 'Meeting, deadline, school event...',
-                ),
-                onSubmitted: (_) => onAddReminder(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
+          ),
+          TextButton.icon(
+            onPressed: onClearSelectedDate,
+            icon: const Icon(Icons.today_rounded, size: 16),
+            label: const Text('Today'),
+            style: WorkspaceButtonStyles.text(context),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        TextField(
+          controller: reminderController,
+          decoration: InputDecoration(
+            labelText: 'Add a to-do for this day',
+            hintText: 'Prepare lesson, mark papers, follow up...',
+            suffixIcon: IconButton(
+              tooltip: 'Add task',
               onPressed: onAddReminder,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add'),
-              style: WorkspaceButtonStyles.filled(context),
+              icon: const Icon(Icons.add_circle_outline_rounded),
             ),
-          ],
+          ),
+          onSubmitted: (_) => onAddReminder(),
         ),
-        const SizedBox(height: 8),
         if (items.isEmpty)
-          Text(
-            'No items for this day.',
-            style: WorkspaceTypography.metadata(context),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Text('No events or tasks on this day.',
+                style: WorkspaceTypography.metadata(context)),
           )
-        else
-          for (final reminder in items)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: Checkbox(
-                value: reminder.done,
-                onChanged: (value) =>
-                    onToggleReminder(reminder, value ?? false),
-              ),
-              title: Text(
-                reminder.text,
-                overflow: TextOverflow.ellipsis,
-                style: reminder.done
-                    ? context.textStyles.bodyMedium?.copyWith(
-                        decoration: TextDecoration.lineThrough,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      )
-                    : context.textStyles.bodyMedium,
-              ),
-              trailing: IconButton(
-                tooltip: 'Delete reminder',
-                icon: const Icon(Icons.delete_outline_rounded),
-                onPressed: () => onDeleteReminder(reminder),
-              ),
-            ),
+        else ...[
+          section('School events', school, Icons.school_outlined,
+              const Color(0xff158a9c)),
+          section('My tasks', tasks, Icons.task_alt_outlined,
+              const Color(0xffb47d2b)),
+          section('Other dated entries', legacy, Icons.event_note_outlined,
+              const Color(0xff798b9b)),
+        ],
       ],
     );
   }
