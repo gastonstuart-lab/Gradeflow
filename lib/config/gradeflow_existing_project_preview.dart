@@ -12,8 +12,9 @@ class GradeFlowExistingProjectPreview {
   );
 
   static const projectId = 'gradeflow-20260113';
-  /// Each preview bundle is bound to ONE approved Firebase Hosting channel.
-  /// The existing Classroom review remains the default to preserve its guard.
+
+  /// Each review build is scoped to one known Hosting preview channel.
+  /// The previously approved classroom-v2 build keeps its original default.
   static const channelId = String.fromEnvironment(
     'GRADEFLOW_EXISTING_PROJECT_PREVIEW_CHANNEL',
     defaultValue: 'classroom-v2',
@@ -21,44 +22,16 @@ class GradeFlowExistingProjectPreview {
 
   static const allowedChannelIds = {'classroom-v2', 'login-boxes'};
 
-  /// A Firebase Hosting preview URL is
-  /// SITE_ID--CHANNEL_ID-RANDOM_HASH.web.app.
-  /// Neither the normal production domain nor arbitrary review hosts qualify.
+  /// A Firebase Hosting preview URL is SITE--CHANNEL-HASH.web.app.
+  /// Production, arbitrary preview channels and near-matching hosts fail closed.
   static bool isAllowedPreviewHost(String host, {String? expectedChannel}) {
     final channel = expectedChannel ?? channelId;
     if (!allowedChannelIds.contains(channel)) return false;
     final hostname = host.toLowerCase().trim();
     final pattern = RegExp(
-      '^gradeflow-20260113--${RegExp.escape(channel)}-[a-z0-9-]+\\.web\\.app\\
-
-  /// Preview-only exception for synthetic sample data. It does not authorize
-  /// real users or permit Firestore access without Firebase authentication.
-  static bool isSyntheticDemoLogin({
-    required String email,
-    required String password,
-    bool? previewEnabled,
-  }) =>
-      (previewEnabled ?? enabled) &&
-      email.trim().toLowerCase() == 'teacher@demo.com' &&
-      password == 'demo';
-
-  static bool mayStart({
-    required bool enabled,
-    required bool stagingEnabled,
-    required bool emulatorEnabled,
-    required bool isWeb,
-    required String projectId,
-    required String originHost,
-  }) {
-    if (!enabled) return true; // Leave normal builds unchanged.
-    return isWeb &&
-        !stagingEnabled &&
-        !emulatorEnabled &&
-        projectId == GradeFlowExistingProjectPreview.projectId &&
-        isAllowedPreviewHost(originHost);
-  }
-}
-,
+      r'^gradeflow-20260113--' +
+          RegExp.escape(channel) +
+          r'-[a-z0-9-]+\.web\.app$',
     );
     return pattern.hasMatch(hostname);
   }
@@ -81,12 +54,13 @@ class GradeFlowExistingProjectPreview {
     required bool isWeb,
     required String projectId,
     required String originHost,
+    String? expectedChannel,
   }) {
     if (!enabled) return true; // Leave normal builds unchanged.
     return isWeb &&
         !stagingEnabled &&
         !emulatorEnabled &&
         projectId == GradeFlowExistingProjectPreview.projectId &&
-        isAllowedPreviewHost(originHost);
+        isAllowedPreviewHost(originHost, expectedChannel: expectedChannel);
   }
 }
