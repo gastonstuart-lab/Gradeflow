@@ -30,6 +30,60 @@ void main() {
     );
   });
 
+  test('login-boxes review is allowed only with explicit matching channel', () {
+    const loginHost = 'gradeflow-20260113--login-boxes-7fnnjkwa.web.app';
+    expect(
+      GradeFlowExistingProjectPreview.isAllowedPreviewHost(
+        loginHost, expectedChannel: 'login-boxes',
+      ),
+      isTrue,
+    );
+    expect(
+      GradeFlowExistingProjectPreview.isAllowedPreviewHost(loginHost),
+      isFalse,
+    );
+    expect(
+      GradeFlowExistingProjectPreview.isAllowedPreviewHost(
+        channel, expectedChannel: 'login-boxes',
+      ),
+      isFalse,
+    );
+    expect(
+      GradeFlowExistingProjectPreview.isAllowedPreviewHost(
+        loginHost, expectedChannel: 'arbitrary-preview',
+      ),
+      isFalse,
+    );
+    expect(
+      allowed(host: 'gradeflow-20260113.web.app'),
+      isFalse,
+    );
+    expect(
+      GradeFlowExistingProjectPreview.mayStart(
+        enabled: true,
+        stagingEnabled: false,
+        emulatorEnabled: false,
+        isWeb: true,
+        projectId: project,
+        originHost: loginHost,
+        expectedChannel: 'login-boxes',
+      ),
+      isTrue,
+    );
+    expect(
+      GradeFlowExistingProjectPreview.mayStart(
+        enabled: true,
+        stagingEnabled: false,
+        emulatorEnabled: false,
+        isWeb: true,
+        projectId: project,
+        originHost: 'gradeflow-20260113.web.app',
+        expectedChannel: 'login-boxes',
+      ),
+      isFalse,
+    );
+  });
+
   test('blocks the live GradeFlow site and other firebaseapp/Hosting sites', () {
     for (final host in <String>[
       'gradeflow-20260113.web.app',
