@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/nav.dart';
@@ -9,6 +7,7 @@ import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
 import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 import 'package:gradeflow/components/home/teacher_home_clock.dart';
 import 'package:gradeflow/components/home/teacher_home_presentation.dart';
+import 'package:gradeflow/components/home/teacher_home_class_rail.dart';
 
 /// Approved desktop presentation, supplied only with existing Home data/actions.
 class ApprovedTeacherHome extends StatelessWidget {
@@ -394,174 +393,18 @@ class ApprovedTeacherHome extends StatelessWidget {
       );
 
 
-  Widget _teachingDay(BuildContext context) => TeacherHomeCard(
-        title: 'Teaching day',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (timetable == null) ...[
-              Text(
-                'Upload a weekly timetable to see what is happening now, next and following.',
-                style: TextStyle(color: _subtle(context), fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              if (onUploadTimetable != null)
-                OutlinedButton.icon(
-                  onPressed: onUploadTimetable,
-                  icon: const Icon(Icons.upload_file_rounded),
-                  label: const Text('Upload timetable'),
-                ),
-            ] else ...[
-              Row(children: [
-                Expanded(
-                  child: Text(
-                    timetable!.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _subtle(context),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                if (onUploadTimetable != null)
-                  TextButton.icon(
-                    onPressed: onUploadTimetable,
-                    icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-                    label: const Text('Replace'),
-                  ),
-              ]),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text('Combine double periods',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                  ),
-                  Switch.adaptive(
-                    value: combineConsecutivePeriods,
-                    onChanged: onCombineConsecutivePeriodsChanged,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              StreamBuilder<DateTime>(
-                stream: Stream<DateTime>.periodic(
-                  const Duration(minutes: 1),
-                  (_) => DateTime.now(),
-                ),
-                initialData: DateTime.now(),
-                builder: (context, snapshot) {
-                  final now = snapshot.data ?? DateTime.now();
-                  final sequence = HomeTeachingSequence.fromSchedule(
-                    timetable!.classes,
-                    now,
-                    combineConsecutivePeriods: combineConsecutivePeriods,
-                  );
-                  return LayoutBuilder(builder: (context, constraints) {
-                    final columns = constraints.maxWidth >= 570
-                        ? 3
-                        : constraints.maxWidth >= 340
-                            ? 2
-                            : 1;
-                    final width =
-                        (constraints.maxWidth - (columns - 1) * 10) / columns;
-                    return Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        _teachingMomentCard(context, 'Now', sequence.current,
-                            width, now),
-                        _teachingMomentCard(context, 'Next', sequence.next,
-                            width, now),
-                        _teachingMomentCard(context, 'Following',
-                            sequence.following, width, now),
-                      ],
-                    );
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Timetable labels are suggestions; your chosen class remains selected until you change it.',
-                style: TextStyle(color: _subtle(context), fontSize: 11),
-              ),
-            ],
-          ],
-        ),
+  // Keep the existing teacher Home and real class selection, but present
+  // timetable context in a compact rail instead of three large panels.
+  Widget _teachingDay(BuildContext context) => TeacherHomeClassRail(
+        classes: classes,
+        selectedClassId: primaryClass?.classId,
+        studentCounts: studentCounts,
+        onSelectClass: loading ? null : onSelectClass,
+        timetable: timetable,
+        onUploadTimetable: onUploadTimetable,
+        combineConsecutivePeriods: combineConsecutivePeriods,
+        onCombineConsecutivePeriodsChanged: onCombineConsecutivePeriodsChanged,
       );
-
-  Widget _teachingMomentCard(
-    BuildContext context,
-    String label,
-    HomeTeachingMoment? moment,
-    double width,
-    DateTime now,
-  ) {
-    final isNow = label == 'Now' && moment != null;
-    final bg = _dark(context)
-        ? const Color(0xff14283a)
-        : const Color(0xfff2f7fc);
-    final day = moment?.startAt;
-    final sameDay = day != null &&
-        day.year == now.year &&
-        day.month == now.month &&
-        day.day == now.day;
-    String time(DateTime value) =>
-        '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
-    final when = moment == null
-        ? (label == 'Now' ? 'Free period' : 'Nothing scheduled')
-        : '${sameDay ? 'Today' : const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][moment.startAt.weekday - 1]} ${time(moment.startAt)}–${time(moment.endAt)}';
-    return SizedBox(
-      width: width,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isNow
-                ? const Color(0xff0f9588)
-                : (_dark(context)
-                    ? const Color(0xff2b4b5f)
-                    : const Color(0xffdce8f3)),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label.toUpperCase(),
-                style: TextStyle(
-                  color: isNow ? const Color(0xff0f9588) : _subtle(context),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 10,
-                  letterSpacing: 1,
-                )),
-            const SizedBox(height: 5),
-            Text(
-              moment?.title == null
-                  ? (label == 'Now' ? 'Not teaching' : '—')
-                  : moment!.periodCount > 1
-                      ? '${moment.title} · ${moment.periodCount} periods'
-                      : moment.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: _text(context),
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              when,
-              style: TextStyle(color: _subtle(context), fontSize: 11),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _destinations(BuildContext context) => TeacherHomeCard(
       title: 'Within reach',
