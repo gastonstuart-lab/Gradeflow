@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gradeflow/os/os_palette.dart';
 
 /// Presentation extracted from the approved 72ad2d7 teaching desktop.
 /// Slots receive functional content; this widget owns no preview or saved state.
@@ -51,7 +52,9 @@ class TeacherHomePresentation extends StatelessWidget {
               MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
               30,
               MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
-              24,
+              // The Home background extends under the dock; keep the final
+              // card and footer fully scrollable above its 68+16px footprint.
+              24 + OSSpacing.dockHeight + OSSpacing.dockBottomMargin,
             ),
             child: Center(
               child: ConstrainedBox(
