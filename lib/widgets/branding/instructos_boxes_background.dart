@@ -39,6 +39,7 @@ class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground> {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return LayoutBuilder(builder: (context, constraints) {
       final size = constraints.biggest;
       return RepaintBoundary(
@@ -53,16 +54,23 @@ class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  const DecoratedBox(
+                  DecoratedBox(
+                    key: const ValueKey('instructos-boxes-base'),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF07101D),
-                          Color(0xFF0C162A),
-                          Color(0xFF070F1D),
-                        ],
+                        colors: dark
+                            ? const [
+                                Color(0xFF07101D),
+                                Color(0xFF0C162A),
+                                Color(0xFF070F1D),
+                              ]
+                            : const [
+                                Color(0xFFF7FBFE),
+                                Color(0xFFEAF4FA),
+                                Color(0xFFF2F9F6),
+                              ],
                       ),
                     ),
                   ),
@@ -73,14 +81,15 @@ class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground> {
                         builder: (context, pointer, _) => CustomPaint(
                           painter: _BoxesPainter(
                             pointer: pointer,
+                            dark: dark,
                             reducedEffects: reduceMotion || size.width < 560,
                           ),
                         ),
                       ),
                     ),
                   ),
-                  // Keep sign-in controls readable against the grid, even
-                  // when the hovered boxes become brighter.
+                  // Maintain legible type behind the same interactive grid
+                  // without flattening the soft light-mode blue/mint palette.
                   Positioned.fill(
                     child: IgnorePointer(
                       child: DecoratedBox(
@@ -88,11 +97,20 @@ class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground> {
                           gradient: RadialGradient(
                             center: Alignment.center,
                             radius: 1.05,
-                            colors: [
-                              const Color(0xFF070F1D).withValues(alpha: 0.58),
-                              const Color(0xFF070F1D).withValues(alpha: 0.20),
-                              const Color(0xFF070F1D).withValues(alpha: 0.47),
-                            ],
+                            colors: dark
+                                ? [
+                                    const Color(0xFF070F1D)
+                                        .withValues(alpha: 0.58),
+                                    const Color(0xFF070F1D)
+                                        .withValues(alpha: 0.20),
+                                    const Color(0xFF070F1D)
+                                        .withValues(alpha: 0.47),
+                                  ]
+                                : [
+                                    Colors.white.withValues(alpha: 0.53),
+                                    Colors.white.withValues(alpha: 0.08),
+                                    Colors.white.withValues(alpha: 0.32),
+                                  ],
                             stops: const [0.0, 0.55, 1.0],
                           ),
                         ),
@@ -113,17 +131,25 @@ class _InstructOSBoxesBackgroundState extends State<InstructOSBoxesBackground> {
 class _BoxesPainter extends CustomPainter {
   const _BoxesPainter({
     required this.pointer,
+    required this.dark,
     required this.reducedEffects,
   });
 
   final Offset? pointer;
+  final bool dark;
   final bool reducedEffects;
 
-  static const List<Color> _palette = [
+  static const List<Color> _darkPalette = [
     Color(0xFF39D5BE),
     Color(0xFF60A5FA),
     Color(0xFFA78BFA),
     Color(0xFF7DD3FC),
+  ];
+  static const List<Color> _lightPalette = [
+    Color(0xFF5AA6CF),
+    Color(0xFF5BBEAD),
+    Color(0xFF94B0DA),
+    Color(0xFF76B4D0),
   ];
 
   @override
@@ -137,7 +163,9 @@ class _BoxesPainter extends CustomPainter {
     final outline = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.7
-      ..color = const Color(0xFFBBD3E7).withValues(alpha: 0.095);
+      ..color = dark
+          ? const Color(0xFFBBD3E7).withValues(alpha: 0.095)
+          : const Color(0xFF6E9AB2).withValues(alpha: 0.19);
     final fill = Paint()..style = PaintingStyle.fill;
 
     canvas.save();
@@ -168,8 +196,11 @@ class _BoxesPainter extends CustomPainter {
 
         final intensity = math.max(ambientGlow * 0.24, hoverGlow * 0.75);
         if (intensity > 0.02) {
-          final color = _palette[(row.abs() + col.abs() * 3) % _palette.length];
-          fill.color = color.withValues(alpha: intensity * 0.22);
+          final palette = dark ? _darkPalette : _lightPalette;
+          final color = palette[(row.abs() + col.abs() * 3) % palette.length];
+          fill.color = color.withValues(
+            alpha: intensity * (dark ? 0.22 : 0.15),
+          );
           canvas.drawRRect(
             RRect.fromRectAndRadius(rect.deflate(2), const Radius.circular(2)),
             fill,
@@ -184,5 +215,6 @@ class _BoxesPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _BoxesPainter oldDelegate) =>
       oldDelegate.pointer != pointer ||
+      oldDelegate.dark != dark ||
       oldDelegate.reducedEffects != reducedEffects;
 }
