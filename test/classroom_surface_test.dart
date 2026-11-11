@@ -10,6 +10,7 @@ import 'package:gradeflow/models/seating_layout.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/os/surfaces/classroom_surface.dart';
 import 'package:gradeflow/components/seating/seating_canvas.dart';
+import 'package:gradeflow/components/seating/student_list_panel.dart';
 import 'package:gradeflow/components/seating/student_picker_sheet.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:gradeflow/services/auth_service.dart';
@@ -40,6 +41,49 @@ void main() {
     await tester.pumpAndSettle();
     return services;
   }
+
+
+  testWidgets(
+      'Teach mode allows student seat swapping and shows the unseated roster',
+      (tester) async {
+    final services = await open(tester, 'teach-swaps', plannerV2: true);
+    final initialSeat = tester.widgetList<SeatWidget>(
+        find.byType(SeatWidget)).firstWhere(
+        (seat) => seat.seat.studentId != null);
+    expect(initialSeat.allowStudentDrag, isTrue);
+    expect(initialSeat.acceptDrops, isTrue);
+
+    final now = DateTime(2026, 11, 11);
+    await services.studentService.addStudent(Student(
+      studentId: 'teach-swaps-student-2',
+      chineseName: '學生二',
+      englishFirstName: 'Bobby',
+      englishLastName: 'Student',
+      seatNo: '2',
+      classId: 'teach-swaps',
+      createdAt: now,
+      updatedAt: now,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(StudentListPanel), findsOneWidget);
+    expect(find.byKey(const ValueKey('student-chip-teach-swaps-student-2')),
+        findsOneWidget);
+    expect(find.text('Unseated (1)'), findsOneWidget);
+    await tester.tap(find.text('Unseated (1)'));
+    await tester.pumpAndSettle();
+    expect(find.byType(StudentListPanel), findsNothing);
+    await tester.tap(find.text('Unseated (1)'));
+    await tester.pumpAndSettle();
+    expect(find.byType(StudentListPanel), findsOneWidget);
+
+    await tester.tap(find.text('Arrange room'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Arrange Mode'), findsOneWidget);
+    await tester.tap(find.text('Finish arranging'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Teach Mode'), findsOneWidget);
+  });
 
   testWidgets('V2 zoom controls are reversible and fit resets without saving geometry', (tester) async {
     final services = await open(tester, 'zoom-controls', plannerV2: true);
