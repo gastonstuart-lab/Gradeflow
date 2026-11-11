@@ -642,7 +642,45 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                         onPresent: () => _openPresentation(
                             className: classItem.className,
                             subject: classItem.subject)),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
+                    // Always-visible roster controls are separate from the
+                    // established furniture/tool actions, so Arrange room
+                    // never moves offscreen when new students are unseated.
+                    SizedBox(
+                      height: 38,
+                      child: Row(children: [
+                        TextButton.icon(
+                          onPressed: () => context.go(
+                              AppRoutes.osClassStudents(widget.classId)),
+                          icon: const Icon(Icons.groups_outlined, size: 17),
+                          label: const Text('Class roster'),
+                        ),
+                        if (unseatedCount > 0) ...[
+                          const SizedBox(width: 6),
+                          TextButton.icon(
+                            onPressed: () => setState(() =>
+                                _showUnseatedRoster = !_showUnseatedRoster),
+                            icon: Icon(_showUnseatedRoster
+                                ? Icons.visibility_off_outlined
+                                : Icons.person_add_alt_1_outlined,
+                                size: 17),
+                            label: Text(
+                                'Unseated ($unseatedCount)'),
+                          ),
+                        ],
+                        if (MediaQuery.sizeOf(context).width >= 1000) ...[
+                          const Spacer(),
+                          Text(
+                            _setupMode
+                                ? 'Arrange: drag chairs and tables'
+                                : 'Teach: drag students to swap seats',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                      ]),
+                    ),
+                    const SizedBox(height: 6),
                     if (widget.plannerV2 && _setupMode)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 6),
@@ -720,21 +758,6 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                         child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(children: [
-                              TextButton.icon(
-                                onPressed: () =>
-                                    context.go(AppRoutes.osClassStudents(widget.classId)),
-                                icon: const Icon(Icons.groups_outlined),
-                                label: const Text('Class roster'),
-                              ),
-                              if (unseatedCount > 0)
-                                TextButton.icon(
-                                  onPressed: () => setState(() =>
-                                      _showUnseatedRoster = !_showUnseatedRoster),
-                                  icon: Icon(_showUnseatedRoster
-                                      ? Icons.view_sidebar_outlined
-                                      : Icons.person_add_alt_1_outlined),
-                                  label: Text('Unseated ($unseatedCount)'),
-                                ),
                               TextButton.icon(onPressed: _randomSeating,
                                   icon: const Icon(Icons.shuffle), label: const Text('Random seating')),
                               TextButton.icon(onPressed: () => setState(() { _fitRevision++; _zoomFactor = 1; }),
