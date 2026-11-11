@@ -530,7 +530,9 @@ class _HomeSurfaceState extends State<HomeSurface> {
                 horizontalPadding,
                 10,
                 horizontalPadding,
-                24,
+                // Home tools also need clearance once their background can
+                // extend under the floating dock.
+                24 + OSSpacing.dockHeight + OSSpacing.dockBottomMargin,
               );
 
               return Stack(
