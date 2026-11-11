@@ -58,14 +58,14 @@
     html,body{width:100%;height:100%;margin:0;background:var(--canvas);color:var(--ink);}
     body{overflow:hidden;font-family:Roboto,"Segoe UI",system-ui,sans-serif;}
     body.gradeflow-ready{overflow:auto;}
-    #gradeflow-loader{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background:linear-gradient(140deg,var(--canvas),var(--wash));z-index:9999;transition:opacity 240ms ease,visibility 240ms ease;}
+    #gradeflow-loader{position:fixed;inset:0;display:grid;place-items:center;padding:24px;background-color:#07101d;background-image:radial-gradient(circle at 53% 42%,rgba(57,213,190,.085),transparent 25%),linear-gradient(rgba(187,211,231,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(187,211,231,.07) 1px,transparent 1px),linear-gradient(135deg,#07101d,#0c162a 56%,#070f1d);background-size:auto,54px 54px,54px 54px,auto;z-index:9999;transition:opacity 240ms ease,visibility 240ms ease;}
     #gradeflow-loader.is-hidden{opacity:0;visibility:hidden;pointer-events:none;}
-    .gf-loader-shell{width:min(100%,430px);text-align:center;}
+    .gf-loader-shell{width:min(100%,430px);text-align:center;color:#cde7e8;}
     .gf-loader-mark{display:block;width:64px;height:64px;margin:0 auto 24px;}
     .gf-loader-title{margin:0;font-size:2rem;font-weight:800;letter-spacing:-1px;line-height:1.15;}
     .gf-loader-copy{margin:8px 0 0;color:var(--muted);font-size:1rem;line-height:1.5;}
     .gf-loader-status{margin:14px 0 0;color:var(--muted);font-size:.8rem;}
-    .gf-loader-dot{height:7px;width:7px;margin:32px auto 0;border-radius:50%;background:var(--teal);animation:instructos-pulse 1.5s ease-in-out infinite alternate;}
+    .gf-loader-dot{height:7px;width:7px;margin:32px auto 0;border-radius:50%;background:#a5f3e9;box-shadow:0 0 14px rgba(94,234,212,.3);animation:instructos-pulse 1.5s ease-in-out infinite alternate;}
     .gf-loader-retry{margin-top:16px;padding:12px 20px;border:0;border-radius:14px;background:#187f79;color:white;font:inherit;cursor:pointer;}
     .gf-loader-retry:focus-visible{outline:3px solid var(--teal);outline-offset:4px;}
     @keyframes instructos-pulse{from{opacity:.36}to{opacity:.88}}
@@ -75,9 +75,6 @@
 <body>
   <div id="gradeflow-loader" role="status" aria-live="polite">
     <div class="gf-loader-shell">
-      <img class="gf-loader-mark" src="icons/instructos-mark.svg" alt="">
-      <h1 class="gf-loader-title">InstructOS</h1>
-      <p class="gf-loader-copy">Teaching, organised.</p>
       <div class="gf-loader-dot" aria-hidden="true"></div>
       <p class="gf-loader-status">Opening your workspace</p>
       <p id="loader-help" class="gf-loader-status" hidden>Taking longer than usual. Check your connection and try again.</p>
