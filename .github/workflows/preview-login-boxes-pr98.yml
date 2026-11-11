@@ -1,5 +1,5 @@
-name: Review GradeFlow PR98 launch / login on separate Firebase PREVIEW
-run-name: Preview PR98 login boxes / ${{ github.actor }}
+name: Review GradeFlow V2 recovery on isolated Firebase PREVIEW
+run-name: GradeFlow recovery preview / ${{ github.actor }}
 
 on:
   push:
@@ -25,10 +25,10 @@ jobs:
     environment: production
     timeout-minutes: 55
     steps:
-      - name: Checkout reviewed PR97 with PR98 visual changes (not old main)
+      - name: Checkout exact tested Classroom + Calendar recovery candidate
         uses: actions/checkout@v4
         with:
-          ref: 4448c0285d7fd2652ac16b9812953c078a97ce10
+          ref: 85c1cb368a85d66a4479187f02003a0672e57b77
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -42,11 +42,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "4448c0285d7fd2652ac16b9812953c078a97ce10"
+          test "$(git rev-parse HEAD)" = "85c1cb368a85d66a4479187f02003a0672e57b77"
           grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
           grep -q 'InstructOSBoxesBackground(' lib/components/gradeflow_launch_experience.dart
           grep -q 'InstructOSBoxesBackground(' lib/screens/login_screen.dart
           test -f lib/repositories/preview_read_only_firestore_repository.dart
+          test -f lib/services/school_calendar_grid_parser.dart
+          grep -q 'showStudentPanel: showUnseatedRoster' lib/os/surfaces/classroom_surface.dart
+          grep -q 'context.go(AppRoutes.osHome)' lib/os/surfaces/classroom_surface.dart
+          test -f test/school_calendar_grid_parser_test.dart
           node - <<'NODE'
           const c = require('./firebase.preview.json');
           if (!c.hosting || c.hosting.public !== 'build/web' ||
