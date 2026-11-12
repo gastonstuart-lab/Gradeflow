@@ -460,12 +460,15 @@ class _StudentListScreenState extends State<StudentListScreen> {
             .getClassById(widget.classId)?.className ?? 'this class';
     var saving = false;
     String? saveError;
+    ModalRoute<dynamic>? activeDialogRoute;
 
     try {
       final added = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext) {
+          activeDialogRoute ??= ModalRoute.of(dialogContext);
+          return StatefulBuilder(
           builder: (dialogContext, setDialogState) => PopScope(
             canPop: !saving,
             child: AlertDialog(
@@ -551,7 +554,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          'This adds a student to the roster only. Place her in a '
+                          'This adds the student to the roster only. Place them in a '
                           'chair separately using Classroom > Arrange.',
                           style: Theme.of(dialogContext).textTheme.bodySmall,
                         ),
@@ -619,8 +622,12 @@ class _StudentListScreenState extends State<StudentListScreen> {
               ],
             ),
           ),
-        ),
+          );
+        },
       );
+      // A popped dialog remains mounted during its exit animation.
+      // Wait for that transition before disposing TextEditingControllers.
+      await activeDialogRoute?.completed;
       if (added == true && mounted) {
         // Saving completed; no success message is shown for a failed write.
         _searchCtrl.clear();
