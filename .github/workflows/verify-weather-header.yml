@@ -1,0 +1,44 @@
+name: Verify GradeFlow expandable Home weather widget without publishing
+
+on:
+  push:
+    branches:
+      - feature/weather-header-flyout-20261112
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradeflow-weather-header
+  cancel-in-progress: true
+
+jobs:
+  validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze
+        run: flutter analyze
+      - name: Test full GradeFlow app and weather visuals
+        run: flutter test
+      - name: Compile guarded production V2 (never deploy)
+        run: flutter build web --release --no-wasm-dry-run --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - name: Verify Hosting-only manifest
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const config=JSON.parse(fs.readFileSync('firebase.live.json','utf8'));
+          if (Object.keys(config).some(k=>k!=='hosting') || config.hosting.public!=='build/web') {
+            throw Error('Hosting-only manifest required');
+          }
+          NODE
+          echo 'Tests and compilation only; NO Firebase deployment.' >> "$GITHUB_STEP_SUMMARY"
