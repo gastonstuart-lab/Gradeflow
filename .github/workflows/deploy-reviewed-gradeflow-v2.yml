@@ -49,7 +49,7 @@ jobs:
       - name: Checkout exact tested GradeFlow V2 candidate (not old main)
         uses: actions/checkout@v4
         with:
-          ref: 7d6f432d981c78352c923cd2f955e9217668ba96
+          ref: 19c90232724224d7a2eeed624dd8f13c47ccc170
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "7d6f432d981c78352c923cd2f955e9217668ba96"
+          test "$(git rev-parse HEAD)" = "19c90232724224d7a2eeed624dd8f13c47ccc170"
           grep -q "'login-boxes'" lib/config/gradeflow_existing_project_preview.dart
           grep -q 'GRADEFLOW_LIVE_CLASSROOM_V2' lib/config/gradeflow_live_v2_release.dart
           test -f lib/services/school_calendar_grid_parser.dart
@@ -87,6 +87,17 @@ jobs:
           grep -q 'gradeflow-weather-desktop-surface' lib/components/home/gradeflow_weather_chip.dart
           grep -q 'gradeflow-weather-hourly-scroll' lib/components/home/gradeflow_weather_visuals.dart
           test -f test/gradeflow_weather_widget_test.dart
+          test -f lib/services/class_directory_insights_loader.dart
+          test -f test/class_directory_command_centre_test.dart
+          grep -q 'ClassDirectoryDashboard(' lib/os/surfaces/class_directory_surface.dart
+          test -f test/student_add_safety_test.dart
+          test -f test/student_add_discovery_widget_test.dart
+          grep -q 'roster-add-student' lib/screens/student_list_screen.dart
+          grep -q 'class-drawer-add-student' lib/os/surfaces/class_directory_surface.dart
+          grep -q 'openAddOnLoad: state.uri.queryParameters' lib/nav.dart
+          grep -q 'await repo.saveStudents(classId, updated);' lib/services/student_service.dart
+          # A preview bundle still rejects production and unrelated hosts.
+          grep -q "'classes-v2'," lib/config/gradeflow_existing_project_preview.dart
           grep -q 'instructos-boxes-base' lib/widgets/branding/instructos_boxes_background.dart
           grep -q -- '--boxes-start:#f7fbfe' web/index.html
           grep -q -- '--boxes-start:#07101d' web/index.html
