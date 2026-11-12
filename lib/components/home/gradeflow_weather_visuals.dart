@@ -85,12 +85,27 @@ class GradeFlowWeatherHero extends StatelessWidget {
 }
 
 /// Temperature-line chart plus forecast icons and rain percentages.
-class GradeFlowHourlyWeather extends StatelessWidget {
+class GradeFlowHourlyWeather extends StatefulWidget {
   const GradeFlowHourlyWeather({super.key, required this.hours});
   final List<GradeFlowWeatherHour> hours;
 
   @override
+  State<GradeFlowHourlyWeather> createState() =>
+      _GradeFlowHourlyWeatherState();
+}
+
+class _GradeFlowHourlyWeatherState extends State<GradeFlowHourlyWeather> {
+  final ScrollController hourlyScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    hourlyScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final hours = widget.hours;
     if (hours.isEmpty) return const Text('Hourly forecast unavailable');
     final theme = Theme.of(context);
     final accent = theme.colorScheme.primary;
@@ -98,11 +113,28 @@ class GradeFlowHourlyWeather extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Temperature trend',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800)),
+        Row(children: [
+          Expanded(
+            child: Text('Temperature trend',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800)),
+          ),
+          Icon(Icons.keyboard_double_arrow_right_rounded,
+              size: 16, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 3),
+          Text('Scroll for later hours',
+              style: TextStyle(fontSize: 10.5,
+                color: theme.colorScheme.onSurfaceVariant)),
+        ]),
         const SizedBox(height: 12),
-        SingleChildScrollView(
+        Scrollbar(
+          controller: hourlyScrollController,
+          thumbVisibility: true,
+          thickness: 4,
+          radius: const Radius.circular(6),
+          child: SingleChildScrollView(
+          key: const ValueKey('gradeflow-weather-hourly-scroll'),
+          controller: hourlyScrollController,
           scrollDirection: Axis.horizontal,
           child: SizedBox(
             width: chartWidth,
@@ -141,6 +173,7 @@ class GradeFlowHourlyWeather extends StatelessWidget {
                   ),
               ]),
             ]),
+          ),
           ),
         ),
       ],

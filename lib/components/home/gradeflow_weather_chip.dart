@@ -38,6 +38,7 @@ class _GradeFlowWeatherChipState extends State<GradeFlowWeatherChip> {
       controller.refresh();
     }
     final screen = MediaQuery.sizeOf(context);
+    final shortScreen = screen.height < 740;
     if (screen.width < 700) {
       showModalBottomSheet<void>(
         context: context,
@@ -60,15 +61,27 @@ class _GradeFlowWeatherChipState extends State<GradeFlowWeatherChip> {
           child: Align(
             alignment: Alignment.topRight,
             child: Padding(
-              padding: const EdgeInsets.only(top: 76, right: 20, bottom: 20),
+              padding: EdgeInsets.only(
+                top: shortScreen ? 14 : 76,
+                right: 20,
+                bottom: shortScreen ? 12 : 20,
+              ),
               child: Material(
+                key: const ValueKey('gradeflow-weather-desktop-surface'),
                 elevation: 20,
                 borderRadius: BorderRadius.circular(27),
                 color: Theme.of(context).colorScheme.surface,
                 clipBehavior: Clip.antiAlias,
                 child: SizedBox(
                   width: 405,
-                  child: _WeatherFlyout(controller: controller),
+                  // Prevent the forecast footer from slipping beneath the
+                  // Windows taskbar on shorter desktop/browser viewports.
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: screen.height * (shortScreen ? .84 : .78),
+                    ),
+                    child: _WeatherFlyout(controller: controller),
+                  ),
                 ),
               ),
             ),
@@ -190,6 +203,13 @@ class _WeatherFlyout extends StatefulWidget {
 
 class _WeatherFlyoutState extends State<_WeatherFlyout> {
   bool hourly = true;
+  final ScrollController panelScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    panelScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -198,9 +218,16 @@ class _WeatherFlyoutState extends State<_WeatherFlyout> {
       animation: widget.controller,
       builder: (context, _) {
         final data = widget.controller.forecast;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
+        return Scrollbar(
+          controller: panelScrollController,
+          thumbVisibility: true,
+          thickness: 3,
+          radius: const Radius.circular(3),
+          child: SingleChildScrollView(
+            key: const ValueKey('gradeflow-weather-panel-scroll'),
+            controller: panelScrollController,
+            padding: const EdgeInsets.all(20),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -307,6 +334,7 @@ class _WeatherFlyoutState extends State<_WeatherFlyout> {
                 ),
               ],
             ],
+            ),
           ),
         );
       },
