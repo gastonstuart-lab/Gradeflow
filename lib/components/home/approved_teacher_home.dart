@@ -9,6 +9,7 @@ import 'package:gradeflow/components/home/teacher_home_clock.dart';
 import 'package:gradeflow/components/home/teacher_home_presentation.dart';
 import 'package:gradeflow/components/home/teacher_home_class_rail.dart';
 import 'package:gradeflow/components/home/home_planning_summary.dart';
+import 'package:gradeflow/components/home/gradeflow_weather_chip.dart';
 
 /// Approved desktop presentation, supplied only with existing Home data/actions.
 class ApprovedTeacherHome extends StatelessWidget {
@@ -138,6 +139,12 @@ class ApprovedTeacherHome extends StatelessWidget {
                 tooltip: 'More Home tools',
                 onPressed: onMoreHomeTools,
                 icon: const Icon(Icons.tune_rounded)),
+          // A small live weather control occupies only the roomy desktop
+          // header. Compact layouts keep the approved existing controls.
+          if (MediaQuery.sizeOf(context).width >= 1024) ...[
+            const GradeFlowWeatherChip(),
+            const SizedBox(width: 8),
+          ],
           IconButton(
               tooltip: 'Toggle theme',
               onPressed: onToggleTheme,
