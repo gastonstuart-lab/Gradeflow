@@ -1,0 +1,132 @@
+name: Review isolated GradeFlow Design Lab on demo-only Firebase PREVIEW
+run-name: GradeFlow Design Lab review / ${{ github.actor }}
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/preview-design-lab.yml
+      - scripts/publish-design-lab-hosting-rest.mjs
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: gradeflow-design-lab-demo-only-preview
+  cancel-in-progress: true
+
+jobs:
+  reviewed-design-lab:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    # The existing OIDC identity is only authorised in this protected
+    # environment. Publishing below only targets a separate PREVIEW channel.
+    environment: production
+    timeout-minutes: 55
+    steps:
+      - name: Checkout exact verified Design Lab candidate
+        uses: actions/checkout@v4
+        with:
+          ref: 922e17c0f8b635cbf61f983049b5979310ec4404
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - name: Assert exact demo-only source and Hosting-only manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "922e17c0f8b635cbf61f983049b5979310ec4404"
+          grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
+          grep -q 'InstructOSBoxesBackground(' lib/components/gradeflow_launch_experience.dart
+          grep -q 'InstructOSBoxesBackground(' lib/screens/login_screen.dart
+          test -f lib/repositories/preview_read_only_firestore_repository.dart
+          test -f lib/services/school_calendar_grid_parser.dart
+          grep -q 'showStudentPanel: showUnseatedRoster' lib/os/surfaces/classroom_surface.dart
+          grep -q 'context.go(AppRoutes.osHome)' lib/os/surfaces/classroom_surface.dart
+          test -f test/school_calendar_grid_parser_test.dart
+          test -f lib/components/home/home_planning_summary.dart
+          grep -q "HomePlanningSummary.entriesOnDay" lib/components/home/approved_teacher_home.dart
+          grep -q "title: 'Your week'" lib/components/home/approved_teacher_home.dart
+          test -f test/home_planning_summary_test.dart
+          test -f test/approved_teacher_home_planning_test.dart
+          test -f lib/components/planner/planner_date_math.dart
+          grep -q "PlannerDateMath.weekStart" lib/os/surfaces/planner_surface.dart
+          grep -q "class _PlannerWeekCard" lib/os/surfaces/planner_surface.dart
+          grep -q "class _PlannerAgendaCard" lib/os/surfaces/planner_surface.dart
+          test -f test/planner_date_math_test.dart
+          test -f lib/components/home/gradeflow_weather_chip.dart
+          test -f lib/components/home/gradeflow_weather_visuals.dart
+          test -f lib/services/gradeflow_weather_service.dart
+          grep -q 'GradeFlowWeatherChip(' lib/components/home/approved_teacher_home.dart
+          grep -q 'GradeFlowHourlyWeather' lib/components/home/gradeflow_weather_chip.dart
+          grep -q 'GradeFlowDailyWeather' lib/components/home/gradeflow_weather_chip.dart
+          test -f test/gradeflow_weather_widget_test.dart
+          test -f lib/design_lab_main.dart
+          test -f lib/design_lab/gradeflow_design_lab_app.dart
+          test -f lib/components/gradebook/gradeflow_quick_score_stepper.dart
+          test -f test/design_lab_widget_gallery_test.dart
+          grep -q 'GradeFlowDesignLabApp' lib/design_lab_main.dart
+          if grep -Eq 'Firebase\.initializeApp\(|RepositoryFactory\.instance|AuthService\(' lib/design_lab_main.dart lib/design_lab/*.dart; then
+            echo "Design Lab may not initialize Firebase or academic repositories" >&2
+            exit 1
+          fi
+
+          node - <<'NODE'
+          const c = require('./firebase.preview.json');
+          if (!c.hosting || c.hosting.public !== 'build/web' ||
+              !c.hosting.rewrites?.some(r => r.source === '**' && r.destination === '/index.html') ||
+              Object.keys(c).some(k => k !== 'hosting')) {
+            throw Error('Only the approved Hosting-only preview manifest is permitted');
+          }
+          NODE
+      - name: Install locked Flutter packages
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze Flutter source
+        run: flutter analyze
+      - name: Test Flutter app
+        run: flutter test
+      - name: Build standalone demo-only Design Lab (not the main app)
+        shell: bash
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/design_lab_main.dart \
+            --base-href /
+          test -s build/web/main.dart.js
+      - name: Confirm existing-project keyless Google identity configuration
+        shell: bash
+        env:
+          WIF_PROVIDER: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          [[ "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]]
+          [[ "$WIF_SERVICE_ACCOUNT" =~ ^[^@]+@gradeflow-20260113\.iam\.gserviceaccount\.com$ ]]
+      - name: Authenticate with short-lived main-branch GitHub OIDC
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          service_account: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+          project_id: gradeflow-20260113
+          create_credentials_file: true
+          export_environment_variables: true
+      - name: Set up gcloud for short-lived Workload Identity tokens
+        uses: google-github-actions/setup-gcloud@v3
+      - name: Checkout independent fixed-channel publisher from main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: preview-tools
+          persist-credentials: false
+      - name: Publish ONLY design-lab demo channel (never live or login-boxes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(grep -c "const channel = 'design-lab';" preview-tools/scripts/publish-design-lab-hosting-rest.mjs)" -eq 1
+          node preview-tools/scripts/publish-design-lab-hosting-rest.mjs
