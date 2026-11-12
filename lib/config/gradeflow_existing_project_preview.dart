@@ -20,7 +20,14 @@ class GradeFlowExistingProjectPreview {
     defaultValue: 'classroom-v2',
   );
 
-  static const allowedChannelIds = {'classroom-v2', 'login-boxes'};
+  // Add only individually reviewed, fixed Hosting preview channels.
+  // The build must still supply the matching channel ID explicitly and
+  // match its exact Firebase-generated host; no production host is allowed.
+  static const allowedChannelIds = {
+    'classroom-v2',
+    'login-boxes',
+    'classes-v2',
+  };
 
   /// A Firebase Hosting preview URL is SITE--CHANNEL-HASH.web.app.
   /// Production, arbitrary preview channels and near-matching hosts fail closed.
