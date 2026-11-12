@@ -74,7 +74,7 @@ jobs:
           test -f lib/components/gradebook/gradeflow_quick_score_stepper.dart
           test -f test/design_lab_widget_gallery_test.dart
           grep -q 'GradeFlowDesignLabApp' lib/design_lab_main.dart
-          if grep -Eq 'Firebase\\.initializeApp\\(|RepositoryFactory\\.instance|AuthService\\(' lib/design_lab_main.dart lib/design_lab/*.dart; then
+          if grep -Eq 'Firebase\.initializeApp\(|RepositoryFactory\.instance|AuthService\(' lib/design_lab_main.dart lib/design_lab/*.dart; then
             echo "Design Lab may not initialize Firebase or academic repositories" >&2
             exit 1
           fi
