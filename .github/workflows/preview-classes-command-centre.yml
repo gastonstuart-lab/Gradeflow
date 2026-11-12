@@ -29,7 +29,7 @@ jobs:
       - name: Checkout exact tested Classes V2 candidate
         uses: actions/checkout@v4
         with:
-          ref: ce4201367350d5a68863497beeaf2524bbf3bd95
+          ref: 70dae67c7d623f4d44375d335fae1d241acb94ba
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "ce4201367350d5a68863497beeaf2524bbf3bd95"
+          test "$(git rev-parse HEAD)" = "70dae67c7d623f4d44375d335fae1d241acb94ba"
           grep -q 'PreviewReadOnlyFirestoreRepository(userId: userId)' lib/repositories/repository_factory.dart
           grep -q 'InstructOSBoxesBackground(' lib/components/gradeflow_launch_experience.dart
           grep -q 'InstructOSBoxesBackground(' lib/screens/login_screen.dart
@@ -71,6 +71,10 @@ jobs:
           test -f test/gradeflow_weather_widget_test.dart
           test -f lib/services/class_directory_insights_loader.dart
           test -f test/class_directory_command_centre_test.dart
+          # Do not publish the class preview unless the reviewed source
+          # explicitly authorises this one Hosting preview channel.
+          grep -q "'classes-v2'," lib/config/gradeflow_existing_project_preview.dart
+          grep -q 'gradeflow-20260113--classes-v2-w7gbkip2.web.app' test/gradeflow_existing_project_preview_test.dart
           grep -q 'ClassDirectoryDashboard(' lib/os/surfaces/class_directory_surface.dart
           grep -q 'loadGradeItems' lib/services/class_directory_insights_loader.dart
           grep -q 'loadSeatingLayouts' lib/services/class_directory_insights_loader.dart
