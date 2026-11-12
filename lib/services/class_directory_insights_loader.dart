@@ -136,7 +136,7 @@ class ClassDirectoryInsightsLoader {
           possibleCells = roster.length * items.length;
           enteredCells = 0;
           for (final scores in lists) {
-            enteredCells += scores
+            enteredCells = enteredCells! + scores
                 .where((score) => validIds.contains(score.studentId) &&
                     score.score != null)
                 .map((score) => score.studentId).toSet().length;
