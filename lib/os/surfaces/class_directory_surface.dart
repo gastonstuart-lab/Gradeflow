@@ -104,6 +104,7 @@ class ClassDirectoryDashboard extends StatefulWidget {
     required this.onClassroom,
     required this.onGradebook,
     required this.onStudents,
+    this.onAddStudent,
     this.snapshot,
     this.now,
   });
@@ -117,6 +118,7 @@ class ClassDirectoryDashboard extends StatefulWidget {
   final ValueChanged<String> onClassroom;
   final ValueChanged<String> onGradebook;
   final ValueChanged<String> onStudents;
+  final ValueChanged<String>? onAddStudent;
 
   @override
   State<ClassDirectoryDashboard> createState() => _ClassDirectoryDashboardState();
@@ -575,6 +577,18 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
                     widget.onStudents(c.classId);
                   }, icon: const Icon(Icons.groups_outlined),
                     label: const Text('View students')),
+                  if (widget.onAddStudent != null) ...[
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      key: const ValueKey('class-drawer-add-student'),
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                        widget.onAddStudent!(c.classId);
+                      },
+                      icon: const Icon(Icons.person_add_alt_1_rounded),
+                      label: const Text('Add student to this class'),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   const Text('Figures reflect saved records only. Missing scores '
                       'are not necessarily overdue assignments.',
