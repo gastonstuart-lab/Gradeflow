@@ -49,7 +49,7 @@ jobs:
       - name: Checkout exact tested GradeFlow V2 candidate (not old main)
         uses: actions/checkout@v4
         with:
-          ref: e513a5c691a2c763aeab0f4562484876d45a25c5
+          ref: 7d6f432d981c78352c923cd2f955e9217668ba96
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "e513a5c691a2c763aeab0f4562484876d45a25c5"
+          test "$(git rev-parse HEAD)" = "7d6f432d981c78352c923cd2f955e9217668ba96"
           grep -q "'login-boxes'" lib/config/gradeflow_existing_project_preview.dart
           grep -q 'GRADEFLOW_LIVE_CLASSROOM_V2' lib/config/gradeflow_live_v2_release.dart
           test -f lib/services/school_calendar_grid_parser.dart
@@ -80,6 +80,13 @@ jobs:
           test -f test/home_planning_summary_test.dart
           test -f test/planner_date_math_test.dart
           test -f test/approved_teacher_home_planning_test.dart
+          test -f lib/components/home/gradeflow_weather_chip.dart
+          test -f lib/components/home/gradeflow_weather_visuals.dart
+          test -f lib/services/gradeflow_weather_service.dart
+          grep -q 'GradeFlowWeatherChip(' lib/components/home/approved_teacher_home.dart
+          grep -q 'gradeflow-weather-desktop-surface' lib/components/home/gradeflow_weather_chip.dart
+          grep -q 'gradeflow-weather-hourly-scroll' lib/components/home/gradeflow_weather_visuals.dart
+          test -f test/gradeflow_weather_widget_test.dart
           grep -q 'instructos-boxes-base' lib/widgets/branding/instructos_boxes_background.dart
           grep -q -- '--boxes-start:#f7fbfe' web/index.html
           grep -q -- '--boxes-start:#07101d' web/index.html
