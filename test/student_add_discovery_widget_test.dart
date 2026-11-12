@@ -99,7 +99,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byKey(const ValueKey('add-student-dialog')), findsOneWidget);
     expect(find.text('Adding to EEP1 J1FG G1'), findsOneWidget);
-    expect(find.textContaining('Place her in a chair separately'), findsOneWidget);
+    expect(find.textContaining('Place them in a'), findsOneWidget);
     expect(service.attemptedSaves, 0);
   });
 
