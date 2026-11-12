@@ -1,0 +1,74 @@
+name: Verify safe manual Add student and GradeFlow V2
+
+on:
+  push:
+    branches:
+      - feature/roster-add-student-safe-v2-20261112
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradeflow-roster-add-safety
+  cancel-in-progress: true
+
+jobs:
+  validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Verify read-only data and strict preview-host allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "'classes-v2'," lib/config/gradeflow_existing_project_preview.dart
+          grep -q 'gradeflow-20260113--classes-v2-w7gbkip2.web.app' test/gradeflow_existing_project_preview_test.dart
+      - name: Verify the view only reads school records
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f lib/services/class_directory_insights_loader.dart
+          test -f test/class_directory_command_centre_test.dart
+          grep -q 'ClassDirectoryDashboard(' lib/os/surfaces/class_directory_surface.dart
+          grep -q 'loadStudents' lib/services/class_directory_insights_loader.dart
+          grep -q 'loadGradeItems' lib/services/class_directory_insights_loader.dart
+          grep -q 'loadSeatingLayouts' lib/services/class_directory_insights_loader.dart
+          if grep -Eq 'repository\\.save|repository\\.delete|seedDemo' lib/services/class_directory_insights_loader.dart; then
+            echo 'Dashboard loader must be read-only' >&2
+            exit 1
+          fi
+      - name: Guard easily discoverable student entry and write errors
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f test/student_add_safety_test.dart
+          test -f test/student_add_discovery_widget_test.dart
+          grep -q "roster-add-student" lib/screens/student_list_screen.dart
+          grep -q "class-drawer-add-student" lib/os/surfaces/class_directory_surface.dart
+          grep -q "openAddOnLoad: state.uri.queryParameters" lib/nav.dart
+          grep -q 'await repo.saveStudents(classId, updated);' lib/services/student_service.dart
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze
+        run: flutter analyze
+      - name: Test full GradeFlow including manual student additions
+        run: flutter test
+      - name: Compile guarded production V2 (never deploy)
+        run: flutter build web --release --no-wasm-dry-run --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - name: Verify Hosting-only manifest
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const config=JSON.parse(fs.readFileSync('firebase.live.json','utf8'));
+          if (Object.keys(config).some(k=>k!=='hosting') || config.hosting.public!=='build/web') {
+            throw Error('Hosting-only manifest required');
+          }
+          NODE
+          echo 'Tests and compilation only; NO Firebase deployment.' >> "$GITHUB_STEP_SUMMARY"

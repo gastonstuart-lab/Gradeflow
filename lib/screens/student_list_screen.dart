@@ -23,7 +23,14 @@ enum _SortBy { studentId, seat, chinese, english }
 class StudentListScreen extends StatefulWidget {
   final String classId;
 
-  const StudentListScreen({super.key, required this.classId});
+  const StudentListScreen({
+    super.key,
+    required this.classId,
+    this.openAddOnLoad = false,
+  });
+
+  /// Used by the Classes dashboard's direct Add student action.
+  final bool openAddOnLoad;
 
   @override
   State<StudentListScreen> createState() => _StudentListScreenState();
@@ -37,6 +44,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
   bool _ascending = true;
   bool _selectionMode = false;
   final Set<String> _selectedStudentIds = {};
+  bool _openedAddOnLoad = false;
 
   void _goToClassWorkspace() {
     context.go('${AppRoutes.osClass}/${widget.classId}');
@@ -80,7 +88,13 @@ class _StudentListScreenState extends State<StudentListScreen> {
 
   Future<void> _loadStudents() async {
     await _ensureClassContextLoaded();
+    if (!mounted) return;
     await context.read<StudentService>().loadStudents(widget.classId);
+    if (!mounted) return;
+    if (widget.openAddOnLoad && !_openedAddOnLoad) {
+      _openedAddOnLoad = true;
+      await _showAddStudentDialog();
+    }
   }
 
   Future<void> _showImportDialog() async {
@@ -441,76 +455,191 @@ class _StudentListScreenState extends State<StudentListScreen> {
     final firstNameController = TextEditingController();
     final lastNameController = TextEditingController();
     final seatNoController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final className = context.read<ClassService>()
+            .getClassById(widget.classId)?.className ?? 'this class';
+    var saving = false;
+    String? saveError;
+    ModalRoute<dynamic>? activeDialogRoute;
 
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Student'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                  controller: studentIdController,
-                  decoration: const InputDecoration(labelText: 'Student ID *')),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                  controller: chineseNameController,
-                  decoration:
-                      const InputDecoration(labelText: 'Chinese Name *')),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                  controller: firstNameController,
-                  decoration:
-                      const InputDecoration(labelText: 'English First Name *')),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                  controller: lastNameController,
-                  decoration:
-                      const InputDecoration(labelText: 'English Last Name *')),
-              const SizedBox(height: AppSpacing.sm),
-              TextField(
-                  controller: seatNoController,
-                  decoration: const InputDecoration(labelText: 'Seat Number')),
-            ],
+    try {
+      final added = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          activeDialogRoute ??= ModalRoute.of(dialogContext);
+          return StatefulBuilder(
+          builder: (dialogContext, setDialogState) => PopScope(
+            canPop: !saving,
+            child: AlertDialog(
+              key: const ValueKey('add-student-dialog'),
+              title: const Text('Add student'),
+              content: SizedBox(
+                width: 430,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Adding to $className',
+                          style: Theme.of(dialogContext).textTheme.bodyMedium),
+                        const SizedBox(height: AppSpacing.md),
+                        TextFormField(
+                          key: const ValueKey('new-student-id'),
+                          controller: studentIdController,
+                          autofocus: true,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Student ID *',
+                            helperText: 'Use the student\'s official school ID',
+                          ),
+                          validator: (raw) {
+                            final id = (raw ?? '').trim();
+                            if (id.isEmpty) return 'Student ID is required';
+                            if (context.read<StudentService>().students.any(
+                              (student) =>
+                                student.studentId.trim().toLowerCase() ==
+                                id.toLowerCase(),
+                            )) {
+                              return 'That student ID is already in this class';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextFormField(
+                          key: const ValueKey('new-student-chinese-name'),
+                          controller: chineseNameController,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Chinese name *',
+                          ),
+                          validator: (value) => (value ?? '').trim().isEmpty
+                              ? 'Chinese name is required' : null,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextFormField(
+                          key: const ValueKey('new-student-first-name'),
+                          controller: firstNameController,
+                          textInputAction: TextInputAction.next,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'English first name *',
+                          ),
+                          validator: (value) => (value ?? '').trim().isEmpty
+                              ? 'First name is required' : null,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextFormField(
+                          key: const ValueKey('new-student-last-name'),
+                          controller: lastNameController,
+                          textInputAction: TextInputAction.next,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'English last name *',
+                          ),
+                          validator: (value) => (value ?? '').trim().isEmpty
+                              ? 'Last name is required' : null,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        TextFormField(
+                          key: const ValueKey('new-student-seat-number'),
+                          controller: seatNoController,
+                          textInputAction: TextInputAction.done,
+                          decoration: const InputDecoration(
+                            labelText: 'Seat number (optional)',
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'This adds the student to the roster only. Place them in a '
+                          'chair separately using Classroom > Arrange.',
+                          style: Theme.of(dialogContext).textTheme.bodySmall,
+                        ),
+                        if (saveError != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(saveError!,
+                            key: const ValueKey('student-add-error'),
+                            style: TextStyle(
+                              color: Theme.of(dialogContext).colorScheme.error),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving ? null :
+                    () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  key: const ValueKey('save-new-student'),
+                  onPressed: saving ? null : () async {
+                    if (formKey.currentState?.validate() != true) return;
+                    setDialogState(() {
+                      saving = true;
+                      saveError = null;
+                    });
+                    final now = DateTime.now();
+                    final student = Student(
+                      studentId: studentIdController.text.trim(),
+                      chineseName: chineseNameController.text.trim(),
+                      englishFirstName: firstNameController.text.trim(),
+                      englishLastName: lastNameController.text.trim(),
+                      seatNo: seatNoController.text.trim().isEmpty
+                          ? null : seatNoController.text.trim(),
+                      photoBase64: null,
+                      classId: widget.classId,
+                      createdAt: now,
+                      updatedAt: now,
+                    );
+                    try {
+                      await context.read<StudentService>().addStudent(student);
+                      if (dialogContext.mounted) {
+                        Navigator.of(dialogContext).pop(true);
+                      }
+                    } catch (error) {
+                      if (!dialogContext.mounted) return;
+                      setDialogState(() {
+                        saving = false;
+                        saveError = error.toString()
+                            .replaceFirst('Bad state: ', '')
+                            .replaceFirst('Invalid argument(s): ', '');
+                      });
+                    }
+                  },
+                  icon: saving
+                      ? const SizedBox(width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                  label: Text(saving ? 'Saving…' : 'Add student'),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Add')),
-        ],
-      ),
-    );
-
-    if (result == true && mounted) {
-      if (studentIdController.text.isEmpty ||
-          chineseNameController.text.isEmpty ||
-          firstNameController.text.isEmpty ||
-          lastNameController.text.isEmpty) {
-        _showError('Please fill in all required fields');
-        return;
-      }
-
-      final now = DateTime.now();
-      final student = Student(
-        studentId: studentIdController.text,
-        chineseName: chineseNameController.text,
-        englishFirstName: firstNameController.text,
-        englishLastName: lastNameController.text,
-        seatNo: seatNoController.text.isEmpty ? null : seatNoController.text,
-        photoBase64: null,
-        classId: widget.classId,
-        createdAt: now,
-        updatedAt: now,
+          );
+        },
       );
-
-      await context.read<StudentService>().addStudent(student);
-
-      _showSuccess('Student added successfully');
+      // A popped dialog remains mounted during its exit animation.
+      // Wait for that transition before disposing TextEditingControllers.
+      await activeDialogRoute?.completed;
+      if (added == true && mounted) {
+        // Saving completed; no success message is shown for a failed write.
+        _searchCtrl.clear();
+        setState(() => _query = '');
+        _showSuccess('Student added to $className. Assign a chair in Classroom.');
+      }
+    } finally {
+      studentIdController.dispose();
+      chineseNameController.dispose();
+      firstNameController.dispose();
+      lastNameController.dispose();
+      seatNoController.dispose();
     }
   }
 
@@ -929,6 +1058,19 @@ class _StudentListScreenState extends State<StudentListScreen> {
               ),
             ],
           ),
+          if (!_selectionMode) ...[
+            const SizedBox(height: WorkspaceSpacing.sm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                key: const ValueKey('roster-add-student'),
+                onPressed: _showAddStudentDialog,
+                icon: const Icon(Icons.person_add_alt_1_rounded),
+                label: const Text('Add student'),
+                style: WorkspaceButtonStyles.filled(context),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1168,17 +1310,6 @@ class _StudentListScreenState extends State<StudentListScreen> {
                     .push(AppRoutes.osClassStudentsTrash(widget.classId)),
               ),
             ],
-      floatingActionButton:
-          studentService.students.isNotEmpty && !_selectionMode
-              ? Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: FloatingActionButton(
-                    tooltip: 'Add student',
-                    onPressed: _showAddStudentDialog,
-                    child: const Icon(Icons.add),
-                  ),
-                )
-              : null,
       child: studentService.isLoading
           ? const WorkspaceLoadingState(
               title: 'Loading roster',

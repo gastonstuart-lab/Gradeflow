@@ -1,8 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
+import 'package:gradeflow/repositories/data_repository.dart';
 
 class StudentService extends ChangeNotifier {
+  StudentService({DataRepository? repository}) : _repository = repository;
+
+  final DataRepository? _repository;
   List<Student> _students = [];
   bool _isLoading = false;
 
@@ -24,16 +28,35 @@ class StudentService extends ChangeNotifier {
     }
   }
 
+  /// Add one student without dropping existing records or reporting a
+  /// successful save when the repository has rejected the change.
+  ///
+  /// Always re-read the class roster before appending so that a stale
+  /// in-memory roster cannot overwrite students added from another device.
+  /// A missing ID or an ID already used in this class is rejected explicitly.
   Future<void> addStudent(Student newStudent) async {
-    try {
-      _students.add(newStudent);
-      _students = _sortStudentsByStudentId(_students);
-      final repo = RepositoryFactory.instance;
-      await repo.saveStudents(newStudent.classId, _students);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to add student: $e');
+    final id = newStudent.studentId.trim();
+    final classId = newStudent.classId.trim();
+    if (id.isEmpty || classId.isEmpty) {
+      throw ArgumentError('Student ID and class must not be empty.');
     }
+    final repo = _repository ?? RepositoryFactory.instance;
+    final existing = await repo.loadStudents(classId);
+    if (existing.any((student) =>
+        student.studentId.trim().toLowerCase() == id.toLowerCase())) {
+      throw StateError(
+        'Student ID $id already exists in this class. Open the existing '
+        'student record instead of creating a duplicate.',
+      );
+    }
+    final updated = _sortStudentsByStudentId([
+      ...existing,
+      newStudent.copyWith(studentId: id),
+    ]);
+    await repo.saveStudents(classId, updated);
+    // Update the local roster only after the persistence operation succeeds.
+    _students = updated;
+    notifyListeners();
   }
 
   Future<void> addStudents(List<Student> newStudents) async {

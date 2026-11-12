@@ -180,7 +180,10 @@ class AppRouter {
             state,
             surface: OSSurface.classWorkspace,
             classId: classId,
-            child: StudentListScreen(classId: classId),
+            child: StudentListScreen(
+              classId: classId,
+              openAddOnLoad: state.uri.queryParameters['add'] == '1',
+            ),
           );
         },
       ),

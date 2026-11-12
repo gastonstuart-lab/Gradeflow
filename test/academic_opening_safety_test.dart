@@ -112,15 +112,22 @@ void main() {
   testWidgets('adding a student leaves all existing assessments unmarked',
       (tester) async {
     await mount(tester, const StudentListScreen(classId: 'synthetic'));
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byKey(const ValueKey('roster-add-student')));
     await tester.pumpAndSettle();
-    final fields = find.descendant(
-        of: find.byType(AlertDialog), matching: find.byType(TextField));
-    for (var i = 0; i < 5; i++) {
+    final keys = [
+      'new-student-id',
+      'new-student-chinese-name',
+      'new-student-first-name',
+      'new-student-last-name',
+      'new-student-seat-number',
+    ];
+    for (var i = 0; i < keys.length; i++) {
       await tester.enterText(
-          fields.at(i), ['fixture-two', '測試', 'Fixture', 'Two', '2'][i]);
+        find.byKey(ValueKey(keys[i])),
+        ['fixture-two', '測試', 'Fixture', 'Two', '2'][i],
+      );
     }
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.tap(find.byKey(const ValueKey('save-new-student')));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(
