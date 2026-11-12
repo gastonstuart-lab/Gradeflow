@@ -1,0 +1,58 @@
+name: Verify GradeFlow eight-class command centre without publishing
+
+on:
+  push:
+    branches:
+      - feature/classes-command-centre-v2-20261112
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradeflow-classes-command-centre
+  cancel-in-progress: true
+
+jobs:
+  validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Verify the view only reads school records
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f lib/services/class_directory_insights_loader.dart
+          test -f test/class_directory_command_centre_test.dart
+          grep -q 'ClassDirectoryDashboard(' lib/os/surfaces/class_directory_surface.dart
+          grep -q 'loadStudents' lib/services/class_directory_insights_loader.dart
+          grep -q 'loadGradeItems' lib/services/class_directory_insights_loader.dart
+          grep -q 'loadSeatingLayouts' lib/services/class_directory_insights_loader.dart
+          if grep -Eq 'repository\\.save|repository\\.delete|seedDemo' lib/services/class_directory_insights_loader.dart; then
+            echo 'Dashboard loader must be read-only' >&2
+            exit 1
+          fi
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze
+        run: flutter analyze
+      - name: Test full app and authenticated Classes command centre
+        run: flutter test
+      - name: Compile guarded production V2 (never deploy)
+        run: flutter build web --release --no-wasm-dry-run --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - name: Verify Hosting-only manifest
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const config=JSON.parse(fs.readFileSync('firebase.live.json','utf8'));
+          if (Object.keys(config).some(k=>k!=='hosting') || config.hosting.public!=='build/web') {
+            throw Error('Hosting-only manifest required');
+          }
+          NODE
+          echo 'Tests and compilation only; NO Firebase deployment.' >> "$GITHUB_STEP_SUMMARY"
