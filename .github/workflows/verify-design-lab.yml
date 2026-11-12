@@ -1,0 +1,53 @@
+name: Verify isolated GradeFlow Design Lab
+on:
+  push:
+    branches:
+      - feature/design-lab-gradebook-quick-entry-20261112
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradeflow-design-lab-checks
+  cancel-in-progress: true
+
+jobs:
+  design-lab-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Verify standalone entrypoint and real approved components
+        run: |
+          set -euo pipefail
+          test -f lib/design_lab_main.dart
+          test -f lib/design_lab/gradeflow_design_lab_app.dart
+          test -f lib/components/gradebook/gradeflow_quick_score_stepper.dart
+          grep -q 'GradeFlowWeatherHero' lib/design_lab/gradeflow_design_lab_app.dart
+          grep -q 'TeacherHomeClassRail' lib/design_lab/gradeflow_design_lab_app.dart
+          test -f test/design_lab_widget_gallery_test.dart
+          if grep -Eq 'Firebase\.initializeApp\(|RepositoryFactory\.instance|AuthService\(' lib/design_lab_main.dart lib/design_lab/*.dart; then
+            echo 'Design Lab must not initialize auth or student data' >&2
+            exit 1
+          fi
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze entire Flutter app
+        run: flutter analyze
+      - name: Run full GradeFlow test suite
+        run: flutter test
+      - name: Build separate web-only Design Lab (never publish)
+        run: |
+          flutter build web --release --no-wasm-dry-run --target lib/design_lab_main.dart
+          test -s build/web/index.html
+          test -s build/web/main.dart.js
+      - name: Confirm live Hosting was not touched
+        run: |
+          echo 'Isolated gallery, sample data only. No Firebase deployment performed.' >> "$GITHUB_STEP_SUMMARY"
