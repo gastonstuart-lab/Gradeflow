@@ -86,6 +86,7 @@ class _ClassDirectorySurfaceState extends State<ClassDirectorySurface> {
       onClassroom: (id) => context.go(AppRoutes.osClassroom(id)),
       onGradebook: (id) => context.go(AppRoutes.osClassGradebook(id)),
       onStudents: (id) => context.go(AppRoutes.osClassStudents(id)),
+      onAddStudent: (id) => context.go('${AppRoutes.osClassStudents(id)}?add=1'),
     );
   }
 }
