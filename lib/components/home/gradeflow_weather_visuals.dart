@@ -56,7 +56,7 @@ class GradeFlowWeatherHero extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Text(forecast.temperature.round().toString() + '°',
+          Text('${forecast.temperature.round()}°',
               style: const TextStyle(fontSize: 64, height: 1,
                   fontWeight: FontWeight.w300, letterSpacing: -3,
                   color: Colors.white)),
@@ -76,10 +76,8 @@ class GradeFlowWeatherHero extends StatelessWidget {
             style: const TextStyle(color: Colors.white,
                 fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 4),
-        Text('Feels like ' + forecast.feelsLike.round().toString() + '°'
-            + (forecast.days.isEmpty ? '' : '  ·  High '
-                + forecast.days.first.high.round().toString() + '° / Low '
-                + forecast.days.first.low.round().toString() + '°'),
+        Text('Feels like ${forecast.feelsLike.round()}°'
+            '${forecast.days.isEmpty ? '' : '  ·  High ${forecast.days.first.high.round()}° / Low ${forecast.days.first.low.round()}°'}',
           style: const TextStyle(color: Color(0xffE8F5FF), fontSize: 12)),
       ]),
     );
@@ -132,11 +130,11 @@ class GradeFlowHourlyWeather extends StatelessWidget {
                       Icon(gradeFlowWeatherIcon(h.weatherCode),
                           color: accent, size: 19),
                       const SizedBox(height: 6),
-                      Text(h.temperature.round().toString() + '°',
+                      Text('${h.temperature.round()}°',
                           style: const TextStyle(fontSize: 12,
                               fontWeight: FontWeight.w800)),
                       const SizedBox(height: 3),
-                      Text(h.rainChance.toString() + '% rain',
+                      Text('${h.rainChance}% rain',
                           style: TextStyle(fontSize: 10,
                             color: theme.colorScheme.onSurfaceVariant)),
                     ]),
@@ -219,10 +217,10 @@ class GradeFlowDailyWeather extends StatelessWidget {
               Icon(gradeFlowWeatherIcon(d.weatherCode),
                   color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: 5),
-              SizedBox(width: 47, child: Text(d.rainChance.toString() + '%',
+              SizedBox(width: 47, child: Text('${d.rainChance}%',
                   style: TextStyle(fontSize: 11,
                       color: theme.colorScheme.onSurfaceVariant))),
-              Text(d.low.round().toString() + '°',
+              Text('${d.low.round()}°',
                   style: theme.textTheme.labelMedium),
               const SizedBox(width: 8),
               Expanded(child: LayoutBuilder(builder: (_, constraints) {
@@ -247,7 +245,7 @@ class GradeFlowDailyWeather extends StatelessWidget {
                 ]));
               })),
               const SizedBox(width: 8),
-              Text(d.high.round().toString() + '°',
+              Text('${d.high.round()}°',
                   style: const TextStyle(fontSize: 12,
                       fontWeight: FontWeight.w800)),
             ]),
