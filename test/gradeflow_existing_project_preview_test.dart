@@ -84,6 +84,60 @@ void main() {
     );
   });
 
+  test('classes-v2 preview permits only its exact approved Hosting domain', () {
+    const host = 'gradeflow-20260113--classes-v2-w7gbkip2.web.app';
+    expect(
+      GradeFlowExistingProjectPreview.isAllowedPreviewHost(
+        host, expectedChannel: 'classes-v2',
+      ),
+      isTrue,
+    );
+    expect(
+      GradeFlowExistingProjectPreview.mayStart(
+        enabled: true,
+        stagingEnabled: false,
+        emulatorEnabled: false,
+        isWeb: true,
+        projectId: project,
+        originHost: host,
+        expectedChannel: 'classes-v2',
+      ),
+      isTrue,
+    );
+    // The existing default channel and other review channels remain separate.
+    expect(GradeFlowExistingProjectPreview.isAllowedPreviewHost(host), isFalse);
+    expect(
+      GradeFlowExistingProjectPreview.isAllowedPreviewHost(
+        host, expectedChannel: 'login-boxes'),
+      isFalse,
+    );
+    for (final invalidHost in [
+      'gradeflow-20260113.web.app',
+      'gradeflow-20260113.firebaseapp.com',
+      'gradeflow-20260113--classes-v2-w7gbkip2.firebaseapp.com',
+      'gradeflow-20260113--classes-v2-w7gbkip2.web.app.evil.example',
+      'gradeflow-20260113--classes-v3-w7gbkip2.web.app',
+      'gradeflow-20260113--live-w7gbkip2.web.app',
+    ]) {
+      expect(
+        GradeFlowExistingProjectPreview.isAllowedPreviewHost(
+          invalidHost, expectedChannel: 'classes-v2'),
+        isFalse, reason: 'Must fail closed for $invalidHost',
+      );
+    }
+    expect(
+      GradeFlowExistingProjectPreview.mayStart(
+        enabled: true,
+        stagingEnabled: false,
+        emulatorEnabled: false,
+        isWeb: true,
+        projectId: project,
+        originHost: host,
+        expectedChannel: 'arbitrary-preview',
+      ), isFalse,
+    );
+  });
+
   test('blocks the live GradeFlow site and other firebaseapp/Hosting sites', () {
     for (final host in <String>[
       'gradeflow-20260113.web.app',
