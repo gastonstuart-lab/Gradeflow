@@ -158,7 +158,7 @@ class ClassDirectoryInsightsLoader {
       enteredCells: enteredCells,
       studentSearchTokens: roster == null ? const [] : [
         for (final student in roster)
-          '\${student.englishFullName} \${student.chineseName} \${student.studentId}'
+          '${student.englishFullName} ${student.chineseName} ${student.studentId}'
               .toLowerCase(),
       ],
       nextLesson: nextLessonForClass(classItem, allClasses, slots, now),
