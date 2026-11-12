@@ -114,7 +114,7 @@ class GradeFlowWeatherService {
     final hours = <GradeFlowWeatherHour>[];
     if (firstHour >= 0) {
       for (var index = firstHour;
-          index < hourTimes.length && hours.length < 6;
+          index < hourTimes.length && hours.length < 12;
           index++) {
         if (index >= hourTemps.length ||
             index >= hourRain.length ||
