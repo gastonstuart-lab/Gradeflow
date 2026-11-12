@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -581,7 +582,7 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
               )),
           ),
         ),
-      )),
+      ),
       transitionBuilder: (_, animation, __, child) => SlideTransition(
         position: Tween<Offset>(begin: const Offset(.15, 0), end: Offset.zero)
             .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
