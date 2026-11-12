@@ -1,0 +1,54 @@
+name: Verify GradeFlow Excel export policy parity without publishing
+
+on:
+  push:
+    branches:
+      - fix/gradebook-excel-policy-parity-20261112
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gradeflow-export-parity
+  cancel-in-progress: true
+
+jobs:
+  validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Guard export against hard-coded grade formulas
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'GradebookExportProjection.calculatedValues' lib/screens/native_gradebook_screen.dart
+          test -f test/gradebook_export_projection_test.dart
+          if grep -q "FormulaCellValue('IF(COUNT(L" lib/screens/native_gradebook_screen.dart; then
+            echo 'Old fixed XLSX final-grade formula remains' >&2
+            exit 1
+          fi
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze
+        run: flutter analyze
+      - name: Test Gradebook export parity and complete GradeFlow suite
+        run: flutter test
+      - name: Compile guarded production V2 (never deploy)
+        run: flutter build web --release --no-wasm-dry-run --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - name: Verify Hosting-only manifest
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const config=JSON.parse(fs.readFileSync('firebase.live.json','utf8'));
+          if (Object.keys(config).some(k=>k!=='hosting') || config.hosting.public!=='build/web') {
+            throw Error('Hosting-only manifest required');
+          }
+          NODE
+          echo 'Tests and compilation only; NO Firebase deployment.' >> "$GITHUB_STEP_SUMMARY"
