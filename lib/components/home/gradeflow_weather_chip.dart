@@ -114,7 +114,7 @@ class _GradeFlowWeatherChipState extends State<GradeFlowWeatherChip> {
                   Text(
                     current == null
                         ? 'Weather'
-                        : current.temperature.round().toString() + '°',
+                        : '${current.temperature.round()}°',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       color: scheme.onSurface, fontSize: 14),
@@ -255,17 +255,17 @@ class _WeatherFlyoutState extends State<_WeatherFlyout> {
                     icon: Icons.water_drop_outlined,
                     label: 'Rain',
                     value: data.hours.isEmpty
-                        ? '—' : data.hours.first.rainChance.toString() + '%')),
+                        ? '—' : '${data.hours.first.rainChance}%')),
                   const SizedBox(width: 8),
                   Expanded(child: _WeatherStat(
                     icon: Icons.opacity_rounded,
                     label: 'Humidity',
-                    value: data.humidity.toString() + '%')),
+                    value: '${data.humidity}%')),
                   const SizedBox(width: 8),
                   Expanded(child: _WeatherStat(
                     icon: Icons.air_rounded,
                     label: 'Wind',
-                    value: data.windKmh.round().toString() + ' km/h')),
+                    value: '${data.windKmh.round()} km/h')),
                 ]),
                 const SizedBox(height: 22),
                 SegmentedButton<bool>(
@@ -293,8 +293,7 @@ class _WeatherFlyoutState extends State<_WeatherFlyout> {
                           days: data.days),
                 ),
                 const SizedBox(height: 18),
-                Text('Updated ' + (data.observedTime.length >= 16
-                    ? data.observedTime.substring(11, 16) : 'recently'),
+                Text('Updated ${data.observedTime.length >= 16 ? data.observedTime.substring(11, 16) : 'recently'}',
                   style: TextStyle(fontSize: 11,
                     color: scheme.onSurfaceVariant)),
                 Align(
