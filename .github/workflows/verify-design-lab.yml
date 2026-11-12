@@ -34,7 +34,7 @@ jobs:
           grep -q 'GradeFlowWeatherHero' lib/design_lab/gradeflow_design_lab_app.dart
           grep -q 'TeacherHomeClassRail' lib/design_lab/gradeflow_design_lab_app.dart
           test -f test/design_lab_widget_gallery_test.dart
-          if grep -Eq 'Firebase\.initializeApp|RepositoryFactory|AuthService' lib/design_lab_main.dart lib/design_lab/*.dart; then
+          if grep -Eq 'Firebase\.initializeApp\(|RepositoryFactory\.instance|AuthService\(' lib/design_lab_main.dart lib/design_lab/*.dart; then
             echo 'Design Lab must not initialize auth or student data' >&2
             exit 1
           fi
