@@ -21,7 +21,9 @@ void main() {
     final themeBefore = Theme.of(
       tester.element(find.byKey(const ValueKey('lab-toggle-theme')))).brightness;
     await tester.tap(find.byKey(const ValueKey('lab-toggle-theme')));
+    // MaterialApp transitions theme brightness over an animation frame.
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     final themeAfter = Theme.of(
       tester.element(find.byKey(const ValueKey('lab-toggle-theme')))).brightness;
     expect(themeAfter, isNot(themeBefore));
