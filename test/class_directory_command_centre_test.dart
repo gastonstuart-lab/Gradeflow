@@ -172,6 +172,7 @@ void main() {
       _class('s','J2 Science','Science'),
       _class('e','EEP1 English','General'),
     ];
+    String? addedToClass;
     await tester.pumpWidget(MaterialApp(home:ClassDirectoryDashboard(
       classes:classes,loading:false,
       snapshot:ClassDirectorySnapshot(hasTimetable:false,items:[
@@ -183,6 +184,7 @@ void main() {
       ]),
       onHome:(){},onImport:(){},onRefresh:(){},
       onClassroom:(_){},onGradebook:(_){},onStudents:(_){},
+      onAddStudent:(id)=>addedToClass=id,
     )));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('class-filter-Science')));
@@ -200,6 +202,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Still to seat'),findsOneWidget);
     expect(find.text('Unentered score cells'),findsWidgets);
+    await tester.tap(find.byKey(const ValueKey('class-drawer-add-student')));
+    await tester.pump();
+    expect(addedToClass, 's');
+    // Re-open to confirm the ordinary close control remains functional.
+    await tester.tap(find.byKey(const ValueKey('class-card-s')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byTooltip('Close class details'));
     await tester.pump();
     expect(tester.takeException(),isNull);
