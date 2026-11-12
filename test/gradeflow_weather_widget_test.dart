@@ -61,6 +61,88 @@ void main() {
     expect(forecast.isDay, isTrue);
   });
 
+  testWidgets('Short desktop weather flyout stays inside viewport and scrolls',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 620);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final provider = GradeFlowWeatherService(
+      get: (_) async => http.Response(jsonEncode(_fixture()), 200),
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Align(
+        alignment: Alignment.topRight,
+        child: GradeFlowWeatherChip(service: provider),
+      )),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byKey(const ValueKey('gradeflow-weather-trigger')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final surface = find.byKey(
+        const ValueKey('gradeflow-weather-desktop-surface'));
+    expect(surface, findsOneWidget);
+    expect(tester.getBottomRight(surface).dy, lessThanOrEqualTo(620));
+    expect(find.byKey(const ValueKey('gradeflow-weather-panel-scroll')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('gradeflow-weather-hourly-scroll')),
+        findsOneWidget);
+    expect(find.text('Scroll for later hours'), findsOneWidget);
+    await tester.ensureVisible(find.text('5 days'));
+    await tester.pump();
+    await tester.tap(find.text('5 days'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey('weather-five-day-forecast')),
+        findsOneWidget);
+    await tester.ensureVisible(find.text('Forecast data: Open-Meteo'));
+    await tester.pump();
+    expect(tester.getBottomRight(surface).dy, lessThanOrEqualTo(620));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Weather forecast opens as a scrollable sheet in dark mobile theme',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 740);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final provider = GradeFlowWeatherService(
+      get: (_) async => http.Response(jsonEncode(_fixture()), 200),
+    );
+    await tester.pumpWidget(MaterialApp(
+      theme: ThemeData(brightness: Brightness.dark),
+      home: Scaffold(body: Align(
+        alignment: Alignment.topRight,
+        child: GradeFlowWeatherChip(service: provider),
+      )),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.tap(find.byKey(const ValueKey('gradeflow-weather-trigger')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey('gradeflow-weather-desktop-surface')),
+        findsNothing);
+    expect(find.byKey(const ValueKey('gradeflow-weather-panel-scroll')),
+        findsOneWidget);
+    final panelContext = tester.element(
+        find.byKey(const ValueKey('gradeflow-weather-panel-scroll')));
+    expect(Theme.of(panelContext).brightness, Brightness.dark);
+
+    await tester.ensureVisible(find.text('5 days'));
+    await tester.pump();
+    await tester.tap(find.text('5 days'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey('weather-five-day-forecast')),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Small weather trigger opens graphic hourly and daily forecasts',
       (tester) async {
     tester.view.physicalSize = const Size(1440, 900);
