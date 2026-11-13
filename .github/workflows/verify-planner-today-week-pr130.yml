@@ -13,6 +13,7 @@ on:
       - 'lib/os/surfaces/planner_surface.dart'
       - 'test/planner_teaching_workspace_test.dart'
       - 'test/os_shell_surfaces_test.dart'
+      - 'test/planner_synthetic_full_page_test.dart'
 
 permissions:
   contents: read
@@ -49,7 +50,8 @@ jobs:
             lib/main_classroom_preview.dart \
             lib/os/surfaces/planner_surface.dart \
             test/planner_teaching_workspace_test.dart \
-            test/os_shell_surfaces_test.dart
+            test/os_shell_surfaces_test.dart \
+            test/planner_synthetic_full_page_test.dart
 
       - name: Run focused Flutter tests and render synthetic light/dark screenshots
         run: |
@@ -57,14 +59,16 @@ jobs:
           flutter test \
             --dart-define=PLANNER_PREVIEW_DIR="$GITHUB_WORKSPACE/planner-review-artifacts" \
             test/planner_teaching_workspace_test.dart \
-            test/os_shell_surfaces_test.dart
+            test/os_shell_surfaces_test.dart \
+            test/planner_synthetic_full_page_test.dart
 
       - name: Assert synthetic preview cannot start Firebase or production app
         shell: bash
         run: |
           set -euo pipefail
           grep -Fq 'RepositoryFactory.useLocal()' lib/main_classroom_preview.dart
-          grep -Fq 'PlannerTeachingWorkspace(' lib/main_classroom_preview.dart
+          grep -Fq 'PlannerSurface(' lib/main_classroom_preview.dart
+          grep -Fq 'syntheticPreview: demoPlanner' lib/main_classroom_preview.dart
           if grep -Eq "import 'package:gradeflow/(main\\.dart|providers/app_providers\\.dart|services/firebase_service\\.dart)'" lib/main_classroom_preview.dart; then
             echo 'Synthetic preview must not import the production app/Firebase bootstrap.' >&2
             exit 1
