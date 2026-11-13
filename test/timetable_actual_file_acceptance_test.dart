@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:csv/csv.dart';
+import 'package:excel/excel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 
@@ -12,14 +13,33 @@ void main() {
     test(
         'actual corrected ${input.key} has eight groups and 24 unchanged periods',
         () async {
-      final source = File(csvPath);
-      final rows =
-          const CsvToListConverter(eol: '\n', shouldParseNumbers: false)
-              .convert(utf8
-                  .decode(await source.readAsBytes())
-                  .replaceAll('\r\n', '\n')
-                  .replaceAll('\uFEFF', ''));
-      final headings = rows.first.map((c) => c.toString()).toList();
+      final bytes = await File(input.value).readAsBytes();
+      final List<List<String>> rows;
+      if (input.key == 'csv') {
+        rows = const CsvToListConverter(eol: '\n', shouldParseNumbers: false)
+            .convert(utf8
+                .decode(bytes)
+                .replaceAll('\r\n', '\n')
+                .replaceAll('\uFEFF', ''))
+            .map((row) => row.map((cell) => cell.toString().trim()).toList())
+            .toList();
+      } else {
+        final workbook = Excel.decodeBytes(bytes);
+        final sheet =
+            workbook.tables.values.firstWhere((sheet) => sheet.maxRows > 0);
+        rows = sheet.rows
+            .map((row) => row
+                .map((cell) => cell?.value?.toString().trim() ?? '')
+                .toList())
+            .toList();
+      }
+      final headings = rows.first;
+      expect(
+          headings,
+          containsAll(
+              ['Time', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']),
+          reason:
+              'The acceptance file must contain the corrected timetable header.');
       final timeColumn = headings.indexOf('Time');
       final expected = <String>[];
       for (final row in rows.skip(1)) {
@@ -40,7 +60,7 @@ void main() {
         }
       }
       final parsed = HomeWeeklyTimetableService.inspectBytes(
-          filename: input.value, bytes: await File(input.value).readAsBytes());
+          filename: input.value, bytes: bytes);
       expect(parsed.classes, hasLength(24));
       expect(parsed.classes.map((l) => l.title).toSet(), hasLength(8));
       final actual = parsed.classes
@@ -49,7 +69,7 @@ void main() {
           .toList();
       expect(actual..sort(), expected..sort());
     },
-        skip: input.value.isEmpty || csvPath.isEmpty
+        skip: input.value.isEmpty
             ? 'Supply original corrected acceptance files explicitly.'
             : false);
   }
