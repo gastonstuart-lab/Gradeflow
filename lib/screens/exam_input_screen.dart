@@ -51,6 +51,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
   bool _didScrollToHighlight = false;
   final Map<String, Timer> _saveDebouncers = {};
   bool _hydratingData = true;
+  final Set<Future<bool>> _pendingSaves = {};
 
   void _goToClassWorkspace() {
     context.go('${AppRoutes.osClass}/${widget.classId}');
@@ -164,6 +165,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     }
     _saveDebouncers.clear();
 
+    await Future.wait(_pendingSaves.toList());
     if (!mounted) return 0;
     final studentService = context.read<StudentService>();
     final examService = context.read<FinalExamService>();
@@ -406,7 +408,17 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     return _pickExamBytesFromLink();
   }
 
-  Future<void> _updateExam(String studentId, double? score) async {
+  Future<bool> _updateExam(String studentId, double? score) async {
+    final save = _saveExam(studentId, score);
+    _pendingSaves.add(save);
+    try {
+      return await save;
+    } finally {
+      _pendingSaves.remove(save);
+    }
+  }
+
+  Future<bool> _saveExam(String studentId, double? score) async {
     final now = DateTime.now();
     final exam = FinalExam(
       studentId: studentId,
@@ -415,7 +427,15 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
       updatedAt: now,
     );
 
-    await context.read<FinalExamService>().updateExam(widget.classId, exam);
+    try {
+      await context.read<FinalExamService>().updateExam(widget.classId, exam);
+      return true;
+    } catch (_) {
+      if (mounted) {
+        _showError('Exam score could not be saved. Your edit is retained. Retry with Save all.');
+      }
+      return false;
+    }
   }
 
   Future<void> _showImportDialog() async {
@@ -491,19 +511,18 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
         tone: WorkspaceFeedbackTone.success,
       );
 
-  Future<void> _handleExit() async {
+  Future<bool> _handleExit() async {
     try {
-      final saved = await _flushAllPendingSaves()
-          .timeout(const Duration(milliseconds: 1200));
+      final saved = await _flushAllPendingSaves();
       if (saved > 0 && mounted) {
         _showSuccess('Saved $saved changes');
       }
-    } on TimeoutException {
-      _showFeedback(
-        'Saving in background...',
-        tone: WorkspaceFeedbackTone.info,
-      );
-      unawaited(_flushAllPendingSaves());
+      return true;
+    } catch (_) {
+      if (mounted) {
+        _showError('Exam scores could not be saved. Your edits are retained. Retry with Save all.');
+      }
+      return false;
     }
   }
 
@@ -515,14 +534,14 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
     final value = _controllers[studentId]?.text.trim() ?? '';
     final scoreValue = double.tryParse(value);
     if (scoreValue != null && scoreValue >= 0 && scoreValue <= 100) {
-      await _updateExam(studentId, scoreValue);
+      if (!await _updateExam(studentId, scoreValue)) return;
       if (showSuccessMessage) {
         _showSuccess('Exam score updated');
       }
       return;
     }
     if (value.isEmpty) {
-      await _updateExam(studentId, null);
+      if (!await _updateExam(studentId, null)) return;
       if (showSuccessMessage) {
         _showSuccess('Exam score cleared');
       }
@@ -765,7 +784,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        await _handleExit();
+        if (!await _handleExit()) return;
         if (!context.mounted) return;
         _goToClassWorkspace();
       },
@@ -776,7 +795,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
         subtitle: classContextLine,
         leading: IconButton(
           onPressed: () async {
-            await _handleExit();
+            if (!await _handleExit()) return;
             if (!context.mounted) return;
             _goToClassWorkspace();
           },
@@ -809,10 +828,7 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
             ),
             OutlinedButton.icon(
               onPressed: () async {
-                final saved = await _flushAllPendingSaves();
-                if (saved > 0 && context.mounted) {
-                  _showSuccess('Saved $saved changes');
-                }
+                await _handleExit();
               },
               icon: const Icon(Icons.save_outlined),
               label: const Text('Save all'),
