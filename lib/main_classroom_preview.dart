@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/components/time_slot_timetable.dart';
-import 'package:gradeflow/components/planner/planner_teaching_workspace.dart';
 import 'package:gradeflow/os/surfaces/planner_surface.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/models/seating_layout.dart';
