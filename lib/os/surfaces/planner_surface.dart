@@ -112,12 +112,37 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
       kind: entry.kind,
     )).toList()
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    // Preserve the saved lesson objects but also supply a genuine-looking
+    // timetable grid so the actual Week view displays all bell times and lunch.
+    final clockTimes = <({int start, int end})>[];
+    for (final lesson in fixture.lessons) {
+      final interval = (start: lesson.startMinutes, end: lesson.endMinutes);
+      if (!clockTimes.contains(interval)) clockTimes.add(interval);
+    }
+    clockTimes.sort((a, b) => a.start.compareTo(b.start));
+    String clock(int minutes) => '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
+    final timetableGrid = <List<String>>[
+      ['Time', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      for (final span in clockTimes)
+        [
+          '${clock(span.start)}–${clock(span.end)}',
+          for (var day = 0; day < 5; day++)
+            fixture.lessons
+                .where((lesson) => lesson.dayOfWeek == day &&
+                    lesson.startMinutes == span.start &&
+                    lesson.endMinutes == span.end)
+                .map((lesson) => lesson.title)
+                .join(' / '),
+        ],
+      ['11:50–12:50', 'Lunch', '', '', '', ''],
+    ];
     _timetables = [
       _PlannerTimetable(
         id: 'fictional-week',
         name: 'Fictional sample timetable',
         base64: '',
         uploadedAt: DateTime(2026, 11, 13),
+        grid: timetableGrid,
         lessons: fixture.lessons
             .map(HomeWeeklyTimetableService.lessonToJson)
             .toList(),
