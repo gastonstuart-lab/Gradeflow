@@ -69,11 +69,17 @@ class DashboardPreferencesService {
     required String? value,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    if (value == null) {
-      await prefs.remove(key);
-      return;
+    try {
+      final saved = value == null
+          ? await prefs.remove(key)
+          : await prefs.setString(key, value);
+      if (!saved) throw StateError('Local preferences could not be saved.');
+    } catch (_) {
+      // SharedPreferences updates its cache before the platform acknowledges
+      // the write. Reload after failure so an unsaved value is not read as saved.
+      await prefs.reload();
+      rethrow;
     }
-    await prefs.setString(key, value);
   }
 
   Future<void> writeJsonList({

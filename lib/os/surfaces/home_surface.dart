@@ -1,3 +1,4 @@
+import 'package:gradeflow/components/timetable_import_dialog.dart';
 // GradeFlow OS — Home Surface
 //
 // The teacher's primary landing surface should read like an actual OS home:
@@ -176,8 +177,9 @@ class _HomeSurfaceState extends State<HomeSurface> {
       if (bytes == null) {
         throw const FormatException('Could not read the selected file.');
       }
-      final timetable = await const HomeWeeklyTimetableService()
-          .importForTeacher(userId: userId, filename: picked.name, bytes: bytes);
+      if (!mounted || _homeStorageUserId(context.read<AuthService>()) != userId) return;
+      final timetable = await confirmTimetableImport(context, filename: picked.name, bytes: bytes);
+      if (timetable == null) return;
       if (!mounted || _loadedUserId != userId) return;
       setState(() {
         _homeTimetable = timetable;

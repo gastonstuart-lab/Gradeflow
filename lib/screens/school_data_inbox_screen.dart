@@ -1,3 +1,4 @@
+import 'package:gradeflow/components/timetable_import_dialog.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -93,19 +94,19 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
     // Prefer actual weekly time slots over filename-only classifications.
     // This is only a preview; the timetable is not saved here.
     if (!filename.endsWith('.ics')) {
+      int? periodCount;
       try {
-        final candidate = HomeWeeklyTimetableService.inspectBytes(
-          filename: file.name,
-          bytes: file.bytes,
-        );
-        if (candidate.classes.isNotEmpty) {
-          await _confirmAndImportWeeklyTimetable(file, candidate.classes.length);
+        periodCount = HomeWeeklyTimetableService.inspectBytes(
+          filename: file.name, bytes: file.bytes).classes.length;
+      } on FormatException catch (e) {
+        if (detection.type == ImportFileType.timetable) {
+          await _showImportProblem(title: 'Timetable needs correction', message: e.message.toString());
           return;
         }
-      } on FormatException {
-        // This may be a class schedule, roster or another document.
-      } catch (e) {
-        debugPrint('Weekly timetable preview not available: $e');
+      }
+      if (periodCount != null) {
+        await _confirmAndImportWeeklyTimetable(file, periodCount);
+        return;
       }
     }
 
@@ -157,37 +158,8 @@ class _SchoolDataInboxScreenState extends State<SchoolDataInboxScreen> {
     _InboxPickedFile file,
     int count,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Weekly timetable detected'),
-        content: Text(
-          'File: ${file.name}\n'
-          'Recognised teaching periods: $count\n\n'
-          'Import this as your selected weekly timetable? '
-          'You can review Now / Next / Following on Teacher Home. '
-          'Your existing classes, student records and grades are not changed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Import timetable'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    final userId = _storageUserId(context.read<AuthService>());
-    if (userId == null) return;
-    final saved = await const HomeWeeklyTimetableService().importForTeacher(
-      userId: userId,
-      filename: file.name,
-      bytes: file.bytes,
-    );
+    final saved = await confirmTimetableImport(context, filename: file.name, bytes: file.bytes);
+    if (saved == null) return;
     if (!mounted) return;
     _showFeedback(
       'Imported ${saved.classes.length} teaching periods. '
