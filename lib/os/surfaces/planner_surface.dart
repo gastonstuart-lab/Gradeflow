@@ -1085,7 +1085,12 @@ class _PlannerDashboardView extends StatelessWidget {
                           const SizedBox(height: 16),
                         ],
                         if (displayMode == _PlannerDisplayMode.today) dayDetail
-                        else if (displayMode == _PlannerDisplayMode.week) calendar
+                        else if (displayMode == _PlannerDisplayMode.week)
+                          ExpansionTile(
+                            title: const Text('Calendar'),
+                            subtitle: const Text('Show week events and reminders'),
+                            children: [calendar],
+                          )
                         else LayoutBuilder(
                             builder: (context, size) => size.maxWidth >= 900
                                 ? Row(
