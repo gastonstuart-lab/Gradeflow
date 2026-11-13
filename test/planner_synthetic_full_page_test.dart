@@ -18,7 +18,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    const lessons = <TimeSlotClass>[
+    final lessons = <TimeSlotClass>[
       TimeSlotClass(
           title: 'Synthetic Science',
           classId: 'fictional-science',
