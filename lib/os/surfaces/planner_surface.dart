@@ -1,3 +1,6 @@
+import 'package:gradeflow/components/planner/planner_teaching_workspace.dart';
+import 'package:gradeflow/components/time_slot_timetable.dart';
+import 'package:gradeflow/services/timetable_import_plan.dart';
 import 'package:gradeflow/components/timetable_import_dialog.dart';
 import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 /// GradeFlow OS - Planner Surface
@@ -35,7 +38,7 @@ class PlannerSurface extends StatefulWidget {
   State<PlannerSurface> createState() => _PlannerSurfaceState();
 }
 
-enum _PlannerDisplayMode { week, month, agenda, tasks }
+enum _PlannerDisplayMode { today, week, month, agenda, tasks }
 
 class _PlannerSurfaceState extends State<PlannerSurface> {
   static const String _remindersPrefsBaseKey = 'dashboard_reminders_v1';
@@ -829,7 +832,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
         (reminder.kind == 'school_event' || !reminder.done) &&
         PlannerDateMath.intersects(reminder.timestamp, reminder.endDate,
             today, endOfComingUp)).toList();
-    final selectedTimetable = _selectedTimetableId == null
+    final selectedTimetable = _planningLoading || _selectedTimetableId == null
         ? null
         : _timetables
             .where((item) => item.id == _selectedTimetableId)
@@ -960,7 +963,35 @@ class _PlannerDashboardView extends StatelessWidget {
     final now = DateTime.now();
     final chosenDay = selectedDate ?? PlannerDateMath.day(now);
 
+    final lessons = <TimeSlotClass>[];
+    PlannerLunch? lunch;
+    final periods = <({int start, int end})>[];
+    try {
+      if (selectedTimetable?.lessons != null) {
+        lessons.addAll(selectedTimetable!.lessons!.map((v) => HomeWeeklyTimetableService.lessonFromJson(Map<String, dynamic>.from(v as Map))));
+      } else if (selectedTimetable?.grid != null) {
+        lessons.addAll(HomeWeeklyTimetableService.parseGridToTimeSlots(selectedTimetable!.grid!));
+      }
+      for (final row in selectedTimetable?.grid ?? <List<String>>[]) {
+        final times = RegExp(r'\d{1,2}:\d{2}').allMatches(row.join(' ')).map((m) => m[0]!).toList();
+        if (times.length != 2) continue;
+        final start = TimetableImportPlan.clock(times[0]);
+        final end = TimetableImportPlan.clock(times[1]);
+        if (end <= start) continue;
+        if (RegExp(r'\blunch\b|午餐|午休', caseSensitive: false).hasMatch(row.join(' '))) {
+          lunch = PlannerLunch(start, end);
+        } else {
+          periods.add((start: start, end: end));
+        }
+      }
+    } on FormatException { /* Keep older incomplete timetables available for reimport. */ }
+    final teaching = PlannerTeachingWorkspace(lessons: lessons,
+      classes: context.read<ClassService>().activeClasses.where((c) => c.teacherId == user?.userId).toList(),
+      date: chosenDay, todayView: displayMode == _PlannerDisplayMode.today, lunch: lunch, periods: periods,
+      onSelectDate: (day) { onSelectDate(day); onChangeDisplayMode(_PlannerDisplayMode.today); },
+      onUpload: onUploadTimetable, onManage: onManageTimetables);
     final calendar = switch (displayMode) {
+      _PlannerDisplayMode.today => const SizedBox.shrink(),
       _PlannerDisplayMode.week => _PlannerWeekCard(
           selectedDate: chosenDay,
           reminders: allReminders,
@@ -997,11 +1028,6 @@ class _PlannerDashboardView extends StatelessWidget {
         onImportCalendar: onImportCalendar,
         onToggleReminder: onToggleReminder,
         onDeleteReminder: onDeleteReminder);
-    final timetable = _PlannerWeeklyTimetableCard(
-        selectedTimetable: selectedTimetable,
-        timetables: timetables,
-        onUpload: onUploadTimetable,
-        onManage: onManageTimetables);
     final dayDetail = _PlannerCard(
         child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1025,8 +1051,6 @@ class _PlannerDashboardView extends StatelessWidget {
         const SizedBox(height: 16),
       ],
       reminders,
-      const SizedBox(height: 16),
-      timetable,
     ]);
 
     return Theme(
@@ -1052,8 +1076,17 @@ class _PlannerDashboardView extends StatelessWidget {
                           onChange: onChangeDisplayMode,
                           onGoToday: onGoToday,
                         ),
+                        const SizedBox(height: 8),
+                        if (displayMode == _PlannerDisplayMode.week) Text('Selected: ${_formatDate(chosenDay)}'),
+                        TextButton.icon(onPressed: onImportCalendar, icon: const Icon(Icons.calendar_month_outlined), label: const Text('Import calendar')),
                         const SizedBox(height: 16),
-                        LayoutBuilder(
+                        if (displayMode == _PlannerDisplayMode.week || displayMode == _PlannerDisplayMode.today) ...[
+                          teaching,
+                          const SizedBox(height: 16),
+                        ],
+                        if (displayMode == _PlannerDisplayMode.today) dayDetail
+                        else if (displayMode == _PlannerDisplayMode.week) calendar
+                        else LayoutBuilder(
                             builder: (context, size) => size.maxWidth >= 900
                                 ? Row(
                                     crossAxisAlignment:
@@ -1093,6 +1126,7 @@ class _PlannerDisplaySwitch extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         for (final entry in const [
+          (_PlannerDisplayMode.today, 'Today'),
           (_PlannerDisplayMode.week, 'Week'),
           (_PlannerDisplayMode.month, 'Month'),
           (_PlannerDisplayMode.agenda, 'Agenda'),
@@ -1106,9 +1140,9 @@ class _PlannerDisplaySwitch extends StatelessWidget {
           ),
         const SizedBox(width: 8),
         OutlinedButton.icon(
-          onPressed: onGoToday,
+          onPressed: () { onGoToday(); onChange(_PlannerDisplayMode.today); },
           icon: const Icon(Icons.today_outlined, size: 18),
-          label: const Text('Today'),
+          label: const Text('Go to today'),
         ),
       ],
     );
@@ -1680,150 +1714,6 @@ class _PlannerCalendarCard extends StatelessWidget {
             onToggleReminder: onToggleReminder,
             onDeleteReminder: onDeleteReminder,
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlannerWeeklyTimetableCard extends StatelessWidget {
-  const _PlannerWeeklyTimetableCard({
-    required this.selectedTimetable,
-    required this.timetables,
-    required this.onUpload,
-    required this.onManage,
-  });
-
-  final _PlannerTimetable? selectedTimetable;
-  final List<_PlannerTimetable> timetables;
-  final VoidCallback onUpload;
-  final VoidCallback onManage;
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = _previewTimetableRows(selectedTimetable?.grid);
-    final dark = context.isDark;
-    return _PlannerCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _PlannerCardHeader(
-            title: 'Weekly Timetable',
-            actionLabel: timetables.isEmpty ? 'Upload' : 'Manage',
-            onAction: timetables.isEmpty ? onUpload : onManage,
-          ),
-          const SizedBox(height: 16),
-          if (rows.isEmpty)
-            Text(
-              'Upload a timetable to show the next teaching blocks here.',
-              style: TextStyle(
-                color: OSColors.textSecondary(dark),
-                height: 1.45,
-              ),
-            )
-          else
-            for (final row in rows) ...[
-              _TimetableListRow(time: row.$1, title: row.$2, detail: row.$3),
-              if (row != rows.last) const SizedBox(height: 10),
-            ],
-        ],
-      ),
-    );
-  }
-
-  List<(String, String, String)> _previewTimetableRows(
-      List<List<String>>? grid) {
-    if (grid == null || grid.isEmpty) return const [];
-    final rows = <(String, String, String)>[];
-    for (final row in grid.skip(1)) {
-      final cells = row
-          .map((cell) => cell.trim())
-          .where((cell) => cell.isNotEmpty)
-          .toList();
-      if (cells.length < 2) continue;
-      rows.add((
-        cells.first,
-        cells.length > 1 ? cells[1] : 'Class',
-        cells.skip(2).take(2).join(' - ')
-      ));
-      if (rows.length == 4) break;
-    }
-    return rows;
-  }
-}
-
-class _TimetableListRow extends StatelessWidget {
-  const _TimetableListRow({
-    required this.time,
-    required this.title,
-    required this.detail,
-  });
-
-  final String time;
-  final String title;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: dark
-            ? Colors.white.withValues(alpha: 0.04)
-            : const Color(0xFFF3F5FF),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: dark
-                  ? Colors.white.withValues(alpha: 0.06)
-                  : const Color(0xFFE8EBFA),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              time,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: OSColors.text(dark),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    color: OSColors.text(dark),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  detail.isEmpty ? 'Planning block' : detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: OSColors.textSecondary(dark),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.link_rounded, size: 18, color: OSColors.blue),
         ],
       ),
     );
