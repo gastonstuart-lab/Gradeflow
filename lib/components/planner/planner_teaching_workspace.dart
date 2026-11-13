@@ -172,13 +172,18 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
         barrierColor: Colors.black.withValues(alpha: .28),
         transitionDuration: const Duration(milliseconds: 220),
         pageBuilder: (sheetContext, animation, secondaryAnimation) {
-          final width = MediaQuery.sizeOf(sheetContext).width;
-          final fraction = width < 700 ? .94 : width < 1100 ? .54 : .32;
+          final size = MediaQuery.sizeOf(sheetContext);
+          // Fixed, touch-friendly details width: preserve the week behind it.
+          final panelWidth = size.width < 640
+              ? size.width * .94
+              : size.width < 1100
+                  ? 380.0
+                  : 420.0;
           return Align(
             alignment: Alignment.centerRight,
-            child: FractionallySizedBox(
-              widthFactor: fraction,
-              heightFactor: 1,
+            child: SizedBox(
+              width: panelWidth,
+              height: size.height,
               child: SafeArea(
                 child: Material(
                   elevation: 16,
