@@ -1,0 +1,74 @@
+name: Planner Today Week PR130 focused review
+
+# Synthetic, read-only checks and review screenshots.
+# This workflow never deploys or accesses live Firebase data.
+on:
+  push:
+    branches:
+      - feature/planner-today-week-20261113
+    paths:
+      - '.github/workflows/verify-planner-today-week-pr130.yml'
+      - 'lib/components/planner/planner_teaching_workspace.dart'
+      - 'lib/os/surfaces/planner_surface.dart'
+      - 'test/planner_teaching_workspace_test.dart'
+      - 'test/os_shell_surfaces_test.dart'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: planner-today-week-pr130-focused-review
+  cancel-in-progress: true
+
+jobs:
+  synthetic-flutter-review:
+    if: github.ref == 'refs/heads/feature/planner-today-week-20261113'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout isolated review branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+
+      - name: Install locked Dart dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze only changed Planner files and tests
+        run: |
+          flutter analyze \
+            lib/components/planner/planner_teaching_workspace.dart \
+            lib/os/surfaces/planner_surface.dart \
+            test/planner_teaching_workspace_test.dart \
+            test/os_shell_surfaces_test.dart
+
+      - name: Run focused Flutter tests and render synthetic light/dark screenshots
+        run: |
+          mkdir -p planner-review-artifacts
+          flutter test \
+            --dart-define=PLANNER_PREVIEW_DIR="$GITHUB_WORKSPACE/planner-review-artifacts" \
+            test/planner_teaching_workspace_test.dart \
+            test/os_shell_surfaces_test.dart
+
+      - name: Upload screenshots for human review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planner-pr130-review-screenshots
+          path: planner-review-artifacts/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Explain review boundaries
+        if: always()
+        run: |
+          echo 'PR #130: synthetic Flutter checks and screenshots only.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No staging or production build was deployed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Visual/device acceptance and XLSX acceptance remain separate.' >> "$GITHUB_STEP_SUMMARY"
