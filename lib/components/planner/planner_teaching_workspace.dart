@@ -97,10 +97,11 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
     return Theme.of(context).colorScheme.primary;
   }
 
-  Widget _lesson(List<TimeSlotClass> block, {bool next = false}) {
+  Widget _lesson(List<TimeSlotClass> block, {bool next = false, bool current = false}) {
     final lesson = block.first;
     final color = _color(lesson);
     final active = selected?.first == lesson;
+    final tight = compact || (!widget.todayView && MediaQuery.sizeOf(context).height <= 1000 && block.length == 1);
     return Semantics(
         button: true,
         label:
@@ -121,14 +122,21 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
                         width: active ? 2 : 1)),
                 child: InkWell(
                     borderRadius: BorderRadius.circular(12),
-                    onTap: () => setState(() => selected = block),
+                    onTap: () => _openLessonDetails(block),
                     child: Padding(
-                        padding: EdgeInsets.all(compact ? 8 : 12),
+                        padding: EdgeInsets.all(tight ? 6 : 10),
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (next)
+                              if (current)
+                                Text('In class now',
+                                    style: TextStyle(
+                                        color: color,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        height: 1.15))
+                              else if (next)
                                 Text('Next lesson',
                                     style: TextStyle(
                                         color: color,
@@ -136,11 +144,11 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
                                         fontSize: 13,
                                         height: 1.15)),
                               Text(lesson.title,
-                                  maxLines: compact ? 1 : 2,
+                                  maxLines: tight ? 1 : 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontWeight: FontWeight.w700,
-                                      fontSize: 13,
+                                      fontSize: tight ? 12 : 13,
                                       height: 1.15)),
                               Text(
                                   '${plannerClock(lesson.startMinutes)}–${plannerClock(block.last.endMinutes)}',
@@ -153,7 +161,58 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
                             ]))))));
   }
 
-  Widget _details() {
+  Future<void> _openLessonDetails(List<TimeSlotClass> block) async {
+    if (!mounted) return;
+    setState(() => selected = block);
+    try {
+      await showGeneralDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: 'Close lesson details',
+        barrierColor: Colors.black.withValues(alpha: .28),
+        transitionDuration: const Duration(milliseconds: 220),
+        pageBuilder: (sheetContext, animation, secondaryAnimation) {
+          final width = MediaQuery.sizeOf(sheetContext).width;
+          final fraction = width < 700 ? .94 : width < 1100 ? .54 : .32;
+          return Align(
+            alignment: Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: fraction,
+              heightFactor: 1,
+              child: SafeArea(
+                child: Material(
+                  elevation: 16,
+                  color: Theme.of(sheetContext).colorScheme.surface,
+                  borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(20)),
+                  clipBehavior: Clip.antiAlias,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _details(sheetContext),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+        transitionBuilder: (context, animation, secondaryAnimation, child) =>
+            SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(1, 0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              )),
+              child: child,
+            ),
+      );
+    } finally {
+      if (mounted) setState(() => selected = null);
+    }
+  }
+
+  Widget _details(BuildContext sheetContext) {
     final block = selected!;
     final lesson = block.first;
     final linked = widget.classes
@@ -171,7 +230,7 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
                         style: Theme.of(context).textTheme.titleMedium)),
                 IconButton(
                     tooltip: 'Close lesson details',
-                    onPressed: () => setState(() => selected = null),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
                     icon: const Icon(Icons.close))
               ]),
               for (final period in block)
@@ -184,17 +243,23 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
               else
                 Wrap(spacing: 10, runSpacing: 8, children: [
                   FilledButton.icon(
-                      onPressed: () =>
-                          context.go(AppRoutes.osClassroom(linked.classId)),
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        context.go(AppRoutes.osClassroom(linked.classId));
+                      },
                       icon: const Icon(Icons.chair_outlined),
                       label: const Text('Classroom')),
                   OutlinedButton(
-                      onPressed: () => context
-                          .go(AppRoutes.osClassGradebook(linked.classId)),
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        context.go(AppRoutes.osClassGradebook(linked.classId));
+                      },
                       child: const Text('Gradebook')),
                   OutlinedButton(
-                      onPressed: () => context
-                          .go(AppRoutes.osClassWorkspace(linked.classId)),
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        context.go(AppRoutes.osClassWorkspace(linked.classId));
+                      },
                       child: const Text('Class information')),
                 ]),
             ])));
@@ -208,6 +273,17 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
         .where((b) => b.first.dayOfWeek == widget.date.weekday - 1)
         .toList();
     final sameDay = DateUtils.isSameDay(widget.date, now);
+    final current = sameDay
+        ? daily.where((b) {
+            final starts = DateTime(widget.date.year, widget.date.month,
+                widget.date.day, b.first.startMinutes ~/ 60,
+                b.first.startMinutes % 60);
+            final ends = DateTime(widget.date.year, widget.date.month,
+                widget.date.day, b.last.endMinutes ~/ 60,
+                b.last.endMinutes % 60);
+            return !now.isBefore(starts) && now.isBefore(ends);
+          }).firstOrNull
+        : null;
     final next = daily
         .where((b) => !DateTime(
                 widget.date.year,
@@ -227,7 +303,12 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
     final end = timeline.isEmpty
         ? 0
         : timeline.map((l) => l.end).reduce((a, b) => a > b ? a : b);
-    final scale = compact ? 1.4 : 1.8;
+    final duration = (end - start).clamp(1, 1440).toDouble();
+    final availableGridHeight =
+        (MediaQuery.sizeOf(context).height - 230).clamp(500.0, 800.0).toDouble();
+    final scale = compact
+        ? 1.0
+        : (availableGridHeight / duration).clamp(1.0, 1.45).toDouble();
     final monday = DateUtils.dateOnly(widget.date)
         .subtract(Duration(days: widget.date.weekday - 1));
     final content = <Widget>[
@@ -290,7 +371,8 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
         if (daily.isEmpty)
           const Text('No teaching periods scheduled for this day.'),
         for (final block in daily)
-          _lesson(block, next: sameDay && block == next),
+          _lesson(block, next: sameDay && block == next,
+              current: sameDay && block == current),
       ] else
         LayoutBuilder(builder: (context, constraints) {
           final width =
@@ -389,20 +471,8 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
                   ])));
         }),
     ];
-    return LayoutBuilder(builder: (context, constraints) {
-      final body = Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch, children: content);
-      if (selected == null) return body;
-      if (constraints.maxWidth >= 1100) {
-        return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: body),
-          const SizedBox(width: 16),
-          SizedBox(width: 300, child: _details())
-        ]);
-      }
-      return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [_details(), const SizedBox(height: 12), body]);
-    });
+    // Details use an overlay sheet so the teaching grid never jumps or shrinks.
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch, children: content);
   }
 }
