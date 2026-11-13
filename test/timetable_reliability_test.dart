@@ -279,4 +279,67 @@ void main() {
     expect(await service.loadVersions('teacher-a'), hasLength(2));
     expect((await service.loadSelected('teacher-a'))!.name, 'two.csv');
   });
+  test('index and Period / Time headers retain all eight groups and 24 periods',
+      () {
+    final indexed = timetableGrid();
+    indexed[1][0] = 'index';
+    final combined = <List<String>>[
+      ['Period / Time', ...TimetableImportPlan.weekdays],
+      for (final row in timetableGrid().skip(2)) [row[1], ...row.skip(2)],
+    ];
+    final reference = TimetableImportPlan.fromGrid(timetableGrid()).lessons;
+    for (final grid in [indexed, combined]) {
+      final lessons = TimetableImportPlan.fromGrid(grid).lessons;
+      expect(lessons, hasLength(24));
+      expect(lessons.map((l) => l.title).toSet(), hasLength(8));
+      expect(
+          lessons
+              .map((l) =>
+                  '${l.dayOfWeek}/${l.startMinutes}/${l.endMinutes}/${l.title}')
+              .toList(),
+          reference
+              .map((l) =>
+                  '${l.dayOfWeek}/${l.startMinutes}/${l.endMinutes}/${l.title}')
+              .toList());
+    }
+    indexed[2][1] = '08:00';
+    expect(() => TimetableImportPlan.fromGrid(indexed), throwsFormatException);
+  });
+
+  test('labelled subject/group/room rows preserve room separately', () {
+    final grid = [
+      ['index', 'Time', ...TimetableImportPlan.weekdays],
+      ['1', '08:00-08:50', 'EEP', '', '', '', ''],
+      ['', 'Group', 'G1', '', '', '', ''],
+      ['', 'Room', 'A101', '', '', '', ''],
+      ['2', '09:00-09:50', 'EEP', '', '', '', ''],
+      ['', 'Group', 'G1', '', '', '', ''],
+      ['', 'Room', 'A101', '', '', '', ''],
+    ];
+    final lessons = TimetableImportPlan.fromGrid(grid).lessons;
+    expect(lessons, hasLength(2));
+    expect(
+        lessons.every((l) => l.title == 'EEP G1' && l.room == 'A101'), isTrue);
+    final classes = timetableClasses('teacher-a');
+    final linked = TimetableImportPlan(lessons)
+        .confirmMatches({'EEP G1': 'group-0'}, classes, 'teacher-a');
+    expect(linked.every((l) => l.room == 'A101'), isTrue);
+    final restored = linked
+        .map((l) => HomeWeeklyTimetableService.lessonFromJson(
+            HomeWeeklyTimetableService.lessonToJson(l)))
+        .toList();
+    expect(
+        restored.every((l) => l.title == 'EEP G1' && l.room == 'A101'), isTrue);
+    grid[4][1] = '';
+    expect(() => TimetableImportPlan.fromGrid(grid), throwsFormatException);
+  });
+
+  test('corrected long-form Room column stays separate from class label', () {
+    final lesson = TimetableImportPlan.fromGrid([
+      ['Day', 'Start', 'End', 'Class', 'Room'],
+      ['Monday', '08:00', '08:50', 'EEP G1', 'A101'],
+    ]).lessons.single;
+    expect(lesson.title, 'EEP G1');
+    expect(lesson.room, 'A101');
+  });
 }

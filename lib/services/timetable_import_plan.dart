@@ -49,7 +49,9 @@ class TimetableImportPlan {
     if (header < 0)
       throw const FormatException(
           'Missing Monday–Friday headings or Day column.');
-    final names = grid[header].map((c) => c.trim().toLowerCase()).toList();
+    final names = grid[header]
+        .map((c) => c.trim().toLowerCase().replaceAll(RegExp(r'\s*/\s*'), '/'))
+        .toList();
     final dayColumn = names.indexOf('day');
     final result = <TimeSlotClass>[];
     if (dayColumn >= 0) {
@@ -57,6 +59,7 @@ class TimetableImportPlan {
       final end = names.indexOf('end');
       final title = names.indexOf('class');
       final id = names.indexOf('class id');
+      final room = names.indexOf('room');
       if (start < 0 || end < 0 || title < 0) {
         throw const FormatException(
             'Use Day, Start, End and Class columns. Class ID is optional.');
@@ -73,7 +76,8 @@ class TimetableImportPlan {
             dayOfWeek: day,
             startMinutes: clock(cell(start)),
             endMinutes: clock(cell(end)),
-            classId: cell(id).isEmpty ? null : cell(id)));
+            classId: cell(id).isEmpty ? null : cell(id),
+            room: cell(room).isEmpty ? null : cell(room)));
       }
     } else {
       final days = <int, int>{};
@@ -93,8 +97,17 @@ class TimetableImportPlan {
       }
       for (var c = 0; c < names.length; c++) {
         if (!days.containsKey(c) &&
-            !const ['', 'period', 'time', 'start', 'end', '節次', '時間']
-                .contains(names[c])) {
+            !const [
+              '',
+              'index',
+              'period',
+              'time',
+              'period/time',
+              'start',
+              'end',
+              '節次',
+              '時間'
+            ].contains(names[c])) {
           throw FormatException(
               'Unsupported timetable column "${grid[header][c]}". Use Monday–Friday with Period/Time or Start/End.');
         }
@@ -102,22 +115,35 @@ class TimetableImportPlan {
       final range = RegExp(
           r'(\d{1,2}:\d{2}(?::\d{2})?)\s*[-~–—]\s*(\d{1,2}:\d{2}(?::\d{2})?)');
       List<String>? pending;
+      List<String>? pendingRooms;
       int? pendingStart;
       int? pendingEnd;
       void appendPending() {
         if (pending == null) return;
+        final roomValues = pendingRooms!;
         for (var day = 0; day < 5; day++) {
           final label = [
             for (final entry in days.entries)
               if (entry.value == day && pending[entry.key].trim().isNotEmpty)
                 pending[entry.key].trim()
           ].join(' ');
+          final rooms = <String>{
+            for (final entry in days.entries)
+              if (entry.value == day && roomValues[entry.key].isNotEmpty)
+                roomValues[entry.key]
+          };
+          if (rooms.length > 1)
+            throw FormatException('${weekdays[day]}: conflicting room values.');
+          if (label.isEmpty && rooms.isNotEmpty)
+            throw FormatException(
+                '${weekdays[day]}: room information has no class.');
           if (label.isEmpty) continue;
           result.add(TimeSlotClass(
               title: label,
               dayOfWeek: day,
               startMinutes: pendingStart!,
-              endMinutes: pendingEnd!));
+              endMinutes: pendingEnd!,
+              room: rooms.firstOrNull));
         }
       }
 
@@ -131,7 +157,12 @@ class TimetableImportPlan {
             names.length, (c) => c < grid[r].length ? grid[r][c].trim() : '');
         final metadata = [
           for (var c = 0; c < row.length; c++)
-            if (!days.containsKey(c)) row[c]
+            if (!days.containsKey(c) &&
+                (!const ['index', 'period', '節次'].contains(names[c]) ||
+                    RegExp(r'^(subject|class|group|room|科目|班級|組別|教室)$',
+                            caseSensitive: false)
+                        .hasMatch(row[c])))
+              row[c]
         ].join(' ');
         final clocks = RegExp(r'\d{1,2}:\d{2}(?::\d{2})?')
             .allMatches(metadata)
@@ -153,13 +184,17 @@ class TimetableImportPlan {
         if (hasExplicitRange) {
           appendPending();
           pending = row;
+          pendingRooms = List.filled(names.length, '');
           pendingStart = clock(match?[1] ?? clocks[0]);
           pendingEnd = clock(match?[2] ?? clocks[1]);
         } else if (RegExp(r'\d{1,2}:\d{2}(?::\d{2})?').hasMatch(metadata)) {
           throw FormatException(
               'Row ${r + 1}: provide explicit start and end times.');
         } else if (hasLabels) {
-          final continuation = metadata.trim().isEmpty ||
+          final hasIdentifier = List.generate(names.length, (i) => i).any((c) =>
+              const ['index', 'period', '節次'].contains(names[c]) &&
+              row[c].isNotEmpty);
+          final continuation = (!hasIdentifier && metadata.trim().isEmpty) ||
               RegExp(r'^(subject|class|group|room|科目|班級|組別|教室)$',
                       caseSensitive: false)
                   .hasMatch(metadata.trim());
@@ -168,9 +203,19 @@ class TimetableImportPlan {
                 'Row ${r + 1}: class information has no explicit time range.');
           // School multi-row periods put subject/group/room on separate rows.
           // Only untimed continuation rows join labels, never timed periods.
+          final roomRow = RegExp(r'^(room|教室)$', caseSensitive: false)
+              .hasMatch(metadata.trim());
+          final roomValues = pendingRooms!;
           for (final c in days.keys) {
-            if (row[c].isNotEmpty)
+            if (row[c].isEmpty) continue;
+            if (roomRow) {
+              if (roomValues[c].isNotEmpty && roomValues[c] != row[c]) {
+                throw FormatException('Row ${r + 1}: conflicting room values.');
+              }
+              roomValues[c] = row[c];
+            } else {
               pending[c] = '${pending[c]} ${row[c]}'.trim();
+            }
           }
         }
       }

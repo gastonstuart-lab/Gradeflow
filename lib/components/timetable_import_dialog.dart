@@ -77,7 +77,8 @@ Future<HomeWeeklyTimetable?> confirmTimetableImport(
                                 dense: true,
                                 title: Text(
                                     '${TimetableImportPlan.weekdays[lesson.dayOfWeek]} '
-                                    '${_clock(lesson.startMinutes)}–${_clock(lesson.endMinutes)} · ${lesson.title}')),
+                                    '${_clock(lesson.startMinutes)}–${_clock(lesson.endMinutes)} · ${lesson.title}'
+                                    '${lesson.room == null ? '' : ' · Room ${lesson.room}'}')),
                         ]))),
                 actions: [
                   TextButton(
