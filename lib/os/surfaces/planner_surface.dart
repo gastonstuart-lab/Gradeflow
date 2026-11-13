@@ -1,3 +1,5 @@
+import 'package:gradeflow/components/timetable_import_dialog.dart';
+import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 /// GradeFlow OS - Planner Surface
 ///
 /// Teacher-wide calendar, reminders, timetable, and school-wide planning.
@@ -100,7 +102,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
 
   String? _plannerStorageUserId(AuthService auth) {
     if (!auth.isInitialized || auth.isLoading) return null;
-    return auth.currentUser?.userId ?? 'local';
+    return auth.currentUser?.userId;
   }
 
   Future<void> _loadPlannerState(String userId) async {
@@ -170,14 +172,14 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
       userId: userId,
     );
     final raw = await _preferences.readScopedString(scopedKey: timetableKey);
-    final selectedId =
-        await _preferences.readScopedString(scopedKey: selectedKey);
+    var selectedId = await _preferences.readScopedString(scopedKey: selectedKey);
 
     final timetables = <_PlannerTimetable>[];
     if (raw != null && raw.trim().isNotEmpty) {
       final decoded = jsonDecode(raw);
       if (decoded is List) {
         for (final entry in decoded.whereType<Map>()) {
+          if (entry['selected'] == true) selectedId = entry['id']?.toString();
           final timetable =
               _PlannerTimetable.fromJson(Map<String, dynamic>.from(entry));
           if (timetable.id.trim().isEmpty || timetable.name.trim().isEmpty) {
@@ -204,24 +206,6 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     if (userId == null) return null;
     return _preferences.scopedKey(
       baseKey: _remindersPrefsBaseKey,
-      userId: userId,
-    );
-  }
-
-  String? _timetablePrefsKey() {
-    final userId = _loadedUserId;
-    if (userId == null) return null;
-    return _preferences.scopedKey(
-      baseKey: _timetablesPrefsBaseKey,
-      userId: userId,
-    );
-  }
-
-  String? _selectedTimetablePrefsKey() {
-    final userId = _loadedUserId;
-    if (userId == null) return null;
-    return _preferences.scopedKey(
-      baseKey: _selectedTimetablePrefsBaseKey,
       userId: userId,
     );
   }
@@ -256,25 +240,15 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     }
   }
 
-  Future<void> _saveTimetables() async {
+  Future<void> _changeTimetableVersion(String versionId, {bool delete = false}) async {
+    final userId = _plannerStorageUserId(context.read<AuthService>());
+    if (userId == null || userId != _loadedUserId) return;
     try {
-      final timetableKey = _timetablePrefsKey();
-      final selectedKey = _selectedTimetablePrefsKey();
-      if (timetableKey == null || selectedKey == null) return;
-      await _preferences.writeString(
-        key: timetableKey,
-        value: jsonEncode(_timetables.map((item) => item.toJson()).toList()),
-      );
-      await _preferences.writeString(
-        key: selectedKey,
-        value: _selectedTimetableId,
-      );
+      await const HomeWeeklyTimetableService().changeVersion(userId, versionId: versionId, delete: delete);
+      if (!mounted || _plannerStorageUserId(context.read<AuthService>()) != userId) return;
+      await _loadPlannerState(userId);
     } catch (e) {
-      debugPrint('Failed to save planner timetables: $e');
-      _showPlannerFeedback(
-        'Could not save the timetable change.',
-        tone: WorkspaceFeedbackTone.error,
-      );
+      if (mounted) _showPlannerFeedback('Timetable change was not saved: $e', tone: WorkspaceFeedbackTone.error);
     }
   }
 
@@ -689,7 +663,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     } catch (e) {
       debugPrint('Planner timetable upload failed: $e');
       _showPlannerFeedback(
-        'Timetable upload failed. Use a CSV, Excel, or Word timetable table.',
+        'Timetable was not imported: $e',
         tone: WorkspaceFeedbackTone.error,
       );
     }
@@ -700,59 +674,29 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     String name,
     String? extension,
   ) async {
-    final ext = (extension ?? (name.contains('.') ? name.split('.').last : ''))
-        .toLowerCase();
-    List<List<String>> grid;
-    if (ext == 'docx') {
-      final rawGrid = FileImportService().extractDocxBestTableGrid(bytes);
-      grid = FileImportService().cleanTimetableGrid(rawGrid);
-    } else {
-      final rows = FileImportService().rowsFromAnyBytes(bytes);
-      grid = FileImportService().cleanTimetableGrid(rows);
-    }
-
-    final hasCells =
-        grid.any((row) => row.any((cell) => cell.trim().isNotEmpty));
-    if (grid.isEmpty || !hasCells) {
-      throw const FormatException('No timetable table found.');
-    }
-
-    final timetable = _PlannerTimetable(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      name: name,
-      base64: base64Encode(bytes),
-      mimeType: ext.isEmpty ? null : ext,
-      uploadedAt: DateTime.now(),
-      grid: grid,
-    );
-
-    setState(() {
-      _timetables = [timetable, ..._timetables];
-      _selectedTimetableId = timetable.id;
-    });
-    await _saveTimetables();
-    _showPlannerFeedback(
-      'Timetable "$name" uploaded.',
-      tone: WorkspaceFeedbackTone.success,
-      title: 'Timetable ready',
-    );
+    final userId = _plannerStorageUserId(context.read<AuthService>());
+    if (userId == null) throw StateError('Sign in before importing a timetable.');
+    final saved = await confirmTimetableImport(context, filename: name, bytes: bytes);
+    if (saved == null || !mounted || _plannerStorageUserId(context.read<AuthService>()) != userId) return;
+    await _loadPlannerState(userId);
+    _showPlannerFeedback('Saved ${saved.classes.length} individual periods on this device.',
+      tone: WorkspaceFeedbackTone.success, title: 'Timetable saved locally');
   }
 
   Future<void> _selectTimetable(_PlannerTimetable timetable) async {
-    setState(() => _selectedTimetableId = timetable.id);
-    await _saveTimetables();
+    if (timetable.lessons == null) {
+      try {
+        await _saveTimetableFromBytes(base64Decode(timetable.base64), timetable.name, timetable.mimeType);
+      } catch (e) {
+        if (mounted) _showPlannerFeedback('Review or reimport this older timetable before selecting it: $e', tone: WorkspaceFeedbackTone.error);
+      }
+      return;
+    }
+    await _changeTimetableVersion(timetable.id);
   }
 
   Future<void> _deleteTimetable(_PlannerTimetable timetable) async {
-    setState(() {
-      _timetables =
-          _timetables.where((item) => item.id != timetable.id).toList();
-      if (_selectedTimetableId == timetable.id) {
-        _selectedTimetableId =
-            _timetables.isEmpty ? null : _timetables.first.id;
-      }
-    });
-    await _saveTimetables();
+    await _changeTimetableVersion(timetable.id, delete: true);
   }
 
   Future<void> _showTimetableManagementDialog() async {
@@ -2033,6 +1977,7 @@ class _PlannerTimetable {
     required this.uploadedAt,
     this.mimeType,
     this.grid,
+    this.lessons,
   });
 
   final String id;
@@ -2041,6 +1986,7 @@ class _PlannerTimetable {
   final String? mimeType;
   final DateTime uploadedAt;
   final List<List<String>>? grid;
+  final List<dynamic>? lessons;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -2048,6 +1994,7 @@ class _PlannerTimetable {
         'base64': base64,
         'mimeType': mimeType,
         'grid': grid,
+        'lessons': lessons,
         'uploadedAt': uploadedAt.toIso8601String(),
       };
 
@@ -2057,6 +2004,7 @@ class _PlannerTimetable {
       name: (json['name'] ?? '').toString(),
       base64: (json['base64'] ?? '').toString(),
       mimeType: json['mimeType']?.toString(),
+      lessons: json['lessons'] as List<dynamic>?,
       grid: (json['grid'] is List)
           ? (json['grid'] as List)
               .map(

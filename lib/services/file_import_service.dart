@@ -201,6 +201,10 @@ class FileImportService {
               .where((s) => s.trim().isNotEmpty)
               .toList();
           row.add(texts.join(' ').trim());
+          final spanNode = tc.findAllElements('gridSpan', namespace: '*').firstOrNull;
+          final span = int.tryParse(spanNode?.getAttribute('val', namespace: '*') ?? '') ?? 1;
+          // Expand horizontal merged cells to retain weekday column positions.
+          if (span > 1 && span <= 20) row.addAll(List.filled(span - 1, ''));
         }
         // Keep empty rows if they contain some structure
         if (row.isNotEmpty) grid.add(row);
@@ -217,116 +221,11 @@ class FileImportService {
     return best ?? const [];
   }
 
-  /// Cleans up a timetable grid by removing duplicate/empty rows and merging period blocks.
-  /// Typical school timetable: Header + 4 class periods + lunch = 6-7 rows
-  List<List<String>> cleanTimetableGrid(List<List<String>> rawGrid) {
-    if (rawGrid.isEmpty) return rawGrid;
-
-    // Helper: check if a row is meaningful (has actual class/time data)
-    bool isMeaningfulRow(List<String> row) {
-      if (row.length <= 1) return false;
-      for (int i = 1; i < row.length; i++) {
-        final cell = row[i].trim().toLowerCase();
-        if (cell.isEmpty || cell == 'class') continue;
-        return true;
-      }
-      return false;
-    }
-
-    // Helper: check if row looks like a lunch period
-    bool isLunchRow(List<String> row) {
-      if (row.isEmpty) return false;
-      final firstCell = row.first.toLowerCase();
-      return firstCell.contains('lunch') ||
-          firstCell.contains('12:') ||
-          firstCell.contains('13:');
-    }
-
-    // Helper: extract hour:minute from time string
-    List<int>? parseTime(String timeStr) {
-      final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(timeStr.trim());
-      if (match != null) {
-        final h = int.tryParse(match.group(1) ?? '');
-        final m = int.tryParse(match.group(2) ?? '');
-        if (h != null && m != null) return [h, m];
-      }
-      return null;
-    }
-
-    // Helper: check if two times are consecutive (45-55 minutes apart, typical for class periods)
-    bool areConsecutiveTimes(String time1, String time2) {
-      final t1 = parseTime(time1);
-      final t2 = parseTime(time2);
-      if (t1 == null || t2 == null) return false;
-      final mins1 = t1[0] * 60 + t1[1];
-      final mins2 = t2[0] * 60 + t2[1];
-      final diff = mins2 - mins1;
-      return diff >= 45 && diff <= 55;
-    }
-
-    final cleaned = <List<String>>[];
-    cleaned.add(rawGrid.first);
-
-    List<String>? previousRow;
-    for (int i = 1; i < rawGrid.length; i++) {
-      final row = rawGrid[i];
-
-      if (isLunchRow(row)) {
-        cleaned.add(row);
-        previousRow = null;
-        continue;
-      }
-
-      if (!isMeaningfulRow(row)) {
-        continue;
-      }
-
-      if (previousRow != null &&
-          row.length == previousRow.length &&
-          previousRow.isNotEmpty &&
-          row.isNotEmpty &&
-          areConsecutiveTimes(previousRow[0], row[0])) {
-        bool isSameClass = true;
-        for (int col = 1; col < row.length; col++) {
-          final prevCell = previousRow[col].trim();
-          final currCell = row[col].trim();
-          if (prevCell.isNotEmpty &&
-              currCell.isNotEmpty &&
-              prevCell != currCell) {
-            isSameClass = false;
-            break;
-          }
-        }
-
-        if (isSameClass) {
-          final mergedRow = List<String>.from(previousRow);
-          final prevTime = previousRow[0].trim();
-          final currTime = row[0].trim();
-          final t1 = parseTime(prevTime);
-          final t2 = parseTime(currTime);
-          if (t1 != null && t2 != null) {
-            final endMins = t2[0] * 60 + t2[1] + 50;
-            final endH = (endMins ~/ 60) % 24;
-            final endM = endMins % 60;
-            mergedRow[0] =
-                '$prevTime-${endH.toString().padLeft(2, '0')}:${endM.toString().padLeft(2, '0')}';
-          }
-          for (int col = 1; col < row.length; col++) {
-            if (mergedRow[col].trim().isEmpty && row[col].trim().isNotEmpty) {
-              mergedRow[col] = row[col];
-            }
-          }
-          cleaned[cleaned.length - 1] = mergedRow;
-          continue;
-        }
-      }
-
-      cleaned.add(row);
-      previousRow = row;
-    }
-
-    return cleaned;
-  }
+  /// Trim cells without merging or dropping individual teaching periods.
+  List<List<String>> cleanTimetableGrid(List<List<String>> rawGrid) => rawGrid
+      .map((row) => row.map((cell) => cell.trim()).toList())
+      .where((row) => row.any((cell) => cell.isNotEmpty))
+      .toList();
 
   // --------------------
   // CSV: Students Roster

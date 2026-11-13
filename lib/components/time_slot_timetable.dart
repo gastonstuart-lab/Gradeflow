@@ -214,6 +214,7 @@ class TimeSlotTimetable extends StatelessWidget {
 class TimeSlotClass {
   final String title;
   final String? room;
+  final String? classId;
   final int dayOfWeek; // 0=Mon, 4=Fri
   final int startMinutes; // Minutes since midnight
   final int endMinutes;
@@ -224,5 +225,6 @@ class TimeSlotClass {
     required this.startMinutes,
     required this.endMinutes,
     this.room,
+    this.classId,
   });
 }
