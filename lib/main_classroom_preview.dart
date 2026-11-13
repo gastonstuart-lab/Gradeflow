@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/components/time_slot_timetable.dart';
 import 'package:gradeflow/components/planner/planner_teaching_workspace.dart';
+import 'package:gradeflow/os/surfaces/planner_surface.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/models/seating_layout.dart';
 import 'package:gradeflow/os/surfaces/classroom_surface.dart';
@@ -166,6 +167,58 @@ Future<void> main() async {
     ));
   }
 
+  // All preview dates are fictional and derived from the viewer's current
+  // local week. Nothing here is loaded from school or account records.
+  final localToday = DateTime.now();
+  final currentMonday = DateTime(
+    localToday.year, localToday.month, localToday.day,
+  ).subtract(Duration(days: localToday.weekday - 1));
+  DateTime sampleDay(int weekday, {int weeksAhead = 0, int hour = 0}) =>
+      currentMonday.add(Duration(days: weekday - 1 + weeksAhead * 7, hours: hour));
+  final demoPlanner = PlannerSyntheticPreviewData(
+    teacherId: 'synthetic-demo-only',
+    teacherName: 'Demo Teacher',
+    lessons: _previewLessons,
+    reminders: [
+      PlannerSyntheticReminder(
+        text: 'Prepare demonstration lesson materials',
+        timestamp: DateTime(localToday.year, localToday.month, localToday.day, 8),
+        kind: 'task',
+      ),
+      PlannerSyntheticReminder(
+        text: 'Sample staff briefing — fictional calendar event',
+        timestamp: DateTime(localToday.year, localToday.month, localToday.day, 13),
+        kind: 'school_event',
+      ),
+      PlannerSyntheticReminder(
+        text: 'Review sample student work',
+        timestamp: sampleDay(1, weeksAhead: 1, hour: 9),
+        kind: 'task',
+      ),
+      PlannerSyntheticReminder(
+        text: 'Example school assembly',
+        timestamp: sampleDay(2, weeksAhead: 1, hour: 10),
+        kind: 'school_event',
+      ),
+      PlannerSyntheticReminder(
+        text: 'Prepare science demonstration',
+        timestamp: sampleDay(3, weeksAhead: 1, hour: 8),
+        kind: 'task',
+      ),
+      PlannerSyntheticReminder(
+        text: 'Fictional school activity days',
+        timestamp: sampleDay(4, weeksAhead: 1),
+        endDate: sampleDay(5, weeksAhead: 1),
+        kind: 'school_event',
+      ),
+      PlannerSyntheticReminder(
+        text: 'Confirm next week lesson resources',
+        timestamp: sampleDay(5, weeksAhead: 1, hour: 14),
+        kind: 'task',
+      ),
+    ],
+  );
+
   final presentationObserver = _PreviewPresentationObserver();
   final router = GoRouter(
     observers: [presentationObserver],
@@ -249,8 +302,27 @@ Future<void> main() async {
       ),
       GoRoute(
         path: '/preview/planner',
-        builder: (context, state) => _SyntheticPlannerPreview(
-          classes: classes.activeClasses,
+        builder: (context, state) => Column(
+          children: [
+            Material(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                child: Row(children: [
+                  Icon(Icons.science_outlined, size: 18),
+                  SizedBox(width: 9),
+                  Expanded(child: Text(
+                    'FULL PLANNER REVIEW · FICTIONAL CLASSES AND EVENTS · LOCAL ONLY',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  )),
+                ]),
+              ),
+            ),
+            Expanded(child: PlannerSurface(
+              initialDate: localToday,
+              syntheticPreview: demoPlanner,
+            )),
+          ],
         ),
       ),
       GoRoute(
@@ -429,105 +501,3 @@ class _PreviewPresentationObserver extends NavigatorObserver {
 }
 
 
-/// Interactive Planner review inside the existing synthetic-only GradeFlow shell.
-/// It exercises the production PlannerTeachingWorkspace without Firebase or
-/// connecting to any real teacher/student records.
-class _SyntheticPlannerPreview extends StatefulWidget {
-  const _SyntheticPlannerPreview({required this.classes});
-
-  final List<Class> classes;
-
-  @override
-  State<_SyntheticPlannerPreview> createState() =>
-      _SyntheticPlannerPreviewState();
-}
-
-class _SyntheticPlannerPreviewState extends State<_SyntheticPlannerPreview> {
-  DateTime _selectedDate = DateTime.now();
-  bool _todayView = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Planner · GradeFlow V2 review'),
-        leading: BackButton(onPressed: () => context.go('/preview/home')),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 56),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  alignment: WrapAlignment.spaceBetween,
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    const Text(
-                      'SYNTHETIC REVIEW ONLY · 8 fictional groups · 24 periods · no Firebase',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment(value: true, label: Text('Today')),
-                        ButtonSegment(value: false, label: Text('Week')),
-                      ],
-                      selected: {_todayView},
-                      onSelectionChanged: (value) =>
-                          setState(() => _todayView = value.first),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => setState(() {
-                        _selectedDate = DateTime.now();
-                        _todayView = true;
-                      }),
-                      icon: const Icon(Icons.today_outlined),
-                      label: const Text('Go to today'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            PlannerTeachingWorkspace(
-              lessons: _previewLessons,
-              classes: widget.classes,
-              date: _selectedDate,
-              todayView: _todayView,
-              lunch: const PlannerLunch(710, 770),
-              periods: _previewTimes,
-              onSelectDate: (date) => setState(() {
-                _selectedDate = date;
-                _todayView = true;
-              }),
-              onUpload: () => _unavailable('Timetable import'),
-              onManage: () => _unavailable('Saved timetable versions'),
-            ),
-            const SizedBox(height: 16),
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(14),
-                child: Text(
-                  'This is an interactive review of the real Planner Week/Today '
-                  'widget inside the local-only demo shell. Calendar import, '
-                  'cloud sync, and real class records are intentionally not '
-                  'connected. The authenticated Planner remains in PR #130.',
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _unavailable(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('$feature is not connected in the synthetic preview.'),
-    ));
-  }
-}
