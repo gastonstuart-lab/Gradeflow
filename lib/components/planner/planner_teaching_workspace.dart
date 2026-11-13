@@ -188,7 +188,7 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
                   clipBehavior: Clip.antiAlias,
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
-                    child: _details(sheetContext),
+                    child: _details(sheetContext, block),
                   ),
                 ),
               ),
@@ -212,8 +212,7 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
     }
   }
 
-  Widget _details(BuildContext sheetContext) {
-    final block = selected!;
+  Widget _details(BuildContext sheetContext, List<TimeSlotClass> block) {
     final lesson = block.first;
     final linked = widget.classes
         .where((c) => c.classId == lesson.classId && !c.isArchived)
@@ -273,25 +272,20 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
         .where((b) => b.first.dayOfWeek == widget.date.weekday - 1)
         .toList();
     final sameDay = DateUtils.isSameDay(widget.date, now);
+    // A visually grouped double lesson still has separate teaching periods.
+    // The interval between periods must not appear as active class time.
+    DateTime atMinute(int minute) => DateTime(widget.date.year,
+        widget.date.month, widget.date.day, minute ~/ 60, minute % 60);
     final current = sameDay
-        ? daily.where((b) {
-            final starts = DateTime(widget.date.year, widget.date.month,
-                widget.date.day, b.first.startMinutes ~/ 60,
-                b.first.startMinutes % 60);
-            final ends = DateTime(widget.date.year, widget.date.month,
-                widget.date.day, b.last.endMinutes ~/ 60,
-                b.last.endMinutes % 60);
-            return !now.isBefore(starts) && now.isBefore(ends);
-          }).firstOrNull
+        ? daily
+            .where((b) => b.any((period) =>
+                !now.isBefore(atMinute(period.startMinutes)) &&
+                now.isBefore(atMinute(period.endMinutes))))
+            .firstOrNull
         : null;
     final next = daily
-        .where((b) => !DateTime(
-                widget.date.year,
-                widget.date.month,
-                widget.date.day,
-                b.first.startMinutes ~/ 60,
-                b.first.startMinutes % 60)
-            .isBefore(now))
+        .where((b) => b.any((period) =>
+            !atMinute(period.startMinutes).isBefore(now)))
         .firstOrNull;
     final timeline = [
       ...widget.lessons.map((l) => (start: l.startMinutes, end: l.endMinutes)),
