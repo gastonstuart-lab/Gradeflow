@@ -1085,12 +1085,24 @@ class _PlannerDashboardView extends StatelessWidget {
                           const SizedBox(height: 16),
                         ],
                         if (displayMode == _PlannerDisplayMode.today) dayDetail
-                        else if (displayMode == _PlannerDisplayMode.week)
+                        else if (displayMode == _PlannerDisplayMode.week) ...[
+                          // Keep upcoming reminders visible without restoring
+                          // the old permanent multi-column dashboard.
+                          if (pendingReminders.isNotEmpty) ...[
+                            reminders,
+                            const SizedBox(height: 12),
+                          ],
+                          // If no timetable is imported, the calendar is still
+                          // immediately usable. Once lessons exist, this is
+                          // secondary to the full-width teaching grid.
                           ExpansionTile(
-                            title: const Text('Calendar'),
-                            subtitle: const Text('Show week events and reminders'),
+                            key: ValueKey('planner-week-calendar-${lessons.isEmpty ? 'empty' : 'loaded'}'),
+                            initiallyExpanded: lessons.isEmpty,
+                            title: const Text('Week dates & school events'),
+                            subtitle: const Text('Open the week calendar'),
                             children: [calendar],
-                          )
+                          ),
+                        ]
                         else LayoutBuilder(
                             builder: (context, size) => size.maxWidth >= 900
                                 ? Row(
