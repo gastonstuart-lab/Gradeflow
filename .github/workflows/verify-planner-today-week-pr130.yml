@@ -9,6 +9,7 @@ on:
     paths:
       - '.github/workflows/verify-planner-today-week-pr130.yml'
       - 'lib/components/planner/planner_teaching_workspace.dart'
+      - 'lib/main_classroom_preview.dart'
       - 'lib/os/surfaces/planner_surface.dart'
       - 'test/planner_teaching_workspace_test.dart'
       - 'test/os_shell_surfaces_test.dart'
@@ -45,6 +46,7 @@ jobs:
         run: |
           flutter analyze \
             lib/components/planner/planner_teaching_workspace.dart \
+            lib/main_classroom_preview.dart \
             lib/os/surfaces/planner_surface.dart \
             test/planner_teaching_workspace_test.dart \
             test/os_shell_surfaces_test.dart
@@ -56,6 +58,32 @@ jobs:
             --dart-define=PLANNER_PREVIEW_DIR="$GITHUB_WORKSPACE/planner-review-artifacts" \
             test/planner_teaching_workspace_test.dart \
             test/os_shell_surfaces_test.dart
+
+      - name: Assert synthetic preview cannot start Firebase or production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'RepositoryFactory.useLocal()' lib/main_classroom_preview.dart
+          grep -Fq 'PlannerTeachingWorkspace(' lib/main_classroom_preview.dart
+          if grep -Eq "import 'package:gradeflow/(main\\.dart|providers/app_providers\\.dart|services/firebase_service\\.dart)'" lib/main_classroom_preview.dart; then
+            echo 'Synthetic preview must not import the production app/Firebase bootstrap.' >&2
+            exit 1
+          fi
+
+      - name: Compile standalone fictional Planner and Classroom preview
+        run: |
+          flutter build web --release --no-wasm-dry-run \
+            --target lib/main_classroom_preview.dart --base-href /
+          test -s build/web/index.html
+          test -s build/web/main.dart.js
+
+      - name: Save isolated synthetic preview build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planner-v2-synthetic-web-preview
+          path: build/web/
+          retention-days: 7
 
       - name: Upload screenshots for human review
         if: always()
