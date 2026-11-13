@@ -98,5 +98,10 @@ void main() {
     expect(find.text('InstructOS'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('Open demo workspace'), findsOneWidget);
+    final demo = tester.widget<TextButton>(find.ancestor(of: find.text('Open demo workspace'), matching: find.byWidgetPredicate((widget) => widget is TextButton)).first);
+    expect(demo.onPressed != null, AuthService.demoLoginAvailable);
+    if (!AuthService.demoLoginAvailable) {
+      expect(find.text('Demo workspace is available only in the isolated review preview.'), findsOneWidget);
+    }
   });
 }
