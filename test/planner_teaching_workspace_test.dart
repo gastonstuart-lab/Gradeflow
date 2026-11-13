@@ -143,6 +143,34 @@ void main() {
     }
   }
 
+  testWidgets('Today highlights an ongoing class and closes the detail sheet',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: SingleChildScrollView(
+                child: PlannerTeachingWorkspace(
+                    lessons: lessons,
+                    classes: const [],
+                    date: DateTime(2026, 11, 9),
+                    now: DateTime(2026, 11, 9, 8, 20),
+                    todayView: true,
+                    onSelectDate: (_) {},
+                    onUpload: () {},
+                    onManage: () {})))));
+    await tester.pumpAndSettle();
+    expect(find.text('In class now'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('planner-lesson-0-480')));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Close lesson details'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close lesson details'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Close lesson details'), findsNothing);
+    expect(find.text('In class now'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'Today shows selected sequence and next lesson without invented room or links',
       (tester) async {
