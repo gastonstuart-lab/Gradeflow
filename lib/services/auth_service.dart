@@ -14,6 +14,8 @@ import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
 class AuthService extends ChangeNotifier {
   static const String _currentUserKey = 'current_user';
   static const String _usersKey = 'users';
+
+  static const bool demoLoginAvailable = GradeFlowExistingProjectPreview.enabled;
   User? _currentUser;
   bool _isLoading = false;
   bool _initialized = false;
@@ -50,16 +52,8 @@ class AuthService extends ChangeNotifier {
         }
       }
 
-      // Non-live reviews must not treat remembered production/local browser users as
-      // authenticated, or migrate their local data into the test project.
-      if (PlannerV2StagingSafety.authenticatedV2Mode) return;
-
-      final prefs = await SharedPreferences.getInstance();
-      final userJson = prefs.getString(_currentUserKey);
-      if (userJson != null) {
-        _currentUser =
-            User.fromJson(json.decode(userJson) as Map<String, dynamic>);
-      }
+      // A remembered profile is not proof of Firebase authentication.
+      // Preserve the cache for recovery, but require sign-in to restore access.
     } catch (e) {
       debugPrint('Failed to load current user: $e');
     } finally {
@@ -228,14 +222,14 @@ class AuthService extends ChangeNotifier {
             return true;
           }
         } catch (e) {
-          // Fall back to local login (demo/offline) if Firebase login fails.
-          debugPrint('Firebase email/password login failed (falling back): $e');
+          // Authentication failures must never authorize a cached local profile.
+          debugPrint('Firebase email/password login failed: $e');
         }
       }
 
-      // Non-live previews require a genuine Firebase authenticated user. Never
-      // silently sign into a local account when Firebase login fails.
-      if (PlannerV2StagingSafety.authenticatedV2Mode && !previewDemo) {
+      // Local profiles have no password verifier. Only the explicit preview
+      // demo credentials can authorize a local session.
+      if (!previewDemo) {
         _isLoading = false;
         notifyListeners();
         return false;
@@ -250,7 +244,8 @@ class AuthService extends ChangeNotifier {
       if (usersJson != null) {
         final List<dynamic> usersList = json.decode(usersJson) as List;
         final userMap = usersList.firstWhere(
-          (u) => (u as Map<String, dynamic>)['email'] == email,
+          (u) => (u as Map<String, dynamic>)['email'] == 'teacher@demo.com' &&
+              u['userId'] == 'demo-teacher-1',
           orElse: () => null,
         );
 
@@ -386,11 +381,18 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> seedDemoUser() async {
+    if (!demoLoginAvailable) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final usersJson = prefs.getString(_usersKey);
 
-      if (usersJson == null) {
+      final users = usersJson == null
+          ? <dynamic>[]
+          : json.decode(usersJson) as List<dynamic>;
+      final hasDemo = users.any((entry) =>
+          entry is Map && entry['userId'] == 'demo-teacher-1' &&
+          entry['email'] == 'teacher@demo.com');
+      if (!hasDemo) {
         final demoUser = User(
           userId: 'demo-teacher-1',
           email: 'teacher@demo.com',
@@ -400,7 +402,7 @@ class AuthService extends ChangeNotifier {
           updatedAt: DateTime.now(),
         );
 
-        await prefs.setString(_usersKey, json.encode([demoUser.toJson()]));
+        await prefs.setString(_usersKey, json.encode([...users, demoUser.toJson()]));
         debugPrint('Demo user seeded successfully');
       }
     } catch (e) {
