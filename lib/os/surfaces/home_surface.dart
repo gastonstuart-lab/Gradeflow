@@ -6077,6 +6077,10 @@ class _HomeShortcutShelf extends StatelessWidget {
   Widget build(BuildContext context) {
     final showLauncher = MediaQuery.sizeOf(context).width < 560;
     final shortcuts = <_HomeShortcutData>[
+      _shortcutFromApp(
+        OSAppId.whiteboard,
+        onTap: () => context.push(AppRoutes.whiteboard),
+      ),
       _shortcutFromApp(OSAppId.teach,
           onTap: () => context.go(AppRoutes.osTeach)),
       _shortcutFromApp(
@@ -6096,10 +6100,7 @@ class _HomeShortcutShelf extends StatelessWidget {
         onTap: onMessagesTap,
         badge: unread > 0 ? '$unread' : null,
       ),
-      _shortcutFromApp(
-        OSAppId.whiteboard,
-        onTap: () => context.push(AppRoutes.whiteboard),
-      ),
+
       if (showLauncher)
         _HomeShortcutData(
           label: 'Launcher',

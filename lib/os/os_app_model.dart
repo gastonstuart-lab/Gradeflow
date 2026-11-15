@@ -124,10 +124,10 @@ class OSAppRegistry {
     ),
     OSApp(
       id: OSAppId.whiteboard,
-      name: 'Whiteboard',
+      name: 'Whiteboard & PDF',
       icon: Icons.draw_rounded,
       category: OSAppCategory.classroom,
-      description: 'Freehand drawing & annotation',
+      description: 'Teaching Studio · pen, PDF annotation and classroom tools',
       route: '/whiteboard',
       color: Color(0xFF7869F0),
     ),

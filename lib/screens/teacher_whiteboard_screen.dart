@@ -49,6 +49,7 @@ class TeacherWhiteboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) return const _TeachingStudioDestination();
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: AnimatedPageBackground(
@@ -57,25 +58,6 @@ class TeacherWhiteboardScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: Column(
               children: [
-                if (kIsWeb) Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: FilledButton.icon(
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Open Teaching Studio · Pen & PDF'),
-                    onPressed: () async {
-                      final classId = context.read<GradeFlowOSController>().activeClassId;
-                      final uri = Uri.base.resolve('/teaching-studio/').replace(
-                        queryParameters: classId == null ? null : {'classId': classId},
-                      );
-                      final opened = await launchUrl(uri, webOnlyWindowName: '_blank');
-                      if (!opened && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Allow this site to open Teaching Studio in a new tab.')),
-                        );
-                      }
-                    },
-                  ),
-                ),
                 Expanded(child: TeacherWhiteboardWorkspace(
               controller: controller,
               title: 'Teacher whiteboard',
@@ -90,4 +72,57 @@ class TeacherWhiteboardScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TeachingStudioDestination extends StatefulWidget {
+  const _TeachingStudioDestination();
+
+  @override
+  State<_TeachingStudioDestination> createState() => _TeachingStudioDestinationState();
+}
+
+class _TeachingStudioDestinationState extends State<_TeachingStudioDestination> {
+  bool _started = false;
+  bool _failed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _open(); });
+  }
+
+  Future<void> _open() async {
+    final classId = context.read<GradeFlowOSController>().activeClassId;
+    final uri = Uri.base.resolve('/teaching-studio/').replace(
+      queryParameters: classId == null ? null : {'classId': classId},
+    );
+    try {
+      final opened = await launchUrl(uri, webOnlyWindowName: '_self');
+      if (!opened && mounted) setState(() => _failed = true);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: _failed
+        ? FilledButton.icon(
+            onPressed: _open,
+            icon: const Icon(Icons.draw_rounded),
+            label: const Text('Open Whiteboard & PDF'),
+          )
+        : const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Opening Whiteboard & PDF…'),
+            ],
+          ),
+    ),
+  );
 }
