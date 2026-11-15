@@ -19,8 +19,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run watch 43714083964 --exit-status
-          test "$(gh run view 43714083964 --json headSha --jq .headSha)" = "89f9c15d6c0f59342c6b6a133e5a646b934be979"
+          gh run watch 43714479112 --exit-status
+          test "$(gh run view 43714479112 --json headSha --jq .headSha)" = "241c5deb3107259374bdc0c51fe95599693b37f8"
           test "$(gh run view 43712835336 --json conclusion --jq .conclusion)" = "success"
           git diff --exit-code b2a6dcd8c55231a2276e9819083c59a176b276d2 HEAD -- lib assets web pubspec.yaml pubspec.lock
       - name: Reuse the already validated release build
@@ -35,7 +35,7 @@ jobs:
           cp firebase.live.json package/firebase.live.json
           cp scripts/deploy-gradeflow-live.cmd package/deploy-gradeflow-live.cmd
           cp scripts/rollback-gradeflow-live.cmd package/rollback-gradeflow-live.cmd
-          printf '%s\n' 'GradeFlow V2 approved Planner release candidate' 'Build source: b2a6dcd8c55231a2276e9819083c59a176b276d2' 'Browser acceptance: 89f9c15d6c0f59342c6b6a133e5a646b934be979' 'Existing project: gradeflow-20260113' 'GRADEFLOW_LIVE_CLASSROOM_V2=true' > package/release-gradeflow-live-v2.txt
+          printf '%s\n' 'GradeFlow V2 approved Planner release candidate' 'Build source: b2a6dcd8c55231a2276e9819083c59a176b276d2' 'Browser acceptance: 241c5deb3107259374bdc0c51fe95599693b37f8' 'Existing project: gradeflow-20260113' 'GRADEFLOW_LIVE_CLASSROOM_V2=true' > package/release-gradeflow-live-v2.txt
           test -s package/build/web/index.html
           test -s package/build/web/main.dart.js
           node - <<'NODE'
