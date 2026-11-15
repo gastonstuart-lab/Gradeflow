@@ -48,6 +48,8 @@ function App() {
   const [mode, setMode] = useState<Mode>('board');
   const [dark, setDark] = useState(false);
   const [tools, setTools] = useState(true);
+  const [focus, setFocus] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState('Session only — save your work before closing.');
   const [pdf, setPdf] = useState<{ url: string; name: string } | null>(null);
@@ -57,6 +59,19 @@ function App() {
   const dirty = useRef(false);
   const sceneVersion = useRef('');
   const connect = useCallback((value: BoardAPI) => { api.current = value; setReady(true); }, []);
+  useEffect(() => {
+    const changed = () => { if (!document.fullscreenElement) { setFocus(false); setControlsOpen(false); } };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setFocus(false); setControlsOpen(false); } };
+    document.addEventListener('fullscreenchange', changed);
+    window.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('fullscreenchange', changed); window.removeEventListener('keydown', escape); };
+  }, []);
+  async function fullscreen() {
+    if (document.fullscreenElement) { await document.exitFullscreen(); return; }
+    setFocus(true); setControlsOpen(false);
+    try { await document.documentElement.requestFullscreen(); }
+    catch { setStatus('Browser full screen is unavailable. Focus mode is active; use F11 to hide browser controls.'); }
+  }
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   }, [dark]);
@@ -102,13 +117,15 @@ function App() {
     setPdf({ name: file.name, url: URL.createObjectURL(file) }); setMode('pdf');
     setStatus('Use the PDF editor’s pen, highlighter and text tools. Download from its toolbar to save your annotated copy.');
   }
-  return <div className="studio">
+  return <div className={`studio ${focus ? 'focus-mode' : ''} ${controlsOpen ? 'controls-open' : ''}`}>
+    <div id="studio-controls" className="studio-controls" ref={node => { node?.toggleAttribute('inert', focus && !controlsOpen); }}>
     <header className="studio-header">
       <div className="brand"><span className="brand-mark">G</span><div><h1>Teaching Studio</h1><p>GradeFlow · standalone review · no school records connected</p></div></div>
       <div className="header-actions">
         <button onClick={() => setTools(!tools)} aria-pressed={tools}>Teaching tools</button>
         <button onClick={() => setDark(!dark)}>{dark ? 'Light theme' : 'Dark theme'}</button>
-        <button onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void document.documentElement.requestFullscreen().catch(() => setStatus('Full screen is unavailable in this browser.')); }}>Full screen</button>
+        <button onClick={() => { setFocus(!focus); setControlsOpen(false); }}>{focus ? 'Leave focus mode' : 'Hide controls'}</button>
+        <button onClick={() => { void fullscreen(); }}>Full screen</button>
       </div>
     </header>
     <div className="workspace-bar">
@@ -129,6 +146,8 @@ function App() {
     <input ref={boardInput} data-testid="board-file" type="file" accept=".excalidraw,application/json" hidden onChange={e => { void openBoard(e.target.files?.[0]); e.target.value = ''; }} />
     <input ref={pdfInput} data-testid="pdf-file" type="file" accept="application/pdf,.pdf" hidden onChange={e => { openPdf(e.target.files?.[0]); e.target.value = ''; }} />
     <div hidden={!tools}><TeachingTools /></div>
+    </div>
+    {focus && <button className="controls-tab" aria-controls="studio-controls" aria-expanded={controlsOpen} onClick={() => setControlsOpen(!controlsOpen)}>{controlsOpen ? 'Hide controls ▴' : 'Show controls ▾'}</button>}
     <main className="editors">
       <section className={`editor-layer ${mode === 'board' ? '' : 'inactive'}`} aria-label="Whiteboard editor" aria-hidden={mode !== 'board'}>
         <Excalidraw excalidrawAPI={connect} theme={dark ? 'dark' : 'light'} name="GradeFlow lesson"
