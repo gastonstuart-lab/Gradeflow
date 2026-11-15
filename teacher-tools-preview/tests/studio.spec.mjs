@@ -21,6 +21,9 @@ function worksheet() {
 
 async function ready(page, testInfo) {
   const outside = [];
+  page.on('pageerror', error => console.log('BROWSER_ERROR:', error.message));
+  page.on('console', message => { if (message.type() === 'error') console.log('BROWSER_CONSOLE:', message.text()); });
+  page.on('requestfailed', request => console.log('REQUEST_FAILED:', request.url(), request.failure()?.errorText));
   page.on('request', request => { const url = new URL(request.url());
     if (url.protocol.startsWith('http') && url.hostname !== '127.0.0.1') outside.push(url.origin);
   });
@@ -60,11 +63,11 @@ test('pen drawing, editable save/open, invalid-file preservation and image expor
     expect(afterPalm.elements.filter(e => e.type === 'freedraw' && !e.isDeleted)).toHaveLength(strokes.length);
   }
   await page.getByTestId('board-file').setInputFiles({ name: 'bad.excalidraw', mimeType: 'application/json', buffer: Buffer.from('{}') });
-  await expect(page.getByRole('status')).toContainText('Could not open');
+  await expect(page.getByRole('status', { name: 'Save and file status' })).toContainText('Could not open');
   const preserved = await saveScene(page);
   expect(preserved.elements.filter(e => !e.isDeleted).map(e => e.id)).toEqual(scene.elements.filter(e => !e.isDeleted).map(e => e.id));
   await page.getByTestId('board-file').setInputFiles({ name: 'lesson.excalidraw', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(scene)) });
-  await expect(page.getByRole('status')).toContainText('Opened lesson.excalidraw');
+  await expect(page.getByRole('status', { name: 'Save and file status' })).toContainText('Opened lesson.excalidraw');
   const [png] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export PNG', exact: true }).click()]);
   const bytes = await readFile(await png.path());
   expect(bytes.subarray(1, 4).toString()).toBe('PNG');
@@ -80,7 +83,8 @@ test('real PDF editor writes ink and saves a two-page annotated copy', async ({ 
   await page.getByRole('button', { name: 'Annotate PDF', exact: true }).click();
   await page.getByTestId('pdf-file').setInputFiles({ name: 'fictional-worksheet.pdf', mimeType: 'application/pdf', buffer: worksheet() });
   const frame = page.frameLocator('iframe[title="PDF annotation editor"]');
-  await expect(frame.locator('#numPages')).toContainText('2');
+  try { await expect(frame.locator('#numPages')).toContainText('2'); }
+  catch (error) { console.log('PDF_ACCESSIBILITY:', await frame.locator('body').ariaSnapshot()); throw error; }
   await expect(frame.locator('#editorInkButton')).toBeVisible();
   await frame.locator('#editorInkButton').click();
   const paper = frame.locator('.page[data-page-number="1"]');

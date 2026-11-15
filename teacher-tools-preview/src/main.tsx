@@ -142,7 +142,7 @@ function App() {
           <div className="empty-pdf"><span className="document-symbol">PDF</span><h2>Open a worksheet. Teach straight onto it.</h2><p>Write with your pen, highlight passages, add notes and save an annotated copy.</p><button className="primary" onClick={() => pdfInput.current?.click()}>Choose a PDF</button><small>For Word or PowerPoint, save as PDF first.</small></div>}
       </section>
     </main>
-    <footer className="status" role="status">{status}</footer>
+    <footer className="status" role="status" aria-label="Save and file status">{status}</footer>
   </div>;
 }
 

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const version = '6.5.438';
-const expected = 'fcbe9ba21d9911843e3502adc178a7f549a524a4055f887bedc942e5490c6ba1';
+const expected = '55138aa33b5f1f6f68809895338b947f395f344eb6381d424b2420d6daa6a844';
 const root = resolve('public');
 await mkdir(root, { recursive: true });
 let installed = false;
@@ -14,7 +14,7 @@ try {
   await access(join(root, 'pdfjs/web/viewer.html'));
 } catch { installed = false; }
 if (!installed) {
-  const response = await fetch(`https://github.com/mozilla/pdf.js/releases/download/v${version}/pdfjs-${version}-dist.zip`);
+  const response = await fetch(`https://github.com/mozilla/pdf.js/releases/download/v${version}/pdfjs-${version}-legacy-dist.zip`);
   if (!response.ok) throw Error(`PDF.js download failed: ${response.status}`);
   const bytes = Buffer.from(await response.arrayBuffer());
   if (createHash('sha256').update(bytes).digest('hex') !== expected) throw Error('PDF.js archive checksum mismatch');
