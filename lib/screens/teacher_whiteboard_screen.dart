@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:gradeflow/platform/teaching_studio_navigation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/components/teacher_whiteboard.dart';
@@ -99,7 +99,7 @@ class _TeachingStudioDestinationState extends State<_TeachingStudioDestination> 
       queryParameters: classId == null ? null : {'classId': classId},
     );
     try {
-      final opened = await launchUrl(uri, webOnlyWindowName: '_self');
+      final opened = openTeachingStudio(uri);
       if (!opened && mounted) setState(() => _failed = true);
     } catch (_) {
       if (mounted) setState(() => _failed = true);
