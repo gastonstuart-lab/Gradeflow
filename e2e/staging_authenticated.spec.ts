@@ -87,7 +87,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await expect(page.getByText('Import timetable', { exact: true }).first()).toBeVisible();
   for (const view of ['Today', 'Month', 'Agenda', 'Tasks', 'Week']) {
     try {
-      await page.getByText(view, { exact: true }).first().click({ timeout: 15_000 });
+      await page.getByRole('checkbox', { name: view, exact: true }).click({ timeout: 15_000 });
     } catch (error) {
       console.log('Planner accessibility at failed view:', view);
       console.log(await page.locator('body').ariaSnapshot());
@@ -135,7 +135,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // Locate the score field within its fictional pupil row so the test
   // verifies actual gradebook data rather than a text-layout implementation.
   // Full Gradebook opens Summary; select the actual assessment category.
-  await page.getByText('Quizzes', { exact: true }).first().click();
+  await page.getByRole('checkbox', { name: 'Quizzes', exact: true }).click();
   await expect(page.getByRole('columnheader', { name: /Fictional Quiz/ }))
     .toBeVisible({ timeout: 30_000 });
   const quizScore = page.getByRole('row', { name: /Fictional Pupil/ })
@@ -155,7 +155,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Gradebook').first()).toBeVisible();
-  await page.getByText('Quizzes', { exact: true }).first().click();
+  await page.getByRole('checkbox', { name: 'Quizzes', exact: true }).click();
   // After a full reload, the computed average must reflect the saved quiz.
   // This checks durable Firestore data, not the transient DOM editing proxy.
   await expect(page.getByRole('row', { name: /Fictional Pupil/ })
