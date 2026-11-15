@@ -120,7 +120,7 @@ void main() {
       createdAt: DateTime(2026, 5, 1),
       updatedAt: DateTime(2026, 5, 1),
     );
-    final auth = AuthService();
+    final auth = _RestoredTestAuth(user);
     SharedPreferences.setMockInitialValues({
       'current_user': jsonEncode(user.toJson()),
       'dashboard_reminders_v1:local': jsonEncode([
@@ -381,7 +381,7 @@ void main() {
         {'text': 'Other day event', 'timestamp': '2026-12-16T10:00:00', 'kind': 'school_event', 'done': false},
       ]),
     });
-    final auth = AuthService();
+    final auth = _RestoredTestAuth(user);
     addTearDown(auth.dispose);
     await auth.initialize();
     tester.view.physicalSize = const Size(1280, 900);
@@ -432,4 +432,27 @@ Widget _harness(
       home: child,
     ),
   );
+}
+
+// Scoped Planner tests model an already verified identity explicitly. A cached
+// current_user profile is data, never proof of Firebase authentication (#128).
+class _RestoredTestAuth extends AuthService {
+  _RestoredTestAuth(this.user);
+  final User user;
+  bool _restored = false;
+
+  @override
+  bool get isInitialized => _restored;
+  @override
+  bool get isLoading => !_restored;
+  @override
+  bool get isAuthenticated => _restored;
+  @override
+  User? get currentUser => _restored ? user : null;
+
+  @override
+  Future<void> initialize() async {
+    _restored = true;
+    notifyListeners();
+  }
 }
