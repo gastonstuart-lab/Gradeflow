@@ -27,6 +27,7 @@ async function ready(page, testInfo) {
   page.on('request', request => { const url = new URL(request.url());
     if (url.protocol.startsWith('http') && url.hostname !== '127.0.0.1') outside.push(url.origin);
   });
+  page.on('dialog', dialog => dialog.accept());
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Save board', exact: true })).toBeEnabled();
   if (testInfo.project.name.endsWith('dark')) await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
@@ -101,13 +102,14 @@ test('real PDF editor writes ink and saves a two-page annotated copy', async ({ 
   expect(saved.subarray(0, 5).toString()).toBe('%PDF-');
   const info = await frame.locator('body').evaluate(async (_, data) => {
     const pdfjs = await import('/pdfjs/build/pdf.mjs');
-    const doc = await pdfjs.getDocument({ data: new Uint8Array(data), isEvalSupported: false }).promise;
+    const loading = pdfjs.getDocument({ data: new Uint8Array(data), isEvalSupported: false });
+    const doc = await loading.promise;
     try {
       const page = await doc.getPage(1);
       const annotations = await page.getAnnotations();
       const text = await page.getTextContent();
       return { pages: doc.numPages, ink: annotations.filter(a => a.annotationType === 15).length, text: text.items.map(item => item.str || '').join(' ') };
-    } finally { await doc.destroy(); }
+    } finally { await loading.destroy(); }
   }, Array.from(saved));
   expect(info.pages).toBe(2); expect(info.ink).toBeGreaterThan(0);
   expect(info.text).toContain('Fictional worksheet page 1');

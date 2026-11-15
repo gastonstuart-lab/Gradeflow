@@ -55,6 +55,7 @@ function App() {
   const boardInput = useRef<HTMLInputElement>(null);
   const pdfInput = useRef<HTMLInputElement>(null);
   const dirty = useRef(false);
+  const sceneVersion = useRef('');
   const connect = useCallback((value: BoardAPI) => { api.current = value; setReady(true); }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
@@ -132,7 +133,7 @@ function App() {
       <section className={`editor-layer ${mode === 'board' ? '' : 'inactive'}`} aria-label="Whiteboard editor" aria-hidden={mode !== 'board'}>
         <Excalidraw excalidrawAPI={connect} theme={dark ? 'dark' : 'light'} name="GradeFlow lesson"
           initialData={{ appState: { penMode: true, currentItemRoughness: 0, currentItemFontFamily: 2, viewBackgroundColor: '#fffef8' } }}
-          onChange={elements => { if (elements.some(element => !element.isDeleted)) dirty.current = true; }}
+          onChange={elements => { const version = elements.map(element => `${element.id}:${element.version}:${element.isDeleted}`).join('|'); if (version !== sceneVersion.current) { sceneVersion.current = version; dirty.current = true; } }}
           validateEmbeddable={() => false}>
           <MainMenu><MainMenu.DefaultItems.ClearCanvas /></MainMenu>
         </Excalidraw>
