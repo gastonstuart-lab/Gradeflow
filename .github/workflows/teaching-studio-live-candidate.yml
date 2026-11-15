@@ -1,7 +1,7 @@
 name: Teaching Studio integrated live candidate
 on:
   push:
-    branches: [feature/surface-teacher-whiteboard-20261115]
+    branches: [fix/direct-teaching-studio-entry-20261115]
     paths: ['lib/screens/teacher_whiteboard_screen.dart', '.github/workflows/teaching-studio-live-candidate.yml']
 permissions:
   contents: read
