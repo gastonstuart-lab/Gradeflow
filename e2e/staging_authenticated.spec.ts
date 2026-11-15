@@ -175,27 +175,17 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // A successful refresh must restore this actual teacher workspace, not
   // merely avoid the safety-blocked screen or show an unauthenticated shell.
   await expect(page).toHaveURL(/\/os\/home$/);
-  // Verify restored Home through its real class action, rather than a
-  // decorative heading that Flutter can merge into adjacent semantics text.
+  // Restore Home and use its real class action instead of a decorative heading.
   const openClassroom = page.getByRole('button', { name: 'Open Classroom', exact: true });
   try {
     await expect(openClassroom).toBeEnabled({ timeout: 15_000 });
     await openClassroom.click({ timeout: 15_000 });
-    await expect.poll(() => new URL(page.url()).pathname).toMatch(
-      new RegExp('^/os/class/class-(science|english)-browser/classroom
-  // Reconnection must be driven by FlutterFire's actual per-app origin key,
-  // rather than a test-injected key ignored by the SDK.
-  await expect.poll(emulatorOrigin).toBe('http://127.0.0.1:9099');
-  expect(unexpectedCloudRequests,
-    'A local-emulator build contacted live Firebase endpoints').toEqual([]);
-});
-));
+    await expect.poll(() => ['/os/class/class-science-browser/classroom',
+      '/os/class/class-english-browser/classroom'].includes(new URL(page.url()).pathname)).toBe(true);
   } catch (error) {
     console.log('Restored Home accessibility:', await page.locator('body').ariaSnapshot());
     throw error;
   }
-  // Reconnection must be driven by FlutterFire's actual per-app origin key,
-  // rather than a test-injected key ignored by the SDK.
   await expect.poll(emulatorOrigin).toBe('http://127.0.0.1:9099');
   expect(unexpectedCloudRequests,
     'A local-emulator build contacted live Firebase endpoints').toEqual([]);
