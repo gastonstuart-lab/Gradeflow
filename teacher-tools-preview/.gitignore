@@ -1,0 +1,6 @@
+node_modules/
+dist/
+public/pdfjs/
+public/excalidraw/
+test-results/
+playwright-report/
