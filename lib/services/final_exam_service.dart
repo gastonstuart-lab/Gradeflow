@@ -1,9 +1,22 @@
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/models/final_exam.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
+import 'package:gradeflow/repositories/data_repository.dart';
 
 class FinalExamService extends ChangeNotifier {
+  FinalExamService({DataRepository? repository}) : _repository = repository;
+
+  final DataRepository? _repository;
   List<FinalExam> _exams = [];
+  Future<void> _pendingSave = Future<void>.value();
+
+  // Serialize read-modify-write saves so overlapping edits retain each other.
+  Future<T> _queueSave<T>(Future<T> Function() save) {
+    final result = _pendingSave.then((_) => save());
+    _pendingSave = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
+  }
+
   bool _isLoading = false;
 
   List<FinalExam> get exams => _exams;
@@ -14,7 +27,7 @@ class FinalExamService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository ?? RepositoryFactory.instance;
       final all = await repo.loadExams(classId);
       _exams = all.where((e) => studentIds.contains(e.studentId)).toList();
     } catch (e) {
@@ -25,9 +38,12 @@ class FinalExamService extends ChangeNotifier {
     }
   }
 
-  Future<void> updateExam(String classId, FinalExam exam) async {
+  Future<void> updateExam(String classId, FinalExam exam) =>
+      _queueSave(() => _updateExam(classId, exam));
+
+  Future<void> _updateExam(String classId, FinalExam exam) async {
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository ?? RepositoryFactory.instance;
       final existing = await repo.loadExams(classId);
       final index = existing.indexWhere((e) => e.studentId == exam.studentId);
 
@@ -50,6 +66,7 @@ class FinalExamService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to update exam: $e');
+      rethrow;
     }
   }
 
@@ -62,11 +79,18 @@ class FinalExamService extends ChangeNotifier {
   /// Pass null to remove a student's exam record.
   /// Returns the number of items that were changed.
   Future<int> upsertManyExams(
+      String classId, Map<String, double?> changes) {
+    final snapshot = Map<String, double?>.of(changes);
+    return _queueSave(() => _upsertManyExams(classId, snapshot));
+  }
+
+  Future<int> _upsertManyExams(
       String classId, Map<String, double?> changes) async {
     if (changes.isEmpty) return 0;
     int changed = 0;
+    final updatedExams = List<FinalExam>.of(_exams);
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository ?? RepositoryFactory.instance;
       final existing = await repo.loadExams(classId);
       final indexById = <String, int>{
         for (var i = 0; i < existing.length; i++) existing[i].studentId: i,
@@ -89,7 +113,7 @@ class FinalExamService extends ChangeNotifier {
                     MapEntry(existing[i].studentId, i),
                 ],
               );
-            _exams.removeWhere((e) => e.studentId == sid);
+            updatedExams.removeWhere((e) => e.studentId == sid);
             changed++;
           }
         } else {
@@ -105,20 +129,22 @@ class FinalExamService extends ChangeNotifier {
             existing.add(exam);
             indexById[sid] = existing.length - 1;
           }
-          final localIdx = _exams.indexWhere((e) => e.studentId == sid);
+          final localIdx = updatedExams.indexWhere((e) => e.studentId == sid);
           if (localIdx != -1) {
-            _exams[localIdx] = exam;
+            updatedExams[localIdx] = exam;
           } else {
-            _exams.add(exam);
+            updatedExams.add(exam);
           }
           changed++;
         }
       }
 
       await repo.saveExams(classId, existing);
+      _exams = updatedExams;
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to upsert many exams: $e');
+      rethrow;
     }
     return changed;
   }
@@ -134,7 +160,7 @@ class FinalExamService extends ChangeNotifier {
   /// Delete the final exam record for a specific student, if it exists.
   Future<void> deleteExamForStudent(String classId, String studentId) async {
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository ?? RepositoryFactory.instance;
       final existing = await repo.loadExams(classId);
       final before = existing.length;
       existing.removeWhere((e) => e.studentId == studentId);
@@ -152,7 +178,7 @@ class FinalExamService extends ChangeNotifier {
   Future<FinalExam?> removeAndReturnExamForStudent(
       String classId, String studentId) async {
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository ?? RepositoryFactory.instance;
       final existing = await repo.loadExams(classId);
       final idx = existing.indexWhere((e) => e.studentId == studentId);
       if (idx == -1) return null;
@@ -171,7 +197,7 @@ class FinalExamService extends ChangeNotifier {
   /// Restores a student's exam back into storage.
   Future<void> restoreExam(String classId, FinalExam exam) async {
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository ?? RepositoryFactory.instance;
       final existing = await repo.loadExams(classId);
       existing.removeWhere((e) => e.studentId == exam.studentId);
       existing.add(exam);
@@ -191,7 +217,7 @@ class FinalExamService extends ChangeNotifier {
 
   Future<void> seedDemoExams(String classId, List<String> studentIds) async {
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository ?? RepositoryFactory.instance;
       final existing = await repo.loadExams(classId);
 
       final now = DateTime.now();

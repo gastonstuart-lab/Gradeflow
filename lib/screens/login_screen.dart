@@ -120,6 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleDemoLogin() async {
+    if (!AuthService.demoLoginAvailable) return;
     setState(() => _isLoading = true);
 
     final authService = context.read<AuthService>();
@@ -316,10 +317,13 @@ class _LoginScreenState extends State<LoginScreen> {
           Divider(color: theme.colorScheme.outline),
           const SizedBox(height: 8),
           TextButton.icon(
-              onPressed: _isLoading ? null : _handleDemoLogin,
+              onPressed: _isLoading || !AuthService.demoLoginAvailable
+                  ? null : _handleDemoLogin,
               icon: const Icon(Icons.preview_outlined, size: 19),
               label: const Text('Open demo workspace')),
-          Text('Explore with sample students and scores.',
+          Text(AuthService.demoLoginAvailable
+              ? 'Explore with sample students and scores.'
+              : 'Demo workspace is available only in the isolated review preview.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),

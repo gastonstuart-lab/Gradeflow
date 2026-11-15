@@ -11,6 +11,7 @@ import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/gradebook_workspace.dart';
+import 'package:gradeflow/services/gradebook_export_projection.dart';
 import 'package:gradeflow/services/gradebook_import_plan.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gradeflow/platform/browser_file_actions.dart';
@@ -729,13 +730,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
         'Student ID',
         'Chinese Name',
         'English Name',
-        'Homework',
-        'Quiz',
-        'Classwork',
-        'Participation',
-        'Process Score (40%)',
-        'Exam Score (60%)',
-        'Final Grade',
+        ...GradebookExportProjection.summaryHeaders,
       ];
       sheet.appendRow(headers.map(TextCellValue.new).toList());
       final classes = await book.repository.loadClasses();
@@ -743,17 +738,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
         final w = GradebookWorkspace(book.repository, c.classId);
         await w.load();
         for (final s in w.students) {
-          double? avg(String name) {
-            final cats = w.categories
-                .where((c) => GradebookWorkspace.canonical(c.name) == name)
-                .toList();
-            return cats.length == 1
-                ? w.average(s.studentId, cats.single.categoryId)
-                : null;
-          }
-
           CellValue? number(double? v) => v == null ? null : DoubleCellValue(v);
-          final n = sheet.maxRows + 1;
           sheet.appendRow([
             TextCellValue(c.className),
             TextCellValue(c.subject),
@@ -762,19 +747,12 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
             TextCellValue(s.studentId),
             TextCellValue(s.chineseName),
             TextCellValue(s.englishFullName),
-            ...[
-              'Homework',
-              'Quizzes',
-              'Classwork',
-              'Participation',
-            ].map((k) => number(avg(k))),
-            w.process(s.studentId) == null
-                ? null
-                : FormulaCellValue(
-                    'IF(COUNT(H$n:K$n)=4,H$n*0.3+I$n*0.3+J$n*0.2+K$n*0.2,"")',
-                  ),
-            number(w.exam(s.studentId)),
-            FormulaCellValue('IF(COUNT(L$n:M$n)=2,L$n*0.4+M$n*0.6,"")'),
+            // Export exactly what the saved Gradebook policy calculates.
+            // Hardcoded spreadsheet formulas previously overrode teachers'
+            // category weights and class-specific coursework/exam split.
+            ...GradebookExportProjection.calculatedValues(
+              w, s.studentId,
+            ).map(number),
           ]);
         }
         w.dispose();

@@ -1,0 +1,36 @@
+name: GradeFlow V2 integrated candidate checks
+on:
+  push:
+    branches: [integration/gradeflow-v2-release-candidate-20261115]
+permissions:
+  contents: read
+concurrency:
+  group: gradeflow-v2-candidate
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - run: flutter test
+      - name: Preview authentication checks
+        run: flutter test --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true test/auth_fallback_safety_test.dart test/login_screen_test.dart
+      - name: Live V2 authentication checks
+        run: flutter test --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true test/auth_fallback_safety_test.dart test/login_screen_test.dart test/gradeflow_existing_project_preview_test.dart
+      - name: Build actual authenticated application
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-v2-integrated-app
+          path: build/web/
+          retention-days: 14
