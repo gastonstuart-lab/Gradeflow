@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: dcf1c453214608359eed7439f7bb595300d41e31
+          ref: 90906f2a35291012d0ac55b98e9cdfe29aafe03d
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -30,8 +30,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(gh run view 43723540769 --json conclusion --jq .conclusion)" = success
-          test "$(gh run view 43723540769 --json headSha --jq .headSha)" = dcf1c453214608359eed7439f7bb595300d41e31
+          test "$(gh run view 43724542121 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 43724542121 --json headSha --jq .headSha)" = 90906f2a35291012d0ac55b98e9cdfe29aafe03d
           test "$(gh run view 43723540760 --json conclusion --jq .conclusion)" = success
           test "$(gh run view 43723540760 --json headSha --jq .headSha)" = dcf1c453214608359eed7439f7bb595300d41e31
       - uses: actions/download-artifact@v4
@@ -39,7 +39,7 @@ jobs:
           name: GradeFlow-Teaching-Studio-Live
           path: candidate
           github-token: ${{ github.token }}
-          run-id: 43723540769
+          run-id: 43724542121
       - name: Verify Hosting-only application and Studio
         run: |
           set -euo pipefail
