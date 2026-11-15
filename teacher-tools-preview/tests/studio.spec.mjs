@@ -28,7 +28,10 @@ async function ready(page, testInfo) {
     if (url.protocol.startsWith('http') && url.hostname !== '127.0.0.1') outside.push(url.origin);
   });
   page.on('dialog', dialog => dialog.accept());
-  await page.goto('/');
+  await page.goto('/?classId=fictional-class');
+  await expect(page.getByRole('link', { name: 'Home', exact: true })).toHaveAttribute('href', '/os/home');
+  await expect(page.getByRole('link', { name: 'Gradebook', exact: true })).toHaveAttribute('href', '/os/class/fictional-class/gradebook');
+  await expect(page.getByRole('link', { name: 'Classroom', exact: true })).toHaveAttribute('target', '_blank');
   await expect(page.getByRole('button', { name: 'Save board', exact: true })).toBeEnabled();
   if (testInfo.project.name.endsWith('dark')) await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
   return outside;

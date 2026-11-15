@@ -6,6 +6,16 @@ import './style.css';
 
 type BoardAPI = Parameters<NonNullable<React.ComponentProps<typeof Excalidraw>['excalidrawAPI']>>[0];
 type Mode = 'board' | 'pdf';
+const assetBase = location.pathname.startsWith('/teaching-studio/') ? '/teaching-studio/' : '/';
+const classId = new URLSearchParams(location.search).get('classId');
+const classRoute = classId ? '/os/class/' + encodeURIComponent(classId) : '/os/classes';
+function AppNavigation() {
+  return <nav className="app-navigation" aria-label="GradeFlow navigation">
+    {[['Home', '/os/home'], ['Planner', '/os/planner'], ['Classroom', classId ? classRoute + '/classroom' : classRoute], ['Gradebook', classId ? classRoute + '/gradebook' : classRoute]].map(([label, href]) =>
+      <a key={label} href={href} target="_blank" rel="noopener noreferrer">{label}</a>)}
+    <small>Opens GradeFlow in another tab · your writing stays here</small>
+  </nav>;
+}
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -120,7 +130,7 @@ function App() {
   return <div className={`studio ${focus ? 'focus-mode' : ''} ${controlsOpen ? 'controls-open' : ''}`}>
     <div id="studio-controls" className="studio-controls" ref={node => { node?.toggleAttribute('inert', focus && !controlsOpen); }}>
     <header className="studio-header">
-      <div className="brand"><span className="brand-mark">G</span><div><h1>Teaching Studio</h1><p>GradeFlow · standalone review · no school records connected</p></div></div>
+      <div className="brand"><span className="brand-mark">G</span><div><h1>Teaching Studio</h1><p>GradeFlow · Teaching Studio</p></div></div>
       <div className="header-actions">
         <button onClick={() => setTools(!tools)} aria-pressed={tools}>Teaching tools</button>
         <button onClick={() => setDark(!dark)}>{dark ? 'Light theme' : 'Dark theme'}</button>
@@ -158,10 +168,11 @@ function App() {
         </Excalidraw>
       </section>
       <section className={`editor-layer pdf-layer ${mode === 'pdf' ? '' : 'inactive'}`} aria-label="PDF editor" aria-hidden={mode !== 'pdf'}>
-        {pdf ? <iframe key={pdf.url} title="PDF annotation editor" src={`/pdfjs/web/viewer.html?file=${encodeURIComponent(pdf.url)}`} allowFullScreen /> :
+        {pdf ? <iframe key={pdf.url} title="PDF annotation editor" src={`${assetBase}pdfjs/web/viewer.html?file=${encodeURIComponent(pdf.url)}`} allowFullScreen /> :
           <div className="empty-pdf"><span className="document-symbol">PDF</span><h2>Open a worksheet. Teach straight onto it.</h2><p>Write with your pen, highlight passages, add notes and save an annotated copy.</p><button className="primary" onClick={() => pdfInput.current?.click()}>Choose a PDF</button><small>For Word or PowerPoint, save as PDF first.</small></div>}
       </section>
     </main>
+    <AppNavigation />
     <footer className="status" role="status" aria-label="Save and file status">{status}</footer>
   </div>;
 }
