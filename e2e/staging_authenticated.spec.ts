@@ -81,6 +81,15 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
 
+  // Exercise the actual authenticated Planner route, not the synthetic shell.
+  await page.goto('/os/planner');
+  await ensureFlutterSemantics(page);
+  await expect(page.getByText('Import timetable', { exact: true }).first()).toBeVisible();
+  for (const view of ['Today', 'Month', 'Agenda', 'Tasks', 'Week']) {
+    await page.getByText(view, { exact: true }).first().click();
+    await expect(page).toHaveURL(/\\/os\\/planner$/);
+  }
+
   const emulatorOrigin = () => page.evaluate(
     () => window.sessionStorage.getItem('[DEFAULT]-firebaseEmulatorOrigin'));
   await expect.poll(emulatorOrigin).toBe('http://127.0.0.1:9099');
@@ -119,6 +128,8 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // columnheader ('Fictional Quiz out of 100'), not a standalone text node.
   // Locate the score field within its fictional pupil row so the test
   // verifies actual gradebook data rather than a text-layout implementation.
+  // Full Gradebook opens Summary; select the actual assessment category.
+  await page.getByText('Quizzes', { exact: true }).first().click();
   await expect(page.getByRole('columnheader', { name: /Fictional Quiz/ }))
     .toBeVisible({ timeout: 30_000 });
   const quizScore = page.getByRole('row', { name: /Fictional Pupil/ })
@@ -138,6 +149,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Gradebook').first()).toBeVisible();
+  await page.getByText('Quizzes', { exact: true }).first().click();
   // After a full reload, the computed average must reflect the saved quiz.
   // This checks durable Firestore data, not the transient DOM editing proxy.
   await expect(page.getByRole('row', { name: /Fictional Pupil/ })
@@ -157,7 +169,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // A successful refresh must restore this actual teacher workspace, not
   // merely avoid the safety-blocked screen or show an unauthenticated shell.
   await expect(page).toHaveURL(/\/os\/home$/);
-  await expect(page.getByText('Welcome, browser-teacher@example.invalid.').first())
+  await expect(page.getByText('TEACHER HOME', { exact: true }).first())
     .toBeVisible({ timeout: 30_000 });
   // Reconnection must be driven by FlutterFire's actual per-app origin key,
   // rather than a test-injected key ignored by the SDK.
