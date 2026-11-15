@@ -87,7 +87,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await expect(page.getByText('Import timetable', { exact: true }).first()).toBeVisible();
   for (const view of ['Today', 'Month', 'Agenda', 'Tasks', 'Week']) {
     await page.getByText(view, { exact: true }).first().click();
-    await expect(page).toHaveURL(/\\/os\\/planner$/);
+    await expect(page).toHaveURL('http://127.0.0.1:7357/os/planner');
   }
 
   const emulatorOrigin = () => page.evaluate(
