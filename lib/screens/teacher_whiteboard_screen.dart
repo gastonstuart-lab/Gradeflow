@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/components/animated_page_background.dart';
 import 'package:gradeflow/components/teacher_whiteboard.dart';
@@ -53,12 +55,35 @@ class TeacherWhiteboardScreen extends StatelessWidget {
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-            child: TeacherWhiteboardWorkspace(
+            child: Column(
+              children: [
+                if (kIsWeb) Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Open Teaching Studio · Pen & PDF'),
+                    onPressed: () async {
+                      final classId = context.read<GradeFlowOSController>().activeClassId;
+                      final uri = Uri.base.resolve('/teaching-studio/').replace(
+                        queryParameters: classId == null ? null : {'classId': classId},
+                      );
+                      final opened = await launchUrl(uri, webOnlyWindowName: '_blank');
+                      if (!opened && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Allow this site to open Teaching Studio in a new tab.')),
+                        );
+                      }
+                    },
+                  ),
+                ),
+                Expanded(child: TeacherWhiteboardWorkspace(
               controller: controller,
               title: 'Teacher whiteboard',
               showStatusChips: false,
               fillAvailableHeight: true,
               onClose: showCloseButton ? () => _closeWhiteboard(context) : null,
+                )),
+              ],
             ),
           ),
         ),
