@@ -1,5 +1,7 @@
 # GradeFlow OS Design Direction
 
+> Historical design reference. [INSTRUCTOS_PRODUCT_CONSTITUTION.md](../INSTRUCTOS_PRODUCT_CONSTITUTION.md) is the authoritative product direction approved by Stuart on 6 October 2026. Its teacher-state model and progressive disclosure take precedence over the ten-mockup sequence and permanent sidebar/rail anatomy below. Retain useful visual continuity and engine-preservation guidance; do not treat this document as authorization to redesign ten screens.
+
 ## 1. Purpose
 This document is the single source of truth for the next major GradeFlow OS visual upgrade. It aligns product, UX, and implementation decisions across design and Flutter delivery while preserving existing data, routing, and service stability.
 

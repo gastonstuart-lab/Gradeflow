@@ -6,6 +6,8 @@ This file is the repo-level instruction sheet for Codex, Copilot, Claude Code, a
 
 Before doing agent work, read this file and `docs/ai-agents/README.md`.
 
+For product and interaction decisions, read [INSTRUCTOS_PRODUCT_CONSTITUTION.md](INSTRUCTOS_PRODUCT_CONSTITUTION.md). It records Stuart's locked teacher-state direction and supersedes conflicting historical mockups or page-by-page redesign plans. The safety, risk and review rules in this file continue to apply.
+
 ## Build Philosophy
 
 - Keep the product useful for real teachers before making it clever.
