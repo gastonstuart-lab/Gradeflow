@@ -7,11 +7,21 @@ const viewer = app.pdfViewer;
 const manager = () => viewer._layerProperties.annotationEditorUIManager;
 let writing = null;
 let erasing = null;
+let pendingStroke = false;
+let finishTimer = null;
 
 function finishStroke() {
   const ui = manager();
   ui?.currentLayer?.endDrawingSession();
   ui?.unselectAll();
+}
+
+function finishPendingStroke() {
+  clearTimeout(finishTimer);
+  finishTimer = null;
+  if (!pendingStroke) return;
+  pendingStroke = false;
+  if (viewer.annotationEditorMode === INK) finishStroke();
 }
 
 function isEraser(event) {
@@ -78,6 +88,8 @@ function interceptEraser(event) {
 }
 
 window.addEventListener('pointerdown', event => {
+  // Also flush before the next stroke in case it arrives before our timer.
+  finishPendingStroke();
   if (interceptEraser(event)) return;
   if (viewer.annotationEditorMode === INK && event.button === 0 &&
       event.target.closest?.('.annotationEditorLayer')) writing = event.pointerId;
@@ -100,16 +112,17 @@ function endPointer(event) {
   }
   if (writing !== event.pointerId) return;
   writing = null;
-  // PDF.js must receive pointerup first to finalize the curve's last point.
-  // Commit synchronously after dispatch, before the next pointerdown can group.
-  queueMicrotask(() => {
-    if (viewer.annotationEditorMode === INK) finishStroke();
-  });
+  // Wait until every PDF.js pointerup listener has finalized the last point.
+  // A microtask can run between native event listeners, so use a task instead.
+  pendingStroke = true;
+  finishTimer = setTimeout(finishPendingStroke, 0);
 }
 window.addEventListener('pointerup', endPointer);
 window.addEventListener('pointercancel', endPointer);
 window.addEventListener('blur', () => {
+  finishPendingStroke();
   writing = null;
   erasing = null;
   if (viewer.annotationEditorMode === INK) finishStroke();
 });
+
