@@ -19,6 +19,42 @@ Class _class(String id, String name) => Class(
     );
 
 void main() {
+
+  for (final dimensions in [const Size(1280, 900), const Size(1440, 1000)]) {
+    for (final dark in [false, true]) {
+      testWidgets('approved Home opens Studio at $dimensions with dark=$dark', (tester) async {
+        tester.view.physicalSize = dimensions;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final router = GoRouter(initialLocation: '/home-test', routes: [
+          GoRoute(path: '/home-test', builder: (_, __) => const Scaffold(
+            body: TeacherHomeIntegrationPanel(
+              approvedAppearance: true, primaryClass: null,
+              classes: [], primaryReminder: null,
+            ),
+          )),
+          GoRoute(path: AppRoutes.whiteboard, builder: (_, __) => const Scaffold(
+            body: Text('Teaching Studio destination'),
+          )),
+        ]);
+        addTearDown(router.dispose);
+        await tester.pumpWidget(MaterialApp.router(
+          theme: dark ? darkTheme : lightTheme, routerConfig: router,
+        ));
+        await tester.pumpAndSettle();
+        expect(find.text('Check Planner'), findsOneWidget);
+        final studio = find.text('Whiteboard & PDF');
+        expect(studio, findsOneWidget);
+        await tester.ensureVisible(studio);
+        await tester.tap(studio);
+        await tester.pumpAndSettle();
+        expect(find.text('Teaching Studio destination'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
   void size(WidgetTester tester, [Size value = const Size(1440, 960)]) {
     tester.view.physicalSize = value;
     tester.view.devicePixelRatio = 1;

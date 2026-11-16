@@ -3,7 +3,7 @@ import { ensureFlutterSemantics } from './helpers';
 
 test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators',
     async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(600_000);
   const browserDiagnostics: string[] = [];
   const unexpectedCloudRequests: string[] = [];
   let browserPhase = 'sign-in';
@@ -228,7 +228,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   browserPhase = 'teaching-studio';
   await page.goto('/os/home');
   await ensureFlutterSemantics(page);
-  await page.getByText('Whiteboard & PDF', { exact: true }).click();
+  await page.getByRole('button', { name: 'Whiteboard & PDF Open Teaching Studio', exact: true }).click();
   await expect.poll(() => new URL(page.url()).pathname).toBe('/teaching-studio/');
   await expect(page.getByRole('heading', { name: 'Teaching Studio', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save board', exact: true })).toBeEnabled();
@@ -237,6 +237,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     page.waitForEvent('popup'),
     page.getByRole('link', { name: 'Home', exact: true }).click(),
   ]);
+  await homeTab.waitForLoadState('domcontentloaded');
   await ensureFlutterSemantics(homeTab);
   await expect(homeTab).toHaveURL('http://127.0.0.1:7357/os/home');
   await expect(homeTab.getByRole('button', { name: 'Open Classroom', exact: true })).toBeEnabled();

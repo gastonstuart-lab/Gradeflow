@@ -17,6 +17,9 @@ The fix validates a whole batch before writing, reads its destination roster, re
 
 This is additive import, not a roster replacement or identity/grade migration. Teachers must remove existing IDs from an import file; existing students are not silently updated or skipped. Import merge/update UX is a separate future decision.
 
+## Confirmed compact Home discovery gap
+The full authenticated test reached Home after the roster/grade checks but found no visible Whiteboard destination in the approved compact layout. The earlier change had reordered an older shortcut widget that the compact layout does not render. The fix replaces the redundant Within reach Planner tile with Whiteboard & PDF using the same six-tile layout; Check Planner, calendar and dock access remain. Four widget cases verify actual approved-layout routing at Surface/desktop sizes in both themes, and the browser follows it to the self-hosted Studio.
+
 ## Workflow evidence and outstanding acceptance
 | Workflow | Evidence now available | Still required |
 | --- | --- | --- |
