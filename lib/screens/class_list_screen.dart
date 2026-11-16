@@ -91,6 +91,58 @@ class _ClassListScreenState extends State<ClassListScreen> {
   String _currentTeacherName() =>
       context.read<AuthService>().currentUser?.fullName ?? '';
 
+  /// New classes may have been saved before grading-category initialization.
+  /// Keep recovery specific to that existing class: never create a duplicate.
+  Future<bool> _confirmDefaultGradingSetup(
+    Class classItem, {
+    String incompleteAction = 'The operation stopped before later steps.',
+  }) async {
+    try {
+      await context.read<GradingCategoryService>().seedDefaultCategories(
+            classItem.classId,
+            throwOnFailure: true,
+          );
+      return true;
+    } catch (_) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 16),
+        content: Text(
+          'Class "${classItem.className}" was saved, but its grading setup failed. '
+          '$incompleteAction Use the class menu to retry grading setup.',
+        ),
+        action: SnackBarAction(
+          label: 'Retry setup',
+          onPressed: () => unawaited(_repairDefaultGradingSetup(classItem)),
+        ),
+      ));
+      return false;
+    }
+  }
+
+  /// A recovery entry remains available after closing/reopening the page.
+  /// It is opt-in and is harmless for a class with existing categories.
+  Future<void> _repairDefaultGradingSetup(Class classItem) async {
+    try {
+      await context.read<GradingCategoryService>().seedDefaultCategories(
+            classItem.classId,
+            throwOnFailure: true,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Grading setup is ready for "${classItem.className}".'),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          'Grading setup for "${classItem.className}" is still incomplete. '
+          'Retry from the class menu when storage is available.',
+        ),
+      ));
+    }
+  }
+
   String _extractGroupDigits(String input) {
     final t = input.trim();
     if (t.isEmpty) return '';
@@ -580,7 +632,10 @@ class _ClassListScreenState extends State<ClassListScreen> {
         updatedAt: now,
       );
       await classService.addClass(target);
-      await catService.seedDefaultCategories(target.classId);
+      if (!await _confirmDefaultGradingSetup(
+        target,
+        incompleteAction: 'The roster has not been imported.',
+      )) return;
     } else {
       target = existingClasses.firstWhere((c) => c.classId == selectedClassId,
           orElse: () => existingClasses.first);
@@ -1014,7 +1069,10 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
     for (final c in toCreate) {
       await classService.addClass(c);
-      await catService.seedDefaultCategories(c.classId);
+      if (!await _confirmDefaultGradingSetup(
+        c,
+        incompleteAction: 'The remaining class and pupil imports have stopped.',
+      )) return;
       existingByName[c.className.toLowerCase()] = c;
     }
 
@@ -1526,11 +1584,12 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final studentService = context.read<StudentService>();
     final catService = context.read<GradingCategoryService>();
     final userId = user.userId;
-    if (archiveCurrent && !classItem.isArchived) {
-      await classService.archiveClass(classItem.classId);
-    }
     await classService.addClass(newClass);
-    await catService.seedDefaultCategories(newClass.classId);
+    if (!await _confirmDefaultGradingSetup(
+      newClass,
+      incompleteAction: 'The previous section was not archived and '
+          'the carry-forward steps have not started.',
+    )) return;
     if (copyStudents) {
       await studentService.loadStudents(classItem.classId);
       final oldStudents = List.of(studentService.students);
@@ -1576,6 +1635,11 @@ class _ClassListScreenState extends State<ClassListScreen> {
         schedule,
         userId: userId,
       );
+    }
+    // Do not archive the teacher's working section before grading setup
+    // and carry-forward steps have completed.
+    if (archiveCurrent && !classItem.isArchived) {
+      await classService.archiveClass(classItem.classId);
     }
     await classService.loadClasses(user.userId);
     if (!mounted) return;
@@ -2126,7 +2190,10 @@ class _ClassListScreenState extends State<ClassListScreen> {
               updatedAt: now,
             );
             await classService.addClass(newClass);
-            await catService.seedDefaultCategories(newClass.classId);
+            if (!await _confirmDefaultGradingSetup(
+              newClass,
+              incompleteAction: 'The remaining classes have not been imported.',
+            )) return;
             created++;
           }
 
@@ -2187,7 +2254,10 @@ class _ClassListScreenState extends State<ClassListScreen> {
         _importService.convertToClasses(valid, auth.currentUser!.userId);
     for (final c in classes) {
       await classService.addClass(c);
-      await catService.seedDefaultCategories(c.classId);
+      if (!await _confirmDefaultGradingSetup(
+        c,
+        incompleteAction: 'The remaining classes have not been imported.',
+      )) return;
     }
     await classService.loadClasses(auth.currentUser!.userId);
     if (!mounted) return;
@@ -2233,6 +2303,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
                       await context
                           .read<ClassService>()
                           .unarchiveClass(classItem.classId);
+                    } else if (value == 'repair_grading') {
+                      await _repairDefaultGradingSetup(classItem);
                     } else if (value == 'edit') {
                       await _showEditClassDialog(classItem);
                     } else if (value == 'rollover') {
@@ -2268,11 +2340,17 @@ class _ClassListScreenState extends State<ClassListScreen> {
                         PopupMenuItem(
                             value: 'unarchive', child: Text('Unarchive')),
                         PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        PopupMenuItem(
+                            value: 'repair_grading',
+                            child: Text('Complete grading setup')),
                         PopupMenuItem(value: 'delete', child: Text('Delete')),
                       ];
                     }
                     return const [
                       PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(
+                          value: 'repair_grading',
+                          child: Text('Complete grading setup')),
                       PopupMenuItem(
                           value: 'rollover',
                           child: Text('Archive + New Section')),
