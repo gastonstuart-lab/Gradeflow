@@ -1,0 +1,24 @@
+name: GradeFlow workflow reliability candidate
+on:
+  push:
+    branches: [audit/gradeflow-workflow-reliability-20261116]
+permissions:
+  contents: read
+concurrency:
+  group: gradeflow-workflow-reliability
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter test test/roster_import_safety_test.dart
