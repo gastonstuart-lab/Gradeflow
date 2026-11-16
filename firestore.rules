@@ -1,21 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }
-
-    // Gradeflow per-user data
+    // Preserve the existing private academic-data ownership boundary.
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-
-    // Shared-school communication data used by the Messages workspace.
+    // Temporary containment: shared Messages stays closed until reviewed
+    // school/channel grants and the verified client are ready together.
     match /schools/{schoolKey}/communicationChannels/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-          && request.resource.data.schoolKey == schoolKey;
+      allow read, write: if false;
     }
   }
 }
