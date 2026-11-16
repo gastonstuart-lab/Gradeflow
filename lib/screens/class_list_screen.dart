@@ -994,9 +994,44 @@ class _ClassListScreenState extends State<ClassListScreen> {
       }
       return;
     }
-    final newClassCount = effectiveMap.keys
-        .where((k) => !existingByName.containsKey(k.toLowerCase()))
-        .length;
+    // Resolve identity using the teacher, subject, school year and term,
+    // never just a name reused by a different semester.
+    final normalizedCodes = <String>{};
+    for (final code in effectiveMap.keys) {
+      if (!normalizedCodes.add(code.trim().toLowerCase())) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('The selected file contains duplicate class codes. '
+              'Correct the class names before importing.'),
+        ));
+        return;
+      }
+    }
+    final groupDigits = _extractGroupDigits(groupCtrl.text);
+    final previewNow = DateTime.now();
+    final proposedByCode = <String, Class>{
+      for (final code in effectiveMap.keys)
+        code: Class(
+          classId: const Uuid().v4(),
+          className: code,
+          subject: subjectCtrl.text.trim().isEmpty
+              ? 'General'
+              : subjectCtrl.text.trim(),
+          groupNumber: groupDigits.isEmpty ? null : groupDigits,
+          schoolYear: yearCtrl.text.trim().isEmpty
+              ? '2024-2025'
+              : yearCtrl.text.trim(),
+          term: selectedTerm,
+          teacherId: auth.currentUser!.userId,
+          createdAt: previewNow,
+          updatedAt: previewNow,
+        ),
+    };
+    final currentClasses = await RepositoryFactory.instance.loadClasses();
+    final matchingByCode = <String, Class?>{
+      for (final entry in proposedByCode.entries)
+        entry.key: ClassSetupIdentity.findUnique(currentClasses, entry.value),
+    };
+    final newClassCount = matchingByCode.values.where((c) => c == null).length;
     final selectedRows =
         effectiveMap.values.fold<int>(0, (sum, list) => sum + list.length);
     final confirmWrite = await showDialog<bool>(
@@ -1024,8 +1059,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                   shrinkWrap: true,
                   children: effectiveMap.entries.take(20).map((e) {
                     final count = e.value.length;
-                    final willCreate =
-                        !existingByName.containsKey(e.key.toLowerCase());
+                    final willCreate = matchingByCode[e.key] == null;
                     return ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
@@ -1053,45 +1087,31 @@ class _ClassListScreenState extends State<ClassListScreen> {
     );
     if (confirmWrite != true || !mounted) return;
 
-    final groupDigits = _extractGroupDigits(groupCtrl.text);
-
-    // Create any missing classes
-    final now = DateTime.now();
-    final toCreate = <Class>[];
-    final toCreateKeys = effectiveMap.keys
-        .where((k) => !existingByName.containsKey(k.toLowerCase()))
-        .toList();
-    for (final code in toCreateKeys) {
-      toCreate.add(Class(
-        classId: const Uuid().v4(),
-        className: code,
-        subject: subjectCtrl.text.isEmpty ? 'General' : subjectCtrl.text.trim(),
-        groupNumber: groupDigits.isEmpty ? null : groupDigits,
-        schoolYear: yearCtrl.text.isEmpty ? '2024-2025' : yearCtrl.text.trim(),
-        term: selectedTerm,
-        teacherId: auth.currentUser!.userId,
-        createdAt: now,
-        updatedAt: now,
-      ));
-    }
-
     final studentService = context.read<StudentService>();
     int addedStudents = 0;
     int touchedClasses = 0;
+    final destinationByCode = <String, Class>{};
 
-    for (final c in toCreate) {
-      await classService.addClass(c);
+    for (final entry in proposedByCode.entries) {
+      // Re-read before each write in case the class already exists following
+      // an interrupted previous import. This is not a cross-device transaction.
+      final proposed = entry.value;
+      final saved = await RepositoryFactory.instance.loadClasses();
+      final prior = ClassSetupIdentity.findUnique(saved, proposed);
+      final target = prior ?? proposed;
+      if (prior == null) {
+        await classService.addClass(proposed);
+      }
+      destinationByCode[entry.key.toLowerCase()] = target;
       if (!await _confirmDefaultGradingSetup(
-        c,
+        target,
         incompleteAction: 'The remaining class and pupil imports have stopped.',
       )) return;
-      existingByName[c.className.toLowerCase()] = c;
     }
 
-    // For each class code group, add students to the class
+    // Each class code resolves to its exact teacher/subject/year/term.
     for (final entry in effectiveMap.entries) {
-      final code = entry.key.toLowerCase();
-      final targetClass = existingByName[code];
+      final targetClass = destinationByCode[entry.key.toLowerCase()];
       if (targetClass == null) continue;
 
       // Avoid duplicates: load existing students and filter new list
