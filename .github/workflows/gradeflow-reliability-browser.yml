@@ -69,6 +69,14 @@ jobs:
             --config firebase.staging.json \
             --only auth,firestore \
             "node staging-tests/seed-browser-fixtures.mjs && npx playwright test --config=playwright.staging.config.ts"
+      - name: Summarize failed fictional browser state
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for context in Path('test-results').rglob('error-context.md'):
+              print(context.read_text())
+          PY
       - if: always()
         uses: actions/upload-artifact@v4
         with:

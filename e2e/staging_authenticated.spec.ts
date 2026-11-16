@@ -167,10 +167,10 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   browserPhase = 'import-roster';
   await page.goto('/os/class/class-science-browser/students');
   await ensureFlutterSemantics(page);
-  await expect(page.getByText('Fictional Pupil', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('group', { name: /Fictional Pupil ID: synthetic-student-one/ })).toBeVisible();
   async function previewPastedRoster(id: string) {
     await page.getByRole('button', { name: 'Paste from spreadsheet', exact: true }).click();
-    const rows = page.getByRole('textbox', { name: 'Roster rows', exact: true });
+    const rows = page.getByRole('textbox', { name: /Roster rows/ });
     const pastedRows = 'studentId\tchineseName\tenglishFirstName\tenglishLastName\n'
       + id + '\tFictional Import\tImport\tPupil, Jr';
     await rows.fill(pastedRows);
@@ -182,11 +182,11 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await previewPastedRoster('synthetic-import-102');
   await page.screenshot({ path: 'test-results/roster-import-preview.png' });
   await page.getByRole('button', { name: 'Import 1 student', exact: true }).click();
-  await expect(page.getByText('Imported 1 student', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Imported 1 student/)).toBeVisible();
   await page.reload();
   await ensureFlutterSemantics(page);
-  await expect(page.getByText('Import Pupil, Jr', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('Fictional Pupil', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('group', { name: /Import Pupil, Jr ID: synthetic-import-102/ })).toBeVisible();
+  await expect(page.getByRole('group', { name: /Fictional Pupil ID: synthetic-student-one/ })).toBeVisible();
   await previewPastedRoster('synthetic-import-102');
   await page.getByRole('button', { name: 'Import 1 student', exact: true }).click();
   await expect(page.getByText(/Import was not completed.*already in this class/)).toBeVisible();
