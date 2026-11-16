@@ -182,14 +182,14 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await previewPastedRoster('synthetic-import-102');
   await page.screenshot({ path: 'test-results/roster-import-preview.png' });
   await page.getByRole('button', { name: 'Import 1 student', exact: true }).click();
-  await expect(page.getByText(/Imported 1 student/)).toBeVisible();
+  await expect(page.locator('flt-semantics-host').getByText(/Imported 1 student/)).toBeVisible();
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByRole('group', { name: /Import Pupil, Jr ID: synthetic-import-102/ })).toBeVisible();
   await expect(page.getByRole('group', { name: /Fictional Pupil ID: synthetic-student-one/ })).toBeVisible();
   await previewPastedRoster('synthetic-import-102');
   await page.getByRole('button', { name: 'Import 1 student', exact: true }).click();
-  await expect(page.getByText(/Import was not completed.*already in this class/)).toBeVisible();
+  await expect(page.locator('flt-semantics-host').getByText(/Import was not completed.*already in this class/)).toBeVisible();
   await page.screenshot({ path: 'test-results/roster-duplicate-rejected.png' });
   await expect(page.getByText('Import Preview', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
