@@ -808,7 +808,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                         }),
                         title: Text(key),
                         subtitle: Text(
-                            '$count student${count == 1 ? '' : 's'}  ${exists ? 'existing class' : 'new class'}'),
+                            '$count student${count == 1 ? '' : 's'} • ${exists ? 'existing class' : 'new class'}'),
                         controlAffinity: ListTileControlAffinity.leading,
                         contentPadding: EdgeInsets.zero,
                       );
@@ -963,7 +963,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                       contentPadding: EdgeInsets.zero,
                       title: Text(e.key),
                       subtitle: Text(
-                          '$count student${count == 1 ? '' : 's'}  ${willCreate ? 'create class' : 'existing class'}'),
+                          '$count student${count == 1 ? '' : 's'} • ${willCreate ? 'create class' : 'existing class'}'),
                     );
                   }).toList(),
                 ),
@@ -1774,6 +1774,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final catService = context.read<GradingCategoryService>();
     final teacherId = context.read<AuthService>().currentUser!.userId;
     final classId = const Uuid().v4();
+    // A failed grading-category write must retry setup, not create a second class.
+    var classPersisted = false;
     final result = await showDialog<bool>(
       barrierDismissible: false,
       context: context,
@@ -1788,8 +1790,15 @@ class _ClassListScreenState extends State<ClassListScreen> {
               schoolYear: yearController.text.trim(), term: termController.text.trim(),
               teacherId: teacherId, createdAt: now, updatedAt: now, syllabus: pickedSyllabus,
             );
-            await classService.addClass(newClass);
-            await catService.seedDefaultCategories(classId);
+            if (!classPersisted) {
+              await classService.addClass(newClass);
+              classPersisted = true;
+            }
+            try {
+              await catService.seedDefaultCategories(classId, throwOnFailure: true);
+            } catch (_) {
+              throw const ClassGradingSetupPending();
+            }
           },
           content: SingleChildScrollView(
             child: Column(
@@ -2070,7 +2079,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                       decoration: const InputDecoration(labelText: 'Term')),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                      'Examples: ${candidates.take(3).join(', ')}${candidates.length > 3 ? ', .' : ''}',
+                      'Examples: ${candidates.take(3).join(', ')}${candidates.length > 3 ? ', …' : ''}',
                       style: context.textStyles.bodySmall),
                 ],
               ),
@@ -2154,7 +2163,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                 const SizedBox(height: AppSpacing.md),
                 Text('Errors (first 3):',
                     style: dialogContext.textStyles.titleSmall),
-                ...invalid.take(3).map((e) => Text(' ${e.error}',
+                ...invalid.take(3).map((e) => Text('• ${e.error}',
                     style: dialogContext.textStyles.bodySmall)),
               ],
             ],
