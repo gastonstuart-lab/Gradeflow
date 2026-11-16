@@ -31,4 +31,20 @@ await cp('node_modules/@excalidraw/excalidraw/LICENSE', join(root, 'excalidraw/L
   if (!response.ok) throw Error('Excalidraw licence unavailable');
   await writeFile(join(root, 'excalidraw/LICENSE'), await response.text());
 });
+// Reapply the adapter on every build, including a cached vendor extraction.
+// Do not modify the upstream PDF.js bundle or its source map.
+await cp('scripts/pdf-pen.mjs', join(root, 'pdfjs/web/gradeflow-pen.mjs'));
+await cp('scripts/pdf-pen.css', join(root, 'pdfjs/web/gradeflow-pen.css'));
+const viewerPath = join(root, 'pdfjs/web/viewer.html');
+let viewer = await readFile(viewerPath, 'utf8');
+if (!viewer.includes('src="gradeflow-pen.mjs"')) {
+  if (!viewer.includes('</head>')) throw Error('PDF.js viewer head missing');
+  viewer = viewer.replace('</head>', '<script type="module" src="gradeflow-pen.mjs"></script>\n<link rel="stylesheet" href="gradeflow-pen.css">\n</head>');
+  await writeFile(viewerPath, viewer);
+}
+if (!viewer.includes('href="gradeflow-pen.css"')) {
+  viewer = viewer.replace('</head>', '<link rel="stylesheet" href="gradeflow-pen.css">\n</head>');
+  await writeFile(viewerPath, viewer);
+}
 console.log(`Self-hosted PDF.js ${version} (checksum verified) and Excalidraw fonts. No CDN needed at runtime.`);
+
