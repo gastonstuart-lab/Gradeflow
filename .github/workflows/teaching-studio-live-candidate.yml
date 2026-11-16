@@ -1,8 +1,8 @@
 name: Teaching Studio integrated live candidate
 on:
   push:
-    branches: [fix/direct-teaching-studio-entry-20261115]
-    paths: ['lib/screens/teacher_whiteboard_screen.dart', '.github/workflows/teaching-studio-live-candidate.yml']
+    branches: [release/pdf-ink-candidate-20261116]
+    paths: ['teacher-tools-preview/**', '.github/workflows/teaching-studio-live-candidate.yml']
 permissions:
   contents: read
 jobs:
@@ -30,6 +30,8 @@ jobs:
         run: |
           npm ci --ignore-scripts --no-audit --no-fund
           npm run build
+          npx playwright install --with-deps chromium
+          npm test
           mkdir -p ../build/web/teaching-studio
           cp -a dist/. ../build/web/teaching-studio/
       - name: Preserve existing Hosting-only configuration
