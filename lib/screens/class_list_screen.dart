@@ -1,3 +1,4 @@
+import 'package:gradeflow/components/class_creation_dialog.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -449,7 +450,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
         filename: filename,
         bytes: bytes,
         hint:
-            'This file looks like a roster, but required fields are missing (usually Student ID). Please include StudentID/學號 and retry.',
+            'This file looks like a roster, but required fields are missing (usually Student ID). Please include StudentID/?? and retry.',
       );
       return;
     }
@@ -807,7 +808,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                         }),
                         title: Text(key),
                         subtitle: Text(
-                            '$count student${count == 1 ? '' : 's'} • ${exists ? 'existing class' : 'new class'}'),
+                            '$count student${count == 1 ? '' : 's'}  ${exists ? 'existing class' : 'new class'}'),
                         controlAffinity: ListTileControlAffinity.leading,
                         contentPadding: EdgeInsets.zero,
                       );
@@ -962,7 +963,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                       contentPadding: EdgeInsets.zero,
                       title: Text(e.key),
                       subtitle: Text(
-                          '$count student${count == 1 ? '' : 's'} • ${willCreate ? 'create class' : 'existing class'}'),
+                          '$count student${count == 1 ? '' : 's'}  ${willCreate ? 'create class' : 'existing class'}'),
                     );
                   }).toList(),
                 ),
@@ -1769,11 +1770,27 @@ class _ClassListScreenState extends State<ClassListScreen> {
     String? pickedSyllabusFilename;
     String? pickedSyllabusError;
 
+    final classService = context.read<ClassService>();
+    final catService = context.read<GradingCategoryService>();
+    final teacherId = context.read<AuthService>().currentUser!.userId;
+    final classId = const Uuid().v4();
     final result = await showDialog<bool>(
+      barrierDismissible: false,
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setLocalState) => AlertDialog(
-          title: const Text('Create New Class'),
+        builder: (context, setLocalState) => ClassCreationDialog(
+          onCreate: () async {
+            final now = DateTime.now();
+            final newClass = Class(
+              classId: classId, className: nameController.text.trim(),
+              subject: subjectController.text.trim(),
+              groupNumber: groupController.text.trim().isEmpty ? null : groupController.text.trim(),
+              schoolYear: yearController.text.trim(), term: termController.text.trim(),
+              teacherId: teacherId, createdAt: now, updatedAt: now, syllabus: pickedSyllabus,
+            );
+            await classService.addClass(newClass);
+            await catService.seedDefaultCategories(classId);
+          },
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1871,54 +1888,31 @@ class _ClassListScreenState extends State<ClassListScreen> {
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Create'),
-            ),
-          ],
         ),
       ),
     );
-
-    if (!mounted) return;
-
-    if (result == true) {
-      final authService = context.read<AuthService>();
-      final now = DateTime.now();
-      final newClass = Class(
-        classId: const Uuid().v4(),
-        className: nameController.text,
-        subject: subjectController.text,
-        groupNumber: groupController.text.isEmpty ? null : groupController.text,
-        schoolYear: yearController.text,
-        term: termController.text,
-        teacherId: authService.currentUser!.userId,
-        createdAt: now,
-        updatedAt: now,
-        syllabus: pickedSyllabus,
-      );
-
-      debugPrint(
-          'Create Class: ${newClass.className} for teacher=${authService.currentUser!.userId}');
-      final classService = context.read<ClassService>();
-      final catService = context.read<GradingCategoryService>();
-      await classService.addClass(newClass);
-      await catService.seedDefaultCategories(newClass.classId);
-      if (!mounted) return;
-      // Force refresh to ensure the grid reflects the new class immediately
-      await classService.loadClasses(authService.currentUser!.userId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Class created')));
+    // Allow the closing route to release its text fields before disposal.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    for (final controller in [nameController, subjectController, yearController, termController, groupController]) {
+      controller.dispose();
+    }
+    if (mounted && result == true) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Class created')));
     }
   }
 
   Future<void> _showImportClassesDialog() async {
+    try {
+      await _runImportClassesDialog();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
+        'Import stopped because a save did not complete. Some earlier classes may already be saved. Check your class list before retrying.',
+      )));
+    }
+  }
+
+  Future<void> _runImportClassesDialog() async {
     final picked = await _pickBytesUnified(
         extensions: const ['xlsx', 'csv'],
         title: 'Import from Google Drive or local file');
@@ -2076,7 +2070,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                       decoration: const InputDecoration(labelText: 'Term')),
                   const SizedBox(height: AppSpacing.md),
                   Text(
-                      'Examples: ${candidates.take(3).join(', ')}${candidates.length > 3 ? ', …' : ''}',
+                      'Examples: ${candidates.take(3).join(', ')}${candidates.length > 3 ? ', .' : ''}',
                       style: context.textStyles.bodySmall),
                 ],
               ),
@@ -2160,7 +2154,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                 const SizedBox(height: AppSpacing.md),
                 Text('Errors (first 3):',
                     style: dialogContext.textStyles.titleSmall),
-                ...invalid.take(3).map((e) => Text('• ${e.error}',
+                ...invalid.take(3).map((e) => Text(' ${e.error}',
                     style: dialogContext.textStyles.bodySmall)),
               ],
             ],
@@ -2611,3 +2605,4 @@ class _ClassListScreenState extends State<ClassListScreen> {
     );
   }
 }
+
