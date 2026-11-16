@@ -1,0 +1,27 @@
+name: Verify Hosting release control
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-approved-teaching-studio-20261115.yml'
+      - '.github/workflows/verify-hosting-release-control.yml'
+      - 'scripts/verify-hosting-release*'
+  push:
+    branches: [release/integrated-reliability-20261116]
+    paths:
+      - '.github/workflows/publish-approved-teaching-studio-20261115.yml'
+      - '.github/workflows/verify-hosting-release-control.yml'
+      - 'scripts/verify-hosting-release*'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: bash -n scripts/verify-hosting-release.sh
+      - run: node --test scripts/verify-hosting-release.test.mjs

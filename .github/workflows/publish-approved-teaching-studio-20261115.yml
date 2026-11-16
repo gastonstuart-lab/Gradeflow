@@ -1,4 +1,4 @@
-name: Publish Stuart-approved Teaching Studio
+name: Publish Stuart-approved GradeFlow reliability release
 # One authorised release of the already verified package. No application rebuild.
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 8e27356c0302a4da8f736428a7679ec2be7c3335
+          ref: 31a1a3ec6f22275872c0fa8073b8da446614a2e8
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -30,19 +30,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(gh run view 43830489785 --json conclusion --jq .conclusion)" = success
-          test "$(gh run view 43830489785 --json headSha --jq .headSha)" = 8e27356c0302a4da8f736428a7679ec2be7c3335
-          test "$(gh run view 43828795939 --json conclusion --jq .conclusion)" = success
-          test "$(gh run view 43828795939 --json headSha --jq .headSha)" = 21d647a692173efefb24b7e8470bec80c0ced776
+          test "$(gh run view 43856464565 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 43856464565 --json headSha --jq .headSha)" = 18dcaf5afedd68bbbf919671467be0d2aaed761b
+          test "$(gh run view 43856464568 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 43856464568 --json headSha --jq .headSha)" = 18dcaf5afedd68bbbf919671467be0d2aaed761b
+          test "$(git rev-parse HEAD^{tree})" = 28dc417b6252ebbafce33dfacf3d3475d006bb27
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14220518481 --jq .digest)" = sha256:dc3bb4bf8bd69c91821444d454e07d4b4758cc571fe40eb218abe07d73d3ce21
       - uses: actions/download-artifact@v4
         with:
-          name: GradeFlow-Teaching-Studio-Live
-          path: candidate
+          name: gradeflow-reliability-app
+          path: candidate/build/web
           github-token: ${{ github.token }}
-          run-id: 43830489785
+          run-id: 43856464565
       - name: Verify Hosting-only application and Studio
         run: |
           set -euo pipefail
+          cp firebase.live.json candidate/firebase.live.json
           test -s candidate/build/web/main.dart.js
           test -s candidate/build/web/teaching-studio/index.html
           test -s candidate/build/web/teaching-studio/pdfjs/build/pdf.worker.mjs
@@ -55,6 +58,13 @@ jobs:
             if (c[key]) throw Error('Hosting-only release required');
           }
           NODE
+      - name: Load reviewed byte-verification helper from release-control commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/contents/scripts/verify-hosting-release.sh?ref=${GITHUB_SHA}" \
+            -H 'Accept: application/vnd.github.raw+json' > verify-hosting-release.sh
+          bash -n verify-hosting-release.sh
       - name: Validate existing-project identity configuration
         env:
           WIF_PROVIDER: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
@@ -77,24 +87,14 @@ jobs:
         working-directory: candidate
         run: |
           set -euo pipefail
-          backup="before-studio-${GITHUB_RUN_ID}"
+          backup="before-reliability-${GITHUB_RUN_ID}"
           firebase hosting:clone gradeflow-20260113:live "gradeflow-20260113:$backup" --project gradeflow-20260113 --non-interactive
           echo "$backup" > backup-channel.txt
           echo "Rollback channel: $backup" >> "$GITHUB_STEP_SUMMARY"
           firebase deploy --only hosting --project gradeflow-20260113 --config firebase.live.json --non-interactive
-      - name: Verify published application bytes
+      - name: Verify published application bytes with bounded propagation retries
         run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --retry 3 --compressed "https://gradeflow-20260113.web.app/main.dart.js?release=${GITHUB_RUN_ID}" -o published-main.dart.js
-          cmp candidate/build/web/main.dart.js published-main.dart.js
-          curl --fail --silent --show-error --retry 3 --compressed "https://gradeflow-20260113.web.app/os/home?release=${GITHUB_RUN_ID}" -o published-home.html
-          cmp candidate/build/web/index.html published-home.html
-          curl --fail --silent --show-error --retry 3 --compressed "https://gradeflow-20260113.web.app/teaching-studio/?release=${GITHUB_RUN_ID}" -o published-studio.html
-          cmp candidate/build/web/teaching-studio/index.html published-studio.html
-          for file in pdfjs/web/viewer.html pdfjs/web/gradeflow-pen.mjs pdfjs/web/gradeflow-pen.css; do
-            curl --fail --silent --show-error --retry 3 --compressed "https://gradeflow-20260113.web.app/teaching-studio/$file?release=${GITHUB_RUN_ID}" -o published-pen-file
-            cmp "candidate/build/web/teaching-studio/$file" published-pen-file
-          done
+          bash verify-hosting-release.sh candidate/build/web https://gradeflow-20260113.web.app "$GITHUB_RUN_ID"
           echo 'Published and byte-verified: https://gradeflow-20260113.web.app/os/home' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
