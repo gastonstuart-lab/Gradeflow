@@ -7,6 +7,8 @@ import 'package:gradeflow/components/class_creation_dialog.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/repositories/local_repository.dart';
 import 'package:gradeflow/services/class_service.dart';
+import 'package:gradeflow/services/grading_category_service.dart';
+import 'package:gradeflow/repositories/repository_factory.dart';
 
 Class pupilClass(String id, {String teacher = 'fictional'}) => Class(
     classId: id,
@@ -24,6 +26,17 @@ class RejectClasses extends InMemorySharedPreferencesStore {
   @override
   Future<bool> setValue(String type, String key, Object value) async {
     if (reject && key.endsWith('classes')) return false;
+    return super.setValue(type, key, value);
+  }
+}
+
+class RejectCategories extends InMemorySharedPreferencesStore {
+  RejectCategories() : super.empty();
+  bool reject = true;
+
+  @override
+  Future<bool> setValue(String type, String key, Object value) async {
+    if (reject && key.endsWith('categories_new')) return false;
     return super.setValue(type, key, value);
   }
 }
@@ -113,5 +126,62 @@ void main() {
     expect(find.byType(ClassCreationDialog), findsNothing);
     controller.dispose();
   });
-}
 
+  testWidgets(
+      'grading category failure keeps a saved class and retries setup without duplication',
+      (tester) async {
+    final store = RejectCategories();
+    SharedPreferencesStorePlatform.instance = store;
+    RepositoryFactory.useLocal();
+    final repository = LocalRepository();
+    final classService = ClassService(repository: repository);
+    final categories = GradingCategoryService();
+    var classPersisted = false;
+
+    Future<void> createOrFinish() async {
+      if (!classPersisted) {
+        await classService.addClass(pupilClass('new'));
+        classPersisted = true;
+      }
+      try {
+        await categories.seedDefaultCategories('new', throwOnFailure: true);
+      } catch (_) {
+        throw const ClassGradingSetupPending();
+      }
+    }
+
+    await tester.pumpWidget(MaterialApp(
+        home: Builder(
+            builder: (context) => Scaffold(
+                body: TextButton(
+                    onPressed: () => showDialog<bool>(
+                        context: context,
+                        builder: (_) => ClassCreationDialog(
+                            content: const TextField(),
+                            onCreate: createOrFinish)),
+                    child: const Text('Open'))))));
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('The class was saved'), findsOneWidget);
+    expect(find.text('Retry grading setup'), findsOneWidget);
+    expect((await repository.loadClasses()), hasLength(1));
+    expect((await repository.loadCategories('new')), isEmpty);
+
+    store.reject = false;
+    await tester.tap(find.text('Retry grading setup'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ClassCreationDialog), findsNothing);
+    expect((await repository.loadClasses()), hasLength(1));
+    final savedCategories = await repository.loadCategories('new');
+    expect(savedCategories.map((category) => category.name), containsAll([
+      'Participation', 'Homework', 'Classwork', 'Quiz',
+    ]));
+    expect(savedCategories, hasLength(4));
+    classService.dispose();
+    categories.dispose();
+  });
+}
