@@ -136,7 +136,8 @@ class LocalRepository implements DataRepository {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
       final String data = json.encode(classes.map((c) => c.toJson()).toList());
-      await prefs.setString(_classesKey, data);
+      await _saveAcademicString(prefs, _classesKey, data,
+          failureMessage: 'Class storage rejected the write.');
     });
   }
 
@@ -505,3 +506,4 @@ class LocalRepository implements DataRepository {
     });
   }
 }
+
