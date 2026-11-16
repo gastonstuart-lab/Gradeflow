@@ -52,11 +52,21 @@ function eraseAt(x, y) {
       if (curve.isPointInStroke(point)) { hit = true; break; }
     }
     if (!hit) continue;
-    // Use PDF.js deletion so an erased stroke is recoverable with Undo and
-    // remains deleted in downloaded PDFs, including reopened annotations.
-    ui.setSelected(editor);
-    ui.delete();
-    ui.unselectAll();
+    // Use native editor removal/storage and its command history, without
+    // selecting first: selection launches an async toolbar that may race with
+    // immediate removal. Restore through the current layer on Undo.
+    ui.addCommands({
+      cmd: () => editor.remove(),
+      undo: () => {
+        const layer = ui.getLayer(editor.pageIndex);
+        if (layer) layer.addOrRebuild(editor);
+        else {
+          ui.addEditor(editor);
+          ui.addToAnnotationStorage(editor);
+        }
+      },
+      mustExec: true,
+    });
   }
 }
 
