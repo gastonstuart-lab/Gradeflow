@@ -1,5 +1,15 @@
 name: GradeFlow reliability actual browser acceptance
 on:
+  pull_request:
+    branches: [fix/room-reuse-save-139]
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'e2e/**'
+      - 'staging-tests/**'
+      - 'playwright.staging.config.ts'
+      - '.github/workflows/gradeflow-reliability-browser.yml'
+      - '.github/workflows/gradeflow-workflow-reliability.yml'
   push:
     branches: [audit/gradeflow-workflow-reliability-20261116, fix/class-import-category-recovery-142]
     paths:
