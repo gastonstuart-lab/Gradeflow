@@ -1,3 +1,4 @@
+import 'package:gradeflow/models/final_exam.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/services/calculation_service.dart';
 import 'package:gradeflow/models/grade_item.dart';
@@ -79,6 +80,20 @@ void main() {
             [item('one', 'work'), inactive, placeholder], [score('one', 70)]),
         70);
   });
+  test('final grade honors custom split and rejects invalid policy', () {
+    final now = DateTime(2026);
+    final exam = FinalExam(studentId: 's', examScore: 60, createdAt: now, updatedAt: now);
+    expect(calc.calculateFinalGrade(85, exam, courseworkWeightPercent: 70), 77.5);
+    expect(calc.calculateFinalGrade(85, exam), 70);
+    expect(calc.calculateFinalGrade(85, exam, courseworkWeightPercent: 0), 60);
+    expect(calc.calculateFinalGrade(85, exam, courseworkWeightPercent: 100), 85);
+    for (final weight in [-1.0, 101.0, double.nan, double.infinity]) {
+      expect(calc.calculateFinalGrade(85, exam, courseworkWeightPercent: weight), isNull);
+    }
+    expect(calc.calculateFinalGrade(null, exam, courseworkWeightPercent: 70), isNull);
+    expect(calc.calculateFinalGrade(85, null, courseworkWeightPercent: 70), isNull);
+  });
+
   test('student results isolate marks from other students', () {
     final grades = calc.calculateStudentGrades('other', [category('work', 100)],
         [item('one', 'work')], [score('one', 99)], null);

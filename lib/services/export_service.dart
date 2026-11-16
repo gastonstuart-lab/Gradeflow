@@ -91,8 +91,8 @@ class ExportService {
       'Chinese Name',
       'English Name',
       ...categories.map((c) => c.name),
-      'Process Score (40%)',
-      'Exam Score (60%)',
+      'Process Score',
+      'Exam Score',
       'Final Grade',
     ];
 
@@ -126,8 +126,8 @@ class ExportService {
       'Chinese Name',
       'English Name',
       ...categories.map((c) => c.name),
-      'Process Score (40%)',
-      'Exam Score (60%)',
+      'Process Score',
+      'Exam Score',
       'Final Grade',
     ];
 
@@ -179,8 +179,8 @@ class ExportService {
     buffer.writeln('Final Calculation:');
     buffer.writeln('-' * 50);
     buffer.writeln(
-        'Process Score (40%): ${_formatScore(grades['processScore'])}');
-    buffer.writeln('Exam Score (60%): ${_formatScore(grades['examScore'])}');
+        'Process Score: ${_formatScore(grades['processScore'])}');
+    buffer.writeln('Exam Score: ${_formatScore(grades['examScore'])}');
     buffer.writeln('Final Grade: ${_formatScore(grades['finalGrade'])}');
 
     return buffer.toString();
@@ -263,9 +263,9 @@ class ExportService {
                     1: const pw.FlexColumnWidth(1)
                   },
                   children: [
-                    _kv('Process Score (40%)',
+                    _kv('Process Score',
                         _formatScore(grades['processScore'])),
-                    _kv('Exam Score (60%)', _formatScore(grades['examScore'])),
+                    _kv('Exam Score', _formatScore(grades['examScore'])),
                     _kv('Final Grade', _formatScore(grades['finalGrade'])),
                   ],
                 ),
@@ -383,9 +383,9 @@ class ExportService {
                     1: const pw.FlexColumnWidth(1)
                   },
                   children: [
-                    _kv('Process Score (40%)',
+                    _kv('Process Score',
                         _formatScore(grades['processScore'])),
-                    _kv('Exam Score (60%)', _formatScore(grades['examScore'])),
+                    _kv('Exam Score', _formatScore(grades['examScore'])),
                     _kv('Final Grade', _formatScore(grades['finalGrade'])),
                   ],
                 ),
@@ -417,8 +417,8 @@ class ExportService {
       'Chinese Name',
       'English Name',
       ...categories.map((c) => c.name),
-      'Process (40%)',
-      'Exam (60%)',
+      'Process',
+      'Exam',
       'Final',
     ];
 

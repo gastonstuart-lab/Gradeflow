@@ -19,9 +19,35 @@ class FailingExamRepository extends LocalRepository {
   }
 }
 
+// Matches Firestore's additive save contract: omitted documents remain.
+class AdditiveExamRepository extends LocalRepository {
+  final Map<String, FinalExam> records = {};
+  @override
+  Future<List<FinalExam>> loadExams(String classId) async => records.values.toList();
+  @override
+  Future<void> saveExams(String classId, List<FinalExam> exams) async {
+    for (final exam in exams) { records[exam.studentId] = exam; }
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test('batch-cleared exam stays blank after reopening an additive cloud store', () async {
+    final repo = AdditiveExamRepository();
+    final service = FinalExamService(repository: repo);
+    await service.upsertManyExams('c', {'a': 70, 'b': 80});
+    expect(await service.upsertManyExams('c', {'a': null}), 1);
+    final reopened = FinalExamService(repository: repo);
+    await reopened.loadExams('c', ['a', 'b']);
+    expect(reopened.getExam('a')?.examScore, isNull);
+    expect(reopened.getExam('b')?.examScore, 80);
+    expect(await service.upsertManyExams('c', {'a': null}), 0);
+    await reopened.upsertManyExams('c', {'a': 0});
+    expect((await repo.loadExams('c')).singleWhere((e) => e.studentId == 'a').examScore, 0);
+    service.dispose(); reopened.dispose();
+  });
 
   test('failed single save propagates and preserves persisted score for retry', () async {
     final repo = FailingExamRepository();
@@ -51,7 +77,7 @@ void main() {
     repo.failWrites = false;
     expect(await service.upsertManyExams('c', {'a': 0, 'b': null}), 2);
     expect(service.getExam('a')!.examScore, 0);
-    expect(service.getExam('b'), isNull);
+    expect(service.getExam('b')!.examScore, isNull);
     service.dispose();
   });
   test('overlapping single and batch saves retain both students and latest edit', () async {
