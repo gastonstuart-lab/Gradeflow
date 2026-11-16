@@ -134,3 +134,78 @@ test('real PDF editor writes ink and saves a two-page annotated copy', async ({ 
   await page.screenshot({ path: testInfo.outputPath('pdf-annotation.png') });
   expect(outside).toEqual([]);
 });
+
+test('PDF handwriting stays separate and pen eraser deletes only touched ink with undo', async ({ page }, testInfo) => {
+  const outside = await ready(page, testInfo);
+  await page.getByTestId('pdf-file').setInputFiles({ name: 'pen-check.pdf', mimeType: 'application/pdf', buffer: worksheet() });
+  const frame = page.frameLocator('iframe[title="PDF annotation editor"]');
+  await expect(frame.locator('#numPages')).toContainText('2');
+  await frame.locator('#editorInkButton').click();
+  const paper = frame.locator('.page[data-page-number="1"]');
+  const box = await paper.boundingBox();
+  const origin = { x: box.x + box.width * .2, y: box.y + box.height * .2 };
+  const pen = await page.context().newCDPSession(page);
+  async function stroke(points) {
+    const [first, ...rest] = points;
+    await pen.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: first[0], y: first[1], button: 'left', buttons: 1, pointerType: 'pen', force: .5 });
+    for (const [x, y] of rest) await pen.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'left', buttons: 1, pointerType: 'pen', force: .5 });
+    const [x, y] = points.at(-1);
+    await pen.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, pointerType: 'pen' });
+  }
+  const { x, y } = origin;
+  await stroke([[x, y], [x + 40, y + 40], [x + 80, y + 80], [x + 120, y + 40], [x + 160, y]]);
+  await expect(paper.locator('.inkEditor')).toHaveCount(1);
+  await stroke([[x + 200, y], [x + 230, y], [x + 260, y]]);
+  // Start inside the first stroke's bounding box, in empty space.
+  await stroke([[x + 80, y + 15], [x + 90, y + 15], [x + 100, y + 15]]);
+  await expect(paper.locator('.inkEditor')).toHaveCount(3);
+  await expect(paper.locator('.selectedEditor')).toHaveCount(0);
+  await expect(frame.locator('#editorInkButton')).toHaveClass(/toggled/);
+  async function eraser(type, px, py, buttons) {
+    const iframe = await page.locator('iframe[title="PDF annotation editor"]').boundingBox();
+    await frame.locator('body').evaluate((_, args) => {
+      const target = document.elementFromPoint(args.x, args.y);
+      target.dispatchEvent(new PointerEvent(args.type, { bubbles: true, cancelable: true, pointerId: 91, pointerType: 'pen', button: args.type === 'pointermove' ? -1 : 5, buttons: args.buttons, clientX: args.x, clientY: args.y }));
+    }, { type, x: px - iframe.x, y: py - iframe.y, buttons });
+  }
+  // An eraser hovering in a selection box must not erase anything.
+  await eraser('pointermove', x + 80, y + 35, 0);
+  await expect(paper.locator('.inkEditor')).toHaveCount(3);
+  await eraser('pointerdown', x + 80, y + 35, 32);
+  await eraser('pointerup', x + 80, y + 35, 0);
+  await expect(paper.locator('.inkEditor')).toHaveCount(3);
+  await eraser('pointerdown', x + 10, y + 7, 32);
+  await eraser('pointerup', x + 10, y + 7, 0);
+  await expect(paper.locator('.inkEditor')).toHaveCount(2);
+  await frame.locator('body').press('Control+z');
+  await expect(paper.locator('.inkEditor')).toHaveCount(3);
+  await frame.locator('body').press('Control+Shift+z');
+  await expect(paper.locator('.inkEditor')).toHaveCount(2);
+  // A fast eraser sweep must not jump over a thin stroke between events.
+  await eraser('pointerdown', x + 200, y - 20, 32);
+  await eraser('pointermove', x + 260, y + 20, 32);
+  await eraser('pointerup', x + 260, y + 20, 0);
+  await expect(paper.locator('.inkEditor')).toHaveCount(1);
+  await frame.locator('body').press('Control+z');
+  await expect(paper.locator('.inkEditor')).toHaveCount(2);
+  // Flip back to the tip and continue without selecting the pen again.
+  await stroke([[x, y + 120], [x + 30, y + 120], [x + 60, y + 120]]);
+  await expect(paper.locator('.inkEditor')).toHaveCount(3);
+  const [download] = await Promise.all([page.waitForEvent('download'), frame.locator('#downloadButton').click()]);
+  const saved = await readFile(await download.path());
+  await page.getByTestId('pdf-file').setInputFiles({ name: 'saved-pen-check.pdf', mimeType: 'application/pdf', buffer: saved });
+  await expect(frame.locator('#numPages')).toContainText('2');
+  const annotations = await frame.locator('body').evaluate(async () => {
+    const doc = window.PDFViewerApplication.pdfDocument;
+    return (await (await doc.getPage(1)).getAnnotations()).filter(a => a.annotationType === 15).map(a => a.inkLists.length);
+  });
+  expect(annotations).toEqual([1, 1, 1]);
+  await frame.locator('#editorInkButton').click();
+  await expect(paper.locator('.inkEditor')).toHaveCount(3);
+  await eraser('pointerdown', x + 230, y, 32);
+  await eraser('pointerup', x + 230, y, 0);
+  await expect(paper.locator('.inkEditor')).toHaveCount(2);
+  await page.screenshot({ path: testInfo.outputPath('independent-pdf-ink.png') });
+  expect(outside).toEqual([]);
+});
+
