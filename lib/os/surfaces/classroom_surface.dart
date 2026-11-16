@@ -161,7 +161,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         setState(() {
           _pickedStudent = table ? null : id;
           _pickedTable = table ? id : null;
-          _pickLabel = 'Choosing…';
+          _pickLabel = 'Choosing.';
           _toolsOpen = false;
         });
       },
@@ -399,7 +399,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
             Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                    '${students.length} students · ${layout?.tables.length ?? 0} tables · ${layout?.seats.length ?? 0} seats')),
+                    '${students.length} students � ${layout?.tables.length ?? 0} tables � ${layout?.seats.length ?? 0} seats')),
           ],
         ])),
       ]),
@@ -414,7 +414,15 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   }
 
   /// The room template contains furniture, NOT the originating class's pupils.
+  bool _roomSaveInProgress = false;
+
   Future<void> _shareRoom() async {
+    if (_roomSaveInProgress) return;
+    _roomSaveInProgress = true;
+    try { await _runShareRoom(); } finally { _roomSaveInProgress = false; }
+  }
+
+  Future<void> _runShareRoom() async {
     if (GradeFlowExistingProjectPreview.enabled) {
       _roomMessage('This preview is read-only. Room changes are disabled.');
       return;
@@ -494,6 +502,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
       ),
     );
     if (chosen == null || chosen.isEmpty || !mounted) return;
+    var completed = 0;
     try {
       final saved = await seats.saveRoomSetupFromLayout(
         classId: widget.classId,
@@ -501,7 +510,6 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         roomSetupId: seats.assignedRoomSetupId(widget.classId),
       );
       if (saved == null) throw StateError('Could not save source room.');
-      var completed = 0;
       for (final targetClassId in chosen) {
         if (await seats.applyRoomSetupToClass(
           classId: targetClassId,
@@ -511,11 +519,17 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
       _roomMessage('Room shared with $completed of ${chosen.length} classes. '
           'Student assignments remain independent.');
     } catch (error) {
-      _roomMessage('Room sharing did not complete: $error');
+      _roomMessage('Room shared with $completed of ${chosen.length} classes. Sharing stopped: $error');
     }
   }
 
   Future<void> _chooseSharedRoom() async {
+    if (_roomSaveInProgress) return;
+    _roomSaveInProgress = true;
+    try { await _runChooseSharedRoom(); } finally { _roomSaveInProgress = false; }
+  }
+
+  Future<void> _runChooseSharedRoom() async {
     if (GradeFlowExistingProjectPreview.enabled) {
       _roomMessage('This preview is read-only. Room changes are disabled.');
       return;
@@ -763,7 +777,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                 Text(
                                   switch (seatingService.plannerV2SaveState(widget.classId)) {
                                     PlannerV2SaveState.idle => 'No changes',
-                                    PlannerV2SaveState.saving => 'Saving…',
+                                    PlannerV2SaveState.saving => 'Saving.',
                                     PlannerV2SaveState.saved => 'Saved',
                                     PlannerV2SaveState.failed => 'Save failed',
                                   },
@@ -815,7 +829,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                 const SizedBox(width: 12),
                                 InputChip(
                                     label: Text(
-                                        '$_scoreCategory · select a student'),
+                                        '$_scoreCategory � select a student'),
                                     onDeleted: () =>
                                         setState(() => _scoreCategory = null))
                               ],
@@ -962,7 +976,7 @@ class _ClassroomHeader extends StatelessWidget {
                     '$studentCount students',
                     if ((roomName ?? '').trim().isNotEmpty) roomName!.trim(),
                     setupMode ? 'Arrange Mode' : 'Teach Mode',
-                  ].join('  •  '),
+                  ].join('    '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -1149,3 +1163,4 @@ class _ClassroomState extends StatelessWidget {
     );
   }
 }
+
