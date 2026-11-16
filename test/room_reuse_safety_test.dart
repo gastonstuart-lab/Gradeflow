@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // ignore: depend_on_referenced_packages
@@ -146,5 +147,12 @@ void main() {
         isNotNull);
     service.dispose();
   });
-}
 
+  test('Classroom status labels have no corrupt control or replacement characters', () {
+    final source = File('lib/os/surfaces/classroom_surface.dart').readAsStringSync();
+    expect(source.contains('\\u0007'), isFalse);
+    expect(source.contains('\\uFFFD'), isFalse);
+    expect(source, contains('students ·'));
+    expect(source, contains('  •  '));
+  });
+}
