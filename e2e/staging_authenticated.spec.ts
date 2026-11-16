@@ -173,7 +173,21 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     const rows = page.getByRole('textbox', { name: /Roster rows/ });
     const pastedRows = 'studentId\tchineseName\tenglishFirstName\tenglishLastName\n'
       + id + '\tFictional Import\tImport\tPupil, Jr';
-    await rows.fill(pastedRows);
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.evaluate((text) => navigator.clipboard.writeText(text), pastedRows);
+    // Use a real paste event. Flutter can replace a DOM-only fill during
+    // semantics focus activation; never proceed unless the whole input matches.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await rows.click();
+      await rows.press('ControlOrMeta+A');
+      await rows.press('ControlOrMeta+V');
+      try {
+        await expect(rows).toHaveValue(pastedRows, { timeout: 3_000 });
+        break;
+      } catch (error) {
+        if (attempt === 2) throw error;
+      }
+    }
     await expect(rows).toHaveValue(pastedRows);
     await rows.press('Tab');
     await page.getByRole('button', { name: 'Preview', exact: true }).click();

@@ -2,7 +2,7 @@ name: GradeFlow workflow reliability candidate
 on:
   push:
     branches: [audit/gradeflow-workflow-reliability-20261116]
-    paths: ['lib/**', 'test/**', 'e2e/**', 'web/**', 'assets/**', 'teacher-tools-preview/**', 'pubspec.*', '.github/workflows/gradeflow-workflow-reliability.yml']
+    paths: ['lib/**', 'test/**', 'web/**', 'assets/**', 'teacher-tools-preview/**', 'pubspec.*', '.github/workflows/gradeflow-workflow-reliability.yml']
 permissions:
   contents: read
 concurrency:
