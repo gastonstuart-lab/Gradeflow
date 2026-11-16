@@ -223,6 +223,23 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
   await expect.poll(emulatorOrigin).toBe('http://127.0.0.1:9099');
+  browserPhase = 'teaching-studio';
+  await page.goto('/os/home');
+  await ensureFlutterSemantics(page);
+  await page.getByText('Whiteboard & PDF', { exact: true }).click();
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/teaching-studio/');
+  await expect(page.getByRole('heading', { name: 'Teaching Studio', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save board', exact: true })).toBeEnabled();
+  // Bottom navigation must retain the Studio tab and restore signed-in Home.
+  const [homeTab] = await Promise.all([
+    page.waitForEvent('popup'),
+    page.getByRole('link', { name: 'Home', exact: true }).click(),
+  ]);
+  await ensureFlutterSemantics(homeTab);
+  await expect(homeTab).toHaveURL('http://127.0.0.1:7357/os/home');
+  await expect(homeTab.getByRole('button', { name: 'Open Classroom', exact: true })).toBeEnabled();
+  await expect(page.getByRole('heading', { name: 'Teaching Studio', exact: true })).toBeVisible();
+  await homeTab.close();
   expect(unexpectedCloudRequests,
     'A local-emulator build contacted live Firebase endpoints').toEqual([]);
 });

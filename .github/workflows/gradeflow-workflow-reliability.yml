@@ -2,6 +2,7 @@ name: GradeFlow workflow reliability candidate
 on:
   push:
     branches: [audit/gradeflow-workflow-reliability-20261116]
+    paths: ['lib/**', 'test/**', 'e2e/**', 'web/**', 'assets/**', 'teacher-tools-preview/**', 'pubspec.*', '.github/workflows/gradeflow-workflow-reliability.yml']
 permissions:
   contents: read
 concurrency:
@@ -28,6 +29,18 @@ jobs:
       - name: Live V2 authentication checks
         run: flutter test --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true test/auth_fallback_safety_test.dart test/login_screen_test.dart test/gradeflow_existing_project_preview_test.dart
       - run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preserve Teaching Studio in the complete application candidate
+        working-directory: teacher-tools-preview
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          npx playwright install --with-deps chromium
+          npm test
+          mkdir -p ../build/web/teaching-studio
+          cp -a dist/. ../build/web/teaching-studio/
       - uses: actions/upload-artifact@v4
         with:
           name: gradeflow-reliability-app

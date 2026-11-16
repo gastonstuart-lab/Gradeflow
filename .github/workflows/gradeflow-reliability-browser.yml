@@ -52,6 +52,13 @@ jobs:
             --dart-define=GRADEFLOW_STAGING_FIREBASE_STORAGE_BUCKET=demo-gradeflow-v2-staging.firebasestorage.app
       - run: npm install --no-audit --no-fund
       - run: npm install --prefix staging-tests --no-audit --no-fund
+      - name: Include the real Teaching Studio under its production subdirectory
+        working-directory: teacher-tools-preview
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          mkdir -p ../build/web/teaching-studio
+          cp -a dist/. ../build/web/teaching-studio/
       - run: npx playwright install --with-deps chromium
       - name: Parse browser tests before emulator startup
         run: npx playwright test --config=playwright.staging.config.ts --list

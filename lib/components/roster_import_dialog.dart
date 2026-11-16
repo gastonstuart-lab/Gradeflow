@@ -27,7 +27,10 @@ class _RosterImportDialogState extends State<RosterImportDialog> {
     } catch (error) {
       if (mounted) setState(() {
         _saving = false;
-        _error = 'Import was not completed. $error';
+        final reason = error is StateError
+            ? error.message.toString()
+            : 'The roster could not be saved. Check your connection and try again.';
+        _error = 'Import was not completed. $reason';
       });
     }
   }
