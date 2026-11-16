@@ -4,7 +4,7 @@ import 'package:gradeflow/models/class.dart';
 /// Names alone are insufficient: the same group can recur each school term.
 class ClassSetupIdentity {
   static String _key(String value) =>
-      value.trim().replaceAll(RegExp(r'\\s+'), ' ').toLowerCase();
+      value.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 
   static bool sameSection(Class left, Class right) =>
       left.teacherId == right.teacherId &&
