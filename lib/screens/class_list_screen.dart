@@ -9,6 +9,7 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_note_service.dart';
 import 'package:gradeflow/services/class_schedule_service.dart';
 import 'package:gradeflow/services/class_service.dart';
+import 'package:gradeflow/services/class_setup_identity.dart';
 import 'package:gradeflow/services/demo_data_service.dart';
 import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/grade_item_service.dart';
@@ -630,6 +631,19 @@ class _ClassListScreenState extends State<ClassListScreen> {
         createdAt: now,
         updatedAt: now,
       );
+      final duplicate = ClassSetupIdentity.findUnique(
+          await RepositoryFactory.instance.loadClasses(), target);
+      if (duplicate != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('A matching class already exists: ${duplicate.className} '
+                '(${duplicate.schoolYear}, ${duplicate.term}). '
+                'Select that existing class rather than creating another. '
+                'Complete its grading setup from the class menu if needed.'),
+          ));
+        }
+        return;
+      }
       await classService.addClass(target);
       if (!await _confirmDefaultGradingSetup(
         target,
@@ -1581,6 +1595,20 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final classService = context.read<ClassService>();
     final studentService = context.read<StudentService>();
     final userId = user.userId;
+    final previousSection = ClassSetupIdentity.findUnique(
+      await RepositoryFactory.instance.loadClasses(), newClass);
+    if (previousSection != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 12),
+        content: Text(
+          'Section "${previousSection.className}" for ${previousSection.term} '
+          '${previousSection.schoolYear} already exists. Open it and verify '
+          'its students, seating and grading setup before proceeding. '
+          'The old section has not been archived again.',
+        ),
+      ));
+      return;
+    }
     await classService.addClass(newClass);
     if (!await _confirmDefaultGradingSetup(
       newClass,
