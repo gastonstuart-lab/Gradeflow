@@ -1,0 +1,6 @@
+/* While writing, completed ink must never catch the next pen-down. Switch
+   out of Draw to select/move annotations using PDF.js's normal controls. */
+.annotationEditorLayer.inkEditing .inkEditor,
+.annotationEditorLayer.inkEditing .inkEditor * {
+  pointer-events: none !important;
+}
