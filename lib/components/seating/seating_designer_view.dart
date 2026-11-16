@@ -14,6 +14,7 @@ class SeatingDesignerView extends StatefulWidget {
   final List<Student> students;
   final bool autoLoad;
   final bool presentationMode;
+  final bool editRoomMode;
   final bool showToolbar;
   final bool showStudentPanel;
   final bool showFullScreenButton;
@@ -30,6 +31,7 @@ class SeatingDesignerView extends StatefulWidget {
     required this.students,
     this.autoLoad = true,
     this.presentationMode = false,
+    this.editRoomMode = false,
     this.showToolbar = true,
     this.showStudentPanel = true,
     this.showFullScreenButton = true,
@@ -90,6 +92,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
         final layouts = service.layoutsForClass(widget.classId);
         final active = service.activeLayout(widget.classId);
         final studentsById = {for (final s in widget.students) s.studentId: s};
+        final effectiveDesignMode = widget.editRoomMode || _designMode;
 
         if (service.isLoading && active == null) {
           return const Center(child: CircularProgressIndicator());
@@ -122,7 +125,8 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                     child: SeatingToolbar(
                       layouts: layouts,
                       activeLayoutId: active.layoutId,
-                      designMode: _designMode,
+                      designMode: effectiveDesignMode,
+                      showDesignModeToggle: !widget.editRoomMode,
                       onToggleDesignMode: () =>
                           setState(() => _designMode = !_designMode),
                       onSelectLayout: (id) =>
@@ -175,7 +179,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                       )),
                     ),
                   ),
-                if (widget.showUseHint && _designMode) ...[
+                if (widget.showUseHint && effectiveDesignMode) ...[
                   const SizedBox(height: 6),
                   _EditRoomHint(
                     hasSeats: active.seats.isNotEmpty,
@@ -258,7 +262,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
         child: SeatingCanvas(
           layout: active,
           studentsById: studentsById,
-          designMode: _designMode,
+          designMode: widget.editRoomMode || _designMode,
           interactive: true,
           presentationMode: widget.presentationMode,
           onMoveTable: (tableId, delta) =>
@@ -325,10 +329,10 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     final created = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('New layout'),
+        title: const Text('New room map'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: 'Layout name'),
+          decoration: const InputDecoration(labelText: 'Room map name'),
           autofocus: true,
         ),
         actions: [
@@ -345,7 +349,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     );
     if (created != true) return;
     final name = controller.text.trim().isEmpty
-        ? 'Layout ${DateTime.now().month}/${DateTime.now().day}'
+        ? 'Room map ${DateTime.now().month}/${DateTime.now().day}'
         : controller.text.trim();
     await service.createLayout(widget.classId, name);
   }
@@ -365,10 +369,10 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     final renamed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Rename layout'),
+        title: const Text('Rename room map'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: 'Layout name'),
+          decoration: const InputDecoration(labelText: 'Room map name'),
           autofocus: true,
         ),
         actions: [
@@ -398,7 +402,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
   ) async {
     if (layouts.length <= 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Keep at least one seating layout.')),
+        const SnackBar(content: Text('Keep at least one room map.')),
       );
       return;
     }
@@ -406,9 +410,9 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete layout'),
+        title: const Text('Delete room map'),
         content: Text(
-          'Delete "${active.name}"? The student placements in this layout will be removed.',
+          'Delete "${active.name}"? The student placements in this room map will be removed.',
         ),
         actions: [
           TextButton(
@@ -444,7 +448,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
       builder: (context) => AlertDialog(
         title: const Text('Clear room'),
         content: const Text(
-          'Remove all tables and seats from this layout and start from a blank canvas?',
+          'Remove all tables and seats from this room map and start from an empty room?',
         ),
         actions: [
           TextButton(
@@ -921,7 +925,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                   runSpacing: 8,
                   children: [
                     _StatusChip(
-                      label: 'Green',
+                      label: 'Steady',
                       color: Colors.green.shade600,
                       selected: seat.statusColor == SeatStatusColor.green,
                       onTap: () {
@@ -931,7 +935,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                       },
                     ),
                     _StatusChip(
-                      label: 'Yellow',
+                      label: 'Check in',
                       color: Colors.amber.shade700,
                       selected: seat.statusColor == SeatStatusColor.yellow,
                       onTap: () {
@@ -941,7 +945,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                       },
                     ),
                     _StatusChip(
-                      label: 'Red',
+                      label: 'Attention',
                       color: Colors.red.shade600,
                       selected: seat.statusColor == SeatStatusColor.red,
                       onTap: () {
@@ -951,7 +955,7 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                       },
                     ),
                     _StatusChip(
-                      label: 'Blue',
+                      label: 'Support',
                       color: Colors.blue.shade600,
                       selected: seat.statusColor == SeatStatusColor.blue,
                       onTap: () {
@@ -1042,11 +1046,12 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                     });
                   },
                 ),
-                if (_designMode && canEditSeatStructure)
+                if ((_designMode || widget.editRoomMode) &&
+                    canEditSeatStructure)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.content_copy_outlined),
-                    title: const Text('Duplicate chair'),
+                    title: const Text('Duplicate seat'),
                     subtitle: const Text('Copy this seat and place it nearby.'),
                     onTap: () async {
                       await service.duplicateSeat(widget.classId, seatId);
@@ -1054,11 +1059,12 @@ class _SeatingDesignerViewState extends State<SeatingDesignerView> {
                       Navigator.of(context).pop();
                     },
                   ),
-                if (_designMode && canEditSeatStructure)
+                if ((_designMode || widget.editRoomMode) &&
+                    canEditSeatStructure)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.delete_outline),
-                    title: const Text('Remove chair'),
+                    title: const Text('Remove seat'),
                     subtitle: Text(
                       table.seatCount <= 1
                           ? 'Keep at least one seat on this table.'
@@ -1417,8 +1423,8 @@ class _EditRoomHint extends StatelessWidget {
       icon: Icons.tune,
       child: Text(
         hasSeats
-            ? 'Edit room is on. Use Add furniture for new items, duplicate from the seat or table menus, and drag handles to place everything.'
-            : 'Edit room is on. Use Add furniture to start building the room, then drag tables and seats where you want them.',
+            ? 'Setup Room is on. Add tables or desks, duplicate from menus, and drag handles to match the real room.'
+            : 'Setup Room is on. Add a table or desk, drag it into place, then place students from the unseated list.',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -1436,7 +1442,7 @@ class _SeatingUseHint extends StatelessWidget {
     return _SeatingHintShell(
       icon: Icons.swap_horiz,
       child: Text(
-        'Drag a student onto any seat to swap places, or onto a table to use its next empty seat. Tap a seat to lock it before shuffling.',
+        'Teach Mode is for daily use. Tap a seat for notes or status; switch to Setup Room to move tables or place students.',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),

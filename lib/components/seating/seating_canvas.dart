@@ -608,45 +608,45 @@ class _TableMenu extends StatelessWidget {
       itemBuilder: (context) => [
         const PopupMenuItem(
           value: _TableAction.edit,
-          child: Text('Edit details'),
+          child: Text('Table settings'),
         ),
         const PopupMenuItem(
           value: _TableAction.duplicate,
-          child: Text('Duplicate'),
+          child: Text('Duplicate table'),
         ),
         if (_canRotate(table))
           const PopupMenuItem(
             value: _TableAction.rotate,
-            child: Text('Rotate 90 deg'),
+            child: Text('Rotate'),
           ),
         const PopupMenuItem(
           value: _TableAction.remove,
-          child: Text('Remove'),
+          child: Text('Delete table'),
         ),
         const PopupMenuDivider(),
         const PopupMenuItem(
           value: _TableAction.rect2,
-          child: Text('Rect table (2 seats)'),
+          child: Text('Table - 2 seats'),
         ),
         const PopupMenuItem(
           value: _TableAction.rect4,
-          child: Text('Rect table (4 seats)'),
+          child: Text('Table - 4 seats'),
         ),
         const PopupMenuItem(
           value: _TableAction.square4,
-          child: Text('Square table (4 seats)'),
+          child: Text('Square table - 4 seats'),
         ),
         const PopupMenuItem(
           value: _TableAction.rect6,
-          child: Text('Rect table (6 seats)'),
+          child: Text('Table - 6 seats'),
         ),
         const PopupMenuItem(
           value: _TableAction.paired6,
-          child: Text('Paired tables (6 seats)'),
+          child: Text('Paired tables - 6 seats'),
         ),
         const PopupMenuItem(
           value: _TableAction.long8,
-          child: Text('Long table (8 seats)'),
+          child: Text('Long table - 8 seats'),
         ),
         const PopupMenuItem(
           value: _TableAction.desk1,
@@ -996,14 +996,14 @@ class _BlankCanvasHint extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Blank canvas',
+                  'Build your classroom',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Turn on Edit room, add furniture, drag seats into place, then drop students onto those seats.',
+                  'Open Setup Room, add a table or desk, drag it into place, then drop students onto seats.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: text,
