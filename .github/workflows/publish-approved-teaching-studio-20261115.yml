@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 90906f2a35291012d0ac55b98e9cdfe29aafe03d
+          ref: 8e27356c0302a4da8f736428a7679ec2be7c3335
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -30,16 +30,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(gh run view 43724542121 --json conclusion --jq .conclusion)" = success
-          test "$(gh run view 43724542121 --json headSha --jq .headSha)" = 90906f2a35291012d0ac55b98e9cdfe29aafe03d
-          test "$(gh run view 43723540760 --json conclusion --jq .conclusion)" = success
-          test "$(gh run view 43723540760 --json headSha --jq .headSha)" = dcf1c453214608359eed7439f7bb595300d41e31
+          test "$(gh run view 43830489785 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 43830489785 --json headSha --jq .headSha)" = 8e27356c0302a4da8f736428a7679ec2be7c3335
+          test "$(gh run view 43828795939 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 43828795939 --json headSha --jq .headSha)" = 21d647a692173efefb24b7e8470bec80c0ced776
       - uses: actions/download-artifact@v4
         with:
           name: GradeFlow-Teaching-Studio-Live
           path: candidate
           github-token: ${{ github.token }}
-          run-id: 43724542121
+          run-id: 43830489785
       - name: Verify Hosting-only application and Studio
         run: |
           set -euo pipefail
@@ -91,6 +91,10 @@ jobs:
           cmp candidate/build/web/index.html published-home.html
           curl --fail --silent --show-error --retry 3 --compressed "https://gradeflow-20260113.web.app/teaching-studio/?release=${GITHUB_RUN_ID}" -o published-studio.html
           cmp candidate/build/web/teaching-studio/index.html published-studio.html
+          for file in pdfjs/web/viewer.html pdfjs/web/gradeflow-pen.mjs pdfjs/web/gradeflow-pen.css; do
+            curl --fail --silent --show-error --retry 3 --compressed "https://gradeflow-20260113.web.app/teaching-studio/$file?release=${GITHUB_RUN_ID}" -o published-pen-file
+            cmp "candidate/build/web/teaching-studio/$file" published-pen-file
+          done
           echo 'Published and byte-verified: https://gradeflow-20260113.web.app/os/home' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
