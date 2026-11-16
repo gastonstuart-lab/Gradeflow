@@ -95,7 +95,10 @@ void main() {
     final repair = GradingCategoryService();
     await repair.seedDefaultCategories('second', throwOnFailure: true);
     expect(await repo.loadClasses(), hasLength(2));
-    expect(await repo.loadCategories('first'), firstBefore);
+    expect(
+      (await repo.loadCategories('first')).map((c) => c.toJson()).toList(),
+      firstBefore.map((c) => c.toJson()).toList(),
+    );
     expect(await repo.loadCategories('second'), hasLength(4));
     classes.dispose();
     categories.dispose();
