@@ -13,7 +13,7 @@ Baseline run https://github.com/gastonstuart-lab/Gradeflow/actions/runs/43778090
 - Repository failures were swallowed and local state could announce a false success.
 - A SharedPreferences false return was not treated as a failed roster save.
 
-The fix validates a whole batch before writing, reads its destination roster, rejects existing/within-file duplicate IDs, persists before updating memory and propagates save failures. File/paste imports share a guarded preview with error/retry state, disabled repeated submission/cancel during save and no enabled import for invalid-only rows. Local rejected writes reload durable preferences.
+The fix validates a whole batch before writing, reads its destination roster, rejects existing/within-file duplicate IDs, persists before updating memory and propagates save failures. File/paste imports share a guarded preview with error/retry state, disabled repeated submission/cancel during save and no enabled import for invalid-only rows. Local rejected writes reload durable preferences. Pasted spreadsheet tabs are passed unchanged to the existing delimiter-aware parser, preserving commas inside individual cells.
 
 This is additive import, not a roster replacement or identity/grade migration. Teachers must remove existing IDs from an import file; existing students are not silently updated or skipped. Import merge/update UX is a separate future decision.
 

@@ -287,8 +287,8 @@ class _StudentListScreenState extends State<StudentListScreen> {
       if (confirmed != true || !mounted) return;
       final raw = controller.text.trim();
       if (raw.isEmpty) return;
-      final csvLike = raw.contains('\t') ? raw.replaceAll('\t', ',') : raw;
-      final imported = _importService.parseCSV(csvLike);
+      // The parser detects tabs; replacing them with commas corrupts cells containing commas.
+      final imported = _importService.parseCSV(raw);
       if (imported.isEmpty) {
         _showError('Nothing detected. Make sure the first row has headers.');
         return;

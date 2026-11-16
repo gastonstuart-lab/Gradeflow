@@ -171,24 +171,26 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   async function previewPastedRoster(id: string) {
     await page.getByRole('button', { name: 'Paste from spreadsheet', exact: true }).click();
     const rows = page.getByRole('textbox', { name: 'Roster rows', exact: true });
-    const csv = 'studentId,chineseName,englishFirstName,englishLastName\n'
-      + id + ',Fictional Import,Import,Pupil';
-    await rows.fill(csv);
-    await expect(rows).toHaveValue(csv);
+    const pastedRows = 'studentId\tchineseName\tenglishFirstName\tenglishLastName\n'
+      + id + '\tFictional Import\tImport\tPupil, Jr';
+    await rows.fill(pastedRows);
+    await expect(rows).toHaveValue(pastedRows);
     await rows.press('Tab');
     await page.getByRole('button', { name: 'Preview', exact: true }).click();
     await expect(page.getByText('Import Preview', { exact: true })).toBeVisible();
   }
   await previewPastedRoster('synthetic-import-102');
+  await page.screenshot({ path: 'test-results/roster-import-preview.png' });
   await page.getByRole('button', { name: 'Import 1 student', exact: true }).click();
   await expect(page.getByText('Imported 1 student', { exact: true })).toBeVisible();
   await page.reload();
   await ensureFlutterSemantics(page);
-  await expect(page.getByText('Import Pupil', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Import Pupil, Jr', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Fictional Pupil', { exact: true }).first()).toBeVisible();
   await previewPastedRoster('synthetic-import-102');
   await page.getByRole('button', { name: 'Import 1 student', exact: true }).click();
   await expect(page.getByText(/Import was not completed.*already in this class/)).toBeVisible();
+  await page.screenshot({ path: 'test-results/roster-duplicate-rejected.png' });
   await expect(page.getByText('Import Preview', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   // Importing a student must not disturb the existing student's saved score.
