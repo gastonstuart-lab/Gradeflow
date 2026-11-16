@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+/// The class exists, but its default grading categories need a safe retry.
+class ClassGradingSetupPending implements Exception {
+  const ClassGradingSetupPending();
+}
+
 /// Keep the teacher's form available until a class is durably saved.
 class ClassCreationDialog extends StatefulWidget {
   const ClassCreationDialog(
@@ -12,6 +17,7 @@ class ClassCreationDialog extends StatefulWidget {
 
 class _ClassCreationDialogState extends State<ClassCreationDialog> {
   bool _saving = false;
+  bool _setupIncomplete = false;
   String? _error;
   Future<void> _create() async {
     if (_saving) return;
@@ -22,12 +28,16 @@ class _ClassCreationDialogState extends State<ClassCreationDialog> {
     try {
       await widget.onCreate();
       if (mounted) Navigator.of(context).pop(true);
-    } catch (_) {
+    } catch (error) {
       if (mounted)
         setState(() {
           _saving = false;
-          _error =
-              'Class creation did not complete. Your entries are kept here. Check your connection and try again.';
+          if (error is ClassGradingSetupPending) {
+            _setupIncomplete = true;
+            _error = 'The class was saved, but its default grading categories were not. Retry grading setup without creating another class.';
+          } else {
+            _error = 'Class creation did not complete. Your entries are kept here. Check your connection and try again.';
+          }
         });
     }
   }
@@ -39,7 +49,7 @@ class _ClassCreationDialogState extends State<ClassCreationDialog> {
           title: const Text('Create New Class'),
           content: SingleChildScrollView(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-            AbsorbPointer(absorbing: _saving, child: widget.content),
+            AbsorbPointer(absorbing: _saving || _setupIncomplete, child: widget.content),
             if (_error != null)
               Padding(
                   padding: const EdgeInsets.only(top: 12),
@@ -57,10 +67,10 @@ class _ClassCreationDialogState extends State<ClassCreationDialog> {
             TextButton(
                 onPressed:
                     _saving ? null : () => Navigator.of(context).pop(false),
-                child: const Text('Cancel')),
+                child: Text(_setupIncomplete ? 'Close' : 'Cancel')),
             FilledButton(
                 onPressed: _saving ? null : _create,
-                child: Text(_saving ? 'Saving.' : 'Create')),
+                child: Text(_saving ? 'Saving.' : _setupIncomplete ? 'Retry grading setup' : 'Create')),
           ],
         ),
       );
