@@ -25,7 +25,7 @@ class RejectCategoryWrites extends InMemorySharedPreferencesStore {
 
   @override
   Future<bool> setValue(String type, String key, Object value) async {
-    if (key == 'categories_$rejectedClassId') return false;
+    if (key.endsWith('categories_$rejectedClassId')) return false;
     return super.setValue(type, key, value);
   }
 }
