@@ -161,7 +161,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         setState(() {
           _pickedStudent = table ? null : id;
           _pickedTable = table ? id : null;
-          _pickLabel = 'Choosing.';
+          _pickLabel = 'Choosing…';
           _toolsOpen = false;
         });
       },
@@ -399,7 +399,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
             Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                    '${students.length} students � ${layout?.tables.length ?? 0} tables � ${layout?.seats.length ?? 0} seats')),
+                    '${students.length} students · ${layout?.tables.length ?? 0} tables · ${layout?.seats.length ?? 0} seats')),
           ],
         ])),
       ]),
@@ -777,7 +777,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                 Text(
                                   switch (seatingService.plannerV2SaveState(widget.classId)) {
                                     PlannerV2SaveState.idle => 'No changes',
-                                    PlannerV2SaveState.saving => 'Saving.',
+                                    PlannerV2SaveState.saving => 'Saving…',
                                     PlannerV2SaveState.saved => 'Saved',
                                     PlannerV2SaveState.failed => 'Save failed',
                                   },
@@ -829,7 +829,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                                 const SizedBox(width: 12),
                                 InputChip(
                                     label: Text(
-                                        '$_scoreCategory � select a student'),
+                                        '$_scoreCategory · select a student'),
                                     onDeleted: () =>
                                         setState(() => _scoreCategory = null))
                               ],
@@ -976,7 +976,7 @@ class _ClassroomHeader extends StatelessWidget {
                     '$studentCount students',
                     if ((roomName ?? '').trim().isNotEmpty) roomName!.trim(),
                     setupMode ? 'Arrange Mode' : 'Teach Mode',
-                  ].join('    '),
+                  ].join('  •  '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
