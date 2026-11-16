@@ -510,7 +510,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final auth = context.read<AuthService>();
     final classService = context.read<ClassService>();
     final studentService = context.read<StudentService>();
-    final catService = context.read<GradingCategoryService>();
 
     final existingClasses = List<Class>.from(classService.classes);
     existingClasses.sort((a, b) =>
@@ -1062,7 +1061,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
       ));
     }
 
-    final catService = context.read<GradingCategoryService>();
     final studentService = context.read<StudentService>();
     int addedStudents = 0;
     int touchedClasses = 0;
@@ -1582,7 +1580,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
     final classService = context.read<ClassService>();
     final studentService = context.read<StudentService>();
-    final catService = context.read<GradingCategoryService>();
     final userId = user.userId;
     await classService.addClass(newClass);
     if (!await _confirmDefaultGradingSetup(
@@ -2163,7 +2160,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
         if (proceedDefaults == true) {
           final auth = context.read<AuthService>();
           final classService = context.read<ClassService>();
-          final catService = context.read<GradingCategoryService>();
           final now = DateTime.now();
           final existingByName = {
             for (final c in classService.classes) c.className.toLowerCase(): c
@@ -2209,7 +2205,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
     final auth = context.read<AuthService>();
     final classService = context.read<ClassService>();
-    final catService = context.read<GradingCategoryService>();
     final messenger = ScaffoldMessenger.of(context);
 
     final confirm = await showDialog<bool>(
