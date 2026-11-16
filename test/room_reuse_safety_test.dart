@@ -150,8 +150,8 @@ void main() {
 
   test('Classroom status labels have no corrupt control or replacement characters', () {
     final source = File('lib/os/surfaces/classroom_surface.dart').readAsStringSync();
-    expect(source.contains('\\u0007'), isFalse);
-    expect(source.contains('\\uFFFD'), isFalse);
+    expect(source.contains('\u0007'), isFalse);
+    expect(source.contains('\uFFFD'), isFalse);
     expect(source, contains('students ·'));
     expect(source, contains('  •  '));
   });
