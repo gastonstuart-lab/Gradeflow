@@ -86,3 +86,10 @@ Use a fresh local emulator. Do not substitute a production project. The Python h
 This work targets the verified application integration branch, rather than old application files on main. It does not change production rules, authentication, IAM, dependencies, Hosting controls, school records or Messages availability. No merge or deployment is included. The current live app remains 31a1a3e until a separately reviewed release is approved.
 
 Rollback is a revert of the native display change before release. Do not roll back the approved Messages containment. The optional test harness and report have no production runtime effect.
+
+
+## Before-merge CI gate
+
+The original candidate workflows run only after changes reach the integration branch. PR #150 now includes a read-only review gate before merge: full Flutter analysis/tests, production build, Studio build/browser regressions, and the guarded native Gradebook browser journey run on the exact PR head in two independent jobs. No deployment, credentials or production data access is part of this gate.
+
+The complete Flutter + Studio review artifact includes `review-manifest.json` recording source commit/tree, the native Gradebook blob and SHA-256 of every packaged file. Browser evidence is archived separately. GitHub run results and artifact receipts are recorded in the PR after completion.
