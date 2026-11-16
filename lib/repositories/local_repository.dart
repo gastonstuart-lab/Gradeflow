@@ -498,7 +498,8 @@ class LocalRepository implements DataRepository {
         ..removeWhere((setup) => setup.roomSetupId == roomSetupId);
       final String updated =
           json.encode(roomSetups.map((setup) => setup.toJson()).toList());
-      await prefs.setString(_roomSetupsKey, updated);
+        await _saveAcademicString(prefs, _roomSetupsKey, updated,
+            failureMessage: 'Shared room cleanup rejected the write.');
     });
   }
 

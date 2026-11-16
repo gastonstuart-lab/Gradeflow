@@ -299,6 +299,9 @@ class SeatingService extends ChangeNotifier {
       var recovered = true;
       try { await repo.saveAssignedRoomSetupId(classId, previousAssigned); } catch (_) { recovered = false; }
       try { await repo.saveRoomSetups(previousRooms); } catch (_) { recovered = false; }
+      if (existing == null) {
+        try { await repo.deleteRoomSetup(roomSetup.roomSetupId); } catch (_) { recovered = false; }
+      }
       throw StateError(recovered
           ? 'Room was not saved. The previous room is kept; try again.'
           : 'Room saving did not complete and recovery could not be confirmed. Reopen the room before retrying.');
@@ -432,6 +435,9 @@ class SeatingService extends ChangeNotifier {
         try { await repo.saveActiveSeatingLayoutId(classId, previousActive); } catch (_) { recovered = false; }
       }
       try { await repo.saveSeatingLayouts(classId, previousLayouts); } catch (_) { recovered = false; }
+      if (!previousLayouts.any((layout) => layout.layoutId == appliedLayout.layoutId)) {
+        try { await repo.deleteSeatingLayout(classId, appliedLayout.layoutId); } catch (_) { recovered = false; }
+      }
       if (!recovered) {
         try {
           _layoutsByClass[classId] = await repo.loadSeatingLayouts(classId);
