@@ -1,8 +1,8 @@
 name: GradeFlow workflow reliability candidate
 on:
   push:
-    branches: [audit/gradeflow-workflow-reliability-20261116]
-    paths: ['lib/**', 'test/**', 'web/**', 'assets/**', 'teacher-tools-preview/**', 'pubspec.*', '.github/workflows/gradeflow-workflow-reliability.yml']
+    branches: [audit/gradeflow-workflow-reliability-20261116, fix/class-import-category-recovery-142]
+    paths: ['lib/**', 'test/**', 'web/**', 'assets/**', 'teacher-tools-preview/**', 'pubspec.*', '.github/workflows/gradeflow-workflow-reliability.yml', '.github/workflows/gradeflow-reliability-browser.yml']
 permissions:
   contents: read
 concurrency:
