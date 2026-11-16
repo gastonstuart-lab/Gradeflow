@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/config/instructos_branding.dart';
 import 'package:gradeflow/services/auth_service.dart';
-import 'package:gradeflow/widgets/branding/instructos_interactive_auth_background.dart';
+import 'package:gradeflow/widgets/branding/instructos_boxes_background.dart';
 
 class GradeFlowLaunchGate extends StatefulWidget {
   final Widget child;
@@ -19,7 +19,10 @@ class GradeFlowLaunchGate extends StatefulWidget {
 }
 
 class _GradeFlowLaunchGateState extends State<GradeFlowLaunchGate> {
-  static const _minimumSplash = Duration(milliseconds: 1100);
+  // Show the branded launch only while auth is being restored. The browser
+  // bootstrap has already provided a visual loading surface; avoid a second
+  // forced 1.1-second hold.
+  static const _minimumSplash = Duration(milliseconds: 350);
   bool _minimumElapsed = false;
   bool _completed = false;
   Timer? _minimumTimer;
@@ -86,7 +89,7 @@ class _GradeFlowLaunchExperience extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF050912),
-      body: InstructOSInteractiveAuthBackground(
+      body: InstructOSBoxesBackground(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 640;

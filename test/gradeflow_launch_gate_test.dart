@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/components/gradeflow_launch_experience.dart';
+import 'package:gradeflow/widgets/branding/instructos_boxes_background.dart';
 import 'package:gradeflow/os/gradeflow_os_shell.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/screens/teacher_dashboard_screen.dart';
@@ -11,6 +12,26 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+
+  testWidgets('pre-auth launch shows one branded Flutter boxes experience',
+      (tester) async {
+    final auth = AuthService();
+    addTearDown(auth.dispose);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AuthService>.value(
+        value: auth,
+        child: MaterialApp(
+          builder: (context, child) => GradeFlowLaunchGate(child: child!),
+          home: const Scaffold(body: Text('Home loaded')),
+        ),
+      ),
+    );
+    expect(find.byType(InstructOSBoxesBackground), findsOneWidget);
+    expect(find.text('Teaching, organised.'), findsOneWidget);
+    expect(find.text('Home loaded'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('launch gate gives routed app content tight screen constraints',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
