@@ -9,7 +9,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list'], ['html', { open: 'never' }]],
   webServer: {
-    command: 'npx serve build/web -s -l 7357',
+    command: 'node staging-tests/serve-complete-app.mjs',
     url: 'http://127.0.0.1:7357',
     reuseExistingServer: false,
     timeout: 90_000,
