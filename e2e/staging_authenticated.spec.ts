@@ -162,6 +162,42 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     .getByRole('cell', { name: '96', exact: true }))
     .toBeVisible({ timeout: 30_000 });
 
+  // Import through the real roster UI, then re-read Firestore by reloading.
+  // A duplicate must stay in the preview and must not replace the pupil.
+  browserPhase = 'import-roster';
+  await page.goto('/os/class/class-science-browser/students');
+  await ensureFlutterSemantics(page);
+  await expect(page.getByText('Fictional Pupil', { exact: true }).first()).toBeVisible();
+  async function previewPastedRoster(id: string) {
+    await page.getByRole('button', { name: 'Paste from spreadsheet', exact: true }).click();
+    const rows = page.getByRole('textbox', { name: 'Roster rows', exact: true });
+    const csv = 'studentId,chineseName,englishFirstName,englishLastName\\n'
+      + id + ',Fictional Import,Import,Pupil';
+    await rows.fill(csv.replace('\\n', '\\n'));
+    await expect(rows).toHaveValue(csv);
+    await rows.press('Tab');
+    await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    await expect(page.getByText('Import Preview', { exact: true })).toBeVisible();
+  }
+  await previewPastedRoster('synthetic-import-102');
+  await page.getByRole('button', { name: 'Import 1 student', exact: true }).click();
+  await expect(page.getByText('Imported 1 student', { exact: true })).toBeVisible();
+  await page.reload();
+  await ensureFlutterSemantics(page);
+  await expect(page.getByText('Import Pupil', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Fictional Pupil', { exact: true }).first()).toBeVisible();
+  await previewPastedRoster('synthetic-import-102');
+  await page.getByRole('button', { name: 'Import 1 student', exact: true }).click();
+  await expect(page.getByText(/Import was not completed.*already in this class/)).toBeVisible();
+  await expect(page.getByText('Import Preview', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  // Importing a student must not disturb the existing student's saved score.
+  await page.goto('/os/class/class-science-browser/gradebook');
+  await ensureFlutterSemantics(page);
+  await page.getByRole('checkbox', { name: 'Quizzes', exact: true }).click();
+  await expect(page.getByRole('row', { name: /Fictional Pupil/ })
+    .getByRole('cell', { name: '96', exact: true })).toBeVisible();
+
   // Returning from Classroom to Home retains authorization and class
   // context; the browser connects only to localhost demo Firebase emulators.
   browserPhase = 'return-home';

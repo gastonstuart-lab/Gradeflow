@@ -272,6 +272,7 @@ class _StudentListScreenState extends State<StudentListScreen> {
               controller: controller,
               maxLines: 12,
               decoration: const InputDecoration(
+                labelText: 'Roster rows',
                 hintText: 'Paste rows here (headers in first row). Use tabs or commas between columns.',
                 border: OutlineInputBorder(),
               ),
