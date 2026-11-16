@@ -103,17 +103,17 @@ test('real PDF editor writes ink and saves a two-page annotated copy', async ({ 
   const editor = page.locator('iframe[title="PDF annotation editor"]');
   const originalHeight = (await editor.boundingBox()).height;
   await page.getByRole('button', { name: 'Hide controls', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Show controls ▾', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Show controls ?', exact: true })).toBeVisible();
   const focused = await editor.boundingBox();
   expect(focused.y).toBe(0);
   expect(focused.height).toBe(testInfo.project.use.viewport.height);
   expect(focused.height).toBeGreaterThan(originalHeight);
-  await page.getByRole('button', { name: 'Show controls ▾', exact: true }).click();
+  await page.getByRole('button', { name: 'Show controls ?', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Open PDF', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Hide controls ▴', exact: true }).click();
+  await page.getByRole('button', { name: 'Hide controls ?', exact: true }).click();
   await expect(paper.locator('.inkEditor')).toHaveCount(1);
   await page.screenshot({ path: testInfo.outputPath('pdf-focus-mode.png') });
-  await page.getByRole('button', { name: 'Show controls ▾', exact: true }).click();
+  await page.getByRole('button', { name: 'Show controls ?', exact: true }).click();
   await page.getByRole('button', { name: 'Leave focus mode', exact: true }).click();
   const [download] = await Promise.all([page.waitForEvent('download'), frame.locator('#downloadButton').click()]);
   const saved = await readFile(await download.path());
@@ -136,6 +136,8 @@ test('real PDF editor writes ink and saves a two-page annotated copy', async ({ 
 });
 
 test('PDF handwriting stays separate and pen eraser deletes only touched ink with undo', async ({ page }, testInfo) => {
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
   const outside = await ready(page, testInfo);
   await page.getByTestId('pdf-file').setInputFiles({ name: 'pen-check.pdf', mimeType: 'application/pdf', buffer: worksheet() });
   const frame = page.frameLocator('iframe[title="PDF annotation editor"]');
@@ -206,6 +208,8 @@ test('PDF handwriting stays separate and pen eraser deletes only touched ink wit
   await eraser('pointerup', x + 230, y, 0);
   await expect(paper.locator('.inkEditor')).toHaveCount(2);
   await page.screenshot({ path: testInfo.outputPath('independent-pdf-ink.png') });
+  expect(pageErrors).toEqual([]);
   expect(outside).toEqual([]);
 });
+
 
