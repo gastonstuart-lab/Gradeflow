@@ -171,9 +171,9 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   async function previewPastedRoster(id: string) {
     await page.getByRole('button', { name: 'Paste from spreadsheet', exact: true }).click();
     const rows = page.getByRole('textbox', { name: 'Roster rows', exact: true });
-    const csv = 'studentId,chineseName,englishFirstName,englishLastName\\n'
+    const csv = 'studentId,chineseName,englishFirstName,englishLastName\n'
       + id + ',Fictional Import,Import,Pupil';
-    await rows.fill(csv.replace('\\n', '\\n'));
+    await rows.fill(csv);
     await expect(rows).toHaveValue(csv);
     await rows.press('Tab');
     await page.getByRole('button', { name: 'Preview', exact: true }).click();
