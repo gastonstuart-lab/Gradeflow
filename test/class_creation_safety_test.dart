@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -183,5 +184,11 @@ void main() {
     expect(savedCategories, hasLength(4));
     classService.dispose();
     categories.dispose();
+  });
+
+  test('class import labels contain no BEL control characters', () {
+    final source = File('lib/screens/class_list_screen.dart').readAsStringSync();
+    expect(source.contains('\\u0007'), isFalse);
+    expect(source, contains(' • '));
   });
 }
