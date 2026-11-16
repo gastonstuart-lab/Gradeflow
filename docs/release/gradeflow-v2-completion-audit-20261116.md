@@ -24,7 +24,7 @@ The full authenticated test reached Home after the roster/grade checks but found
 | Workflow | Evidence now available | Still required |
 | --- | --- | --- |
 | Home / Planner / Classroom / Gradebook | Prior live-lineage emulator browser run 43724954930 passed authenticated navigation, five Planner views, class access, score save/reload and session restoration. New candidate extends this chain. | Physical Surface and teacher-session acceptance. |
-| Roster file / paste import | New negative service tests reproduced actual failures. New service/dialog tests and actual emulator import/reload/duplicate rejection are required in this PR. | Corrected real school file acceptance without publishing student data. |
+| Roster file / paste import | Six new service regressions reproduced actual failures before the fix and now pass; three import-dialog cases and the actual authenticated emulator import/reload/duplicate-rejection chain pass. | Corrected real school file acceptance without publishing student data. |
 | Grading / exams / exports | Existing saved-weight projection, exam-save tests and prior actual gradebook save/reload checks passed. Candidate runs all Flutter tests and auth configurations. | A complete real-class enter/save/reload/export acceptance; no claim that every export browser flow is verified. |
 | Teaching Studio | Existing eight browser workflows verify board save/open, simulated pen/palm, PNG, PDF ink/download/reparse and focus controls in two sizes/themes. Complete candidate must retain Studio assets. | Local recovery/autosave; physical Surface eraser and classroom comfort. Explicit downloads remain necessary. |
 | Reports / Attendance / Files | Current class workspace correctly exposes Reports & export, Students and Class plan. Legacy app registry/Teach launcher aliases Attendance to students, Files to schedule and Reports to export. | Do not advertise these aliases as independent finished modules. Define attendance records and file-storage requirements before adding pages. |
@@ -51,3 +51,13 @@ Future release source consolidation should be a separate scoped change with sour
 3. Add opt-in local Studio recovery with explicit save state and device/account boundaries; assess PDF recovery separately.
 4. Scope actual Attendance/Files functionality rather than relabelling existing destinations.
 5. Consolidate application source and release controls with a documented, repeatable release process.
+
+## Final verified candidate
+Application and test source: 955b24a909a5d5c58aa18da1ec9b12b54842704e.
+- Analysis, 343 Flutter tests (2 original-file acceptance skips), 7 preview-auth and 14 live-V2 auth tests, web release build and all 8 Studio browser workflows passed: https://github.com/gastonstuart-lab/Gradeflow/actions/runs/43783821194 .
+- Full authenticated emulator browser journey passed: https://github.com/gastonstuart-lab/Gradeflow/actions/runs/43783821213 .
+- Complete application artifact, including Studio: https://github.com/gastonstuart-lab/Gradeflow/actions/runs/43783821194/artifacts/14189438158 .
+- Fictional preview/duplicate screenshots: https://github.com/gastonstuart-lab/Gradeflow/actions/runs/43783821213/artifacts/14189748017 .
+The browser pastes through the real clipboard/keyboard path, reopens durable roster data, rejects a duplicate, confirms the original score remains 96, opens Studio from the actual compact Home tile and restores authenticated Home in a new tab while Studio stays open.
+The local static server was corrected to serve files and directory indexes before SPA fallback, matching the deployed subdirectory routing. Production Hosting configuration was not changed.
+The audit update after this source is documentation-only. PR #137 remains unmerged/undeployed.
