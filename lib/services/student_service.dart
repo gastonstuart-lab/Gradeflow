@@ -59,18 +59,39 @@ class StudentService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Bulk imports are additions, never replacements of existing records.
+  /// Validate the entire batch and re-read its destination before saving.
+  /// Rejections reach the caller so the UI cannot announce a false success.
   Future<void> addStudents(List<Student> newStudents) async {
-    try {
-      _students.addAll(newStudents);
-      _students = _sortStudentsByStudentId(_students);
-      if (newStudents.isNotEmpty) {
-        final repo = RepositoryFactory.instance;
-        await repo.saveStudents(newStudents.first.classId, _students);
-      }
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to add students: $e');
+    if (newStudents.isEmpty) return;
+    final classId = newStudents.first.classId.trim();
+    if (classId.isEmpty ||
+        newStudents.any((student) =>
+            student.classId != classId || student.studentId.trim().isEmpty)) {
+      throw ArgumentError('Every imported student needs an ID and the same destination class.');
     }
+    final ids = <String>{};
+    for (final student in newStudents) {
+      final id = student.studentId.trim();
+      if (!ids.add(id.toLowerCase())) {
+        throw StateError('Student ID $id appears more than once in this import. Remove duplicate rows and try again.');
+      }
+    }
+    final repo = _repository ?? RepositoryFactory.instance;
+    final existing = await repo.loadStudents(classId);
+    final existingIds = existing.map((s) => s.studentId.trim().toLowerCase()).toSet();
+    for (final student in newStudents) {
+      if (existingIds.contains(student.studentId.trim().toLowerCase())) {
+        throw StateError('Student ID ${student.studentId.trim()} is already in this class. No students were imported. Remove existing IDs from the file before importing.');
+      }
+    }
+    final updated = _sortStudentsByStudentId([
+      ...existing,
+      ...newStudents.map((s) => s.copyWith(studentId: s.studentId.trim())),
+    ]);
+    await repo.saveStudents(classId, updated);
+    _students = updated;
+    notifyListeners();
   }
 
   Future<void> updateStudent(Student updatedStudent) async {

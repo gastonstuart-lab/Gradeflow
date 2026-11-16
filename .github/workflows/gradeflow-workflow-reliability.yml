@@ -21,4 +21,15 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get --enforce-lockfile
-      - run: flutter test test/roster_import_safety_test.dart
+      - run: flutter analyze
+      - run: flutter test
+      - name: Preview authentication checks
+        run: flutter test --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true test/auth_fallback_safety_test.dart test/login_screen_test.dart
+      - name: Live V2 authentication checks
+        run: flutter test --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true test/auth_fallback_safety_test.dart test/login_screen_test.dart test/gradeflow_existing_project_preview_test.dart
+      - run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-reliability-app
+          path: build/web/
+          retention-days: 14

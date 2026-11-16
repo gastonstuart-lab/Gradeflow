@@ -73,10 +73,10 @@ class LocalRepository implements DataRepository {
   // A failed SharedPreferences write may already have changed its cache.
   // Reload it before exposing failure so a retry cannot mistake cached data
   // for a durably saved score.
-  Future<void> _saveAcademicString(SharedPreferences prefs, String key, String value) async {
+  Future<void> _saveAcademicString(SharedPreferences prefs, String key, String value, {String failureMessage = 'Gradebook storage rejected the write.'}) async {
     try {
       if (!await prefs.setString(key, value)) {
-        throw StateError('Gradebook storage rejected the write.');
+        throw StateError(failureMessage);
       }
     } catch (_) {
       try { await prefs.reload(); } catch (_) { /* Preserve the write error. */ }
@@ -109,7 +109,8 @@ class LocalRepository implements DataRepository {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
       final String data = json.encode(students.map((s) => s.toJson()).toList());
-      await prefs.setString('$_studentsKeyPrefix$classId', data);
+      await _saveAcademicString(prefs, '$_studentsKeyPrefix$classId', data,
+          failureMessage: 'Roster storage rejected the write.');
     });
   }
 

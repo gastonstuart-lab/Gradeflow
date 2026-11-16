@@ -17,6 +17,7 @@ import 'package:gradeflow/services/student_trash_service.dart';
 import 'package:gradeflow/models/deleted_student_entry.dart';
 import 'package:flutter/services.dart';
 import 'package:gradeflow/nav.dart';
+import 'package:gradeflow/components/roster_import_dialog.dart';
 
 enum _SortBy { studentId, seat, chinese, english }
 
@@ -236,216 +237,66 @@ class _StudentListScreenState extends State<StudentListScreen> {
         return;
       }
 
-      final valid = parsed.where((s) => s.isValid).toList();
-      final invalid = parsed.where((s) => !s.isValid).toList();
+      await _showRosterImportPreview(parsed);
+    }
+  }
 
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Row(
-            children: [
-              const Text('Import Preview'),
-              const Spacer(),
-              if (valid.isNotEmpty)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${valid.length} ready',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          content: SizedBox(
-            width: 600,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.check_circle,
-                        color: Theme.of(context).colorScheme.primary, size: 20),
-                    const SizedBox(width: 8),
-                    Text('Valid students: ${valid.length}',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                if (invalid.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.warning,
-                          color: Theme.of(context).colorScheme.error, size: 20),
-                      const SizedBox(width: 8),
-                      Text('Invalid students: ${invalid.length}',
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                              fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ],
-                if (valid.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  const Divider(),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text('Sample (first 3):',
-                      style: context.textStyles.labelLarge),
-                  const SizedBox(height: 8),
-                  ...valid.take(3).map((s) => Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.person, size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                "${s.chineseName} (${s.englishFirstName} ${s.englishLastName})${s.seatNo != null ? '  • Seat ${s.seatNo}' : ''}",
-                                style: context.textStyles.bodySmall,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-                ],
-                if (invalid.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  const Divider(),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text('Errors:',
-                      style: context.textStyles.labelLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.error)),
-                  const SizedBox(height: 8),
-                  ...invalid.take(5).map((s) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text('• ${s.error}',
-                            style: context.textStyles.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.error)),
-                      )),
-                  if (invalid.length > 5)
-                    Text('... and ${invalid.length - 5} more errors',
-                        style: context.textStyles.bodySmall),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            if (valid.isNotEmpty)
-              FilledButton(
-                onPressed: () async {
-                  final nav = Navigator.of(context);
-                  final students =
-                      _importService.convertToStudents(valid, widget.classId);
-                  await context.read<StudentService>().addStudents(students);
-                  if (!mounted) return;
-                  nav.pop();
-                  _showSuccess(
-                      'Imported ${students.length} Student${students.length == 1 ? '' : 's'}');
-                },
-                child: Text(
-                    'Import ${valid.length} Student${valid.length == 1 ? '' : 's'}'),
-              ),
-          ],
+  Future<void> _showRosterImportPreview(List<ImportedStudent> rows) async {
+    final service = context.read<StudentService>();
+    final classId = widget.classId;
+    final count = await showDialog<int>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => RosterImportDialog(
+        rows: rows,
+        onImport: (valid) => service.addStudents(
+          _importService.convertToStudents(valid, classId),
         ),
-      );
+      ),
+    );
+    if (mounted && count != null) {
+      _showSuccess('Imported $count student${count == 1 ? '' : 's'}');
     }
   }
 
   Future<void> _showPasteImportDialog() async {
     final controller = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Paste Roster'),
-        content: SizedBox(
-          width: 600,
-          child: TextField(
-            controller: controller,
-            maxLines: 12,
-            decoration: const InputDecoration(
-              hintText:
-                  'Paste rows here (headers in first row). Use tabs or commas between columns.',
-              border: OutlineInputBorder(),
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Paste Roster'),
+          content: SizedBox(
+            width: 600,
+            child: TextField(
+              controller: controller,
+              maxLines: 12,
+              decoration: const InputDecoration(
+                hintText: 'Paste rows here (headers in first row). Use tabs or commas between columns.',
+                border: OutlineInputBorder(),
+              ),
             ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Preview')),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Preview')),
-        ],
-      ),
-    );
-    if (confirmed == true && mounted) {
+      );
+      if (confirmed != true || !mounted) return;
       final raw = controller.text.trim();
       if (raw.isEmpty) return;
-      // Normalize to CSV string: if tabs present, replace with commas
       final csvLike = raw.contains('\t') ? raw.replaceAll('\t', ',') : raw;
       final imported = _importService.parseCSV(csvLike);
       if (imported.isEmpty) {
         _showError('Nothing detected. Make sure the first row has headers.');
         return;
       }
-      final valid = imported.where((s) => s.isValid).toList();
-      final invalid = imported.where((s) => !s.isValid).toList();
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Import Preview'),
-          content: SizedBox(
-            width: 500,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Valid students: ${valid.length}'),
-                Text('Invalid students: ${invalid.length}',
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error)),
-                if (invalid.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Text('Errors:', style: context.textStyles.titleSmall),
-                  ...invalid.take(3).map((s) => Text('• ${s.error}',
-                      style: context.textStyles.bodySmall)),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () async {
-                final students =
-                    _importService.convertToStudents(valid, widget.classId);
-                await context.read<StudentService>().addStudents(students);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  _showSuccess('Imported ${students.length} students');
-                }
-              },
-              child: const Text('Import Valid Students'),
-            ),
-          ],
-        ),
-      );
+      await _showRosterImportPreview(imported);
+    } finally {
+      // Dialog transition must finish before disposing its text controller.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      controller.dispose();
     }
   }
 
