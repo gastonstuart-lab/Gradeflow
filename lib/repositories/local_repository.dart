@@ -435,7 +435,7 @@ class LocalRepository implements DataRepository {
       String classId, String layoutId) async {
     await _enqueueWrite(() async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('$_seatingActiveLayoutPrefix$classId', layoutId);
+      await _saveAcademicString(prefs, '$_seatingActiveLayoutPrefix$classId', layoutId, failureMessage: 'Room selection storage rejected the write.');
     });
   }
 
@@ -452,9 +452,14 @@ class LocalRepository implements DataRepository {
       final prefs = await SharedPreferences.getInstance();
       final key = '$_seatingAssignedRoomPrefix$classId';
       if (roomSetupId == null || roomSetupId.isEmpty) {
-        await prefs.remove(key);
+        try {
+          if (!await prefs.remove(key)) throw StateError('Room link storage rejected the write.');
+        } catch (_) {
+          try { await prefs.reload(); } catch (_) {}
+          rethrow;
+        }
       } else {
-        await prefs.setString(key, roomSetupId);
+        await _saveAcademicString(prefs, key, roomSetupId, failureMessage: 'Room link storage rejected the write.');
       }
     });
   }
@@ -476,7 +481,7 @@ class LocalRepository implements DataRepository {
       final prefs = await SharedPreferences.getInstance();
       final String data =
           json.encode(roomSetups.map((setup) => setup.toJson()).toList());
-      await prefs.setString(_roomSetupsKey, data);
+      await _saveAcademicString(prefs, _roomSetupsKey, data, failureMessage: 'Shared room storage rejected the write.');
     });
   }
 
@@ -493,7 +498,8 @@ class LocalRepository implements DataRepository {
         ..removeWhere((setup) => setup.roomSetupId == roomSetupId);
       final String updated =
           json.encode(roomSetups.map((setup) => setup.toJson()).toList());
-      await prefs.setString(_roomSetupsKey, updated);
+        await _saveAcademicString(prefs, _roomSetupsKey, updated,
+            failureMessage: 'Shared room cleanup rejected the write.');
     });
   }
 

@@ -289,15 +289,25 @@ class SeatingService extends ChangeNotifier {
       roomSetups[existingIndex] = roomSetup;
     }
 
-    _roomSetups
-      ..clear()
-      ..addAll(roomSetups);
-    await _persistRoomSetups();
-    await _setAssignedRoomSetupId(
-      classId,
-      roomSetup.roomSetupId,
-      notify: false,
-    );
+    final repo = RepositoryFactory.instance;
+    final previousRooms = List<RoomSetup>.from(_roomSetups);
+    final previousAssigned = assignedRoomSetupId(classId);
+    try {
+      await repo.saveRoomSetups(roomSetups);
+      await repo.saveAssignedRoomSetupId(classId, roomSetup.roomSetupId);
+    } catch (error) {
+      var recovered = true;
+      try { await repo.saveAssignedRoomSetupId(classId, previousAssigned); } catch (_) { recovered = false; }
+      try { await repo.saveRoomSetups(previousRooms); } catch (_) { recovered = false; }
+      if (existing == null) {
+        try { await repo.deleteRoomSetup(roomSetup.roomSetupId); } catch (_) { recovered = false; }
+      }
+      throw StateError(recovered
+          ? 'Room was not saved. The previous room is kept; try again.'
+          : 'Room saving did not complete and recovery could not be confirmed. Reopen the room before retrying.');
+    }
+    _roomSetups..clear()..addAll(roomSetups);
+    _assignedRoomSetupIdByClass[classId] = roomSetup.roomSetupId;
     notifyListeners();
     return roomSetup;
   }
@@ -405,27 +415,44 @@ class SeatingService extends ChangeNotifier {
       timestamp: now,
     );
 
-    if (shouldReplaceActiveLayout) {
-      _replaceLayout(classId, appliedLayout);
-    } else {
-      final layouts = List<SeatingLayout>.from(layoutsForClass(classId))
-        ..add(appliedLayout);
-      _layoutsByClass[classId] = layouts;
-      _activeLayoutIdByClass[classId] = appliedLayout.layoutId;
-      await _persistLayouts(classId);
-      try {
-        final repo = RepositoryFactory.instance;
-        await repo.saveActiveSeatingLayoutId(classId, appliedLayout.layoutId);
-      } catch (e) {
-        debugPrint('Failed to save active layout after applying room: $e');
+    final previousLayouts = List<SeatingLayout>.from(layoutsForClass(classId));
+    final previousActive = _activeLayoutIdByClass[classId];
+    final previousAssigned = assignedRoomSetupId(classId);
+    final updated = shouldReplaceActiveLayout
+        ? [for (final layout in previousLayouts) layout.layoutId == currentLayout.layoutId ? appliedLayout : layout]
+        : [...previousLayouts, appliedLayout];
+    final repo = RepositoryFactory.instance;
+    try {
+      await repo.saveSeatingLayouts(classId, updated);
+      await repo.saveActiveSeatingLayoutId(classId, appliedLayout.layoutId);
+      await repo.saveAssignedRoomSetupId(classId, roomSetupId);
+    } catch (_) {
+      // Separate repository writes are not atomic. Compensate every stage,
+      // and never count this operation as a completed room application.
+      var recovered = true;
+      try { await repo.saveAssignedRoomSetupId(classId, previousAssigned); } catch (_) { recovered = false; }
+      if (previousActive != null) {
+        try { await repo.saveActiveSeatingLayoutId(classId, previousActive); } catch (_) { recovered = false; }
       }
+      try { await repo.saveSeatingLayouts(classId, previousLayouts); } catch (_) { recovered = false; }
+      if (!previousLayouts.any((layout) => layout.layoutId == appliedLayout.layoutId)) {
+        try { await repo.deleteSeatingLayout(classId, appliedLayout.layoutId); } catch (_) { recovered = false; }
+      }
+      if (!recovered) {
+        try {
+          _layoutsByClass[classId] = await repo.loadSeatingLayouts(classId);
+          _activeLayoutIdByClass[classId] = await repo.loadActiveSeatingLayoutId(classId);
+          _assignedRoomSetupIdByClass[classId] = await repo.loadAssignedRoomSetupId(classId);
+        } catch (_) { /* Report unconfirmed recovery below. */ }
+        notifyListeners();
+      }
+      throw StateError(recovered
+          ? 'Room was not applied. The previous arrangement is kept; try again.'
+          : 'Room saving did not complete and recovery could not be confirmed. Reopen the room before retrying.');
     }
-
-    await _setAssignedRoomSetupId(
-      classId,
-      roomSetupId,
-      notify: false,
-    );
+    _layoutsByClass[classId] = updated;
+    _activeLayoutIdByClass[classId] = appliedLayout.layoutId;
+    _assignedRoomSetupIdByClass[classId] = roomSetupId;
     notifyListeners();
     return RoomSetupApplication(
       layout: appliedLayout,
@@ -2005,14 +2032,6 @@ class SeatingService extends ChangeNotifier {
     }
   }
 
-  Future<void> _persistRoomSetups() async {
-    try {
-      final repo = RepositoryFactory.instance;
-      await repo.saveRoomSetups(_roomSetups);
-    } catch (e) {
-      debugPrint('Failed to save room setups: $e');
-    }
-  }
 
   Future<List<SeatingLayout>?> _syncClassLayoutsFromRoomSetup(
     String classId,
@@ -2276,3 +2295,4 @@ class OffsetPair {
   final double dy;
   const OffsetPair(this.dx, this.dy);
 }
+
