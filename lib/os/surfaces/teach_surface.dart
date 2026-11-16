@@ -192,16 +192,30 @@ class _TeachSurfaceState extends State<TeachSurface> {
         classItem = classService.getClassById(classId);
       }
 
+      if (classItem == null ||
+          classItem.isArchived ||
+          user == null ||
+          classItem.teacherId != user.userId) {
+        if (!mounted || _observedClassId != classId) return;
+        setState(() {
+          _loadingContext = false;
+          _activeClass = null;
+          _roster = const <Student>[];
+          _contextError = 'This class is not available for teaching.';
+        });
+        return;
+      }
+
       await studentService.loadStudents(classId);
 
-      if (!mounted || _observedClassId != classId) return;
+      if (!mounted ||
+          _observedClassId != classId ||
+          auth.currentUser?.userId != user.userId) return;
       setState(() {
         _loadingContext = false;
         _activeClass = classItem;
         _roster = List<Student>.from(studentService.students);
-        _contextError = classItem == null
-            ? 'We could not restore the selected class for Teach Mode.'
-            : null;
+        _contextError = null;
       });
     } catch (e) {
       debugPrint('Teach Mode failed to load class context: $e');

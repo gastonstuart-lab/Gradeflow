@@ -53,7 +53,17 @@ class AppProviders extends StatelessWidget {
             return controller;
           },
         ),
-        ChangeNotifierProvider(create: (_) => GradeFlowOSController()),
+        ChangeNotifierProxyProvider<AuthService, GradeFlowOSController>(
+          create: (_) => GradeFlowOSController(),
+          update: (_, auth, controller) {
+            controller ??= GradeFlowOSController();
+            controller.syncTeacherIdentity(
+              auth.currentUser?.userId,
+              isResolved: auth.isInitialized && !auth.isLoading,
+            );
+            return controller;
+          },
+        ),
         ProxyProvider<GoogleAuthService, GoogleDriveService>(
           update: (_, auth, __) => GoogleDriveService(authService: auth),
         ),
