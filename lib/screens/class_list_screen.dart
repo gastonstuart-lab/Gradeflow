@@ -2209,13 +2209,9 @@ class _ClassListScreenState extends State<ClassListScreen> {
           final auth = context.read<AuthService>();
           final classService = context.read<ClassService>();
           final now = DateTime.now();
-          final existingByName = {
-            for (final c in classService.classes) c.className.toLowerCase(): c
-          };
-
           int created = 0;
+          int existing = 0;
           for (final name in candidates) {
-            if (existingByName.containsKey(name.toLowerCase())) continue;
             final newClass = Class(
               classId: const Uuid().v4(),
               className: name,
@@ -2233,19 +2229,26 @@ class _ClassListScreenState extends State<ClassListScreen> {
               createdAt: now,
               updatedAt: now,
             );
-            await classService.addClass(newClass);
+            final previous = ClassSetupIdentity.findUnique(
+              await RepositoryFactory.instance.loadClasses(), newClass);
+            final target = previous ?? newClass;
+            if (previous == null) {
+              await classService.addClass(newClass);
+              created++;
+            } else {
+              existing++;
+            }
             if (!await _confirmDefaultGradingSetup(
-              newClass,
+              target,
               incompleteAction: 'The remaining classes have not been imported.',
             )) return;
-            created++;
           }
 
           await classService.loadClasses(auth.currentUser!.userId);
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content:
-                  Text('Imported $created class${created == 1 ? '' : 'es'}')));
+                  Text('Created $created classes; confirmed $existing existing classes.')));
           return;
         }
       }
@@ -2295,17 +2298,27 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
     final classes =
         _importService.convertToClasses(valid, auth.currentUser!.userId);
+    var created = 0;
+    var reused = 0;
     for (final c in classes) {
-      await classService.addClass(c);
+      final previous = ClassSetupIdentity.findUnique(
+        await RepositoryFactory.instance.loadClasses(), c);
+      final target = previous ?? c;
+      if (previous == null) {
+        await classService.addClass(c);
+        created++;
+      } else {
+        reused++;
+      }
       if (!await _confirmDefaultGradingSetup(
-        c,
+        target,
         incompleteAction: 'The remaining classes have not been imported.',
       )) return;
     }
     await classService.loadClasses(auth.currentUser!.userId);
     if (!mounted) return;
-    messenger.showSnackBar(
-        SnackBar(content: Text('Imported ${classes.length} classes')));
+    messenger.showSnackBar(SnackBar(
+        content: Text('Created $created classes; confirmed $reused existing classes.')));
   }
 
   // Note: there is no separate "Import Rosters" entrypoint; the Import action auto-detects roster files.
