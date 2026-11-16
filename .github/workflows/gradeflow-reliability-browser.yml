@@ -1,13 +1,14 @@
 name: GradeFlow reliability actual browser acceptance
 on:
   push:
-    branches: [audit/gradeflow-workflow-reliability-20261116]
+    branches: [audit/gradeflow-workflow-reliability-20261116, fix/class-import-category-recovery-142]
     paths:
       - 'lib/**'
       - 'e2e/**'
       - 'staging-tests/**'
       - 'playwright.staging.config.ts'
       - '.github/workflows/gradeflow-reliability-browser.yml'
+      - '.github/workflows/gradeflow-workflow-reliability.yml'
 permissions:
   contents: read
 concurrency:
