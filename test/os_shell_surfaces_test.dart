@@ -36,7 +36,8 @@ void main() {
     expect(find.text('TEACHER HOME'), findsOneWidget);
     expect(find.text('Where do you want to go?'), findsOneWidget);
     expect(find.text('Classroom'), findsOneWidget);
-    expect(find.text('Planner'), findsWidgets);
+    expect(find.text('Whiteboard & PDF'), findsOneWidget);
+    expect(find.text('Check Planner'), findsOneWidget);
     expect(find.text('Grades'), findsOneWidget);
     expect(find.text('Students'), findsOneWidget);
     expect(find.text('IED Studio'), findsOneWidget);
