@@ -188,7 +188,7 @@ void main() {
 
   test('class import labels contain no BEL control characters', () {
     final source = File('lib/screens/class_list_screen.dart').readAsStringSync();
-    expect(source.contains('\\u0007'), isFalse);
+    expect(source.contains('\u0007'), isFalse);
     expect(source, contains(' • '));
   });
 }
