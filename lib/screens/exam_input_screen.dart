@@ -601,15 +601,15 @@ class _ExamInputScreenState extends State<ExamInputScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              const WorkspaceContextPill(
+              WorkspaceContextPill(
                 icon: Icons.auto_graph_outlined,
                 label: 'Process',
-                value: '40%',
+                value: '${(context.read<ClassService>().getClassById(widget.classId)?.courseworkWeightPercent ?? 40).toStringAsFixed(0)}%',
               ),
-              const WorkspaceContextPill(
+              WorkspaceContextPill(
                 icon: Icons.fact_check_outlined,
                 label: 'Final exam',
-                value: '60%',
+                value: '${(100 - (context.read<ClassService>().getClassById(widget.classId)?.courseworkWeightPercent ?? 40)).toStringAsFixed(0)}%',
                 emphasized: true,
               ),
               WorkspaceContextPill(

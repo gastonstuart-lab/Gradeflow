@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:excel/excel.dart';
+import 'package:gradeflow/services/calculation_service.dart';
+import 'package:gradeflow/services/export_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gradeflow/models/class.dart' as school;
 import 'package:gradeflow/models/student.dart';
@@ -90,6 +93,24 @@ void main() {
     expect(exported[6], closeTo(77.5, .00001));
     expect(exported[6], closeTo(book.finalGrade('s')!, .00001));
     expect(exported[6], isNot(closeTo(75, .00001)));
+
+    final results = CalculationService().calculateStudentGrades(
+      's', book.categories, book.items,
+      [for (final item in book.items) ...await repo.loadScores('c', item.gradeItemId)],
+      book.exams.single,
+      courseworkWeightPercent: (await repo.loadClasses()).single.courseworkWeightPercent,
+    );
+    expect(results['finalGrade'], closeTo(77.5, .00001));
+    expect(results['finalGrade'], exported.last);
+    final reports = ExportService();
+    final csv = reports.generateCSV(book.students, book.categories, {'s': results});
+    expect(csv, contains('77.50'));
+    expect(csv, isNot(contains('(40%)')));
+    final workbook = Excel.decodeBytes(reports.generateXlsx(
+      book.students, book.categories, {'s': results}));
+    expect(workbook.tables.values.first.rows[1].last!.value.toString(), '77.50');
+    expect(reports.generateStudentReport(book.students.single, results, book.categories),
+        contains('77.50'));
 
     final reopened = GradebookWorkspace(repo, 'c');
     await reopened.load();

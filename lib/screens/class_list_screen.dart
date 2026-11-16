@@ -1,3 +1,4 @@
+import 'package:gradeflow/components/class_creation_dialog.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_note_service.dart';
 import 'package:gradeflow/services/class_schedule_service.dart';
 import 'package:gradeflow/services/class_service.dart';
+import 'package:gradeflow/services/class_setup_identity.dart';
 import 'package:gradeflow/services/demo_data_service.dart';
 import 'package:gradeflow/services/final_exam_service.dart';
 import 'package:gradeflow/services/grade_item_service.dart';
@@ -89,6 +91,58 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
   String _currentTeacherName() =>
       context.read<AuthService>().currentUser?.fullName ?? '';
+
+  /// New classes may have been saved before grading-category initialization.
+  /// Keep recovery specific to that existing class: never create a duplicate.
+  Future<bool> _confirmDefaultGradingSetup(
+    Class classItem, {
+    String incompleteAction = 'The operation stopped before later steps.',
+  }) async {
+    try {
+      await context.read<GradingCategoryService>().seedDefaultCategories(
+            classItem.classId,
+            throwOnFailure: true,
+          );
+      return true;
+    } catch (_) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 16),
+        content: Text(
+          'Class "${classItem.className}" was saved, but its grading setup failed. '
+          '$incompleteAction Use the class menu to retry grading setup.',
+        ),
+        action: SnackBarAction(
+          label: 'Retry setup',
+          onPressed: () => unawaited(_repairDefaultGradingSetup(classItem)),
+        ),
+      ));
+      return false;
+    }
+  }
+
+  /// A recovery entry remains available after closing/reopening the page.
+  /// It is opt-in and is harmless for a class with existing categories.
+  Future<void> _repairDefaultGradingSetup(Class classItem) async {
+    try {
+      await context.read<GradingCategoryService>().seedDefaultCategories(
+            classItem.classId,
+            throwOnFailure: true,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Grading setup is ready for "${classItem.className}".'),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          'Grading setup for "${classItem.className}" is still incomplete. '
+          'Retry from the class menu when storage is available.',
+        ),
+      ));
+    }
+  }
 
   String _extractGroupDigits(String input) {
     final t = input.trim();
@@ -449,7 +503,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
         filename: filename,
         bytes: bytes,
         hint:
-            'This file looks like a roster, but required fields are missing (usually Student ID). Please include StudentID/學號 and retry.',
+            'This file looks like a roster, but required fields are missing (usually Student ID). Please include StudentID/?? and retry.',
       );
       return;
     }
@@ -457,7 +511,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
     final auth = context.read<AuthService>();
     final classService = context.read<ClassService>();
     final studentService = context.read<StudentService>();
-    final catService = context.read<GradingCategoryService>();
 
     final existingClasses = List<Class>.from(classService.classes);
     existingClasses.sort((a, b) =>
@@ -578,8 +631,24 @@ class _ClassListScreenState extends State<ClassListScreen> {
         createdAt: now,
         updatedAt: now,
       );
+      final duplicate = ClassSetupIdentity.findUnique(
+          await RepositoryFactory.instance.loadClasses(), target);
+      if (duplicate != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('A matching class already exists: ${duplicate.className} '
+                '(${duplicate.schoolYear}, ${duplicate.term}). '
+                'Select that existing class rather than creating another. '
+                'Complete its grading setup from the class menu if needed.'),
+          ));
+        }
+        return;
+      }
       await classService.addClass(target);
-      await catService.seedDefaultCategories(target.classId);
+      if (!await _confirmDefaultGradingSetup(
+        target,
+        incompleteAction: 'The roster has not been imported.',
+      )) return;
     } else {
       target = existingClasses.firstWhere((c) => c.classId == selectedClassId,
           orElse: () => existingClasses.first);
@@ -925,9 +994,44 @@ class _ClassListScreenState extends State<ClassListScreen> {
       }
       return;
     }
-    final newClassCount = effectiveMap.keys
-        .where((k) => !existingByName.containsKey(k.toLowerCase()))
-        .length;
+    // Resolve identity using the teacher, subject, school year and term,
+    // never just a name reused by a different semester.
+    final normalizedCodes = <String>{};
+    for (final code in effectiveMap.keys) {
+      if (!normalizedCodes.add(code.trim().toLowerCase())) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('The selected file contains duplicate class codes. '
+              'Correct the class names before importing.'),
+        ));
+        return;
+      }
+    }
+    final groupDigits = _extractGroupDigits(groupCtrl.text);
+    final previewNow = DateTime.now();
+    final proposedByCode = <String, Class>{
+      for (final code in effectiveMap.keys)
+        code: Class(
+          classId: const Uuid().v4(),
+          className: code,
+          subject: subjectCtrl.text.trim().isEmpty
+              ? 'General'
+              : subjectCtrl.text.trim(),
+          groupNumber: groupDigits.isEmpty ? null : groupDigits,
+          schoolYear: yearCtrl.text.trim().isEmpty
+              ? '2024-2025'
+              : yearCtrl.text.trim(),
+          term: selectedTerm,
+          teacherId: auth.currentUser!.userId,
+          createdAt: previewNow,
+          updatedAt: previewNow,
+        ),
+    };
+    final currentClasses = await RepositoryFactory.instance.loadClasses();
+    final matchingByCode = <String, Class?>{
+      for (final entry in proposedByCode.entries)
+        entry.key: ClassSetupIdentity.findUnique(currentClasses, entry.value),
+    };
+    final newClassCount = matchingByCode.values.where((c) => c == null).length;
     final selectedRows =
         effectiveMap.values.fold<int>(0, (sum, list) => sum + list.length);
     final confirmWrite = await showDialog<bool>(
@@ -955,8 +1059,7 @@ class _ClassListScreenState extends State<ClassListScreen> {
                   shrinkWrap: true,
                   children: effectiveMap.entries.take(20).map((e) {
                     final count = e.value.length;
-                    final willCreate =
-                        !existingByName.containsKey(e.key.toLowerCase());
+                    final willCreate = matchingByCode[e.key] == null;
                     return ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
@@ -984,43 +1087,31 @@ class _ClassListScreenState extends State<ClassListScreen> {
     );
     if (confirmWrite != true || !mounted) return;
 
-    final groupDigits = _extractGroupDigits(groupCtrl.text);
-
-    // Create any missing classes
-    final now = DateTime.now();
-    final toCreate = <Class>[];
-    final toCreateKeys = effectiveMap.keys
-        .where((k) => !existingByName.containsKey(k.toLowerCase()))
-        .toList();
-    for (final code in toCreateKeys) {
-      toCreate.add(Class(
-        classId: const Uuid().v4(),
-        className: code,
-        subject: subjectCtrl.text.isEmpty ? 'General' : subjectCtrl.text.trim(),
-        groupNumber: groupDigits.isEmpty ? null : groupDigits,
-        schoolYear: yearCtrl.text.isEmpty ? '2024-2025' : yearCtrl.text.trim(),
-        term: selectedTerm,
-        teacherId: auth.currentUser!.userId,
-        createdAt: now,
-        updatedAt: now,
-      ));
-    }
-
-    final catService = context.read<GradingCategoryService>();
     final studentService = context.read<StudentService>();
     int addedStudents = 0;
     int touchedClasses = 0;
+    final destinationByCode = <String, Class>{};
 
-    for (final c in toCreate) {
-      await classService.addClass(c);
-      await catService.seedDefaultCategories(c.classId);
-      existingByName[c.className.toLowerCase()] = c;
+    for (final entry in proposedByCode.entries) {
+      // Re-read before each write in case the class already exists following
+      // an interrupted previous import. This is not a cross-device transaction.
+      final proposed = entry.value;
+      final saved = await RepositoryFactory.instance.loadClasses();
+      final prior = ClassSetupIdentity.findUnique(saved, proposed);
+      final target = prior ?? proposed;
+      if (prior == null) {
+        await classService.addClass(proposed);
+      }
+      destinationByCode[entry.key.toLowerCase()] = target;
+      if (!await _confirmDefaultGradingSetup(
+        target,
+        incompleteAction: 'The remaining class and pupil imports have stopped.',
+      )) return;
     }
 
-    // For each class code group, add students to the class
+    // Each class code resolves to its exact teacher/subject/year/term.
     for (final entry in effectiveMap.entries) {
-      final code = entry.key.toLowerCase();
-      final targetClass = existingByName[code];
+      final targetClass = destinationByCode[entry.key.toLowerCase()];
       if (targetClass == null) continue;
 
       // Avoid duplicates: load existing students and filter new list
@@ -1523,13 +1614,27 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
     final classService = context.read<ClassService>();
     final studentService = context.read<StudentService>();
-    final catService = context.read<GradingCategoryService>();
     final userId = user.userId;
-    if (archiveCurrent && !classItem.isArchived) {
-      await classService.archiveClass(classItem.classId);
+    final previousSection = ClassSetupIdentity.findUnique(
+      await RepositoryFactory.instance.loadClasses(), newClass);
+    if (previousSection != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 12),
+        content: Text(
+          'Section "${previousSection.className}" for ${previousSection.term} '
+          '${previousSection.schoolYear} already exists. Open it and verify '
+          'its students, seating and grading setup before proceeding. '
+          'The old section has not been archived again.',
+        ),
+      ));
+      return;
     }
     await classService.addClass(newClass);
-    await catService.seedDefaultCategories(newClass.classId);
+    if (!await _confirmDefaultGradingSetup(
+      newClass,
+      incompleteAction: 'The previous section was not archived and '
+          'the carry-forward steps have not started.',
+    )) return;
     if (copyStudents) {
       await studentService.loadStudents(classItem.classId);
       final oldStudents = List.of(studentService.students);
@@ -1575,6 +1680,11 @@ class _ClassListScreenState extends State<ClassListScreen> {
         schedule,
         userId: userId,
       );
+    }
+    // Do not archive the teacher's working section before grading setup
+    // and carry-forward steps have completed.
+    if (archiveCurrent && !classItem.isArchived) {
+      await classService.archiveClass(classItem.classId);
     }
     await classService.loadClasses(user.userId);
     if (!mounted) return;
@@ -1769,11 +1879,36 @@ class _ClassListScreenState extends State<ClassListScreen> {
     String? pickedSyllabusFilename;
     String? pickedSyllabusError;
 
+    final classService = context.read<ClassService>();
+    final catService = context.read<GradingCategoryService>();
+    final teacherId = context.read<AuthService>().currentUser!.userId;
+    final classId = const Uuid().v4();
+    // A failed grading-category write must retry setup, not create a second class.
+    var classPersisted = false;
     final result = await showDialog<bool>(
+      barrierDismissible: false,
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setLocalState) => AlertDialog(
-          title: const Text('Create New Class'),
+        builder: (context, setLocalState) => ClassCreationDialog(
+          onCreate: () async {
+            final now = DateTime.now();
+            final newClass = Class(
+              classId: classId, className: nameController.text.trim(),
+              subject: subjectController.text.trim(),
+              groupNumber: groupController.text.trim().isEmpty ? null : groupController.text.trim(),
+              schoolYear: yearController.text.trim(), term: termController.text.trim(),
+              teacherId: teacherId, createdAt: now, updatedAt: now, syllabus: pickedSyllabus,
+            );
+            if (!classPersisted) {
+              await classService.addClass(newClass);
+              classPersisted = true;
+            }
+            try {
+              await catService.seedDefaultCategories(classId, throwOnFailure: true);
+            } catch (_) {
+              throw const ClassGradingSetupPending();
+            }
+          },
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1871,54 +2006,31 @@ class _ClassListScreenState extends State<ClassListScreen> {
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Create'),
-            ),
-          ],
         ),
       ),
     );
-
-    if (!mounted) return;
-
-    if (result == true) {
-      final authService = context.read<AuthService>();
-      final now = DateTime.now();
-      final newClass = Class(
-        classId: const Uuid().v4(),
-        className: nameController.text,
-        subject: subjectController.text,
-        groupNumber: groupController.text.isEmpty ? null : groupController.text,
-        schoolYear: yearController.text,
-        term: termController.text,
-        teacherId: authService.currentUser!.userId,
-        createdAt: now,
-        updatedAt: now,
-        syllabus: pickedSyllabus,
-      );
-
-      debugPrint(
-          'Create Class: ${newClass.className} for teacher=${authService.currentUser!.userId}');
-      final classService = context.read<ClassService>();
-      final catService = context.read<GradingCategoryService>();
-      await classService.addClass(newClass);
-      await catService.seedDefaultCategories(newClass.classId);
-      if (!mounted) return;
-      // Force refresh to ensure the grid reflects the new class immediately
-      await classService.loadClasses(authService.currentUser!.userId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Class created')));
+    // Allow the closing route to release its text fields before disposal.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    for (final controller in [nameController, subjectController, yearController, termController, groupController]) {
+      controller.dispose();
+    }
+    if (mounted && result == true) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Class created')));
     }
   }
 
   Future<void> _showImportClassesDialog() async {
+    try {
+      await _runImportClassesDialog();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
+        'Import stopped because a save did not complete. Some earlier classes may already be saved. Check your class list before retrying.',
+      )));
+    }
+  }
+
+  Future<void> _runImportClassesDialog() async {
     final picked = await _pickBytesUnified(
         extensions: const ['xlsx', 'csv'],
         title: 'Import from Google Drive or local file');
@@ -2096,15 +2208,10 @@ class _ClassListScreenState extends State<ClassListScreen> {
         if (proceedDefaults == true) {
           final auth = context.read<AuthService>();
           final classService = context.read<ClassService>();
-          final catService = context.read<GradingCategoryService>();
           final now = DateTime.now();
-          final existingByName = {
-            for (final c in classService.classes) c.className.toLowerCase(): c
-          };
-
           int created = 0;
+          int existing = 0;
           for (final name in candidates) {
-            if (existingByName.containsKey(name.toLowerCase())) continue;
             final newClass = Class(
               classId: const Uuid().v4(),
               className: name,
@@ -2122,16 +2229,26 @@ class _ClassListScreenState extends State<ClassListScreen> {
               createdAt: now,
               updatedAt: now,
             );
-            await classService.addClass(newClass);
-            await catService.seedDefaultCategories(newClass.classId);
-            created++;
+            final previous = ClassSetupIdentity.findUnique(
+              await RepositoryFactory.instance.loadClasses(), newClass);
+            final target = previous ?? newClass;
+            if (previous == null) {
+              await classService.addClass(newClass);
+              created++;
+            } else {
+              existing++;
+            }
+            if (!await _confirmDefaultGradingSetup(
+              target,
+              incompleteAction: 'The remaining classes have not been imported.',
+            )) return;
           }
 
           await classService.loadClasses(auth.currentUser!.userId);
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content:
-                  Text('Imported $created class${created == 1 ? '' : 'es'}')));
+                  Text('Created $created classes; confirmed $existing existing classes.')));
           return;
         }
       }
@@ -2139,7 +2256,6 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
     final auth = context.read<AuthService>();
     final classService = context.read<ClassService>();
-    final catService = context.read<GradingCategoryService>();
     final messenger = ScaffoldMessenger.of(context);
 
     final confirm = await showDialog<bool>(
@@ -2182,14 +2298,27 @@ class _ClassListScreenState extends State<ClassListScreen> {
 
     final classes =
         _importService.convertToClasses(valid, auth.currentUser!.userId);
+    var created = 0;
+    var reused = 0;
     for (final c in classes) {
-      await classService.addClass(c);
-      await catService.seedDefaultCategories(c.classId);
+      final previous = ClassSetupIdentity.findUnique(
+        await RepositoryFactory.instance.loadClasses(), c);
+      final target = previous ?? c;
+      if (previous == null) {
+        await classService.addClass(c);
+        created++;
+      } else {
+        reused++;
+      }
+      if (!await _confirmDefaultGradingSetup(
+        target,
+        incompleteAction: 'The remaining classes have not been imported.',
+      )) return;
     }
     await classService.loadClasses(auth.currentUser!.userId);
     if (!mounted) return;
-    messenger.showSnackBar(
-        SnackBar(content: Text('Imported ${classes.length} classes')));
+    messenger.showSnackBar(SnackBar(
+        content: Text('Created $created classes; confirmed $reused existing classes.')));
   }
 
   // Note: there is no separate "Import Rosters" entrypoint; the Import action auto-detects roster files.
@@ -2230,6 +2359,8 @@ class _ClassListScreenState extends State<ClassListScreen> {
                       await context
                           .read<ClassService>()
                           .unarchiveClass(classItem.classId);
+                    } else if (value == 'repair_grading') {
+                      await _repairDefaultGradingSetup(classItem);
                     } else if (value == 'edit') {
                       await _showEditClassDialog(classItem);
                     } else if (value == 'rollover') {
@@ -2265,11 +2396,17 @@ class _ClassListScreenState extends State<ClassListScreen> {
                         PopupMenuItem(
                             value: 'unarchive', child: Text('Unarchive')),
                         PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        PopupMenuItem(
+                            value: 'repair_grading',
+                            child: Text('Complete grading setup')),
                         PopupMenuItem(value: 'delete', child: Text('Delete')),
                       ];
                     }
                     return const [
                       PopupMenuItem(value: 'edit', child: Text('Edit')),
+                      PopupMenuItem(
+                          value: 'repair_grading',
+                          child: Text('Complete grading setup')),
                       PopupMenuItem(
                           value: 'rollover',
                           child: Text('Archive + New Section')),

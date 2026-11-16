@@ -25,6 +25,7 @@ class FinalResultsScreen extends StatefulWidget {
 
 class _FinalResultsScreenState extends State<FinalResultsScreen> {
   final CalculationService _calc = CalculationService();
+  double _courseworkWeightPercent = 40;
   bool _loading = false;
   Map<String, Map<String, double?>> _grades = {};
 
@@ -57,6 +58,9 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
     final exams = context.read<FinalExamService>();
 
     await _ensureClassContextLoaded();
+    if (!mounted) return;
+    _courseworkWeightPercent = context.read<ClassService>()
+        .getClassById(widget.classId)?.courseworkWeightPercent ?? 40;
     await students.loadStudents(widget.classId);
     await cats.loadCategories(widget.classId);
     await items.loadGradeItems(widget.classId);
@@ -76,6 +80,7 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
         items.gradeItems,
         scores.scores,
         exam,
+        courseworkWeightPercent: _courseworkWeightPercent,
       );
     }
     setState(() {
@@ -125,15 +130,15 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
                 label: 'Roster',
                 value: '$studentCount students',
               ),
-              const WorkspaceContextPill(
+              WorkspaceContextPill(
                 icon: Icons.auto_graph_outlined,
                 label: 'Process',
-                value: '40%',
+                value: '${_courseworkWeightPercent.toStringAsFixed(0)}%',
               ),
-              const WorkspaceContextPill(
+              WorkspaceContextPill(
                 icon: Icons.fact_check_outlined,
                 label: 'Exam',
-                value: '60%',
+                value: '${(100 - _courseworkWeightPercent).toStringAsFixed(0)}%',
               ),
               WorkspaceContextPill(
                 icon: Icons.verified_outlined,
@@ -208,8 +213,8 @@ class _FinalResultsScreenState extends State<FinalResultsScreen> {
               runSpacing: 8,
               alignment: WrapAlignment.end,
               children: [
-                _ScorePill(label: 'Process 40%', value: grades['processScore']),
-                _ScorePill(label: 'Exam 60%', value: grades['examScore']),
+                _ScorePill(label: 'Process ${_courseworkWeightPercent.toStringAsFixed(0)}%', value: grades['processScore']),
+                _ScorePill(label: 'Exam ${(100 - _courseworkWeightPercent).toStringAsFixed(0)}%', value: grades['examScore']),
                 _ScorePill(
                   label: 'Final grade',
                   value: grades['finalGrade'],

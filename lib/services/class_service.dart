@@ -3,10 +3,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
+import 'package:gradeflow/repositories/data_repository.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/class_schedule_service.dart';
 
 class ClassService extends ChangeNotifier {
+  ClassService({DataRepository? repository}) : _repository = repository;
+  final DataRepository? _repository;
+  Future<void> _creationTail = Future<void>.value();
   List<Class> _classes = [];
   bool _isLoading = false;
   String? _syncedTeacherId;
@@ -47,7 +51,7 @@ class ClassService extends ChangeNotifier {
     // Removed early notify to avoid setState/markNeedsBuild during build
 
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository ?? RepositoryFactory.instance;
       final all = await repo.loadClasses();
       _classes = all.where((c) => c.teacherId == teacherId).toList();
       if (_syncedTeacherId == teacherId) {
@@ -61,15 +65,20 @@ class ClassService extends ChangeNotifier {
     }
   }
 
-  Future<void> addClass(Class newClass) async {
-    try {
-      _classes.add(newClass);
-      final repo = RepositoryFactory.instance;
-      await repo.saveClasses(_classes);
+  Future<void> addClass(Class newClass) {
+    final operation = _creationTail.then((_) async {
+      final repo = _repository ?? RepositoryFactory.instance;
+      final existing = await repo.loadClasses();
+      if (existing.any((item) => item.classId == newClass.classId)) {
+        throw StateError('This class already exists. Reload your classes before trying again.');
+      }
+      final updated = [...existing, newClass];
+      await repo.saveClasses(updated);
+      _classes = updated.where((item) => item.teacherId == newClass.teacherId).toList();
       notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to add class: $e');
-    }
+    });
+    _creationTail = operation.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return operation;
   }
 
   Future<void> updateClass(Class updatedClass) async {

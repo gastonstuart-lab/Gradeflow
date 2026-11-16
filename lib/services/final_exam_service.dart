@@ -76,7 +76,7 @@ class FinalExamService extends ChangeNotifier {
   }
 
   /// Efficiently upsert many exam scores in a single storage write.
-  /// Pass null to remove a student's exam record.
+  /// Pass null to clear a student's exam score durably.
   /// Returns the number of items that were changed.
   Future<int> upsertManyExams(
       String classId, Map<String, double?> changes) {
@@ -102,18 +102,18 @@ class FinalExamService extends ChangeNotifier {
         final val = entry.value;
         final idx = indexById[sid];
         if (val == null) {
-          // remove if exists
-          if (idx != null) {
-            existing.removeAt(idx);
-            indexById
-              ..clear()
-              ..addEntries(
-                [
-                  for (var i = 0; i < existing.length; i++)
-                    MapEntry(existing[i].studentId, i),
-                ],
-              );
-            updatedExams.removeWhere((e) => e.studentId == sid);
+          // Persist an explicit null: Firestore saveExams upserts documents,
+          // so omitting a record would leave its previous mark on reload.
+          if (idx != null && existing[idx].examScore != null) {
+            final cleared = FinalExam(studentId: sid, examScore: null,
+                createdAt: existing[idx].createdAt, updatedAt: now);
+            existing[idx] = cleared;
+            final localIdx = updatedExams.indexWhere((e) => e.studentId == sid);
+            if (localIdx == -1) {
+              updatedExams.add(cleared);
+            } else {
+              updatedExams[localIdx] = cleared;
+            }
             changed++;
           }
         } else {

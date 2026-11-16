@@ -76,14 +76,18 @@ class CalculationService {
     return weighted;
   }
 
-  double? calculateFinalGrade(double? processScore, FinalExam? exam) {
-    if (processScore == null ||
+  double? calculateFinalGrade(double? processScore, FinalExam? exam,
+      {double courseworkWeightPercent = 40}) {
+    if (!courseworkWeightPercent.isFinite ||
+        courseworkWeightPercent < 0 || courseworkWeightPercent > 100 ||
+        processScore == null ||
         !processScore.isFinite ||
         exam == null ||
         exam.examScore == null ||
         !validateScore(exam.examScore)) return null;
 
-    return (processScore * 0.40) + (exam.examScore! * 0.60);
+    return processScore * courseworkWeightPercent / 100 +
+        exam.examScore! * (100 - courseworkWeightPercent) / 100;
   }
 
   Map<String, double?> calculateStudentGrades(
@@ -91,8 +95,9 @@ class CalculationService {
     List<GradingCategory> categories,
     List<GradeItem> allItems,
     List<StudentScore> allScores,
-    FinalExam? exam,
-  ) {
+    FinalExam? exam, {
+    double courseworkWeightPercent = 40,
+  }) {
     final studentScores =
         allScores.where((s) => s.studentId == studentId).toList();
 
@@ -107,7 +112,8 @@ class CalculationService {
 
     final processScore =
         calculateProcessScore(categories, allItems, studentScores);
-    final finalGrade = calculateFinalGrade(processScore, exam);
+    final finalGrade = calculateFinalGrade(processScore, exam,
+        courseworkWeightPercent: courseworkWeightPercent);
 
     return {
       ...categoryScores,

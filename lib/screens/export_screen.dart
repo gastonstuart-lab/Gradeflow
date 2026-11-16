@@ -637,8 +637,8 @@ class _ExportScreenState extends State<ExportScreen> {
       'Chinese Name',
       'English Name',
       ...categoryHeaders,
-      'Process Score (40%)',
-      'Exam Score (60%)',
+      'Process Score',
+      'Exam Score',
       'Final Grade',
     ];
 
@@ -659,6 +659,7 @@ class _ExportScreenState extends State<ExportScreen> {
           snapshot.gradeItems,
           snapshot.scores,
           examByStudentId[student.studentId],
+          courseworkWeightPercent: snapshot.classItem.courseworkWeightPercent,
         );
 
         final row = <String>[
@@ -738,6 +739,8 @@ class _ExportScreenState extends State<ExportScreen> {
         gradeItemService.gradeItems,
         scoreService.scores,
         exam,
+        courseworkWeightPercent: context.read<ClassService>()
+            .getClassById(widget.classId)?.courseworkWeightPercent ?? 40,
       );
     }
 
