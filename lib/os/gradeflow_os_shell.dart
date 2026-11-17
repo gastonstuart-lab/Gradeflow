@@ -175,8 +175,21 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             ),
           ),
         ),
-        if (!widget.teachMode)
-          Positioned.fill(child: TeacherAppearanceOverlay(pointer: _ambientPointer)),
+        Positioned.fill(
+          child: TeacherAppearanceOverlay(
+            pointer: _ambientPointer,
+            teachMode: widget.teachMode,
+            attenuation: widget.teachMode
+                ? 0.18
+                : switch (controller.activeSurface) {
+                    OSSurface.home => 1.0,
+                    OSSurface.planner => 0.75,
+                    OSSurface.classWorkspace => 0.50,
+                    OSSurface.teach => 0.18,
+                    OSSurface.other => 0.60,
+                  },
+          ),
+        ),
         if (!widget.teachMode)
           Positioned(
             left: 0,
@@ -320,6 +333,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
           : OSColors.appBackground(Theme.of(context).brightness == Brightness.dark),
       child: Listener(
       onPointerHover: (event) => _ambientPointer.value = event.localPosition,
+      onPointerMove: (event) => _ambientPointer.value = event.localPosition,
       onPointerDown: (event) {
         _ambientPointer.value = event.localPosition;
         controller.registerActivity();
