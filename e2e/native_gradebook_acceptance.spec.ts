@@ -92,5 +92,34 @@ test('@native-gradebook saved scores, custom policy, exam recovery and actual Ex
   }
   expect(summary.formulas).toEqual([]);
   await testInfo.attach('native-gradebook.xlsx', { path, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  // The new bulk entry action must apply to the whole class, not just the
+  // currently visible row. Existing scores, legitimate zero and missing marks
+  // must remain distinguishable after a grouped undo.
+  await page.getByRole('button', { name: 'Fill column' }).click();
+  const fill = page.getByRole('dialog', { name: 'Fill a grade column' });
+  await expect(fill).toBeVisible();
+  await type(fill.getByRole('textbox', { name: /Score/ }), '90');
+  await fill.getByRole('button', { name: 'Review fill' }).click();
+  const confirm = page.getByRole('dialog', { name: 'Confirm grade changes' });
+  await expect(confirm.getByText(/2 Exam scores/)).toBeVisible();
+  await confirm.getByRole('button', { name: 'Apply scores' }).click();
+  await expect.poll(() => stored('/exams/synthetic-student-one', 'examScore')).toBe(90);
+  await expect.poll(() => stored('/exams/synthetic-student-two', 'examScore')).toBe(90);
+
+  await page.getByRole('button', { name: 'Undo last edit' }).click();
+  await expect.poll(() => stored('/exams/synthetic-student-one', 'examScore')).toBe(80);
+  await expect.poll(() => stored('/exams/synthetic-student-two', 'examScore')).toBeNull();
+
+  // Rapid taps should respond immediately while just the final value is
+  // persisted after the interaction stops (no click-by-click lockout).
+  const firstRow = page.getByRole('row', { name: /Fictional Pupil/ });
+  const increase = firstRow.getByRole('button', { name: 'Increase score by 1' });
+  await increase.click(); await increase.click(); await increase.click();
+  await expect(firstRow.getByRole('textbox').first()).toHaveValue('83');
+  await expect.poll(() => stored('/exams/synthetic-student-one', 'examScore')).toBe(83);
+  await page.reload(); await ready();
+  await expect(page.getByRole('row', { name: /Fictional Pupil/ })
+    .getByRole('textbox').first()).toHaveValue('83');
+
   expect(forbidden).toEqual([]);
 });
