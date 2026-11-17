@@ -62,6 +62,36 @@ void main() {
     auth.dispose();
   });
 
+  test('custom colours are restored independently for signed-in teachers',
+      () async {
+    SharedPreferences.setMockInitialValues({
+      'teacher_appearance_v1_teacher_a_accent': 'custom',
+      'teacher_appearance_v1_teacher_a_custom_accent': '#FFB800',
+      'teacher_appearance_v1_teacher_b_accent': 'teal',
+    });
+    final auth = _FakeTeacherAuth();
+    final appearance = TeacherAppearanceController();
+    auth.signInAs('teacher_a');
+    appearance.syncAuth(auth);
+    await _flushPreferences();
+    expect(appearance.accent, 'custom');
+    expect(TeacherAppearanceController.toHex(appearance.accentColor),
+        '#FFB800');
+
+    auth.signInAs('teacher_b');
+    appearance.syncAuth(auth);
+    await _flushPreferences();
+    expect(appearance.accent, 'teal');
+
+    auth.signInAs('teacher_a');
+    appearance.syncAuth(auth);
+    await _flushPreferences();
+    expect(TeacherAppearanceController.toHex(appearance.accentColor),
+        '#FFB800');
+    appearance.dispose();
+    auth.dispose();
+  });
+
   test('background selections are isolated by authenticated teacher',
       () async {
     SharedPreferences.setMockInitialValues({
