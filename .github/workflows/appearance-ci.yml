@@ -1,6 +1,11 @@
 name: Teacher appearance PR checks
 
 on:
+  # Branch-only review run keeps the exact candidate testable even if the
+  # PR path-filtered workflow does not reschedule a subsequent synchronize.
+  push:
+    branches:
+      - feature/teacher-personalisation-v2-20261117
   pull_request:
     paths:
       - 'lib/services/teacher_appearance_controller.dart'
