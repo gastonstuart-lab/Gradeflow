@@ -144,6 +144,7 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
           child: ConstrainedBox(
             constraints: BoxConstraints(maxHeight: maxHeight),
             child: SingleChildScrollView(
+              primary: false,
               child: _showAppearance
                   ? _appearancePane(context)
                   : _accountPane(context, name, email, initial),
