@@ -159,8 +159,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     // Add Student even while painting in a small top-right area.
     // Reserve chrome space for those routes, not for the actual draggable
     // classroom canvas (where changing height could disrupt the layout).
-    final currentPath =
-        GoRouter.of(context).routeInformationProvider.value.uri.path;
+    final currentPath = GoRouter.maybeOf(context)
+            ?.routeInformationProvider.value.uri.path ?? '';
     final classroomCanvas = currentPath.endsWith('/classroom') ||
         currentPath.endsWith('/seating');
     final needsAccountBar = controller.activeSurface == OSSurface.other ||
