@@ -34,6 +34,13 @@ class GradeFlowOSShell extends StatefulWidget {
 }
 
 class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
+  final ValueNotifier<Offset?> _ambientPointer = ValueNotifier<Offset?>(null);
+
+  @override
+  void dispose() {
+    _ambientPointer.dispose();
+    super.dispose();
+  }
   static const double _swipeCommitDistance = 78;
   static const double _swipeCommitVelocity = 640;
 
@@ -164,7 +171,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
           ),
         ),
         if (!widget.teachMode)
-          const Positioned.fill(child: TeacherAppearanceOverlay()),
+          Positioned.fill(child: TeacherAppearanceOverlay(pointer: _ambientPointer)),
         if (!widget.teachMode)
           Positioned(
             left: 0,
@@ -301,7 +308,11 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     );
 
     return Listener(
-      onPointerDown: (_) => controller.registerActivity(),
+      onPointerHover: (event) => _ambientPointer.value = event.localPosition,
+      onPointerDown: (event) {
+        _ambientPointer.value = event.localPosition;
+        controller.registerActivity();
+      },
       child: swipeNavigationEnabled
           ? GestureDetector(
               behavior: HitTestBehavior.translucent,
