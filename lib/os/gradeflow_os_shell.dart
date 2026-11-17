@@ -182,6 +182,23 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
 
     final shellStack = Stack(
       children: [
+        // The painter is a background layer, painted BEFORE all routed UI.
+        // It cannot tint or cover grading cells, buttons, cards, text or menus.
+        Positioned.fill(
+          child: TeacherAppearanceOverlay(
+            pointer: _ambientPointer,
+            teachMode: widget.teachMode,
+            attenuation: widget.teachMode
+                ? 0.18
+                : switch (controller.activeSurface) {
+                    OSSurface.home => 1.0,
+                    OSSurface.planner => 0.75,
+                    OSSurface.classWorkspace => 0.50,
+                    OSSurface.teach => 0.18,
+                    OSSurface.other => 0.60,
+                  },
+          ),
+        ),
         Positioned.fill(
           top: accountBarReserve,
           bottom: homeBehindFloatingDock ? 0 : dockReserve,
@@ -198,21 +215,6 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
                 ),
               ),
             ),
-          ),
-        ),
-        Positioned.fill(
-          child: TeacherAppearanceOverlay(
-            pointer: _ambientPointer,
-            teachMode: widget.teachMode,
-            attenuation: widget.teachMode
-                ? 0.18
-                : switch (controller.activeSurface) {
-                    OSSurface.home => 1.0,
-                    OSSurface.planner => 0.75,
-                    OSSurface.classWorkspace => 0.50,
-                    OSSurface.teach => 0.18,
-                    OSSurface.other => 0.60,
-                  },
           ),
         ),
         // Home has a dedicated spot beside Weather in its approved header.
