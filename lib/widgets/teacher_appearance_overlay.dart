@@ -41,7 +41,7 @@ class TeacherAppearanceOverlay extends StatelessWidget {
           builder: (_, position, __) => CustomPaint(
             painter: _AmbientPainter(
               background: settings.background,
-              accent: settings.accentColor,
+              accent: settings.backgroundGlowColor,
               strength: amount,
               light: brightness == Brightness.light,
               pointer: reducedMotion ? null : position,
