@@ -64,6 +64,16 @@ void main() {
           900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin,
           1,
         ));
+
+    // Detail pages (such as Gradebook) reserve a slim account bar so their
+    // top-right Export Excel button cannot be covered by the OS avatar.
+    controller.setSurface(OSSurface.other);
+    await tester.pump();
+    expect(tester.getSize(find.byKey(const ValueKey('full-page-probe'))).height,
+        closeTo(
+          900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin - 64,
+          1,
+        ));
   });
 
   testWidgets('approved Home scroll inset clears the floating OS dock',
