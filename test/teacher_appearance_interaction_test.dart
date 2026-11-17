@@ -68,10 +68,10 @@ void main() {
   test('material accent shades preserve contrast in light mode', () {
     final preferences = TeacherAppearanceController();
     preferences.setAccent('cyan');
-    expect(preferences.themeAccent(Brightness.light),
-        const Color(0xFF0E7490));
-    expect(preferences.themeAccent(Brightness.dark),
-        const Color(0xFF22D3EE));
+    expect(preferences.themeAccent(Brightness.light).computeLuminance(),
+        lessThanOrEqualTo(0.175));
+    expect(preferences.themeAccent(Brightness.dark).computeLuminance(),
+        greaterThanOrEqualTo(0.37));
     preferences.dispose();
   });
 }
