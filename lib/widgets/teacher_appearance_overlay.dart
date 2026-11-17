@@ -5,47 +5,35 @@ import 'package:gradeflow/services/teacher_appearance_controller.dart';
 
 /// A decorative, non-intercepting ambient layer for every OS page.
 /// Faint over opaque pages and stronger in transparent regions.
-class TeacherAppearanceOverlay extends StatefulWidget {
-  const TeacherAppearanceOverlay({super.key});
+/// Paints over a workspace while allowing all pointer input through.
+/// The shell owns pointer tracking so the effect cannot intercept controls.
+class TeacherAppearanceOverlay extends StatelessWidget {
+  const TeacherAppearanceOverlay({super.key, required this.pointer});
 
-  @override
-  State<TeacherAppearanceOverlay> createState() => _TeacherAppearanceOverlayState();
-}
-
-class _TeacherAppearanceOverlayState extends State<TeacherAppearanceOverlay> {
-  final ValueNotifier<Offset?> _pointer = ValueNotifier<Offset?>(null);
-
-  @override
-  void dispose() {
-    _pointer.dispose();
-    super.dispose();
-  }
+  final ValueListenable<Offset?> pointer;
 
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<TeacherAppearanceController>();
     if (!settings.enabled || settings.background == 'minimal' ||
-        settings.intensity == 0) return const SizedBox.expand();
+        settings.intensity == 0) {
+      return const SizedBox.expand();
+    }
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
     final brightness = Theme.of(context).brightness;
-    return MouseRegion(
-      opaque: false,
-      onHover: reducedMotion ? null : (event) => _pointer.value = event.localPosition,
-      onExit: (_) => _pointer.value = null,
-      child: IgnorePointer(
-        child: RepaintBoundary(
-          child: ValueListenableBuilder<Offset?>(
-            valueListenable: _pointer,
-            builder: (_, pointer, __) => CustomPaint(
-              painter: _AmbientPainter(
-                background: settings.background,
-                accent: settings.accentColor,
-                strength: settings.intensity,
-                light: brightness == Brightness.light,
-                pointer: reducedMotion ? null : pointer,
-              ),
-              size: Size.infinite,
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: ValueListenableBuilder<Offset?>(
+          valueListenable: pointer,
+          builder: (_, position, __) => CustomPaint(
+            painter: _AmbientPainter(
+              background: settings.background,
+              accent: settings.accentColor,
+              strength: settings.intensity,
+              light: brightness == Brightness.light,
+              pointer: reducedMotion ? null : position,
             ),
+            size: Size.infinite,
           ),
         ),
       ),
@@ -97,6 +85,7 @@ class _AmbientPainter extends CustomPainter {
             ..strokeWidth = 1.6
             ..color = accent.withValues(alpha: math.min(0.50, opacity * 3)));
         }
+        break;
       case 'dots':
         final paint = Paint()..color = accent.withValues(alpha: opacity);
         for (double x = 24; x < size.width; x += 33) {
@@ -107,9 +96,9 @@ class _AmbientPainter extends CustomPainter {
             canvas.drawCircle(p, 0.8 + proximity * 2, paint);
           }
         }
+        break;
       case 'aurora':
         final center = pointer ?? Offset(size.width * 0.52, size.height * 0.22);
-        final radius = math.max(size.width, size.height) * 0.72;
         canvas.drawRect(Offset.zero & size, Paint()
           ..shader = RadialGradient(
             center: Alignment(
