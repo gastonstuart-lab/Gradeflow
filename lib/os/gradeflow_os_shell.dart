@@ -16,6 +16,7 @@ import 'package:gradeflow/os/os_notification_shade.dart';
 import 'package:gradeflow/os/os_assistant.dart';
 import 'package:gradeflow/os/os_idle_screen.dart';
 import 'package:gradeflow/widgets/teacher_appearance_overlay.dart';
+import 'package:gradeflow/widgets/teacher_account_menu.dart';
 
 class GradeFlowOSShell extends StatefulWidget {
   const GradeFlowOSShell({
@@ -190,6 +191,18 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
                   },
           ),
         ),
+        // Home has a dedicated spot beside Weather in its approved header.
+        // On other pages, this small profile entry stays top-right without
+        // adding redundant Settings or Theme buttons to the bottom dock.
+        if (!widget.teachMode && controller.activeSurface != OSSurface.home)
+          Positioned(
+            top: mq.padding.top + 8,
+            right: isPhone ? 8 : 18,
+            child: const Material(
+              type: MaterialType.transparency,
+              child: TeacherAccountMenu(),
+            ),
+          ),
         if (!widget.teachMode)
           Positioned(
             left: 0,
