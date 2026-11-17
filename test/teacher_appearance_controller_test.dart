@@ -6,6 +6,7 @@ void main() {
     final appearance = TeacherAppearanceController();
     expect(appearance.background, 'minimal');
     expect(appearance.enabled, isTrue);
+    expect(appearance.showInTeachMode, isFalse);
     expect(appearance.intensity, 0.40);
     appearance.dispose();
   });
@@ -20,6 +21,8 @@ void main() {
     appearance.setIntensity(2);
     expect(appearance.intensity, 1);
     appearance.setEnabled(false);
+    appearance.setShowInTeachMode(true);
+    expect(appearance.showInTeachMode, isTrue);
     appearance.reset();
     expect(appearance.background, 'minimal');
     expect(appearance.accent, 'indigo');
