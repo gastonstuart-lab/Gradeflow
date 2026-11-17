@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/widgets/teacher_appearance_studio.dart';
+import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/components/home/teacher_home_integration_panel.dart';
 import 'package:gradeflow/components/home/home_teaching_class_context.dart';
 import 'package:gradeflow/models/class.dart';
@@ -477,7 +478,12 @@ class _HomeSurfaceState extends State<HomeSurface> {
         _resolvedTotalStudents(classes: classes, fallback: totalStudents);
 
     if (!_showExistingHomeTools) {
+      final ambient = context.watch<TeacherAppearanceController?>();
+      final hasAmbient = ambient != null && ambient.enabled &&
+          ambient.background != 'minimal' && ambient.intensity > 0;
       return Scaffold(
+        // Only the decorative backdrop becomes translucent, never Home cards.
+        backgroundColor: hasAmbient ? Colors.transparent : null,
         body: SafeArea(
           child: TeacherHomeIntegrationPanel(
             approvedAppearance: true,
