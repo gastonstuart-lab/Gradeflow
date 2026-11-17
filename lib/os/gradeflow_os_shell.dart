@@ -15,6 +15,7 @@ import 'package:gradeflow/os/os_launcher.dart';
 import 'package:gradeflow/os/os_notification_shade.dart';
 import 'package:gradeflow/os/os_assistant.dart';
 import 'package:gradeflow/os/os_idle_screen.dart';
+import 'package:gradeflow/widgets/teacher_appearance_overlay.dart';
 
 class GradeFlowOSShell extends StatefulWidget {
   const GradeFlowOSShell({
@@ -33,6 +34,13 @@ class GradeFlowOSShell extends StatefulWidget {
 }
 
 class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
+  final ValueNotifier<Offset?> _ambientPointer = ValueNotifier<Offset?>(null);
+
+  @override
+  void dispose() {
+    _ambientPointer.dispose();
+    super.dispose();
+  }
   static const double _swipeCommitDistance = 78;
   static const double _swipeCommitVelocity = 640;
 
@@ -167,6 +175,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             ),
           ),
         ),
+        if (!widget.teachMode)
+          Positioned.fill(child: TeacherAppearanceOverlay(pointer: _ambientPointer)),
         if (!widget.teachMode)
           Positioned(
             left: 0,
@@ -309,7 +319,11 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
           ? OSColors.teachBg
           : OSColors.appBackground(Theme.of(context).brightness == Brightness.dark),
       child: Listener(
-      onPointerDown: (_) => controller.registerActivity(),
+      onPointerHover: (event) => _ambientPointer.value = event.localPosition,
+      onPointerDown: (event) {
+        _ambientPointer.value = event.localPosition;
+        controller.registerActivity();
+      },
       child: swipeNavigationEnabled
           ? GestureDetector(
               behavior: HitTestBehavior.translucent,
