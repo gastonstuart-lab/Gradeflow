@@ -76,7 +76,14 @@ class AppProviders extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ClassTrashService()),
         ChangeNotifierProvider(create: (_) => SeatingService()),
         ChangeNotifierProvider(create: (_) => PilotFeedbackService()),
-        ChangeNotifierProvider(create: (_) => ThemeModeNotifier()),
+        ChangeNotifierProxyProvider<AuthService, ThemeModeNotifier>(
+          create: (_) => ThemeModeNotifier(),
+          update: (_, auth, mode) {
+            mode ??= ThemeModeNotifier();
+            mode.syncAuth(auth);
+            return mode;
+          },
+        ),
         ChangeNotifierProxyProvider<AuthService, TeacherAppearanceController>(
           create: (_) => TeacherAppearanceController(),
           update: (_, auth, appearance) {
@@ -92,46 +99,80 @@ class AppProviders extends StatelessWidget {
 }
 
 class ThemeModeNotifier extends ChangeNotifier {
-  static const String _prefsKey = 'theme_mode_v1';
+  static const String _legacyKey = 'theme_mode_v1';
+  static const String _scopedPrefix = 'theme_mode_v2_';
 
   ThemeMode _themeMode = ThemeMode.light;
+  String? _teacherId;
+  int _generation = 0;
 
   ThemeMode get themeMode => _themeMode;
 
   ThemeModeNotifier() {
-    _load();
+    _loadLegacy();
   }
 
-  Future<void> _load() async {
+  /// Switch accounts without carrying one teacher's appearance to another.
+  void syncAuth(AuthService auth) {
+    final id = auth.isAuthenticated
+        ? (auth.currentUser?.userId ?? 'local')
+        : null;
+    if (id == _teacherId) return;
+    _teacherId = id;
+    final generation = ++_generation;
+    _themeMode = ThemeMode.light;
+    notifyListeners();
+    if (id != null) {
+      _loadScoped(id, generation);
+    } else {
+      _loadLegacy(generation);
+    }
+  }
+
+  static ThemeMode _parse(String? saved) {
+    if (saved == 'dark') return ThemeMode.dark;
+    if (saved == 'system') return ThemeMode.system;
+    return ThemeMode.light;
+  }
+
+  Future<void> _loadLegacy([int? generation]) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(_prefsKey);
-      if (saved == 'light') {
-        _themeMode = ThemeMode.light;
-      } else if (saved == 'dark') {
-        _themeMode = ThemeMode.dark;
-      } else if (saved == 'system') {
-        _themeMode = ThemeMode.system;
-      } else {
-        _themeMode = ThemeMode.light;
-      }
+      final saved = prefs.getString(_legacyKey);
+      if (_teacherId != null ||
+          (generation != null && generation != _generation)) return;
+      _themeMode = _parse(saved);
       notifyListeners();
     } catch (_) {
-      // Fall back to light mode if preferences are unavailable.
+      // Light mode remains available if local storage is blocked.
+    }
+  }
+
+  Future<void> _loadScoped(String id, int generation) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('$_scopedPrefix$id');
+      if (_teacherId != id || generation != _generation) return;
+      _themeMode = _parse(saved);
+      notifyListeners();
+    } catch (_) {
+      // A new teacher always gets an independent, readable default.
     }
   }
 
   Future<void> _persist() async {
+    final id = _teacherId;
+    final mode = _themeMode == ThemeMode.light
+        ? 'light'
+        : _themeMode == ThemeMode.system ? 'system' : 'dark';
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-        _prefsKey,
-        _themeMode == ThemeMode.light
-            ? 'light'
-            : _themeMode == ThemeMode.system ? 'system' : 'dark',
+        id == null ? _legacyKey : '$_scopedPrefix$id',
+        mode,
       );
     } catch (_) {
-      // Ignore persistence failures and keep the in-memory selection.
+      // Keep the immediate selection even if persistence is blocked.
     }
   }
 
@@ -143,6 +184,7 @@ class ThemeModeNotifier extends ChangeNotifier {
   }
 
   void setThemeMode(ThemeMode mode) {
+    if (mode == _themeMode) return;
     _themeMode = mode;
     notifyListeners();
     _persist();
