@@ -22,7 +22,10 @@ class TeacherAppearanceOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<TeacherAppearanceController>();
+    // OS shell is also rendered in isolated widget tests and design previews.
+    // Missing preferences should behave exactly like the original no-effect UI.
+    final settings = context.watch<TeacherAppearanceController?>();
+    if (settings == null) return const SizedBox.expand();
     final amount = settings.intensity * attenuation.clamp(0.0, 1.0);
     if (!settings.enabled || settings.background == 'minimal' ||
         amount <= 0 || (teachMode && !settings.showInTeachMode)) {
