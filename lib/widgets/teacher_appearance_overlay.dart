@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:provider/provider.dart';
 import 'package:gradeflow/services/teacher_appearance_controller.dart';
 
