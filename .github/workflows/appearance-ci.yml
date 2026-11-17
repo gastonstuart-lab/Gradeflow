@@ -13,6 +13,7 @@ on:
       - 'lib/providers/app_providers.dart'
       - 'lib/main.dart'
       - 'lib/teacher_appearance_review_main.dart'
+      - 'e2e/teacher_appearance_native_preview.spec.ts'
       - 'lib/os/gradeflow_os_shell.dart'
       - 'lib/os/os_dock.dart'
       - 'lib/os/surfaces/home_surface.dart'
@@ -68,6 +69,29 @@ jobs:
           flutter build web --release --no-wasm-dry-run \
             --target lib/teacher_appearance_review_main.dart
           test -s build/web/main.dart.js
+      - name: Install browser review dependencies
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked Playwright packages
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install Chromium for native Flutter browser inspection
+        run: npx playwright install --with-deps chromium
+      - name: Native Flutter menu acceptance and desktop/mobile screenshot evidence
+        env:
+          E2E_WEB_SERVER_COMMAND: 'npx serve build/web -s -l 7357'
+          PLAYWRIGHT_DISABLE_FORCED_CHROMIUM_PROXIED_LOOPBACK: '1'
+        run: npx playwright test e2e/teacher_appearance_native_preview.spec.ts --workers=1 --retries=0
+      - name: Retain real browser screenshots, trace and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-native-menu-browser-evidence
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 5
+          if-no-files-found: ignore
       - name: Retain native Flutter appearance demo for public visual preview
         uses: actions/upload-artifact@v4
         with:
