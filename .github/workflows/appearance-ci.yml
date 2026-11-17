@@ -8,8 +8,10 @@ on:
       - 'lib/providers/app_providers.dart'
       - 'lib/main.dart'
       - 'lib/os/gradeflow_os_shell.dart'
+      - 'lib/os/os_dock.dart'
       - 'lib/os/surfaces/home_surface.dart'
       - 'test/teacher_appearance_*.dart'
+      - 'test/teacher_personalisation_scoping_test.dart'
       - '.github/workflows/appearance-ci.yml'
 
 permissions:
@@ -33,6 +35,6 @@ jobs:
       - name: Analyze application
         run: flutter analyze
       - name: Verify interactive background functionality
-        run: flutter test test/teacher_appearance_controller_test.dart test/teacher_appearance_interaction_test.dart
+        run: flutter test test/teacher_appearance_controller_test.dart test/teacher_appearance_interaction_test.dart test/teacher_personalisation_scoping_test.dart
       - name: Build web application without deployment
         run: flutter build web --release --no-wasm-dry-run
