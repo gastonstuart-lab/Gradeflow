@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gradeflow/widgets/teacher_colour_selector.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/services/teacher_appearance_controller.dart';
@@ -107,6 +108,10 @@ class _QuickSettingsSheet extends StatelessWidget {
                 ),
             ],
           ),
+          const SizedBox(height: 18),
+          Text('Colours', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 9),
+          const TeacherColourSelector(compact: true),
           const SizedBox(height: 6),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
