@@ -43,6 +43,17 @@ void main() {
     expect(find.text('Dark'), findsOneWidget);
     expect(find.text('Neon boxes'), findsOneWidget);
     expect(find.text('More personalisation'), findsOneWidget);
+    expect(find.text('Colours'), findsOneWidget);
+    expect(find.byKey(const Key('custom-colour-button')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('custom-colour-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose your colour'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('colour-hue')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('apply-custom-colour')));
+    await tester.pumpAndSettle();
+    expect(appearance.accent, 'custom');
 
     await tester.tap(find.text('Neon boxes'));
     await tester.pumpAndSettle();
