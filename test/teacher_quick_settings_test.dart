@@ -46,6 +46,8 @@ void main() {
     expect(find.text('Colours'), findsOneWidget);
     expect(find.byKey(const Key('custom-colour-button')), findsOneWidget);
 
+    await tester.ensureVisible(find.byKey(const Key('custom-colour-button')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('custom-colour-button')));
     await tester.pumpAndSettle();
     expect(find.text('Choose your colour'), findsOneWidget);
@@ -63,6 +65,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(theme.themeMode, ThemeMode.dark);
 
+    await tester.ensureVisible(find.text('Reset'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Reset'));
     await tester.pumpAndSettle();
     expect(appearance.background, 'minimal');
