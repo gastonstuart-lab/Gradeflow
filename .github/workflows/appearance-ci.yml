@@ -52,6 +52,13 @@ jobs:
             test/teacher_account_menu_test.dart
       - name: Build web application without deployment
         run: flutter build web --release --no-wasm-dry-run
+      - name: Retain compiled GradeFlow candidate for protected review
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-v2-review-web
+          path: build/web/
+          retention-days: 5
+          if-no-files-found: error
       - name: Assert native preview cannot access Firebase or academic records
         run: |
           ! grep -Eq 'Firebase.initializeApp|RepositoryFactory.instance|FirebaseAuth.instance' lib/teacher_appearance_review_main.dart
@@ -65,13 +72,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gradeflow-real-flutter-menu-demo
-          path: build/web/
-          retention-days: 5
-          if-no-files-found: error
-      - name: Retain compiled Flutter candidate for visual review
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradeflow-personalisation-web-preview
           path: build/web/
           retention-days: 5
           if-no-files-found: error
