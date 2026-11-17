@@ -35,16 +35,38 @@ class _AppearanceSheet extends StatelessWidget {
             const SizedBox(height: 22),
             Text('Appearance', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            SegmentedButton<ThemeMode>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
-                ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode_outlined)),
-                ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.settings_brightness)),
-              ],
-              selected: {themeMode.themeMode},
-              onSelectionChanged: (values) => context.read<ThemeModeNotifier>().setThemeMode(values.first),
+            LayoutBuilder(
+              builder: (context, dimensions) {
+                if (dimensions.maxWidth < 440) {
+                  return Wrap(spacing: 8, runSpacing: 8, children: [
+                    for (final mode in ThemeMode.values)
+                      ChoiceChip(
+                        label: Text(mode == ThemeMode.system
+                            ? 'System'
+                            : mode == ThemeMode.light ? 'Light' : 'Dark'),
+                        selected: themeMode.themeMode == mode,
+                        onSelected: (_) =>
+                            context.read<ThemeModeNotifier>().setThemeMode(mode),
+                      ),
+                  ]);
+                }
+                return SegmentedButton<ThemeMode>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode_outlined)),
+                    ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode_outlined)),
+                    ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.settings_brightness)),
+                  ],
+                  selected: {themeMode.themeMode},
+                  onSelectionChanged: (values) =>
+                      context.read<ThemeModeNotifier>().setThemeMode(values.first),
+                );
+              },
             ),
+            const SizedBox(height: 24),
+            Text('Live workspace preview', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
+            const _LiveWorkspacePreview(),
             const SizedBox(height: 24),
             Text('Interactive background', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
@@ -116,6 +138,112 @@ class _AppearanceSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+class _LiveWorkspacePreview extends StatelessWidget {
+  const _LiveWorkspacePreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<TeacherAppearanceController>();
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final accent = settings.accentColor;
+    final foreground = dark ? const Color(0xFFEDF3FF) : const Color(0xFF122136);
+    final base = dark ? const Color(0xFF101827) : const Color(0xFFF4F7FC);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 260),
+        height: 162,
+        decoration: BoxDecoration(
+          color: base,
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Stack(children: [
+          if (settings.enabled && settings.background != 'minimal')
+            Positioned.fill(
+              child: Opacity(
+                opacity: settings.intensity,
+                child: CustomPaint(
+                  painter: _PreviewPainter(settings.background, accent),
+                ),
+              ),
+            ),
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Container(
+                      width: 10, height: 10,
+                      decoration: BoxDecoration(
+                        color: accent, borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('GradeFlow', style: TextStyle(
+                      color: foreground, fontWeight: FontWeight.w800,
+                    )),
+                    const Spacer(),
+                    Container(
+                      width: 62, height: 12,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 18),
+                  Row(children: [
+                    Expanded(child: _PreviewPanel(color: foreground, accent: accent)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _PreviewPanel(color: foreground, accent: accent)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _PreviewPanel(color: foreground, accent: accent)),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _PreviewPanel extends StatelessWidget {
+  const _PreviewPanel({required this.color, required this.accent});
+  final Color color;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 76,
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.83),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(width: 30, height: 5,
+        decoration: BoxDecoration(color: accent,
+          borderRadius: BorderRadius.circular(4))),
+      const SizedBox(height: 11),
+      Container(height: 5, decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.30),
+        borderRadius: BorderRadius.circular(4))),
+      const SizedBox(height: 6),
+      FractionallySizedBox(widthFactor: 0.65,
+        child: Container(height: 5, decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(4)))),
+    ]),
+  );
 }
 
 class _BackgroundChoice extends StatelessWidget {
