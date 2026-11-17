@@ -68,7 +68,7 @@ class _AppearanceSheet extends StatelessWidget {
             const SizedBox(height: 10),
             const _LiveWorkspacePreview(),
             const SizedBox(height: 24),
-            Text('Interactive background', style: Theme.of(context).textTheme.titleMedium),
+            Text('Choose your background — applies to all pages', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
             LayoutBuilder(builder: (context, constraints) {
               final width = constraints.maxWidth >= 520
@@ -115,7 +115,19 @@ class _AppearanceSheet extends StatelessWidget {
               value: choices.enabled,
               onChanged: context.read<TeacherAppearanceController>().setEnabled,
             ),
-            Text('Background strength: ${(choices.intensity * 100).round()}%',
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Show on Teaching Studio screens'),
+              subtitle: const Text(
+                'Optional and reduced in strength so the board and lesson controls stay clear. Off by default.',
+              ),
+              value: choices.showInTeachMode,
+              onChanged: choices.enabled
+                  ? context.read<TeacherAppearanceController>().setShowInTeachMode
+                  : null,
+            ),
+            const SizedBox(height: 10),
+                        Text('Background strength: ${(choices.intensity * 100).round()}%',
                 style: Theme.of(context).textTheme.titleSmall),
             Slider(
               value: choices.intensity,
