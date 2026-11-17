@@ -18,7 +18,7 @@ on:
       - 'test/teacher_appearance_*.dart'
       - 'test/teacher_quick_settings_test.dart'
       - 'test/teacher_account_menu_test.dart'
-      - 'test/teacher_personalisation_scoping_test.dart test/teacher_quick_settings_test.dart'
+      - 'test/teacher_personalisation_scoping_test.dart test/teacher_quick_settings_test.dart test/teacher_account_menu_test.dart'
       - '.github/workflows/appearance-ci.yml'
 
 permissions:
