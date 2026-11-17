@@ -75,6 +75,8 @@ jobs:
           cp web/teacher_appearance_review_index.html build/web/index.html
           ! grep -q 'google-signin-client_id' build/web/index.html
           grep -q 'Content-Security-Policy' build/web/index.html
+          grep -q "connect-src 'self' data: blob:" build/web/index.html
+          test -s build/web/flutter_bootstrap.js
       - name: Install browser review dependencies
         uses: actions/setup-node@v4
         with:
