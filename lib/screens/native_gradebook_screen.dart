@@ -453,7 +453,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
               FilledButton(
                 onPressed: valid ? () => Navigator.pop(ctx,
-                    (column: selection, score: number!, blanksOnly: blanksOnly)) : null,
+                    (column: selection, score: number, blanksOnly: blanksOnly)) : null,
                 child: const Text('Review fill'),
               ),
             ],
