@@ -5,11 +5,11 @@ on:
     paths:
       - 'lib/services/teacher_appearance_controller.dart'
       - 'lib/widgets/teacher_appearance_*.dart'
+      - 'lib/widgets/teacher_colour_selector.dart'
       - 'lib/widgets/teacher_quick_settings.dart'
       - 'lib/widgets/teacher_account_menu.dart'
       - 'lib/components/home/approved_teacher_home.dart'
       - 'lib/services/browser_fullscreen_*.dart'
-      - 'lib/widgets/teacher_colour_selector.dart'
       - 'lib/providers/app_providers.dart'
       - 'lib/main.dart'
       - 'lib/os/gradeflow_os_shell.dart'
@@ -18,7 +18,7 @@ on:
       - 'test/teacher_appearance_*.dart'
       - 'test/teacher_quick_settings_test.dart'
       - 'test/teacher_account_menu_test.dart'
-      - 'test/teacher_personalisation_scoping_test.dart test/teacher_quick_settings_test.dart test/teacher_account_menu_test.dart'
+      - 'test/teacher_personalisation_scoping_test.dart'
       - '.github/workflows/appearance-ci.yml'
 
 permissions:
@@ -41,7 +41,20 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Analyze application
         run: flutter analyze
-      - name: Verify interactive background functionality
-        run: flutter test test/teacher_appearance_controller_test.dart test/teacher_appearance_interaction_test.dart test/teacher_personalisation_scoping_test.dart
+      - name: Verify appearance, account menu, scoping and gestures
+        run: |
+          flutter test \
+            test/teacher_appearance_controller_test.dart \
+            test/teacher_appearance_interaction_test.dart \
+            test/teacher_personalisation_scoping_test.dart \
+            test/teacher_quick_settings_test.dart \
+            test/teacher_account_menu_test.dart
       - name: Build web application without deployment
         run: flutter build web --release --no-wasm-dry-run
+      - name: Retain compiled Flutter candidate for visual review
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-personalisation-web-preview
+          path: build/web/
+          retention-days: 5
+          if-no-files-found: error
