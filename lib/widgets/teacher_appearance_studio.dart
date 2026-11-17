@@ -188,8 +188,7 @@ class _PreviewPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color.withValues(alpha: 0.26);
-    switch (id) {
-      case 'boxes':
+    if (id == 'boxes') {
         paint.style = PaintingStyle.stroke;
         for (double x = 0; x < size.width; x += 20) {
           canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
@@ -199,7 +198,7 @@ class _PreviewPainter extends CustomPainter {
         }
         canvas.drawRect(const Rect.fromLTWH(60, 20, 20, 20),
           Paint()..color = color.withValues(alpha: 0.40));
-      case 'aurora':
+    } else if (id == 'aurora') {
         canvas.drawOval(
           Rect.fromLTWH(size.width * 0.08, -20, size.width * 0.75, size.height),
           Paint()..shader = RadialGradient(colors: [
@@ -207,13 +206,13 @@ class _PreviewPainter extends CustomPainter {
             Colors.transparent,
           ]).createShader(Offset.zero & size),
         );
-      case 'dots':
+    } else if (id == 'dots') {
         for (double x = 12; x < size.width; x += 17) {
           for (double y = 9; y < size.height; y += 17) {
             canvas.drawCircle(Offset(x, y), 1.3, paint);
           }
         }
-      default:
+    } else {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             Rect.fromLTWH(12, 12, size.width * .52, 35), const Radius.circular(10)),
