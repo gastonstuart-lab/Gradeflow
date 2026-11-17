@@ -1,0 +1,38 @@
+name: Teacher appearance PR checks
+
+on:
+  pull_request:
+    paths:
+      - 'lib/services/teacher_appearance_controller.dart'
+      - 'lib/widgets/teacher_appearance_*.dart'
+      - 'lib/providers/app_providers.dart'
+      - 'lib/main.dart'
+      - 'lib/os/gradeflow_os_shell.dart'
+      - 'lib/os/surfaces/home_surface.dart'
+      - 'test/teacher_appearance_*.dart'
+      - '.github/workflows/appearance-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-appearance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Install locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze application
+        run: flutter analyze
+      - name: Verify interactive background functionality
+        run: flutter test test/teacher_appearance_controller_test.dart test/teacher_appearance_interaction_test.dart
+      - name: Build web application without deployment
+        run: flutter build web --release --no-wasm-dry-run
