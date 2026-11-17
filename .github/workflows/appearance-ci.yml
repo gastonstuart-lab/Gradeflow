@@ -5,13 +5,15 @@ on:
     paths:
       - 'lib/services/teacher_appearance_controller.dart'
       - 'lib/widgets/teacher_appearance_*.dart'
+      - 'lib/widgets/teacher_quick_settings.dart'
       - 'lib/providers/app_providers.dart'
       - 'lib/main.dart'
       - 'lib/os/gradeflow_os_shell.dart'
       - 'lib/os/os_dock.dart'
       - 'lib/os/surfaces/home_surface.dart'
       - 'test/teacher_appearance_*.dart'
-      - 'test/teacher_personalisation_scoping_test.dart'
+      - 'test/teacher_quick_settings_test.dart'
+      - 'test/teacher_personalisation_scoping_test.dart test/teacher_quick_settings_test.dart'
       - '.github/workflows/appearance-ci.yml'
 
 permissions:
