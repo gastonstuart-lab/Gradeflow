@@ -57,6 +57,8 @@ void main() {
     await tester.tap(find.text('Neon boxes'));
     await tester.pumpAndSettle();
     expect(appearance.background, 'boxes');
+    await tester.ensureVisible(find.text('Advanced options'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Advanced options'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Background intensity'), findsOneWidget);
