@@ -49,6 +49,21 @@ jobs:
           test -s candidate/build/web/main.dart.js
           test -s candidate/build/web/teaching-studio/index.html
           test -s candidate/build/web/teaching-studio/pdfjs/build/pdf.worker.mjs
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path('candidate/build/web')
+          manifest = json.loads((root / 'review-manifest.json').read_text())
+          assert manifest['commit'] == 'c8d547c91ab60c5cbd2d7bff4f8fd9ee263b8285'
+          assert manifest['tree'] == '7620096583bc48ee94782150765bf7ca30b0f0ce'
+          actual = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()
+                    and p.name != 'review-manifest.json'
+                    and not any(part.startswith('.') for part in p.relative_to(root).parts)}
+          assert actual == set(manifest['files']), 'Package file inventory mismatch'
+          for path, expected in manifest['files'].items():
+              assert hashlib.sha256((root / path).read_bytes()).hexdigest() == expected, path
+          print('Verified source manifest and all', len(actual), 'application files')
+          PY
           node - <<'NODE'
           const fs = require('node:fs');
           const c = JSON.parse(fs.readFileSync('candidate/firebase.live.json'));
