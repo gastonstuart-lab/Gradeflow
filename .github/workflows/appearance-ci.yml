@@ -6,6 +6,7 @@ on:
       - 'lib/services/teacher_appearance_controller.dart'
       - 'lib/widgets/teacher_appearance_*.dart'
       - 'lib/widgets/teacher_quick_settings.dart'
+      - 'lib/widgets/teacher_colour_selector.dart'
       - 'lib/providers/app_providers.dart'
       - 'lib/main.dart'
       - 'lib/os/gradeflow_os_shell.dart'
