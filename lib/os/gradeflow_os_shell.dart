@@ -154,10 +154,21 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     // Only legacy/detail surfaces (including Native Gradebook) need a new
     // top strip: Home, approved Planner and Classroom retain their tested
     // full-height geometry. Avoid narrowing the classroom drawing canvas.
-    final accountBarReserve =
-        !widget.teachMode && controller.activeSurface == OSSurface.other
-            ? (isPhone ? 56.0 : 64.0)
-            : 0.0;
+    // Gradebook, class lists, exam screens and class setup all have their
+    // own first-row actions. A floating avatar can overlap Export Excel or
+    // Add Student even while painting in a small top-right area.
+    // Reserve chrome space for those routes, not for the actual draggable
+    // classroom canvas (where changing height could disrupt the layout).
+    final currentPath =
+        GoRouter.of(context).routeInformationProvider.value.uri.path;
+    final classroomCanvas = currentPath.endsWith('/classroom') ||
+        currentPath.endsWith('/seating');
+    final needsAccountBar = controller.activeSurface == OSSurface.other ||
+        (controller.activeSurface == OSSurface.classWorkspace &&
+            !classroomCanvas);
+    final accountBarReserve = !widget.teachMode && needsAccountBar
+        ? (isPhone ? 56.0 : 64.0)
+        : 0.0;
 
     final adjustedMQ = mq.copyWith(
       padding: mq.padding.copyWith(
