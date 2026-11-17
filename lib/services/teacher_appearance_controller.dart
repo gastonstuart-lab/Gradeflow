@@ -28,6 +28,21 @@ class TeacherAppearanceController extends ChangeNotifier {
   String get background => _background;
   String get accent => _accent;
   Color get accentColor => accents[_accent]!;
+
+  /// Contrast-aware primary used for actual buttons and active UI states.
+  Color themeAccent(Brightness brightness) {
+    if (brightness == Brightness.dark) return accentColor;
+    switch (_accent) {
+      case 'cyan':
+        return const Color(0xFF0E7490);
+      case 'emerald':
+        return const Color(0xFF047857);
+      case 'rose':
+        return const Color(0xFFBE123C);
+      default:
+        return const Color(0xFF4F46E5);
+    }
+  }
   double get intensity => _intensity;
   bool get enabled => _enabled;
 
