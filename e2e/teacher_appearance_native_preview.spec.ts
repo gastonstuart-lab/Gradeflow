@@ -29,11 +29,14 @@ test('@appearance-native actual Flutter account menu is clickable at desktop and
   await expect(page.getByRole('checkbox', { name: 'Neon boxes' })).toBeVisible();
   await page.getByRole('checkbox', { name: 'Neon boxes' }).click();
   await page.getByRole('checkbox', { name: 'Light' }).click();
+  await page.mouse.move(790, 665);
+  await page.waitForTimeout(160);
   await page.screenshot({ path: testInfo.outputPath('03-native-desktop-light-neon.png') });
   await page.getByRole('button', { name: 'Done' }).click();
 
   await page.getByRole('button', { name: 'Gradebook' }).click();
-  await expect(page.getByText('J2 Science · Sample Gradebook')).toBeVisible();
+  await expect(page.getByRole('group', { name: 'J2 Science · Sample Gradebook' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Homework' })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('04-native-gradebook.png') });
 
   await page.setViewportSize({ width: 390, height: 844 });
