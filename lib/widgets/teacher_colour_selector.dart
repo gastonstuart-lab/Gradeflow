@@ -90,6 +90,7 @@ Future<void> showTeacherCustomColourPicker(BuildContext context) async {
       builder: (dialogContext, setDialogState) {
         final preview = hsv.toColor();
         return AlertDialog(
+          scrollable: true,
           title: const Text('Choose your colour'),
           content: SizedBox(
             width: 345,
