@@ -26,9 +26,9 @@ test('@appearance-native actual Flutter account menu is clickable at desktop and
   await page.screenshot({ path: testInfo.outputPath('02-native-desktop-account-menu.png') });
 
   await page.getByRole('button', { name: /Appearance & colours/i }).click();
-  await expect(page.getByRole('button', { name: 'Neon boxes' })).toBeVisible();
-  await page.getByRole('button', { name: 'Neon boxes' }).click();
-  await page.getByRole('button', { name: 'Light' }).click();
+  await expect(page.getByRole('checkbox', { name: 'Neon boxes' })).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Neon boxes' }).click();
+  await page.getByRole('checkbox', { name: 'Light' }).click();
   await page.screenshot({ path: testInfo.outputPath('03-native-desktop-light-neon.png') });
   await page.getByRole('button', { name: 'Done' }).click();
 
