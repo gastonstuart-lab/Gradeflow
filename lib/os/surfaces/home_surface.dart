@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/widgets/teacher_appearance_studio.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_app_model.dart';
@@ -272,6 +273,15 @@ class _HomeSurfaceState extends State<HomeSurface> {
                           ),
                         ],
                       ],
+                    ),
+                    const SizedBox(height: 14),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        showTeacherAppearanceStudio(this.context);
+                      },
+                      icon: const Icon(Icons.palette_outlined),
+                      label: const Text('Personalisation Studio — all pages'),
                     ),
                     const SizedBox(height: 22),
                     Text(
