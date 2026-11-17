@@ -1,7 +1,7 @@
 name: GradeFlow reliability actual browser acceptance
 on:
   pull_request:
-    branches: [fix/room-reuse-save-139]
+    branches: [fix/room-reuse-save-139, integration/gradeflow-v2-release-candidate-20261115]
     paths:
       - 'lib/**'
       - 'test/**'

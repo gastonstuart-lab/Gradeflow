@@ -92,5 +92,40 @@ test('@native-gradebook saved scores, custom policy, exam recovery and actual Ex
   }
   expect(summary.formulas).toEqual([]);
   await testInfo.attach('native-gradebook.xlsx', { path, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  // The new bulk entry action must apply to the whole class, not just the
+  // currently visible row. Existing scores, legitimate zero and missing marks
+  // must remain distinguishable after a grouped undo.
+  await page.getByRole('button', { name: 'Fill column' }).click();
+  // Flutter web semantics exposes AlertDialog content without a reliable
+  // ARIA dialog role; use visible title/content and uniquely named controls.
+  await expect(page.getByText('Fill a grade column', { exact: true })).toBeVisible();
+  await type(page.getByRole('textbox', { name: /^Score \(0 to 100\)$/ }), '90');
+  await page.getByRole('button', { name: 'Review fill' }).click();
+  await expect(page.getByText('Confirm grade changes', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Set 2 Exam scores/)).toBeVisible();
+  await page.getByRole('button', { name: 'Apply scores' }).click();
+  await expect.poll(() => stored('/exams/synthetic-student-one', 'examScore')).toBe(90);
+  await expect.poll(() => stored('/exams/synthetic-student-two', 'examScore')).toBe(90);
+
+  await page.getByRole('button', { name: 'Undo last edit' }).click();
+  await expect.poll(() => stored('/exams/synthetic-student-one', 'examScore')).toBe(80);
+  await expect.poll(() => stored('/exams/synthetic-student-two', 'examScore')).toBeNull();
+
+  // Rapid taps should respond immediately while just the final value is
+  // persisted after the interaction stops (no click-by-click lockout).
+  const firstRow = page.getByRole('row', { name: /Fictional Pupil/ });
+  const increase = firstRow.getByRole('button', { name: 'Increase score by 1' });
+  await increase.click(); await increase.click(); await increase.click();
+  // Programmatic TextEditingController updates render correctly in Flutter,
+  // but the unfocused web semantics input may report an empty DOM value.
+  // Assert the visible calculated result AND the actual persisted exam value.
+  // With GPA 91.50 at 70%, exam 83 at 30%, Final must be 88.95.
+  await expect(firstRow.getByRole('cell', { name: '88.95', exact: true })).toBeVisible();
+  await expect.poll(() => stored('/exams/synthetic-student-one', 'examScore')).toBe(83);
+  await page.reload(); await ready();
+  await expect(page.getByRole('row', { name: /Fictional Pupil/ })
+    .getByRole('cell', { name: '88.95', exact: true })).toBeVisible();
+  expect(await stored('/exams/synthetic-student-one', 'examScore')).toBe(83);
+
   expect(forbidden).toEqual([]);
 });

@@ -1,9 +1,9 @@
 name: Native Gradebook review gate
 on:
   push:
-    branches: [qa/native-gradebook-20261117, release/gradebook-reliability-20261117]
+    branches: [qa/native-gradebook-20261117, release/gradebook-reliability-20261117, fix/gradebook-bulk-fill-smooth-steppers-20261117]
   pull_request:
-    branches: [integration/gradeflow-v2-release-candidate-20261115]
+    branches: [integration/gradeflow-v2-release-candidate-20261115, release/gradebook-reliability-20261117]
     paths: ['lib/**', 'test/**', 'e2e/native_gradebook_acceptance.spec.ts', 'staging-tests/**', 'firebase.native-gradebook-test.json', 'playwright.native-gradebook.config.ts', 'pubspec.*', 'teacher-tools-preview/**', '.github/workflows/native-gradebook-review.yml']
 permissions:
   contents: read

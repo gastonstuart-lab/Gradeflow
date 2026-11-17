@@ -1,7 +1,7 @@
 name: GradeFlow workflow reliability candidate
 on:
   pull_request:
-    branches: [fix/room-reuse-save-139]
+    branches: [fix/room-reuse-save-139, integration/gradeflow-v2-release-candidate-20261115]
     paths: ['lib/**', 'test/**', 'web/**', 'assets/**', 'teacher-tools-preview/**', 'pubspec.*', '.github/workflows/gradeflow-workflow-reliability.yml', '.github/workflows/gradeflow-reliability-browser.yml']
   push:
     branches: [audit/gradeflow-workflow-reliability-20261116, fix/class-import-category-recovery-142, fix/integrated-reliability-20261116]
