@@ -67,7 +67,7 @@ class TeacherColourSelector extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             side: BorderSide(
               color: appearance.isCustomAccent
-                  ? appearance.themeAccent(Theme.of(context).brightness)
+                  ? Theme.of(context).colorScheme.onSurface
                   : border,
             ),
           ),
@@ -153,7 +153,7 @@ Future<void> showTeacherCustomColourPicker(BuildContext context) async {
                       setDialogState(() => hsv = hsv.withValue(v)),
                 ),
                 Text(
-                  'Preview the colour before applying it to buttons, accents and glowing backgrounds.',
+                  'Preview a colour for the decorative background glow only. Buttons, text and gradebook controls keep their normal colours.',
                   style: Theme.of(dialogContext).textTheme.bodySmall,
                 ),
               ],
