@@ -16,7 +16,6 @@ import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/nav.dart';
-import 'package:gradeflow/widgets/teacher_quick_settings.dart';
 
 class OSDock extends StatelessWidget {
   const OSDock({super.key, this.teachMode = false});
@@ -157,11 +156,6 @@ class OSDock extends StatelessWidget {
         label: 'Classes',
         isActive: currentSurface == OSSurface.classWorkspace,
         onTap: () => context.go(AppRoutes.osClasses),
-      ),
-      _DockItemData(
-        icon: Icons.tune_rounded,
-        label: 'Settings',
-        onTap: () => showTeacherQuickSettings(context),
       ),
     ];
 
