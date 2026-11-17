@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 31a1a3ec6f22275872c0fa8073b8da446614a2e8
+          ref: c8d547c91ab60c5cbd2d7bff4f8fd9ee263b8285
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -30,18 +30,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(gh run view 43856464565 --json conclusion --jq .conclusion)" = success
-          test "$(gh run view 43856464565 --json headSha --jq .headSha)" = 18dcaf5afedd68bbbf919671467be0d2aaed761b
-          test "$(gh run view 43856464568 --json conclusion --jq .conclusion)" = success
-          test "$(gh run view 43856464568 --json headSha --jq .headSha)" = 18dcaf5afedd68bbbf919671467be0d2aaed761b
-          test "$(git rev-parse HEAD^{tree})" = 28dc417b6252ebbafce33dfacf3d3475d006bb27
-          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14220518481 --jq .digest)" = sha256:dc3bb4bf8bd69c91821444d454e07d4b4758cc571fe40eb218abe07d73d3ce21
+          test "$(gh run view 43991272064 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 43991272064 --json headSha --jq .headSha)" = c8d547c91ab60c5cbd2d7bff4f8fd9ee263b8285
+          test "$(gh run view 43991217840 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 43991217840 --json headSha --jq .headSha)" = c8d547c91ab60c5cbd2d7bff4f8fd9ee263b8285
+          test "$(git rev-parse HEAD^{tree})" = 7620096583bc48ee94782150765bf7ca30b0f0ce
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14287957708 --jq .digest)" = sha256:7122e307ae2a38d1b1f76e91e3d624954f46a8c0e51f8f1fd5e2815425fecb2b
       - uses: actions/download-artifact@v4
         with:
-          name: gradeflow-reliability-app
+          name: native-gradebook-review-app
           path: candidate/build/web
           github-token: ${{ github.token }}
-          run-id: 43856464565
+          run-id: 43991272064
       - name: Verify Hosting-only application and Studio
         run: |
           set -euo pipefail
