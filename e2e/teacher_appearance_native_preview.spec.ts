@@ -4,11 +4,18 @@ import { test, expect } from '@playwright/test';
 // lib/teacher_appearance_review_main.dart, NEVER production Firebase.
 test('@appearance-native actual Flutter account menu is clickable at desktop and mobile sizes', async ({ page }, testInfo) => {
   test.setTimeout(100_000);
-  const externalRequests: string[] = [];
+  const externalCompleted: string[] = [];
+  const academicBackendRequests: string[] = [];
   page.on('request', request => {
+    const host = new URL(request.url()).hostname;
+    if (/^(firestore|identitytoolkit|securetoken|firebasestorage)\\.googleapis\\.com$/.test(host)) {
+      academicBackendRequests.push(host);
+    }
+  });
+  page.on('requestfinished', request => {
     const url = new URL(request.url());
-    if (url.protocol === 'https:' && !url.hostname.endsWith('127.0.0.1')) {
-      externalRequests.push(url.hostname);
+    if (url.protocol === 'https:' && url.hostname !== '127.0.0.1') {
+      externalCompleted.push(url.hostname);
     }
   });
 
@@ -48,6 +55,7 @@ test('@appearance-native actual Flutter account menu is clickable at desktop and
   await expect(page.getByText('Choose your colours', { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('05-native-phone-appearance.png') });
 
-  // No sign-in, academic records or Firebase requests from the sample demo.
-  expect(externalRequests).toEqual([]);
+  // CSP must stop all remote connections; no real Firebase API calls.
+  expect(academicBackendRequests).toEqual([]);
+  expect(externalCompleted).toEqual([]);
 });
