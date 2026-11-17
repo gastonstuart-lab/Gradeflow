@@ -10,7 +10,7 @@ import 'package:gradeflow/services/browser_fullscreen_stub.dart'
     as display;
 import 'package:gradeflow/widgets/teacher_quick_settings.dart';
 
-enum _AccountAction { appearance, signOut }
+enum _AccountAction { appearance, desktopApp, signOut }
 
 /// Compact account/settings entry for every authenticated OS screen.
 /// The approved Home header hosts this directly; other OS routes host it
@@ -52,6 +52,27 @@ class TeacherAccountMenu extends StatelessWidget {
     context.go(AppRoutes.home);
   }
 
+  Future<void> _showDesktopAppHelp(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Open GradeFlow like a desktop app'),
+        content: const Text(
+          'On Windows, open GradeFlow in Microsoft Edge, choose the … menu, '
+          'then Apps → Install this site as an app. Next time, launch '
+          'GradeFlow from Start. It opens in its own window without browser tabs. '
+          'You can also use Toggle fullscreen for temporary fullscreen mode.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _tryFullscreen(BuildContext context) async {
     final ok = await display.toggleBrowserFullscreen();
     if (!ok && context.mounted) {
@@ -84,6 +105,8 @@ class TeacherAccountMenu extends StatelessWidget {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) showTeacherQuickSettings(context);
           });
+        } else if (action == _AccountAction.desktopApp) {
+          unawaited(_showDesktopAppHelp(context));
         } else if (action == _AccountAction.signOut) {
           unawaited(_confirmSignOut(context));
         }
@@ -137,6 +160,18 @@ class TeacherAccountMenu extends StatelessWidget {
               leading: Icon(Icons.fullscreen_rounded),
               title: Text('Toggle fullscreen'),
               subtitle: Text('Press Esc to exit'),
+            ),
+          ),
+        if (display.browserFullscreenAvailable &&
+            MediaQuery.sizeOf(context).width >= 600)
+          const PopupMenuItem<_AccountAction>(
+            value: _AccountAction.desktopApp,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              leading: Icon(Icons.desktop_windows_outlined),
+              title: Text('Open as desktop app'),
+              subtitle: Text('Windows and Microsoft Edge'),
             ),
           ),
         const PopupMenuDivider(),
