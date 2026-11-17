@@ -151,8 +151,11 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     // Without reserving this height it can cover Gradebook's Export Excel
     // button (caught by authenticated emulator browser acceptance).
     // Home already places the menu within its approved integrated header.
+    // Only legacy/detail surfaces (including Native Gradebook) need a new
+    // top strip: Home, approved Planner and Classroom retain their tested
+    // full-height geometry. Avoid narrowing the classroom drawing canvas.
     final accountBarReserve =
-        !widget.teachMode && controller.activeSurface != OSSurface.home
+        !widget.teachMode && controller.activeSurface == OSSurface.other
             ? (isPhone ? 56.0 : 64.0)
             : 0.0;
 
