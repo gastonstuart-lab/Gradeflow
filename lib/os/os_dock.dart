@@ -16,8 +16,7 @@ import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/nav.dart';
-import 'package:gradeflow/providers/app_providers.dart';
-import 'package:gradeflow/widgets/teacher_appearance_studio.dart';
+import 'package:gradeflow/widgets/teacher_quick_settings.dart';
 
 class OSDock extends StatelessWidget {
   const OSDock({super.key, this.teachMode = false});
@@ -27,7 +26,6 @@ class OSDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<GradeFlowOSController>();
-    final themeMode = context.watch<ThemeModeNotifier>().themeMode;
     final dark = context.isDark;
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
@@ -36,7 +34,6 @@ class OSDock extends StatelessWidget {
     final items = _buildDockItems(
       context,
       controller: controller,
-      themeMode: themeMode,
       isTeach: isTeach,
       isPhone: isPhone,
     );
@@ -120,7 +117,6 @@ class OSDock extends StatelessWidget {
   List<_DockItemData> _buildDockItems(
     BuildContext context, {
     required GradeFlowOSController controller,
-    required ThemeMode themeMode,
     required bool isTeach,
     required bool isPhone,
   }) {
@@ -163,16 +159,9 @@ class OSDock extends StatelessWidget {
         onTap: () => context.go(AppRoutes.osClasses),
       ),
       _DockItemData(
-        icon: themeMode == ThemeMode.light
-            ? Icons.dark_mode_rounded
-            : Icons.light_mode_rounded,
-        label: 'Theme',
-        onTap: () => context.read<ThemeModeNotifier>().toggleTheme(),
-      ),
-      _DockItemData(
-        icon: Icons.palette_outlined,
-        label: 'Personalise',
-        onTap: () => showTeacherAppearanceStudio(context),
+        icon: Icons.tune_rounded,
+        label: 'Settings',
+        onTap: () => showTeacherQuickSettings(context),
       ),
     ];
 
