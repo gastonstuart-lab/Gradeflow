@@ -45,7 +45,14 @@ class TeacherAppearanceController extends ChangeNotifier {
   }
 
   static Color? fromHex(String? value) {
-    if (value == null || !RegExp(r'^#[0-9A-Fa-f]{6}
+    if (value == null ||
+        !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(value)) {
+      return null;
+    }
+    return Color(0xFF000000 | int.parse(value.substring(1), radix: 16));
+  }
+
+  bool get isCustomAccent => _accent == 'custom';
 
   /// Contrast-aware primary used for actual buttons and active UI states.
   Color themeAccent(Brightness brightness) {
