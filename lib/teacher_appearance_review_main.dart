@@ -159,6 +159,7 @@ class _DemoSignIn extends StatelessWidget {
           ),
         ),
       );
+}
 
 extension on AuthService {
   void letPreviewSignIn() {
