@@ -4,7 +4,7 @@ import 'package:web/web.dart' as web;
 /// Browser security requires a click/tap for entering fullscreen.
 /// Do not call automatically after an async login redirect.
 bool get browserFullscreenAvailable =>
-    web.document.documentElement?.requestFullscreen != null;
+    web.document.fullscreenEnabled;
 
 Future<bool> toggleBrowserFullscreen() async {
   try {
