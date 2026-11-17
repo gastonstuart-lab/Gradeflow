@@ -4,7 +4,7 @@ InstructOS / GradeFlow is a Flutter and Firebase teacher operating system. It he
 
 This file is the repo-level instruction sheet for Codex, Copilot, Claude Code, and any future AI development agent. Agents are helpers, not owners. Stuart is the founder and final decision maker.
 
-Before doing agent work, read this file and `docs/ai-agents/README.md`.
+Before doing agent work, read this file, `docs/ai-agents/README.md`, and the timestamped `docs/ai-agents/current-release-handoff.md`. Verify current GitHub/release state independently; the handoff is not live telemetry.
 
 ## Build Philosophy
 
@@ -30,7 +30,7 @@ Agents must not hide work in chat-only patches or undocumented local changes.
 
 ## GitHub Workflow Rules
 
-1. Start from latest `main`.
+1. Start from the correct verified branch for the task: application changes use the current application integration lineage documented in `docs/ai-agents/current-release-handoff.md`; release controls and common repository policy use latest `main`. Do not assume `main` contains the newest application UI.
 2. Create a scoped branch for the issue.
 3. Keep the PR small.
 4. Make documentation, code, tests, or config changes only when the issue allows them.
