@@ -18,6 +18,7 @@ import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gradeflow/os/os_controller.dart';
+import 'package:gradeflow/services/teacher_appearance_controller.dart';
 
 class AppProviders extends StatelessWidget {
   final Widget child;
@@ -76,6 +77,14 @@ class AppProviders extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SeatingService()),
         ChangeNotifierProvider(create: (_) => PilotFeedbackService()),
         ChangeNotifierProvider(create: (_) => ThemeModeNotifier()),
+        ChangeNotifierProxyProvider<AuthService, TeacherAppearanceController>(
+          create: (_) => TeacherAppearanceController(),
+          update: (_, auth, appearance) {
+            appearance ??= TeacherAppearanceController();
+            appearance.syncAuth(auth);
+            return appearance;
+          },
+        ),
       ],
       child: child,
     );
@@ -101,6 +110,8 @@ class ThemeModeNotifier extends ChangeNotifier {
         _themeMode = ThemeMode.light;
       } else if (saved == 'dark') {
         _themeMode = ThemeMode.dark;
+      } else if (saved == 'system') {
+        _themeMode = ThemeMode.system;
       } else {
         _themeMode = ThemeMode.dark;
       }
@@ -115,7 +126,9 @@ class ThemeModeNotifier extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
         _prefsKey,
-        _themeMode == ThemeMode.light ? 'light' : 'dark',
+        _themeMode == ThemeMode.light
+            ? 'light'
+            : _themeMode == ThemeMode.system ? 'system' : 'dark',
       );
     } catch (_) {
       // Ignore persistence failures and keep the in-memory selection.
