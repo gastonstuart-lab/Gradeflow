@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/services/teacher_appearance_controller.dart';
 
@@ -8,6 +9,26 @@ void main() {
     expect(appearance.enabled, isTrue);
     expect(appearance.showInTeachMode, isFalse);
     expect(appearance.intensity, 0.40);
+    appearance.dispose();
+  });
+
+  test('teachers can choose any RGB colour and retain a readable accent', () {
+    final appearance = TeacherAppearanceController();
+    const lemon = Color(0xFFFFEB3B);
+    appearance.setCustomAccent(lemon);
+    expect(appearance.accent, 'custom');
+    expect(appearance.accentColor, lemon);
+    expect(TeacherAppearanceController.toHex(lemon), '#FFEB3B');
+    expect(TeacherAppearanceController.fromHex('#ffeb3b'), lemon);
+    expect(TeacherAppearanceController.fromHex('not a colour'), isNull);
+    expect(appearance.themeAccent(Brightness.light).computeLuminance(),
+        lessThanOrEqualTo(0.175));
+    expect(appearance.themeAccent(Brightness.dark).computeLuminance(),
+        greaterThanOrEqualTo(0.37));
+    appearance.setAccent('teal');
+    expect(appearance.accent, 'teal');
+    appearance.reset();
+    expect(appearance.accent, 'indigo');
     appearance.dispose();
   });
 
