@@ -473,6 +473,11 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
         },
       ),
     );
+    // showDialog completes when pop begins, before the outgoing route has
+    // finished animating. Its TextField can still build during that interval;
+    // disposing the controller immediately triggers a Flutter red-screen.
+    // Keep the controller alive through the Material dialog reverse transition.
+    await Future<void>.delayed(const Duration(milliseconds: 350));
     input.dispose();
     if (choice == null || !mounted) return;
     final item = book.items.where((i) => i.gradeItemId == choice.column).firstOrNull;
