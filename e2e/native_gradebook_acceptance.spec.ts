@@ -96,13 +96,14 @@ test('@native-gradebook saved scores, custom policy, exam recovery and actual Ex
   // currently visible row. Existing scores, legitimate zero and missing marks
   // must remain distinguishable after a grouped undo.
   await page.getByRole('button', { name: 'Fill column' }).click();
-  const fill = page.getByRole('dialog', { name: 'Fill a grade column' });
-  await expect(fill).toBeVisible();
-  await type(fill.getByRole('textbox', { name: /Score/ }), '90');
-  await fill.getByRole('button', { name: 'Review fill' }).click();
-  const confirm = page.getByRole('dialog', { name: 'Confirm grade changes' });
-  await expect(confirm.getByText(/2 Exam scores/)).toBeVisible();
-  await confirm.getByRole('button', { name: 'Apply scores' }).click();
+  // Flutter web semantics exposes AlertDialog content without a reliable
+  // ARIA dialog role; use visible title/content and uniquely named controls.
+  await expect(page.getByText('Fill a grade column', { exact: true })).toBeVisible();
+  await type(page.getByRole('textbox', { name: /^Score \(0 to 100\)$/ }), '90');
+  await page.getByRole('button', { name: 'Review fill' }).click();
+  await expect(page.getByText('Confirm grade changes', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Set 2 Exam scores/)).toBeVisible();
+  await page.getByRole('button', { name: 'Apply scores' }).click();
   await expect.poll(() => stored('/exams/synthetic-student-one', 'examScore')).toBe(90);
   await expect.poll(() => stored('/exams/synthetic-student-two', 'examScore')).toBe(90);
 
