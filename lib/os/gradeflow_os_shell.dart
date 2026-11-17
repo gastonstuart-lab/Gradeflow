@@ -15,6 +15,7 @@ import 'package:gradeflow/os/os_launcher.dart';
 import 'package:gradeflow/os/os_notification_shade.dart';
 import 'package:gradeflow/os/os_assistant.dart';
 import 'package:gradeflow/os/os_idle_screen.dart';
+import 'package:gradeflow/widgets/teacher_appearance_overlay.dart';
 
 class GradeFlowOSShell extends StatefulWidget {
   const GradeFlowOSShell({
@@ -162,6 +163,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             ),
           ),
         ),
+        if (!widget.teachMode)
+          const Positioned.fill(child: TeacherAppearanceOverlay()),
         if (!widget.teachMode)
           Positioned(
             left: 0,
