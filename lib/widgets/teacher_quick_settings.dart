@@ -13,8 +13,13 @@ Future<void> showTeacherQuickSettings(BuildContext context) {
     isScrollControlled: true,
     builder: (sheetContext) => SafeArea(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: const _QuickSettingsSheet(),
+        constraints: BoxConstraints(
+          maxWidth: 520,
+          maxHeight: MediaQuery.sizeOf(sheetContext).height * .84,
+        ),
+        child: const SingleChildScrollView(
+          child: _QuickSettingsSheet(),
+        ),
       ),
     ),
   );
