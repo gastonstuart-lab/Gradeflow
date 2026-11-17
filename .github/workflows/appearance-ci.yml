@@ -14,6 +14,7 @@ on:
       - 'lib/main.dart'
       - 'lib/teacher_appearance_review_main.dart'
       - 'e2e/teacher_appearance_native_preview.spec.ts'
+      - 'web/teacher_appearance_review_index.html'
       - 'lib/os/gradeflow_os_shell.dart'
       - 'lib/os/os_dock.dart'
       - 'lib/os/surfaces/home_surface.dart'
@@ -69,6 +70,11 @@ jobs:
           flutter build web --release --no-wasm-dry-run \
             --target lib/teacher_appearance_review_main.dart
           test -s build/web/main.dart.js
+      - name: Seal native demo: local assets only, no third-party auth or academic services
+        run: |
+          cp web/teacher_appearance_review_index.html build/web/index.html
+          ! grep -q 'google-signin-client_id' build/web/index.html
+          grep -q 'Content-Security-Policy' build/web/index.html
       - name: Install browser review dependencies
         uses: actions/setup-node@v4
         with:
