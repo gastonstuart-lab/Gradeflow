@@ -116,11 +116,16 @@ test('@native-gradebook saved scores, custom policy, exam recovery and actual Ex
   const firstRow = page.getByRole('row', { name: /Fictional Pupil/ });
   const increase = firstRow.getByRole('button', { name: 'Increase score by 1' });
   await increase.click(); await increase.click(); await increase.click();
-  await expect(firstRow.getByRole('textbox').first()).toHaveValue('83');
+  // Programmatic TextEditingController updates render correctly in Flutter,
+  // but the unfocused web semantics input may report an empty DOM value.
+  // Assert the visible calculated result AND the actual persisted exam value.
+  // With GPA 91.50 at 70%, exam 83 at 30%, Final must be 88.95.
+  await expect(firstRow.getByRole('cell', { name: '88.95', exact: true })).toBeVisible();
   await expect.poll(() => stored('/exams/synthetic-student-one', 'examScore')).toBe(83);
   await page.reload(); await ready();
   await expect(page.getByRole('row', { name: /Fictional Pupil/ })
-    .getByRole('textbox').first()).toHaveValue('83');
+    .getByRole('cell', { name: '88.95', exact: true })).toBeVisible();
+  expect(await stored('/exams/synthetic-student-one', 'examScore')).toBe(83);
 
   expect(forbidden).toEqual([]);
 });
