@@ -11,6 +11,13 @@ try {
   const path = ['users', user.uid, 'classes', 'class-science-browser'];
   const now = new Date().toISOString();
   await updateDoc(doc(db, ...path), { courseworkWeightPercent: 40 });
+  // Second fictional pupil exercises whole-column updates without touching school data.
+  await setDoc(doc(db, ...path, 'students', 'synthetic-student-two'), {
+    studentId: 'synthetic-student-two', classId: 'class-science-browser',
+    chineseName: '虛構學生', englishFirstName: 'Supplemental',
+    englishLastName: 'Pupil', seatNo: '2', createdAt: now, updatedAt: now,
+  });
+
   await updateDoc(doc(db, ...path, 'categories', 'fictional-quizzes'), { weightPercent: 25 });
   for (const [id, name, score] of [['homework', 'Homework', 100], ['classwork', 'Classwork', 90], ['participation', 'Participation', 80]]) {
     await setDoc(doc(db, ...path, 'categories', id), { categoryId: id, classId: 'class-science-browser', name, weightPercent: 25, aggregationMethod: 'average', aggregationParam: null, isActive: true, createdAt: now, updatedAt: now });
