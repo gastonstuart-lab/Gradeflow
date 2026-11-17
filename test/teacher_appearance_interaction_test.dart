@@ -65,13 +65,53 @@ void main() {
     position.dispose();
   });
 
-  test('material accent shades preserve contrast in light mode', () {
-    final preferences = TeacherAppearanceController();
-    preferences.setAccent('cyan');
-    expect(preferences.themeAccent(Brightness.light).computeLuminance(),
-        lessThanOrEqualTo(0.175));
-    expect(preferences.themeAccent(Brightness.dark).computeLuminance(),
-        greaterThanOrEqualTo(0.37));
+  testWidgets('custom neon colours do not recolour buttons or grading UI',
+      (tester) async {
+    final preferences = TeacherAppearanceController()
+      ..setBackground('boxes');
+    final pointer = ValueNotifier<Offset?>(const Offset(20, 20));
+    ColorScheme? renderedPalette;
+    final originalPalette = ThemeData.light().colorScheme;
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<TeacherAppearanceController>.value(
+        value: preferences,
+        child: MaterialApp(
+          theme: ThemeData.light(),
+          home: Scaffold(
+            body: Stack(children: [
+              Positioned.fill(
+                child: TeacherAppearanceOverlay(pointer: pointer),
+              ),
+              // Foreground components never inherit background glow colours.
+              Builder(builder: (context) {
+                renderedPalette = Theme.of(context).colorScheme;
+                return const Column(children: [
+                  ElevatedButton(onPressed: null, child: Text('Save grade')),
+                  Text('Exam 95'),
+                ]);
+              }),
+            ]),
+          ),
+        ),
+      ),
+    );
+    expect(renderedPalette?.primary, originalPalette.primary);
+    expect(find.text('Exam 95'), findsOneWidget);
+    final originalButton = tester.widget<ElevatedButton>(
+        find.byType(ElevatedButton));
+    expect(originalButton.style, isNull);
+
+    preferences.setCustomAccent(const Color(0xFFFF7700));
+    pointer.value = const Offset(120, 130);
+    await tester.pump();
+    expect(renderedPalette?.primary, originalPalette.primary);
+    expect(tester.widget<ElevatedButton>(
+        find.byType(ElevatedButton)).style, originalButton.style);
+    expect(find.text('Exam 95'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    pointer.dispose();
     preferences.dispose();
   });
 }
