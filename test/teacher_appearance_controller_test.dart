@@ -26,6 +26,7 @@ void main() {
     appearance.reset();
     expect(appearance.background, 'minimal');
     expect(appearance.accent, 'indigo');
+    expect(appearance.showInTeachMode, isFalse);
     expect(appearance.enabled, isTrue);
     expect(appearance.intensity, 0.40);
     appearance.dispose();
