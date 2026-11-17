@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gradeflow/widgets/teacher_colour_selector.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/services/teacher_appearance_controller.dart';
@@ -93,20 +94,9 @@ class _AppearanceSheet extends StatelessWidget {
               );
             }),
             const SizedBox(height: 22),
-            Text('Accent colour', style: Theme.of(context).textTheme.titleMedium),
+            Text('Choose your colours', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
-            Wrap(spacing: 12, runSpacing: 12, children: [
-              for (final entry in TeacherAppearanceController.accents.entries)
-                Tooltip(
-                  message: entry.key,
-                  child: ChoiceChip(
-                    label: Text(entry.key[0].toUpperCase() + entry.key.substring(1)),
-                    selected: choices.accent == entry.key,
-                    avatar: CircleAvatar(radius: 10, backgroundColor: entry.value),
-                    onSelected: (_) => context.read<TeacherAppearanceController>().setAccent(entry.key),
-                  ),
-                ),
-            ]),
+            const TeacherColourSelector(),
             const SizedBox(height: 24),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
