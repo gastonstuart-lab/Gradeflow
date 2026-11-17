@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: c8d547c91ab60c5cbd2d7bff4f8fd9ee263b8285
+          ref: b4dcfe0e7f56f9bc083f868f3237cfc64be4852c
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -30,18 +30,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(gh run view 43991272064 --json conclusion --jq .conclusion)" = success
-          test "$(gh run view 43991272064 --json headSha --jq .headSha)" = c8d547c91ab60c5cbd2d7bff4f8fd9ee263b8285
-          test "$(gh run view 43991217840 --json conclusion --jq .conclusion)" = success
-          test "$(gh run view 43991217840 --json headSha --jq .headSha)" = c8d547c91ab60c5cbd2d7bff4f8fd9ee263b8285
-          test "$(git rev-parse HEAD^{tree})" = 7620096583bc48ee94782150765bf7ca30b0f0ce
-          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14287957708 --jq .digest)" = sha256:7122e307ae2a38d1b1f76e91e3d624954f46a8c0e51f8f1fd5e2815425fecb2b
+          test "$(gh run view 44026447494 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 44026447494 --json headSha --jq .headSha)" = b4dcfe0e7f56f9bc083f868f3237cfc64be4852c
+          test "$(gh run view 44026447506 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 44026447506 --json headSha --jq .headSha)" = b4dcfe0e7f56f9bc083f868f3237cfc64be4852c
+          test "$(gh run view 44026447526 --json conclusion --jq .conclusion)" = success
+          test "$(gh run view 44026447526 --json headSha --jq .headSha)" = b4dcfe0e7f56f9bc083f868f3237cfc64be4852c
+          # Verify that the reviewed release package exactly matches the merged
+          # integration-branch source tree, not merely a detached feature branch.
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/git/commits/1dfc2899e26cd1445e2db45a80529854c2861660 --jq .tree.sha)" = 6a7d1ce8fbff1ee2902fe1741feb1100de8129c6
+          test "$(git rev-parse HEAD^{tree})" = 6a7d1ce8fbff1ee2902fe1741feb1100de8129c6
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14303306855 --jq .digest)" = sha256:c95d9014681e58cf39a8a335ef26990eb9e0dce299f4d00b2153df514f4ce841
       - uses: actions/download-artifact@v4
         with:
           name: native-gradebook-review-app
           path: candidate/build/web
           github-token: ${{ github.token }}
-          run-id: 43991272064
+          run-id: 44026447494
       - name: Verify Hosting-only application and Studio
         run: |
           set -euo pipefail
@@ -54,8 +59,8 @@ jobs:
           from pathlib import Path
           root = Path('candidate/build/web')
           manifest = json.loads((root / 'review-manifest.json').read_text())
-          assert manifest['commit'] == 'c8d547c91ab60c5cbd2d7bff4f8fd9ee263b8285'
-          assert manifest['tree'] == '7620096583bc48ee94782150765bf7ca30b0f0ce'
+          assert manifest['commit'] == 'b4dcfe0e7f56f9bc083f868f3237cfc64be4852c'
+          assert manifest['tree'] == '6a7d1ce8fbff1ee2902fe1741feb1100de8129c6'
           actual = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()
                     and p.name != 'review-manifest.json'
                     and not any(part.startswith('.') for part in p.relative_to(root).parts)}
