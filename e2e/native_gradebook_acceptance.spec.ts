@@ -115,13 +115,26 @@ test('@native-gradebook saved scores, custom policy, exam recovery and actual Ex
   // persisted after the interaction stops (no click-by-click lockout).
   const firstRow = page.getByRole('row', { name: /Fictional Pupil/ });
   const increase = firstRow.getByRole('button', { name: 'Increase score by 1' });
-  await increase.click(); await increase.click(); await increase.click();
+  const studentHeader = page.getByRole('columnheader', { name: 'Student', exact: true });
+  const beforeClick = await studentHeader.boundingBox();
+  expect(beforeClick, 'Student table header must be measurable before grading').not.toBeNull();
+  // Previously, an extra "Save unfinished entries" toolbar row appeared
+  // while a score was dirty, pushing the entire table down. The control must
+  // retain its footprint across pending, saving and saved states.
+  await increase.click();
+  const whilePending = await studentHeader.boundingBox();
+  expect(whilePending, 'Table must remain visible while a score is pending').not.toBeNull();
+  expect(Math.abs(whilePending!.y - beforeClick!.y)).toBeLessThan(2);
+  await increase.click(); await increase.click();
   // Programmatic TextEditingController updates render correctly in Flutter,
   // but the unfocused web semantics input may report an empty DOM value.
   // Assert the visible calculated result AND the actual persisted exam value.
   // With GPA 91.50 at 70%, exam 83 at 30%, Final must be 88.95.
   await expect(firstRow.getByRole('cell', { name: '88.95', exact: true })).toBeVisible();
   await expect.poll(() => stored('/exams/synthetic-student-one', 'examScore')).toBe(83);
+  const afterSaved = await studentHeader.boundingBox();
+  expect(afterSaved, 'Table must remain visible after autosave').not.toBeNull();
+  expect(Math.abs(afterSaved!.y - beforeClick!.y)).toBeLessThan(2);
   await page.reload(); await ready();
   await expect(page.getByRole('row', { name: /Fictional Pupil/ })
     .getByRole('cell', { name: '88.95', exact: true })).toBeVisible();
