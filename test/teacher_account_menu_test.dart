@@ -64,7 +64,7 @@ void main() {
   testWidgets('signing out requires confirmation and allows cancellation',
       (tester) async {
     final auth = _SampleAuth();
-    await tester.pumpWidget(Provider<AuthService>.value(
+    await tester.pumpWidget(ChangeNotifierProvider<AuthService>.value(
       value: auth,
       child: const MaterialApp(
         home: Scaffold(body: Center(child: TeacherAccountMenu())),
