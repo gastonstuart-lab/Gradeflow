@@ -127,6 +127,7 @@ class StudentScoreService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to update score: $e');
+      rethrow;
     }
   }
 
