@@ -52,8 +52,15 @@ void main() {
 
     await tester.tap(find.text('Appearance & colours'));
     await tester.pumpAndSettle();
-    expect(find.text('Quick settings'), findsOneWidget);
-    expect(find.text('Colours'), findsOneWidget);
+    expect(find.text('Choose your colours'), findsOneWidget);
+    expect(find.text('Neon boxes'), findsOneWidget);
+    await tester.tap(find.text('Neon boxes'));
+    await tester.pumpAndSettle();
+    expect(appearance.background, 'boxes');
+    await tester.tap(find.text('Advanced options'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Background intensity'), findsOneWidget);
+    expect(find.text('Sign out'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     auth.dispose();
