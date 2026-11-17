@@ -54,29 +54,9 @@ class TeacherAppearanceController extends ChangeNotifier {
 
   bool get isCustomAccent => _accent == 'custom';
 
-  /// Contrast-aware primary used for actual buttons and active UI states.
-  Color themeAccent(Brightness brightness) {
-    // Keep each teacher's chosen hue, but protect button-label contrast.
-    // Light-mode buttons use white labels; dark-mode buttons use dark labels.
-    if (_accent == 'indigo') {
-      return brightness == Brightness.light
-          ? const Color(0xFF4F46E5)
-          : accentColor;
-    }
-    var colour = accentColor;
-    final target = brightness == Brightness.light
-        ? Colors.black
-        : Colors.white;
-    final limit = brightness == Brightness.light ? 0.175 : 0.37;
-    for (var attempt = 0; attempt < 20; attempt++) {
-      final luminance = colour.computeLuminance();
-      if (brightness == Brightness.light
-          ? luminance <= limit
-          : luminance >= limit) break;
-      colour = Color.lerp(colour, target, 0.10)!;
-    }
-    return colour;
-  }
+  /// RGB selected by the teacher for the decorative background ONLY.
+  /// Never feed this value into MaterialApp.theme or a control's colorScheme.
+  Color get backgroundGlowColor => accentColor;
 
   double get intensity => _intensity;
   bool get enabled => _enabled;
