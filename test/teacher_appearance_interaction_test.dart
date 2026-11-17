@@ -41,6 +41,30 @@ void main() {
     preferences.dispose();
   });
 
+  testWidgets('standalone OS shells stay usable when appearance provider is absent',
+      (tester) async {
+    final position = ValueNotifier<Offset?>(null);
+    var taps = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Stack(children: [
+          Center(child: ElevatedButton(
+            onPressed: () => taps++,
+            child: const Text('Open workspace'),
+          )),
+          Positioned.fill(
+            child: TeacherAppearanceOverlay(pointer: position),
+          ),
+        ]),
+      ),
+    ));
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Open workspace'));
+    expect(taps, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+    position.dispose();
+  });
+
   test('material accent shades preserve contrast in light mode', () {
     final preferences = TeacherAppearanceController();
     preferences.setAccent('cyan');
