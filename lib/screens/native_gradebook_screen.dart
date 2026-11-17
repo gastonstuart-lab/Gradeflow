@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -41,6 +42,11 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
   String? loadError;
   final Map<String, TextEditingController> fields = {};
   final Set<String> dirty = {};
+  final Set<String> _savingFields = {};
+  final Set<String> _autoSaveFields = {};
+  final Map<String, int> _revisions = {};
+  final Map<String, Timer> _stepTimers = {};
+  final Map<String, (Student, GradeItem?)> _pendingSteps = {};
   bool working = false;
   @override
   void initState() {
@@ -84,7 +90,15 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
         c.dispose();
       }
       fields.clear();
+      for (final timer in _stepTimers.values) {
+        timer.cancel();
+      }
+      _stepTimers.clear();
+      _pendingSteps.clear();
       dirty.clear();
+      _savingFields.clear();
+      _autoSaveFields.clear();
+      _revisions.clear();
       category = null;
       summary = true;
       loadError = null;
@@ -94,6 +108,11 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
 
   @override
   void dispose() {
+    for (final timer in _stepTimers.values) {
+      timer.cancel();
+    }
+    _stepTimers.clear();
+    _pendingSteps.clear();
     if (widget.studentId == null)
       NativeGradebookScreen._leaveGuards.remove(widget.classId);
     book.removeListener(_changed);
@@ -123,7 +142,21 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
   }
 
   Future<bool> leave() async {
-    if (working || book.saveState == GradebookSaveState.saving) {
+    // Flush rapid-button edits before navigating, rather than silently
+    // discarding values that were only awaiting their debounce timer.
+    if (_pendingSteps.isNotEmpty && !working) {
+      final pending = _pendingSteps.values.toList();
+      for (final timer in _stepTimers.values) {
+        timer.cancel();
+      }
+      _stepTimers.clear();
+      _pendingSteps.clear();
+      for (final (student, item) in pending) {
+        await commit(student, item);
+      }
+    }
+    if (working || _savingFields.isNotEmpty ||
+        book.saveState == GradebookSaveState.saving) {
       message('Wait for the current save to finish.');
       return false;
     }
@@ -165,28 +198,73 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     return n;
   }
 
+  void _markDirty(String key, {bool fromStepper = false}) {
+    if (!fromStepper) {
+      _autoSaveFields.remove(key);
+      _stepTimers.remove(key)?.cancel();
+      _pendingSteps.remove(key);
+    } else {
+      _autoSaveFields.add(key);
+    }
+    setState(() {
+      dirty.add(key);
+      _revisions[key] = (_revisions[key] ?? 0) + 1;
+    });
+  }
+
+  void _scheduleStepSave(Student s, GradeItem? item) {
+    final key = book.key(s.studentId, item?.gradeItemId ?? 'exam');
+    _stepTimers.remove(key)?.cancel();
+    _pendingSteps[key] = (s, item);
+    _stepTimers[key] = Timer(const Duration(milliseconds: 500), () {
+      _stepTimers.remove(key);
+      _pendingSteps.remove(key);
+      if (mounted) commit(s, item);
+    });
+  }
+
   Future<void> commit(Student s, GradeItem? item) async {
     final key = book.key(s.studentId, item?.gradeItemId ?? 'exam');
-    if (!dirty.contains(key) || working) return;
+    _stepTimers.remove(key)?.cancel();
+    _pendingSteps.remove(key);
+    if (!dirty.contains(key) || working || _savingFields.contains(key)) return;
+    final revision = _revisions[key] ?? 0;
     try {
       final n = parse(fields[key]!.text, item?.maxScore ?? 100);
       final teacher = context.read<AuthService>().currentUser?.userId;
       if (teacher == null) throw StateError('Sign in before saving scores.');
-      setState(() => working = true);
-      if (item == null) {
-        await book.saveExam(s.studentId, n);
-      } else {
-        await book.saveScore(s.studentId, item, n, teacher);
+      setState(() => _savingFields.add(key));
+      try {
+        if (item == null) {
+          await book.saveExam(s.studentId, n);
+        } else {
+          await book.saveScore(s.studentId, item, n, teacher);
+        }
+        if (mounted && (_revisions[key] ?? 0) == revision) {
+          dirty.remove(key);
+          _autoSaveFields.remove(key);
+        }
+        if (mounted && book.saveState == GradebookSaveState.historyIncomplete) {
+          message(book.error!);
+        }
+      } finally {
+        _savingFields.remove(key);
+        if (mounted) {
+          setState(() {});
+          // Changes made during the awaited write are still dirty. Only
+          // automatic stepper changes are rescheduled; manual text is never
+          // saved in the middle of typing.
+          if (dirty.contains(key) &&
+              (_revisions[key] ?? 0) != revision &&
+              _autoSaveFields.contains(key)) {
+            _scheduleStepSave(s, item);
+          }
+        }
       }
-      dirty.remove(key);
-      if (book.saveState == GradebookSaveState.historyIncomplete)
-        message(book.error!);
     } catch (e) {
       message(
         'Not saved: $e. Your entry is still in the field; submit it again to retry.',
       );
-    } finally {
-      if (mounted) setState(() => working = false);
     }
   }
 
@@ -199,38 +277,43 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
         const SizedBox(width: 2),
         SizedBox(
           width: 68,
-          child: TextField(
-        key: ValueKey(key),
-        controller: controller(
-          key,
-          item == null
-              ? book.exam(s.studentId)
-              : book.score(s.studentId, item.gradeItemId),
-        ),
-        enabled: !working,
-        textAlign: TextAlign.right,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(
-          labelText: '${s.englishFullName} ${item?.name ?? 'Exam'}',
-          floatingLabelBehavior: FloatingLabelBehavior.never,
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          filled: true,
-          fillColor: dirty.contains(key)
-              ? const Color(0xfffff1d5)
-              : Theme.of(context).colorScheme.surface,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        onChanged: (_) => setState(() => dirty.add(key)),
-        onSubmitted: (_) => commit(s, item),
-        onTapOutside: (_) {
-          FocusManager.instance.primaryFocus?.unfocus();
-          commit(s, item);
-        },
-        onEditingComplete: () {
-          commit(s, item);
-          FocusScope.of(context).nextFocus();
-        },
+          child: Tooltip(
+            message: '${s.englishFullName} — ${item?.name ?? 'Exam'}',
+            child: TextField(
+              key: ValueKey(key),
+              controller: controller(
+                key,
+                item == null
+                    ? book.exam(s.studentId)
+                    : book.score(s.studentId, item.gradeItemId),
+              ),
+              enabled: !working,
+              textAlign: TextAlign.right,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                hintText: '—',
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                filled: true,
+                fillColor: dirty.contains(key)
+                    ? const Color(0xfffff1d5)
+                    : Theme.of(context).colorScheme.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onChanged: (_) => _markDirty(key),
+              onSubmitted: (_) => commit(s, item),
+              onTapOutside: (_) {
+                FocusManager.instance.primaryFocus?.unfocus();
+                commit(s, item);
+              },
+              onEditingComplete: () {
+                commit(s, item);
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
         ),
         const SizedBox(width: 2),
@@ -249,21 +332,26 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
         visualDensity: VisualDensity.compact,
         constraints: const BoxConstraints(minWidth: 26, minHeight: 32),
         tooltip: delta > 0 ? 'Increase score by 1' : 'Decrease score by 1',
-        onPressed: working || dirty.contains(key)
+        onPressed: working
             ? null
-            : () async {
+            : () {
                 final field = controller(
                   key,
                   item == null
                       ? book.exam(student.studentId)
                       : book.score(student.studentId, item.gradeItemId),
                 );
-                final value = double.tryParse(field.text.trim()) ?? 0;
+                final raw = field.text.trim();
+                final value = raw.isEmpty ? 0.0 : double.tryParse(raw);
+                if (value == null || !value.isFinite) {
+                  message('Correct this score before using + or −.');
+                  return;
+                }
                 final next = (value + delta).clamp(0, item?.maxScore ?? 100);
-                if (next == value && field.text.trim().isNotEmpty) return;
+                if (next == value && raw.isNotEmpty) return;
                 field.text = fmt(next.toDouble());
-                setState(() => dirty.add(key));
-                await commit(student, item);
+                _markDirty(key, fromStepper: true);
+                _scheduleStepSave(student, item);
               },
         icon: Icon(delta > 0 ? Icons.add : Icons.remove, size: 16),
       ),
