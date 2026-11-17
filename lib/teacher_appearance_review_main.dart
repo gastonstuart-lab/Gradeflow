@@ -4,6 +4,7 @@
 /// authentic accounts. It reuses the actual account menu, colour selector,
 /// theme controller and interactive ambient painter from GradeFlow V2.
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/models/user.dart';
@@ -17,6 +18,8 @@ import 'package:gradeflow/widgets/teacher_appearance_overlay.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Browser review uses the same accessible semantics as the real V2 app.
+  RendererBinding.instance.ensureSemantics();
   runApp(
     MultiProvider(
       providers: [
