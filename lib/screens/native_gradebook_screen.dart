@@ -367,7 +367,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     final first = !summary && category != null
         ? book.categoryItems(category!).firstOrNull : null;
     var selection = first?.gradeItemId ?? 'exam';
-    final input = TextEditingController(text: fmt(first?.maxScore ?? 100));
+    final input = TextEditingController(text: fmt(first?.maxScore ?? 100.0));
     var blanksOnly = false;
     final choice = await showDialog<({String column, double score, bool blanksOnly})>(
       context: context,
@@ -420,7 +420,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                           selection = v;
                           final chosen = book.items
                               .where((i) => i.gradeItemId == v).firstOrNull;
-                          input.text = fmt(chosen?.maxScore ?? 100);
+                          input.text = fmt(chosen?.maxScore ?? 100.0);
                         });
                       },
                     ),
@@ -1077,11 +1077,13 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     final rows = visible,
         assessments =
             category == null ? <GradeItem>[] : book.categoryItems(category!);
-    final status = working
+    final status = working || _savingFields.isNotEmpty
         ? 'Saving…'
-        : dirty.isNotEmpty
-            ? 'Unfinished entries'
-            : switch (book.saveState) {
+        : _stepTimers.isNotEmpty
+            ? 'Changes pending…'
+            : dirty.isNotEmpty
+                ? 'Unfinished entries'
+                : switch (book.saveState) {
                 GradebookSaveState.ready => 'Ready',
                 GradebookSaveState.saving => 'Saving…',
                 GradebookSaveState.saved => 'Saved',
