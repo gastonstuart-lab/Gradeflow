@@ -440,11 +440,18 @@ class _GradebookScreenState extends State<GradebookScreen> {
     );
 
     final authService = context.read<AuthService>();
-    await context.read<StudentScoreService>().updateScore(
-          studentScore,
-          authService.currentUser!.userId,
-          widget.classId,
-        );
+    try {
+      await context.read<StudentScoreService>().updateScore(
+            studentScore,
+            authService.currentUser!.userId,
+            widget.classId,
+          );
+    } catch (_) {
+      if (mounted) {
+        _showError(
+            'Score was not saved. Check your connection and retry this entry.');
+      }
+    }
   }
 
   String _scoreControllerKey(String studentId, String gradeItemId) =>

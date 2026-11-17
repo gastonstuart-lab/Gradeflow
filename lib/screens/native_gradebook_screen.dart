@@ -106,6 +106,17 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
 
   String fmt(double? n) =>
       n == null ? '—' : n.toStringAsFixed(2).replaceFirst(RegExp(r'\.00$'), '');
+  String get categoryWeightSummary {
+    if (!book.loaded) return 'Loading category weights…';
+    if (!book.policyMatches) return 'Review category weights';
+    return GradebookWorkspace.processWeights.keys.map((name) {
+      final category = book.categories.singleWhere(
+        (c) => GradebookWorkspace.canonical(c.name) == name,
+      );
+      return '$name ${fmt(category.weightPercent)}%';
+    }).join(' · ');
+  }
+
   void message(String s) {
     if (mounted)
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
@@ -978,9 +989,9 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                   'GPA ${fmt(book.courseworkWeightPercent)}% + Exam ${fmt(100 - book.courseworkWeightPercent)}%',
                                   style: const TextStyle(color: Colors.white),
                                 ),
-                                const Text(
-                                  'Participation 20% · Homework 30% · Quizzes 30% · Classwork 20%',
-                                  style: TextStyle(
+                                Text(
+                                  categoryWeightSummary,
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 12,
                                   ),

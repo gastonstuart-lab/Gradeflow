@@ -11,7 +11,7 @@ on:
       - '.github/workflows/gradeflow-reliability-browser.yml'
       - '.github/workflows/gradeflow-workflow-reliability.yml'
   push:
-    branches: [audit/gradeflow-workflow-reliability-20261116, fix/class-import-category-recovery-142, fix/integrated-reliability-20261116]
+    branches: [audit/gradeflow-workflow-reliability-20261116, fix/class-import-category-recovery-142, fix/integrated-reliability-20261116, release/gradebook-reliability-20261117]
     paths:
       - 'lib/**'
       - 'e2e/**'
