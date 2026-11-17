@@ -44,6 +44,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
   final Set<String> dirty = {};
   final Set<String> _savingFields = {};
   final Set<String> _autoSaveFields = {};
+  final Set<String> _submittedDuringSave = {};
   final Map<String, int> _revisions = {};
   final Map<String, Timer> _stepTimers = {};
   final Map<String, (Student, GradeItem?)> _pendingSteps = {};
@@ -98,6 +99,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
       dirty.clear();
       _savingFields.clear();
       _autoSaveFields.clear();
+      _submittedDuringSave.clear();
       _revisions.clear();
       category = null;
       summary = true;
@@ -113,6 +115,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     }
     _stepTimers.clear();
     _pendingSteps.clear();
+    _submittedDuringSave.clear();
     if (widget.studentId == null)
       NativeGradebookScreen._leaveGuards.remove(widget.classId);
     book.removeListener(_changed);
@@ -227,7 +230,13 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     final key = book.key(s.studentId, item?.gradeItemId ?? 'exam');
     _stepTimers.remove(key)?.cancel();
     _pendingSteps.remove(key);
-    if (!dirty.contains(key) || working || _savingFields.contains(key)) return;
+    if (!dirty.contains(key) || working) return;
+    if (_savingFields.contains(key)) {
+      // A manual Enter/blur is an explicit save request. Do not drop it when
+      // an older version of this same field is still being written.
+      if (!_autoSaveFields.contains(key)) _submittedDuringSave.add(key);
+      return;
+    }
     final revision = _revisions[key] ?? 0;
     try {
       final n = parse(fields[key]!.text, item?.maxScore ?? 100);
@@ -254,10 +263,13 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
           // Changes made during the awaited write are still dirty. Only
           // automatic stepper changes are rescheduled; manual text is never
           // saved in the middle of typing.
-          if (dirty.contains(key) &&
-              (_revisions[key] ?? 0) != revision &&
-              _autoSaveFields.contains(key)) {
-            _scheduleStepSave(s, item);
+          final explicitlySubmitted = _submittedDuringSave.remove(key);
+          if (dirty.contains(key) && (_revisions[key] ?? 0) != revision) {
+            if (explicitlySubmitted) {
+              unawaited(commit(s, item));
+            } else if (_autoSaveFields.contains(key)) {
+              _scheduleStepSave(s, item);
+            }
           }
         }
       }
@@ -1079,11 +1091,13 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
             category == null ? <GradeItem>[] : book.categoryItems(category!);
     final status = working || _savingFields.isNotEmpty
         ? 'Saving…'
-        : _stepTimers.isNotEmpty
-            ? 'Changes pending…'
-            : dirty.isNotEmpty
-                ? 'Unfinished entries'
-                : switch (book.saveState) {
+        : book.saveState == GradebookSaveState.failed
+            ? 'Save failed — retry your entry'
+            : _stepTimers.isNotEmpty
+                ? 'Changes pending…'
+                : dirty.isNotEmpty
+                    ? 'Unfinished entries'
+                    : switch (book.saveState) {
                 GradebookSaveState.ready => 'Ready',
                 GradebookSaveState.saving => 'Saving…',
                 GradebookSaveState.saved => 'Saved',
