@@ -358,6 +358,170 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     );
   }
 
+  Future<void> fillColumn() async {
+    if (working || dirty.isNotEmpty || _savingFields.isNotEmpty ||
+        _stepTimers.isNotEmpty || book.students.isEmpty) {
+      message('Finish saving current scores before filling a column.');
+      return;
+    }
+    final first = !summary && category != null
+        ? book.categoryItems(category!).firstOrNull : null;
+    var selection = first?.gradeItemId ?? 'exam';
+    final input = TextEditingController(text: fmt(first?.maxScore ?? 100));
+    var blanksOnly = false;
+    final choice = await showDialog<({String column, double score, bool blanksOnly})>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, refresh) {
+          final item = book.items.where((i) => i.gradeItemId == selection).firstOrNull;
+          final max = item?.maxScore ?? 100;
+          final number = double.tryParse(input.text.trim());
+          final valid = number != null && number.isFinite && number >= 0 && number <= max;
+          final existing = book.students.where((s) =>
+              item == null ? book.exam(s.studentId) != null
+                  : book.score(s.studentId, item.gradeItemId) != null).length;
+          return AlertDialog(
+            title: const Text('Fill a grade column'),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('This fills all ${book.students.length} students in this class, '
+                        'including any hidden by search. Summary averages and Final '
+                        'are calculated. Choose an assessment or Exam.'),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      key: ValueKey(selection),
+                      initialValue: selection,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Column to fill', border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: 'exam', child: Text('Exam'),
+                        ),
+                        ...book.items.where((i) => i.isActive).map((i) {
+                          final categoryName = book.categories
+                              .where((c) => c.categoryId == i.categoryId)
+                              .firstOrNull?.name ?? 'Assessment';
+                          return DropdownMenuItem<String>(
+                            value: i.gradeItemId,
+                            child: Text('$categoryName — ${i.name}', overflow: TextOverflow.ellipsis),
+                          );
+                        }),
+                      ],
+                      onChanged: (v) {
+                        if (v == null) return;
+                        refresh(() {
+                          selection = v;
+                          final chosen = book.items
+                              .where((i) => i.gradeItemId == v).firstOrNull;
+                          input.text = fmt(chosen?.maxScore ?? 100);
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: input,
+                      autofocus: true,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        labelText: 'Score (0 to ${fmt(max.toDouble())})',
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => refresh(() {}),
+                    ),
+                    CheckboxListTile(
+                      value: blanksOnly,
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: const Text('Fill blanks only (preserve existing marks)'),
+                      onChanged: (v) => refresh(() => blanksOnly = v ?? false),
+                    ),
+                    Text(blanksOnly
+                        ? '${book.students.length - existing} empty cells can be filled.'
+                        : '$existing existing marks could be replaced, including zeros.'),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              FilledButton(
+                onPressed: valid ? () => Navigator.pop(ctx,
+                    (column: selection, score: number!, blanksOnly: blanksOnly)) : null,
+                child: const Text('Review fill'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    input.dispose();
+    if (choice == null || !mounted) return;
+    final item = book.items.where((i) => i.gradeItemId == choice.column).firstOrNull;
+    final requested = <String, double?>{};
+    var overwrites = 0;
+    for (final student in book.students) {
+      final previous = item == null ? book.exam(student.studentId)
+          : book.score(student.studentId, item.gradeItemId);
+      if (choice.blanksOnly && previous != null) continue;
+      requested[student.studentId] = choice.score;
+      if (previous != null && previous != choice.score) overwrites++;
+    }
+    if (requested.isEmpty) {
+      message('There are no empty scores to fill.');
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm grade changes'),
+        content: Text('Set ${requested.length} ${item?.name ?? 'Exam'} scores '
+            'to ${fmt(choice.score)}? '
+            '${overwrites > 0 ? '$overwrites existing scores will change. ' : ''}'
+            'You can undo the entire fill in one action.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Apply scores')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final teacher = context.read<AuthService>().currentUser?.userId;
+    if (teacher == null) {
+      message('Sign in before grading.');
+      return;
+    }
+    setState(() => working = true);
+    try {
+      final saved = item == null
+          ? await book.saveExamScores(requested)
+          : await book.saveAssessmentScores(item, requested, teacher);
+      if (!mounted) return;
+      for (final id in requested.keys) {
+        final k = book.key(id, item?.gradeItemId ?? 'exam');
+        final field = fields[k];
+        if (field != null) field.text = fmt(requested[id]);
+      }
+      if (book.saveState == GradebookSaveState.historyIncomplete) {
+        message('Scores saved; some score-history entries need review.');
+      } else {
+        message('$saved score${saved == 1 ? '' : 's'} updated. One-step undo is available.');
+      }
+    } catch (e) {
+      message('Column fill not saved: $e');
+    } finally {
+      if (mounted) setState(() => working = false);
+    }
+  }
+
   Future<void> editOverallWeights() async {
     if (working || dirty.isNotEmpty) {
       message('Save unfinished scores before changing grading weights.');
@@ -1153,8 +1317,15 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                               label:
                                                   const Text('Undo last edit')),
                                           if (widget.studentId == null)
+                                              OutlinedButton.icon(
+                                                onPressed: working || dirty.isNotEmpty ||
+                                                        _savingFields.isNotEmpty ? null : fillColumn,
+                                                icon: const Icon(Icons.view_column_outlined, size: 18),
+                                                label: const Text('Fill column'),
+                                              ),
+                                           if (widget.studentId == null)
                                             OutlinedButton.icon(
-                                              onPressed: working || dirty.isNotEmpty
+                                              onPressed: working || dirty.isNotEmpty || _savingFields.isNotEmpty
                                                   ? null
                                                   : editOverallWeights,
                                               icon: const Icon(Icons.pie_chart_outline, size: 18),
@@ -1162,7 +1333,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                             ),
                                           if (widget.studentId == null)
                                             OutlinedButton.icon(
-                                              onPressed: working || dirty.isNotEmpty
+                                              onPressed: working || dirty.isNotEmpty || _savingFields.isNotEmpty
                                                   ? null
                                                   : () async {
                                                       await context.push<void>(
