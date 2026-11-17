@@ -9,6 +9,7 @@ class TeacherAppearanceController extends ChangeNotifier {
   String _accent = 'indigo';
   double _intensity = 0.40;
   bool _enabled = true;
+  bool _showInTeachMode = false;
   int _loadGeneration = 0;
 
   static const backgrounds = <String, String>{
@@ -44,6 +45,7 @@ class TeacherAppearanceController extends ChangeNotifier {
   }
   double get intensity => _intensity;
   bool get enabled => _enabled;
+  bool get showInTeachMode => _showInTeachMode;
 
   String _key(String item) => 'teacher_appearance_v1_${_userId ?? 'local'}_$item';
 
@@ -56,6 +58,7 @@ class TeacherAppearanceController extends ChangeNotifier {
     _accent = 'indigo';
     _intensity = 0.40;
     _enabled = true;
+    _showInTeachMode = false;
     notifyListeners();
     if (next != null) _load(generation);
   }
@@ -67,11 +70,13 @@ class TeacherAppearanceController extends ChangeNotifier {
       final color = prefs.getString(_key('accent'));
       final intensity = prefs.getDouble(_key('intensity'));
       final enabled = prefs.getBool(_key('enabled'));
+      final teaching = prefs.getBool(_key('teach_mode'));
       if (generation != _loadGeneration) return;
       _background = backgrounds.containsKey(bg) ? bg! : 'minimal';
       _accent = accents.containsKey(color) ? color! : 'indigo';
       _intensity = (intensity ?? 0.40).clamp(0.0, 1.0);
       _enabled = enabled ?? true;
+      _showInTeachMode = teaching ?? false;
       notifyListeners();
     } catch (_) {
       // Default appearance remains available even when storage is blocked.
@@ -107,7 +112,16 @@ class TeacherAppearanceController extends ChangeNotifier {
     _save('enabled', value);
   }
 
+  /// Opt-in only: protect a projected classroom screen by default.
+  void setShowInTeachMode(bool value) {
+    if (_showInTeachMode == value) return;
+    _showInTeachMode = value;
+    notifyListeners();
+    _save('teach_mode', value);
+  }
+
   void reset() {
+    _showInTeachMode = false;
     _background = 'minimal';
     _accent = 'indigo';
     _intensity = 0.40;
@@ -135,5 +149,6 @@ class TeacherAppearanceController extends ChangeNotifier {
     _save('accent', _accent);
     _save('intensity', _intensity);
     _save('enabled', _enabled);
+    _save('teach_mode', _showInTeachMode);
   }
 }
