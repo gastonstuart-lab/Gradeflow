@@ -147,6 +147,15 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
         ? 0.0
         : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
 
+    // Keep the top-right account button in its own OS chrome strip.
+    // Without reserving this height it can cover Gradebook's Export Excel
+    // button (caught by authenticated emulator browser acceptance).
+    // Home already places the menu within its approved integrated header.
+    final accountBarReserve =
+        !widget.teachMode && controller.activeSurface != OSSurface.home
+            ? (isPhone ? 56.0 : 64.0)
+            : 0.0;
+
     final adjustedMQ = mq.copyWith(
       padding: mq.padding.copyWith(
         bottom: mq.padding.bottom,
@@ -160,6 +169,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final shellStack = Stack(
       children: [
         Positioned.fill(
+          top: accountBarReserve,
           bottom: homeBehindFloatingDock ? 0 : dockReserve,
           child: Transform.translate(
             offset: Offset(_dragDx, 0),
@@ -192,8 +202,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
           ),
         ),
         // Home has a dedicated spot beside Weather in its approved header.
-        // On other pages, this small profile entry stays top-right without
-        // adding redundant Settings or Theme buttons to the bottom dock.
+        // Other pages reserve a slim top OS chrome strip so the menu never
+        // sits over Export Excel, Planner actions or classroom controls.
         if (!widget.teachMode && controller.activeSurface != OSSurface.home)
           Positioned(
             top: mq.padding.top + 8,
