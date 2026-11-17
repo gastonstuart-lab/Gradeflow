@@ -13,6 +13,7 @@ import 'package:gradeflow/config/planner_v2_emulator_safety.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/providers/app_providers.dart';
+import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/firebase_service.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -148,6 +149,25 @@ class _MyAppState extends State<MyApp> {
       child: Consumer<ThemeModeNotifier>(
         builder: (context, themeModeNotifier, _) {
           final authService = context.watch<AuthService>();
+          final appearance = context.watch<TeacherAppearanceController>();
+          final lightAccent = appearance.themeAccent(Brightness.light);
+          final darkAccent = appearance.themeAccent(Brightness.dark);
+          final themedLight = appearance.accent == 'indigo'
+              ? lightTheme
+              : lightTheme.copyWith(
+                  colorScheme: lightTheme.colorScheme.copyWith(
+                    primary: lightAccent,
+                    onPrimary: Colors.white,
+                  ),
+                );
+          final themedDark = appearance.accent == 'indigo'
+              ? darkTheme
+              : darkTheme.copyWith(
+                  colorScheme: darkTheme.colorScheme.copyWith(
+                    primary: darkAccent,
+                    onPrimary: const Color(0xFF0F172A),
+                  ),
+                );
 
           if (!_authInitScheduled &&
               !authService.isInitialized &&
@@ -177,8 +197,8 @@ class _MyAppState extends State<MyApp> {
           return MaterialApp.router(
             title: GradeFlowProductConfig.appName,
             debugShowCheckedModeBanner: false,
-            theme: lightTheme,
-            darkTheme: darkTheme,
+            theme: themedLight,
+            darkTheme: themedDark,
             themeMode: themeModeNotifier.themeMode,
             routerConfig: AppRouter.router,
             builder: (context, child) {
