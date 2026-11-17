@@ -8,7 +8,8 @@ test('@appearance-native actual Flutter account menu is clickable at desktop and
   const academicBackendRequests: string[] = [];
   page.on('request', request => {
     const host = new URL(request.url()).hostname;
-    if (/^(firestore|identitytoolkit|securetoken|firebasestorage)\\.googleapis\\.com$/.test(host)) {
+    if (['firestore.googleapis.com', 'identitytoolkit.googleapis.com',
+        'securetoken.googleapis.com', 'firebasestorage.googleapis.com'].includes(host)) {
       academicBackendRequests.push(host);
     }
   });
