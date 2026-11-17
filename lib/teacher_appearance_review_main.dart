@@ -95,24 +95,15 @@ class _NativeReviewApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appearance = context.watch<TeacherAppearanceController>();
     final mode = context.watch<ThemeModeNotifier>();
-    ThemeData apply(ThemeData base, Brightness brightness) =>
-        appearance.accent == 'indigo'
-            ? base
-            : base.copyWith(
-                colorScheme: base.colorScheme.copyWith(
-                  primary: appearance.themeAccent(brightness),
-                  onPrimary: brightness == Brightness.dark
-                      ? const Color(0xFF101827) : Colors.white,
-                ),
-              );
 
     return MaterialApp.router(
       title: 'GradeFlow Native Menu Review — no real school data',
       debugShowCheckedModeBanner: false,
-      theme: apply(lightTheme, Brightness.light),
-      darkTheme: apply(darkTheme, Brightness.dark),
+      // The sample uses exactly the fixed production UI palettes.
+      // Accent colour is reserved for the ambient background painter.
+      theme: lightTheme,
+      darkTheme: darkTheme,
       themeMode: mode.themeMode,
       routerConfig: _router,
     );
@@ -207,6 +198,16 @@ class _SampleTeacherPageState extends State<_SampleTeacherPage> {
             Positioned.fill(
               child: ColoredBox(color: theme.scaffoldBackgroundColor),
             ),
+            // The ambient painter is BEHIND the entire teacher UI.
+            // It never paints over labels, buttons, score cells or menus.
+            Positioned.fill(
+              child: TeacherAppearanceOverlay(
+                pointer: _pointer,
+                attenuation: widget.section == 'gradebook'
+                    ? .5
+                    : widget.section == 'planner' ? .75 : 1,
+              ),
+            ),
             // Fictional sample content imitates density, not the V2 pages.
             Positioned.fill(
               child: SafeArea(
@@ -258,7 +259,7 @@ class _SampleTeacherPageState extends State<_SampleTeacherPage> {
                                 fontWeight: FontWeight.w900)),
                           const SizedBox(height: 11),
                           Text('Open the small teacher account button in the top right '
-                            'to customise colours, neon backgrounds and display '
+                            'to customise background glow colours and display '
                             'settings. Only sample information is shown.',
                             style: theme.textTheme.bodyMedium),
                           const SizedBox(height: 24),
@@ -318,14 +319,6 @@ class _SampleTeacherPageState extends State<_SampleTeacherPage> {
                     ),
                   ),
                 ),
-              ),
-            ),
-            Positioned.fill(
-              child: TeacherAppearanceOverlay(
-                pointer: _pointer,
-                attenuation: widget.section == 'gradebook'
-                    ? .5
-                    : widget.section == 'planner' ? .75 : 1,
               ),
             ),
             Positioned(
