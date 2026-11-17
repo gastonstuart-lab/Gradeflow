@@ -17,6 +17,7 @@ import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/providers/app_providers.dart';
+import 'package:gradeflow/widgets/teacher_appearance_studio.dart';
 
 class OSDock extends StatelessWidget {
   const OSDock({super.key, this.teachMode = false});
@@ -167,6 +168,11 @@ class OSDock extends StatelessWidget {
             : Icons.light_mode_rounded,
         label: 'Theme',
         onTap: () => context.read<ThemeModeNotifier>().toggleTheme(),
+      ),
+      _DockItemData(
+        icon: Icons.palette_outlined,
+        label: 'Personalise',
+        onTap: () => showTeacherAppearanceStudio(context),
       ),
     ];
 
