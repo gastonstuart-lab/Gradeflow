@@ -12,6 +12,7 @@ on:
       - 'lib/services/browser_fullscreen_*.dart'
       - 'lib/providers/app_providers.dart'
       - 'lib/main.dart'
+      - 'lib/teacher_appearance_review_main.dart'
       - 'lib/os/gradeflow_os_shell.dart'
       - 'lib/os/os_dock.dart'
       - 'lib/os/surfaces/home_surface.dart'
@@ -51,6 +52,22 @@ jobs:
             test/teacher_account_menu_test.dart
       - name: Build web application without deployment
         run: flutter build web --release --no-wasm-dry-run
+      - name: Assert native preview cannot access Firebase or academic records
+        run: |
+          ! grep -Eq 'Firebase.initializeApp|RepositoryFactory.instance|FirebaseAuth.instance' lib/teacher_appearance_review_main.dart
+          grep -q 'fictional' lib/teacher_appearance_review_main.dart
+      - name: Build isolated real Flutter menu demo (no Firebase)
+        run: |
+          flutter build web --release --no-wasm-dry-run \
+            --target lib/teacher_appearance_review_main.dart
+          test -s build/web/main.dart.js
+      - name: Retain native Flutter appearance demo for public visual preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-real-flutter-menu-demo
+          path: build/web/
+          retention-days: 5
+          if-no-files-found: error
       - name: Retain compiled Flutter candidate for visual review
         uses: actions/upload-artifact@v4
         with:
