@@ -1401,24 +1401,30 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                                   Icons.content_paste),
                                               label: const Text('Paste scores'),
                                             ),
-                                          if (dirty.isNotEmpty)
-                                            TextButton(
-                                              onPressed: working
-                                                  ? null
-                                                  : () async {
-                                                      for (final s
-                                                          in book.students) {
-                                                        for (final i
-                                                            in book.items) {
-                                                          await commit(s, i);
-                                                        }
-                                                        await commit(s, null);
+                                          // Keep this toolbar control mounted
+                                          // while the debounced +/- save
+                                          // transitions between pending and
+                                          // saved. Adding/removing it from the
+                                          // Wrap changes the toolbar height and
+                                          // makes the student rows jump under
+                                          // the pointer while grading.
+                                          TextButton(
+                                            onPressed: working || dirty.isEmpty
+                                                ? null
+                                                : () async {
+                                                    for (final s
+                                                        in book.students) {
+                                                      for (final i
+                                                          in book.items) {
+                                                        await commit(s, i);
                                                       }
-                                                    },
-                                              child: const Text(
-                                                'Save unfinished entries',
-                                              ),
+                                                      await commit(s, null);
+                                                    }
+                                                  },
+                                            child: const Text(
+                                              'Save unfinished entries',
                                             ),
+                                          ),
                                         ],
                                       ),
                                       const SizedBox(height: 10),
