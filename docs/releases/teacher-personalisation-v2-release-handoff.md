@@ -48,10 +48,10 @@ Perform on desktop/Surface and tablet, in Light and Dark modes:
 
 1. Record exact **tested commit SHA**, `main.dart.js` SHA-256 and signed-off release notes. Rebuild from that pinned source with locked dependencies; do not silently substitute `main`, an integration branch head, or a separate preview build.
 2. Confirm the target is **only** Firebase Hosting for **`gradeflow-20260113`**. The Hosting config must have `public: build/web` and the fallback `** -> /index.html`, and must **not** include Firestore, functions, database, storage or other deployment targets.
-3. Before replacing anything, clone the current live Hosting release into a timestamped rollback channel. Record the actual channel, deployer, Git SHA and UTC time.
+3. Before replacing anything, clone the current live Hosting release into a **short, timestamped** rollback channel. Record the actual channel, deployer, Git SHA, UTC time and channel expiry; retain the backup until post-release acceptance is complete. Firebase preview channels can expire, so verify the channel's retention rather than treating it as a permanent archive.
 
    ```bash
-   firebase hosting:clone gradeflow-20260113:live gradeflow-20260113:before-personalisation-YYYYMMDDHHMMSS --project gradeflow-20260113
+   firebase hosting:clone gradeflow-20260113:live gradeflow-20260113:before-v2-YYYYMMDDHHMMSS --project gradeflow-20260113
    ```
 
 4. Publish the **pinned reviewed build only**, using the approved protected production release workflow and existing Firebase project. The intended Hosting-only command is:
@@ -66,7 +66,7 @@ Perform on desktop/Surface and tablet, in Light and Dark modes:
 6. If anything fails, the operator should stop using the broken release and restore the recorded channel to live:
 
    ```bash
-   firebase hosting:clone gradeflow-20260113:before-personalisation-YYYYMMDDHHMMSS gradeflow-20260113:live --project gradeflow-20260113
+   firebase hosting:clone gradeflow-20260113:before-v2-YYYYMMDDHHMMSS gradeflow-20260113:live --project gradeflow-20260113
    ```
 
    Substitute the **actual** backup channel from step 3. Verify the live app and report the rollback outcome. No Firestore data restore should be needed for this Hosting-only UI release.
