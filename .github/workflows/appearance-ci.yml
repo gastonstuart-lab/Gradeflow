@@ -44,7 +44,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Pull request default is a synthetic merge ref, not the feature SHA.
+          # A release-review artifact must be built from one concrete commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Assert exact reviewed source SHA
+        shell: bash
+        env:
+          EXPECTED_REVIEW_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_REVIEW_SHA"
+          echo "Exact review source SHA: $actual" >> "$GITHUB_STEP_SUMMARY"
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.0'
