@@ -204,9 +204,9 @@ class _LiveWorkspacePreview extends StatelessWidget {
                   Row(children: [
                     Expanded(child: _PreviewPanel(color: foreground, accent: uiAccent)),
                     const SizedBox(width: 10),
-                    Expanded(child: _PreviewPanel(color: foreground, accent: accent)),
+                    Expanded(child: _PreviewPanel(color: foreground, accent: uiAccent)),
                     const SizedBox(width: 10),
-                    Expanded(child: _PreviewPanel(color: foreground, accent: accent)),
+                    Expanded(child: _PreviewPanel(color: foreground, accent: uiAccent)),
                   ]),
                 ],
               ),
