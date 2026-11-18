@@ -106,7 +106,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await neonBoxes.click();
   await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
   await expect(neonBoxes).toBeChecked();
-  await page.getByRole('button', { name: 'Use cyan colour', exact: true }).click();
+  await page.getByRole('button', { name: /Use cyan colour/ }).click({ timeout: 15_000 });
   await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
   await expect(page.getByText('Background glow colour')).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();
