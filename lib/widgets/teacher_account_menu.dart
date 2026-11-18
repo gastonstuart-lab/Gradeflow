@@ -185,7 +185,6 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
     final teacher = auth?.currentUser;
     final name = teacher?.fullName.trim() ?? '';
     final shortName = name.isNotEmpty ? name.split(' ').first : 'Teacher';
-    final email = teacher?.email.trim() ?? '';
     final initial = name.isEmpty ? 'T' : name.characters.first.toUpperCase();
     final palette = Theme.of(context).colorScheme;
     final availableWidth = MediaQuery.sizeOf(context).width;
