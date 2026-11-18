@@ -94,7 +94,7 @@ class _AppearanceSheet extends StatelessWidget {
               );
             }),
             const SizedBox(height: 22),
-            Text('Choose your colours', style: Theme.of(context).textTheme.titleMedium),
+            Text('Background glow colour', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
             const TeacherColourSelector(),
             const SizedBox(height: 24),
