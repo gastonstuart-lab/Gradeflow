@@ -1,7 +1,21 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/services/teacher_appearance_controller.dart';
+
+/// Tint for the approved Home background, keeping decorative effects readable.
+/// Cards, headers, controls and grading areas keep their own solid materials.
+/// Planner paints its backdrop directly; previously Home hid 78% of it.
+@visibleForTesting
+Color homeBackdropGradientTint(Color colour, {
+  required bool dark,
+  required bool ambient,
+}) {
+  if (!ambient) return colour;
+  // Retain a slight Home gradient without hiding the teacher's chosen effect.
+  return colour.withValues(alpha: dark ? 0.18 : 0.24);
+}
 
 /// Presentation extracted from the approved 72ad2d7 teaching desktop.
 /// Slots receive functional content; this widget owns no preview or saved state.
@@ -42,14 +56,13 @@ class TeacherHomePresentation extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           // The teacher's neon colour belongs exclusively to the backdrop.
-          // Preserve the approved gradient, with slight transparency only
-          // when an ambient background is intentionally selected.
+          // Keep the approved hue while making the actual interactive underlay
+          // visible on Home as it already is on Planner.
           colors: (dark
               ? const [Color(0xff07131f), Color(0xff0a1724), Color(0xff0c1d29)]
               : const [Color(0xffe5eff9), Color(0xfff6f9fc), Color(0xffeaf5f3)])
-              .map((colour) => ambient
-                  ? colour.withValues(alpha: .78)
-                  : colour)
+              .map((colour) => homeBackdropGradientTint(
+                    colour, dark: dark, ambient: ambient))
               .toList(),
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
