@@ -1,12 +1,12 @@
 # GradeFlow Home appearance modal hotfix — protected live release
 
-**Status: draft review; NOT deployed.** This release targets the existing Firebase Hosting project `gradeflow-20260113` only. It must never create a new project or touch teacher/student Firestore data.
+**Status: all exact-candidate tests passed; protected release review NOT YET deployed.** This release targets the existing Firebase Hosting project `gradeflow-20260113` only. It must never create a new project or touch teacher/student Firestore data.
 
 ## Why this release exists
 
 After [PR #165](https://github.com/gastonstuart-lab/Gradeflow/pull/165) was published live in [run #44249217959](https://github.com/gastonstuart-lab/Gradeflow/actions/runs/44249217959), the teacher confirmed an unresolved regression: clicking any appearance option on Home — specifically **Aurora** and **Soft dots** — unexpectedly navigates to Planner and leaves appearance unchanged. The account/settings menu is intentionally Home-only, so it cannot then be used on Planner.
 
-The review fix is [PR #168](https://github.com/gastonstuart-lab/Gradeflow/pull/168), approved only when all its exact-head tests are green. It replaces Flutter's anchored account pop-up with an isolated modal route that intercepts clicks and gestures before they reach Home navigation controls. No Home/Planner redesign. Existing settings/personalisation, signout, fullscreen and Teaching Studio functionality is preserved.
+The fully tested, integration-merged fix is [PR #168](https://github.com/gastonstuart-lab/Gradeflow/pull/168), approved only when all its exact-head tests are green. It replaces Flutter's anchored account pop-up with an isolated modal route that intercepts clicks and gestures before they reach Home navigation controls. No Home/Planner redesign. Existing settings/personalisation, signout, fullscreen and Teaching Studio functionality is preserved.
 
 ## Exact candidate
 
@@ -14,7 +14,7 @@ The review fix is [PR #168](https://github.com/gastonstuart-lab/Gradeflow/pull/1
 - Appearance test and native Flutter menu preview: [run #44254368446](https://github.com/gastonstuart-lab/Gradeflow/actions/runs/44254368446).
 - Integrated Flutter candidate and preserved Studio: [run #44254368499](https://github.com/gastonstuart-lab/Gradeflow/actions/runs/44254368499).
 - Full app, Gradebook data / Excel and complete package: [run #44254368445](https://github.com/gastonstuart-lab/Gradeflow/actions/runs/44254368445).
-- **Critical real authenticated browser acceptance**: [run #44254368535](https://github.com/gastonstuart-lab/Gradeflow/actions/runs/44254368535). It clicks Dark, Aurora, Soft dots, Minimal, Neon boxes and cyan in the real Home menu, asserts Home URL and selected state, then checks Planner and preference persistence. **Do not merge/release unless this succeeds.**
+- **Critical real authenticated browser acceptance**: [run #44254368535](https://github.com/gastonstuart-lab/Gradeflow/actions/runs/44254368535). It clicks Dark, Aurora, Soft dots, Minimal, Neon boxes and cyan in the real Home menu, asserts Home URL and selected state, then checks Planner and preference persistence. **PASSED** on exact source commit `29fc631f4e980195a4a2f8bbf2ee15920018b4c2`.
 - Complete candidate artifact: [native-gradebook-review-app, ID 14405192654](https://github.com/gastonstuart-lab/Gradeflow/actions/runs/44254368445/artifacts/14405192654), SHA-256 archive digest `ffeddb9629b558ff972896098d67383189ed0fb4e2389e9feb7173829afc35e0`; includes full per-file `review-manifest.json`, Flutter and unchanged Teaching Studio.
 - Artifact expiry and digest must be checked again immediately before deployment.
 
