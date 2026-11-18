@@ -10,6 +10,7 @@ import 'package:gradeflow/models/grade_item.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/gradebook_workspace.dart';
 import 'package:gradeflow/services/gradebook_export_projection.dart';
@@ -1110,6 +1111,9 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                 GradebookSaveState.historyIncomplete =>
                   'Score saved — history incomplete',
               };
+    final appearance = context.watch<TeacherAppearanceController?>();
+    final ambient = appearance != null && appearance.enabled &&
+        appearance.background != 'minimal' && appearance.intensity > 0;
     return Theme(
         data: theme,
         child: PopScope(
@@ -1128,13 +1132,18 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
             body: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: dark
+                  // The original Gradebook colours remain fixed; only
+                  // background pixels become slightly translucent to show
+                  // the selected ambient pattern underneath.
+                  colors: (dark
                       ? const [Color(0xff07131f), Color(0xff0c1d29)]
                       : const [
                           Color(0xffe5eff9),
                           Color(0xfff6f9fc),
                           Color(0xffeaf5f3),
-                        ],
+                        ]).map((c) => ambient
+                            ? c.withValues(alpha: 0.81)
+                            : c).toList(),
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -1280,6 +1289,9 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                           if (book.loaded)
                             Expanded(
                               child: Card(
+                                // Real student scores must never reveal the ambient effect.
+                                color: theme.colorScheme.surface,
+                                surfaceTintColor: Colors.transparent,
                                 margin: EdgeInsets.zero,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(24),

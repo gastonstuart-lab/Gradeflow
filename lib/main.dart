@@ -148,7 +148,8 @@ class _MyAppState extends State<MyApp> {
       child: Consumer<ThemeModeNotifier>(
         builder: (context, themeModeNotifier, _) {
           final authService = context.watch<AuthService>();
-
+          // Background personalisation must never recolour the app theme.
+          // Light/Dark/System is a separate explicit display preference.
           if (!_authInitScheduled &&
               !authService.isInitialized &&
               !authService.isLoading) {

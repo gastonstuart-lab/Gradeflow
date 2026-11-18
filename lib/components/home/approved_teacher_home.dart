@@ -10,6 +10,7 @@ import 'package:gradeflow/components/home/teacher_home_presentation.dart';
 import 'package:gradeflow/components/home/teacher_home_class_rail.dart';
 import 'package:gradeflow/components/home/home_planning_summary.dart';
 import 'package:gradeflow/components/home/gradeflow_weather_chip.dart';
+import 'package:gradeflow/widgets/teacher_account_menu.dart';
 
 /// Approved desktop presentation, supplied only with existing Home data/actions.
 class ApprovedTeacherHome extends StatelessWidget {
@@ -145,12 +146,9 @@ class ApprovedTeacherHome extends StatelessWidget {
             const GradeFlowWeatherChip(),
             const SizedBox(width: 8),
           ],
-          IconButton(
-              tooltip: 'Toggle theme',
-              onPressed: onToggleTheme,
-              icon: Icon(_dark(context)
-                  ? Icons.light_mode_rounded
-                  : Icons.dark_mode_rounded)),
+          // The small account menu owns appearance, display and sign out.
+          // Keep it in the approved header, alongside Weather and Clock.
+          const TeacherAccountMenu(),
           if (MediaQuery.sizeOf(context).width >= 600) ...[
             const SizedBox(width: 12),
             TeacherHomeClock(color: _text(context)),

@@ -21,6 +21,7 @@ import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
@@ -920,7 +921,13 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     // Keep class-linked items available in the filtered calendar as well.
     final calendarEntries = [..._reminders]
       ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
-    final today = PlannerDateMath.day(DateTime.now());
+    // Synthetic reviews have a fixed fictional calendar anchor. Using the
+    // wall clock makes this 2026 fixture fail once its dates become history.
+    // Live, authenticated Planner continues to use the real current date.
+    final today = PlannerDateMath.day(
+        widget.syntheticPreview != null
+            ? (widget.initialDate ?? DateTime.now())
+            : DateTime.now());
     final endOfComingUp = today.add(const Duration(days: 29));
     final comingUp = calendarEntries.where((reminder) =>
         (reminder.kind == 'school_event' || !reminder.done) &&
@@ -1164,11 +1171,17 @@ class _PlannerDashboardView extends StatelessWidget {
       reminders,
     ]);
 
+    final appearance = context.watch<TeacherAppearanceController?>();
+    final ambient = appearance != null && appearance.enabled &&
+        appearance.background != 'minimal' && appearance.intensity > 0;
     return Theme(
         data: Theme.of(context),
         child: Scaffold(
-          backgroundColor:
-              dark ? const Color(0xff07131f) : const Color(0xfff0f5fa),
+          // Keep all calendar/lesson cards untouched. Only the bare planner
+          // background reveals the teacher's ambient visual selection.
+          backgroundColor: ambient
+              ? Colors.transparent
+              : (dark ? const Color(0xff07131f) : const Color(0xfff0f5fa)),
           body: SafeArea(
               child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(24, 18, 24, 100),

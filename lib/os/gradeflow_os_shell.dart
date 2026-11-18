@@ -15,6 +15,8 @@ import 'package:gradeflow/os/os_launcher.dart';
 import 'package:gradeflow/os/os_notification_shade.dart';
 import 'package:gradeflow/os/os_assistant.dart';
 import 'package:gradeflow/os/os_idle_screen.dart';
+import 'package:gradeflow/widgets/teacher_appearance_overlay.dart';
+import 'package:gradeflow/widgets/teacher_account_menu.dart';
 
 class GradeFlowOSShell extends StatefulWidget {
   const GradeFlowOSShell({
@@ -33,6 +35,13 @@ class GradeFlowOSShell extends StatefulWidget {
 }
 
 class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
+  final ValueNotifier<Offset?> _ambientPointer = ValueNotifier<Offset?>(null);
+
+  @override
+  void dispose() {
+    _ambientPointer.dispose();
+    super.dispose();
+  }
   static const double _swipeCommitDistance = 78;
   static const double _swipeCommitVelocity = 640;
 
@@ -138,6 +147,29 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
         ? 0.0
         : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
 
+    // Keep the top-right account button in its own OS chrome strip.
+    // Without reserving this height it can cover Gradebook's Export Excel
+    // button (caught by authenticated emulator browser acceptance).
+    // Home already places the menu within its approved integrated header.
+    // Only legacy/detail surfaces (including Native Gradebook) need a new
+    // top strip: Home, approved Planner and Classroom retain their tested
+    // full-height geometry. Avoid narrowing the classroom drawing canvas.
+    // Gradebook, class lists, exam screens and class setup all have their
+    // own first-row actions. A floating avatar can overlap Export Excel or
+    // Add Student even while painting in a small top-right area.
+    // Reserve chrome space for those routes, not for the actual draggable
+    // classroom canvas (where changing height could disrupt the layout).
+    final currentPath = GoRouter.maybeOf(context)
+            ?.routeInformationProvider.value.uri.path ?? '';
+    final classroomCanvas = currentPath.endsWith('/classroom') ||
+        currentPath.endsWith('/seating');
+    final needsAccountBar = controller.activeSurface == OSSurface.other ||
+        (controller.activeSurface == OSSurface.classWorkspace &&
+            !classroomCanvas);
+    final accountBarReserve = !widget.teachMode && needsAccountBar
+        ? (isPhone ? 56.0 : 64.0)
+        : 0.0;
+
     final adjustedMQ = mq.copyWith(
       padding: mq.padding.copyWith(
         bottom: mq.padding.bottom,
@@ -150,7 +182,25 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
 
     final shellStack = Stack(
       children: [
+        // The painter is a background layer, painted BEFORE all routed UI.
+        // It cannot tint or cover grading cells, buttons, cards, text or menus.
         Positioned.fill(
+          child: TeacherAppearanceOverlay(
+            pointer: _ambientPointer,
+            teachMode: widget.teachMode,
+            attenuation: widget.teachMode
+                ? 0.18
+                : switch (controller.activeSurface) {
+                    OSSurface.home => 1.0,
+                    OSSurface.planner => 0.75,
+                    OSSurface.classWorkspace => 0.50,
+                    OSSurface.teach => 0.18,
+                    OSSurface.other => 0.60,
+                  },
+          ),
+        ),
+        Positioned.fill(
+          top: accountBarReserve,
           bottom: homeBehindFloatingDock ? 0 : dockReserve,
           child: Transform.translate(
             offset: Offset(_dragDx, 0),
@@ -167,6 +217,18 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             ),
           ),
         ),
+        // Home has a dedicated spot beside Weather in its approved header.
+        // Other pages reserve a slim top OS chrome strip so the menu never
+        // sits over Export Excel, Planner actions or classroom controls.
+        if (!widget.teachMode && controller.activeSurface != OSSurface.home)
+          Positioned(
+            top: mq.padding.top + 8,
+            right: isPhone ? 8 : 18,
+            child: const Material(
+              type: MaterialType.transparency,
+              child: TeacherAccountMenu(),
+            ),
+          ),
         if (!widget.teachMode)
           Positioned(
             left: 0,
@@ -309,7 +371,12 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
           ? OSColors.teachBg
           : OSColors.appBackground(Theme.of(context).brightness == Brightness.dark),
       child: Listener(
-      onPointerDown: (_) => controller.registerActivity(),
+      onPointerHover: (event) => _ambientPointer.value = event.localPosition,
+      onPointerMove: (event) => _ambientPointer.value = event.localPosition,
+      onPointerDown: (event) {
+        _ambientPointer.value = event.localPosition;
+        controller.registerActivity();
+      },
       child: swipeNavigationEnabled
           ? GestureDetector(
               behavior: HitTestBehavior.translucent,
