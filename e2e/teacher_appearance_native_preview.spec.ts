@@ -6,6 +6,14 @@ test('@appearance-native actual Flutter account menu is clickable at desktop and
   test.setTimeout(100_000);
   const externalCompleted: string[] = [];
   const academicBackendRequests: string[] = [];
+  const launchErrors: string[] = [];
+  page.on('console', message => {
+    if (message.type() === 'error') launchErrors.push('console: ' + message.text());
+  });
+  page.on('pageerror', error => launchErrors.push('pageerror: ' + error.message));
+  page.on('requestfailed', request =>
+    launchErrors.push('requestfailed: ' + request.url() + ' ' +
+      (request.failure()?.errorText ?? 'unknown')));
   page.on('request', request => {
     const host = new URL(request.url()).hostname;
     if (['firestore.googleapis.com', 'identitytoolkit.googleapis.com',
@@ -22,7 +30,17 @@ test('@appearance-native actual Flutter account menu is clickable at desktop and
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/os/home');
-  await page.waitForSelector('flt-semantics-host', { state: 'attached', timeout: 25_000 });
+  try {
+    await page.waitForSelector('flt-semantics-host',
+      { state: 'attached', timeout: 25_000 });
+  } catch (error) {
+    console.error('Native Flutter preview startup diagnostics:', launchErrors);
+    console.error('Page URL:', page.url());
+    console.error('Page title:', await page.title());
+    console.error('Body text:', (await page.locator('body').innerText()).slice(0, 1600));
+    await page.screenshot({ path: testInfo.outputPath('flutter-startup-failure.png') });
+    throw error;
+  }
   await expect(page.getByText('Good evening, Teacher.', { exact: true })).toBeVisible();
   // The HTML launch curtain can briefly fade after the semantics tree appears.
   await page.waitForTimeout(1800);
