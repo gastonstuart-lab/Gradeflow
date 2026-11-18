@@ -418,8 +418,21 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
+              key: const Key('teacher-appearance-done'),
               onPressed: _closeMenu,
-              child: const Text('Done'),
+              style: FilledButton.styleFrom(
+                // This is normal Material UI styling, independent of the
+                // teacher-selected background glow colour.
+                backgroundColor: palette.primary,
+                foregroundColor: palette.onPrimary,
+              ),
+              child: Text(
+                'Done',
+                style: TextStyle(
+                  color: palette.onPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ],
