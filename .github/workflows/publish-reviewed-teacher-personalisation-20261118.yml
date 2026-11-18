@@ -118,10 +118,18 @@ jobs:
             throw Error('Unexpected production Hosting config');
           }
           NODE
+      - name: Load pinned read-only Hosting byte verifier from last approved release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api 'repos/gastonstuart-lab/Gradeflow/contents/scripts/verify-hosting-release.sh?ref=503869467d40e30539224e53824b07d947a81554' \
+            -H 'Accept: application/vnd.github.raw+json' > verify-hosting-release.sh
+          bash -n verify-hosting-release.sh
       - name: Verify public LIVE site still matches last recorded production release
         run: |
           set -euo pipefail
-          bash scripts/verify-hosting-release.sh previous/build/web \
+          bash verify-hosting-release.sh previous/build/web \
             https://gradeflow-20260113.web.app baseline-$GITHUB_RUN_ID
           echo "Actual LIVE byte match: 17 November tested application source 3214031." >> "$GITHUB_STEP_SUMMARY"
           echo "New candidate: 4a87559c88b15ec403066fca8f9760822aa0b441; complete Flutter + Studio, not deployed." >> "$GITHUB_STEP_SUMMARY"
@@ -191,9 +199,17 @@ jobs:
           if (Object.keys(c).join(',') !== 'hosting' || c.hosting.public !== 'build/web' ||
               !c.hosting.rewrites?.some(r => r.source === '**' && r.destination === '/index.html')) process.exit(1);
           NODE
+      - name: Load pinned read-only Hosting byte verifier from last approved release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api 'repos/gastonstuart-lab/Gradeflow/contents/scripts/verify-hosting-release.sh?ref=503869467d40e30539224e53824b07d947a81554' \
+            -H 'Accept: application/vnd.github.raw+json' > verify-hosting-release.sh
+          bash -n verify-hosting-release.sh
       - name: Verify LIVE baseline again immediately before replacement
         run: |
-          bash scripts/verify-hosting-release.sh previous/build/web \
+          bash verify-hosting-release.sh previous/build/web \
             https://gradeflow-20260113.web.app predeploy-$GITHUB_RUN_ID
       - name: Check existing-project short-lived identity
         env:
@@ -226,7 +242,7 @@ jobs:
             --config firebase.live.json --non-interactive
       - name: Compare actual published app and Teaching Studio bytes
         run: |
-          bash scripts/verify-hosting-release.sh candidate/build/web \
+          bash verify-hosting-release.sh candidate/build/web \
             https://gradeflow-20260113.web.app personalisation-$GITHUB_RUN_ID
           echo "Published and byte-verified exact 4a87559c88b15ec403066fca8f9760822aa0b441 app + Studio." >> "$GITHUB_STEP_SUMMARY"
           echo "Human smoke test required: login, Home, Planner, Gradebook scoring/Excel, Classroom, Studio, settings and sign-out." >> "$GITHUB_STEP_SUMMARY"
