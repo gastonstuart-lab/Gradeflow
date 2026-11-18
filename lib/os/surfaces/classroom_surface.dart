@@ -414,7 +414,15 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   }
 
   /// The room template contains furniture, NOT the originating class's pupils.
+  bool _roomSaveInProgress = false;
+
   Future<void> _shareRoom() async {
+    if (_roomSaveInProgress) return;
+    _roomSaveInProgress = true;
+    try { await _runShareRoom(); } finally { _roomSaveInProgress = false; }
+  }
+
+  Future<void> _runShareRoom() async {
     if (GradeFlowExistingProjectPreview.enabled) {
       _roomMessage('This preview is read-only. Room changes are disabled.');
       return;
@@ -494,6 +502,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
       ),
     );
     if (chosen == null || chosen.isEmpty || !mounted) return;
+    var completed = 0;
     try {
       final saved = await seats.saveRoomSetupFromLayout(
         classId: widget.classId,
@@ -501,7 +510,6 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         roomSetupId: seats.assignedRoomSetupId(widget.classId),
       );
       if (saved == null) throw StateError('Could not save source room.');
-      var completed = 0;
       for (final targetClassId in chosen) {
         if (await seats.applyRoomSetupToClass(
           classId: targetClassId,
@@ -511,11 +519,17 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
       _roomMessage('Room shared with $completed of ${chosen.length} classes. '
           'Student assignments remain independent.');
     } catch (error) {
-      _roomMessage('Room sharing did not complete: $error');
+      _roomMessage('Room shared with $completed of ${chosen.length} classes. Sharing stopped: $error');
     }
   }
 
   Future<void> _chooseSharedRoom() async {
+    if (_roomSaveInProgress) return;
+    _roomSaveInProgress = true;
+    try { await _runChooseSharedRoom(); } finally { _roomSaveInProgress = false; }
+  }
+
+  Future<void> _runChooseSharedRoom() async {
     if (GradeFlowExistingProjectPreview.enabled) {
       _roomMessage('This preview is read-only. Room changes are disabled.');
       return;

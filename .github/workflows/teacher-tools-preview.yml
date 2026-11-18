@@ -1,0 +1,51 @@
+name: Teaching Studio standalone preview
+on:
+  push:
+    branches: [feature/surface-teacher-whiteboard-20261115]
+    paths: ['teacher-tools-preview/**', '.github/workflows/teacher-tools-preview.yml']
+permissions:
+  contents: read
+concurrency:
+  group: teacher-tools-standalone
+  cancel-in-progress: true
+jobs:
+  browser-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: teacher-tools-preview
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Resolve a lockfile only if this first checkpoint has none
+        run: |
+          if [ ! -f package-lock.json ]; then npm install --package-lock-only --ignore-scripts --no-audit --no-fund; fi
+          node -e "const fs=require('node:fs'),z=require('node:zlib');console.log('LOCK_GZIP:'+z.gzipSync(fs.readFileSync('package-lock.json')).toString('base64'))"
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build self-contained preview and check TypeScript
+        run: npm run build
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Verify teacher workflows in both themes and viewport sizes
+        run: npm test
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: success()
+        with:
+          name: gradeflow-teaching-studio-preview
+          path: teacher-tools-preview/dist/
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: teaching-studio-browser-evidence
+          path: |
+            teacher-tools-preview/test-results/
+            teacher-tools-preview/playwright-report/
+            teacher-tools-preview/package-lock.json
+          if-no-files-found: ignore
+          retention-days: 14

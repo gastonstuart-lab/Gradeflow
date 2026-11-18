@@ -94,7 +94,7 @@ class GradingCategoryService extends ChangeNotifier {
     }
   }
 
-  Future<void> seedDefaultCategories(String classId) async {
+  Future<void> seedDefaultCategories(String classId, {bool throwOnFailure = false}) async {
     try {
       final repo = RepositoryFactory.instance;
       final existing = await repo.loadCategories(classId);
@@ -148,6 +148,7 @@ class GradingCategoryService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Failed to seed default categories: $e');
+      if (throwOnFailure) rethrow;
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'timetable_reliability_test.dart' show timetableGrid;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -35,7 +36,8 @@ void main() {
     expect(find.text('TEACHER HOME'), findsOneWidget);
     expect(find.text('Where do you want to go?'), findsOneWidget);
     expect(find.text('Classroom'), findsOneWidget);
-    expect(find.text('Planner'), findsWidgets);
+    expect(find.text('Whiteboard & PDF'), findsOneWidget);
+    expect(find.text('Check Planner'), findsOneWidget);
     expect(find.text('Grades'), findsOneWidget);
     expect(find.text('Students'), findsOneWidget);
     expect(find.text('IED Studio'), findsOneWidget);
@@ -101,9 +103,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 120));
 
     expect(find.text('Calendar'), findsOneWidget);
-    expect(find.text('Weekly Timetable'), findsOneWidget);
-    expect(find.text('Import'), findsOneWidget);
-    expect(find.text('Upload'), findsOneWidget);
+    expect(find.text('Weekly timetable'), findsOneWidget);
+    expect(find.text('Import calendar'), findsOneWidget);
+    expect(find.text('Import timetable'), findsOneWidget);
     expect(find.text('Class schedules and assessments'), findsNothing);
     expect(find.text('Where do uploads go?'), findsNothing);
   });
@@ -119,7 +121,7 @@ void main() {
       createdAt: DateTime(2026, 5, 1),
       updatedAt: DateTime(2026, 5, 1),
     );
-    final auth = AuthService();
+    final auth = _RestoredTestAuth(user);
     SharedPreferences.setMockInitialValues({
       'current_user': jsonEncode(user.toJson()),
       'dashboard_reminders_v1:local': jsonEncode([
@@ -144,7 +146,7 @@ void main() {
           'name': 'Local-only timetable',
           'base64': '',
           'grid': [
-            ['Time', 'Monday'],
+            ['Time', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
             ['08:00', 'Local-only class block'],
           ],
           'uploadedAt': DateTime(2026, 5, 2).toIso8601String(),
@@ -156,8 +158,8 @@ void main() {
           'name': 'Restored timetable',
           'base64': '',
           'grid': [
-            ['Time', 'Monday'],
-            ['08:00', 'Restored timetable class block'],
+            ['Time', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+            ['08:00-08:50', 'Restored timetable class block', '', '', '', ''],
           ],
           'uploadedAt': DateTime(2026, 5, 3).toIso8601String(),
         }
@@ -365,6 +367,42 @@ void main() {
     expect(find.text('Selected: 2026-12-15'), findsOneWidget);
     expect(find.text('Dec 2026'), findsOneWidget);
   });
+  testWidgets('Today reuses selected-day tasks and school events', (tester) async {
+    final user = User(userId: 'planner-today', email: 'synthetic@example.invalid',
+      fullName: 'Synthetic teacher', createdAt: DateTime(2026), updatedAt: DateTime(2026));
+    SharedPreferences.setMockInitialValues({
+      'current_user': jsonEncode(user.toJson()),
+      'dashboard_timetables_v1:planner-today': jsonEncode([{
+        'id': 'weekly', 'name': 'Synthetic weekly timetable', 'selected': true,
+        'base64': '', 'uploadedAt': '2026-11-13T00:00:00', 'grid': timetableGrid(),
+      }]),
+      'dashboard_reminders_v1:planner-today': jsonEncode([
+        {'text': 'Prepare synthetic lesson', 'timestamp': '2026-12-15T09:00:00', 'kind': 'task', 'done': false},
+        {'text': 'Synthetic school event', 'timestamp': '2026-12-15T10:00:00', 'kind': 'school_event', 'done': false},
+        {'text': 'Other day event', 'timestamp': '2026-12-16T10:00:00', 'kind': 'school_event', 'done': false},
+      ]),
+    });
+    final auth = _RestoredTestAuth(user);
+    addTearDown(auth.dispose);
+    await auth.initialize();
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_harness(PlannerSurface(initialDate: DateTime(2026, 12, 15)), auth: auth));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(find.textContaining('Lunch'), findsNWidgets(5));
+    expect(find.text('15:45'), findsWidgets);
+    await tester.tap(find.byKey(const ValueKey('planner-view-today')));
+    await tester.pump();
+    expect(find.text('Teaching today'), findsOneWidget);
+    expect(find.text('Prepare synthetic lesson'), findsWidgets);
+    expect(find.text('Synthetic school event'), findsWidgets);
+    expect(find.text('Other day event'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
 }
 
 Widget _harness(
@@ -395,4 +433,27 @@ Widget _harness(
       home: child,
     ),
   );
+}
+
+// Scoped Planner tests model an already verified identity explicitly. A cached
+// current_user profile is data, never proof of Firebase authentication (#128).
+class _RestoredTestAuth extends AuthService {
+  _RestoredTestAuth(this.user);
+  final User user;
+  bool _restored = false;
+
+  @override
+  bool get isInitialized => _restored;
+  @override
+  bool get isLoading => !_restored;
+  @override
+  bool get isAuthenticated => _restored;
+  @override
+  User? get currentUser => _restored ? user : null;
+
+  @override
+  Future<void> initialize() async {
+    _restored = true;
+    notifyListeners();
+  }
 }

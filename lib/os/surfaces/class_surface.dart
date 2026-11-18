@@ -14,6 +14,7 @@ import 'package:gradeflow/config/instructos_design.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/student_service.dart';
 
@@ -187,8 +188,11 @@ class _ClassSurfaceState extends State<ClassSurface> {
         route: AppRoutes.osClassCategories(widget.classId)
       ),
     ];
+    final appearance = context.watch<TeacherAppearanceController?>();
+    final ambient = appearance != null && appearance.enabled &&
+        appearance.background != 'minimal' && appearance.intensity > 0;
     return Scaffold(
-        backgroundColor: InstructOSDesign.background(context),
+        backgroundColor: ambient ? Colors.transparent : InstructOSDesign.background(context),
         body: SafeArea(
             child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),

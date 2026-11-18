@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
+import 'package:gradeflow/models/class.dart' as school;
+import 'package:gradeflow/services/timetable_import_plan.dart';
 import 'dart:typed_data';
 
 import 'package:csv/csv.dart';
@@ -45,7 +48,8 @@ class HomeTeachingSequence {
     final monday = today.subtract(Duration(days: now.weekday - 1));
     final moments = <HomeTeachingMoment>[];
     for (final entry in classes) {
-      if (entry.dayOfWeek < 0 || entry.dayOfWeek > 6 ||
+      if (entry.dayOfWeek < 0 ||
+          entry.dayOfWeek > 6 ||
           entry.endMinutes <= entry.startMinutes) {
         continue;
       }
@@ -73,11 +77,12 @@ class HomeTeachingSequence {
         final sameDay = previous.startAt.year == moment.startAt.year &&
             previous.startAt.month == moment.startAt.month &&
             previous.startAt.day == moment.startAt.day;
-        final sameClass =
-            previous.title.trim().toLowerCase() ==
+        final sameClass = previous.title.trim().toLowerCase() ==
             moment.title.trim().toLowerCase();
-        if (sameDay && sameClass &&
-            !gap.isNegative && gap <= const Duration(minutes: 15)) {
+        if (sameDay &&
+            sameClass &&
+            !gap.isNegative &&
+            gap <= const Duration(minutes: 15)) {
           sessions[sessions.length - 1] = HomeTeachingMoment(
             title: previous.title,
             startAt: previous.startAt,
@@ -109,10 +114,30 @@ class HomeTeachingSequence {
 
 class HomeWeeklyTimetableService {
   static const _timetablesKey = 'dashboard_timetables_v1';
-  static const _selectedKey = 'dashboard_selected_timetable_v1';
-  const HomeWeeklyTimetableService();
+  static Future<void> _writeTail = Future<void>.value();
+  static int _outstandingWrites = 0;
 
-  DashboardPreferencesService get _prefs => const DashboardPreferencesService();
+  // Follow LocalRepository's queue contract, including immediate idle starts.
+  static Future<T> _queue<T>(Future<T> Function() operation) {
+    final wasIdle = _outstandingWrites == 0;
+    _outstandingWrites++;
+    final result = wasIdle
+        ? Future<T>.sync(operation)
+        : _writeTail.then((_) => operation());
+    _writeTail =
+        result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result.whenComplete(() {
+      _outstandingWrites--;
+    });
+  }
+
+  static const _selectedKey = 'dashboard_selected_timetable_v1';
+  const HomeWeeklyTimetableService({DashboardPreferencesService? preferences})
+      : _preferences = preferences;
+  final DashboardPreferencesService? _preferences;
+
+  DashboardPreferencesService get _prefs =>
+      _preferences ?? const DashboardPreferencesService();
 
   Future<HomeWeeklyTimetable?> loadSelected(String userId) async {
     final items = await _prefs.readScopedJsonList(
@@ -126,15 +151,21 @@ class HomeWeeklyTimetableService {
       if (item is Map) valid.add(Map<String, dynamic>.from(item));
     }
     if (valid.isEmpty) return null;
-    final chosen = valid.where((item) => item['id'] == selected).firstOrNull ??
-        valid.last;
+    final chosen =
+        valid.where((item) => item['selected'] == true).firstOrNull ??
+            valid.where((item) => item['id'] == selected).firstOrNull ??
+            valid.last;
     final rawGrid = chosen['grid'];
     if (rawGrid is! List) return null;
     final grid = rawGrid.map((r) {
       if (r is! List) return <String>[];
       return r.map((value) => value?.toString() ?? '').toList();
     }).toList();
-    final classes = parseGridToTimeSlots(grid);
+    final classes = chosen['lessons'] is List
+        ? (chosen['lessons'] as List)
+            .map((v) => lessonFromJson(Map<String, dynamic>.from(v as Map)))
+            .toList()
+        : parseGridToTimeSlots(grid);
     if (classes.isEmpty) return null;
     return HomeWeeklyTimetable(
       name: chosen['name']?.toString() ?? 'Timetable',
@@ -149,7 +180,8 @@ class HomeWeeklyTimetableService {
     required Uint8List bytes,
   }) {
     if (bytes.isEmpty || bytes.lengthInBytes > 2 * 1024 * 1024) {
-      throw const FormatException('Choose a non-empty timetable smaller than 2 MB.');
+      throw const FormatException(
+          'Choose a non-empty timetable smaller than 2 MB.');
     }
     final extension = filename.split('.').last.toLowerCase();
     final fileService = FileImportService();
@@ -161,7 +193,9 @@ class HomeWeeklyTimetableService {
     } else if (extension == 'csv') {
       // The legacy generic CSV decoder can keep LF-only files in one row.
       // Parse CSV here with explicit LF boundaries (including CRLF exports).
-      final text = utf8.decode(bytes, allowMalformed: true)
+      final text = utf8
+          .decode(bytes)
+          .replaceAll('\uFEFF', '')
           .replaceAll('\r\n', '\n')
           .replaceAll('\r', '\n');
       final rows = const CsvToListConverter(
@@ -169,11 +203,13 @@ class HomeWeeklyTimetableService {
         shouldParseNumbers: false,
       ).convert(text);
       grid = fileService.cleanTimetableGrid(
-        rows.map((row) => row.map((c) => c?.toString().trim() ?? '').toList())
+        rows
+            .map((row) => row.map((c) => c?.toString().trim() ?? '').toList())
             .toList(),
       );
     } else if (extension == 'xlsx') {
-      grid = fileService.cleanTimetableGrid(fileService.rowsFromAnyBytes(bytes));
+      grid =
+          fileService.cleanTimetableGrid(fileService.rowsFromAnyBytes(bytes));
     } else {
       throw const FormatException('Use an Excel, CSV or Word timetable.');
     }
@@ -188,194 +224,110 @@ class HomeWeeklyTimetableService {
     return (grid: grid, classes: classes);
   }
 
+  static TimeSlotClass lessonFromJson(Map<String, dynamic> item) =>
+      TimeSlotClass(
+          title: item['title'] as String,
+          dayOfWeek: item['day'] as int,
+          startMinutes: item['start'] as int,
+          endMinutes: item['end'] as int,
+          classId: item['classId'] as String?,
+          room: item['room'] as String?);
+
+  static Map<String, dynamic> lessonToJson(TimeSlotClass lesson) => {
+        'title': lesson.title,
+        'day': lesson.dayOfWeek,
+        'start': lesson.startMinutes,
+        'end': lesson.endMinutes,
+        'classId': lesson.classId,
+        'room': lesson.room,
+      };
+
   Future<HomeWeeklyTimetable> importForTeacher({
     required String userId,
     required String filename,
     required Uint8List bytes,
-  }) async {
-    final parsed = inspectBytes(filename: filename, bytes: bytes);
-    final grid = parsed.grid;
-    final classes = parsed.classes;
-    final extension = filename.split('.').last.toLowerCase();
-    final previous = await _prefs.readScopedJsonList(
-      scopedKey: _prefs.scopedKey(baseKey: _timetablesKey, userId: userId),
-    );
-    final id = DateTime.now().microsecondsSinceEpoch.toString();
-    final item = <String, dynamic>{
-      'id': id,
-      'name': filename,
-      'base64': base64Encode(bytes),
-      'mimeType': extension,
-      'uploadedAt': DateTime.now().toIso8601String(),
-      'grid': grid,
-    };
-    await _prefs.writeString(
+    Map<String, String> classMatches = const {},
+    List<school.Class> availableClasses = const [],
+  }) =>
+      _queue(() async {
+        if (userId.trim().isEmpty || userId == 'local')
+          throw StateError('Sign in before saving a timetable.');
+        final parsed = inspectBytes(filename: filename, bytes: bytes);
+        final lessons = TimetableImportPlan(parsed.classes)
+            .confirmMatches(classMatches, availableClasses, userId);
+        final previous = await loadVersions(userId);
+        final id = const Uuid().v4();
+        final item = <String, dynamic>{
+          'id': id,
+          'name': filename,
+          'base64': base64Encode(bytes),
+          'mimeType': filename.split('.').last.toLowerCase(),
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'grid': parsed.grid,
+          'lessons': lessons.map(lessonToJson).toList(),
+        };
+        await saveVersions(userId, [...previous, item], id);
+        return HomeWeeklyTimetable(name: filename, classes: lessons);
+      });
+
+  Future<void> changeVersion(String userId,
+          {required String versionId, bool delete = false}) =>
+      _queue(() async {
+        final versions = await loadVersions(userId);
+        if (!versions.any((v) => v['id'] == versionId))
+          throw const FormatException(
+              'Version no longer exists. Reload Planner.');
+        final selected =
+            versions.where((v) => v['selected'] == true).firstOrNull;
+        final previousId = selected?['id'] as String? ??
+            await _prefs.readScopedString(
+                scopedKey:
+                    _prefs.scopedKey(baseKey: _selectedKey, userId: userId));
+        final remaining =
+            versions.where((v) => !delete || v['id'] != versionId).toList();
+        final nextId = !delete
+            ? versionId
+            : previousId == versionId
+                ? (remaining.isEmpty ? null : remaining.last['id'] as String)
+                : previousId;
+        await saveVersions(userId, remaining, nextId);
+      });
+
+  Future<List<Map<String, dynamic>>> loadVersions(String userId) async {
+    if (userId.trim().isEmpty || userId == 'local')
+      throw StateError('Sign in to manage timetables.');
+    final items = await _prefs.readScopedJsonList(
+        scopedKey: _prefs.scopedKey(baseKey: _timetablesKey, userId: userId));
+    return items.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  /// Versions and selection share one checked write. A failed write leaves the
+  /// previous selection and all its versions intact. Legacy keys remain readable.
+  Future<void> saveVersions(String userId, List<Map<String, dynamic>> versions,
+      String? selectedId) async {
+    if (userId.trim().isEmpty || userId == 'local')
+      throw StateError('Sign in to manage timetables.');
+    if (selectedId != null && !versions.any((v) => v['id'] == selectedId)) {
+      throw const FormatException(
+          'That timetable version is no longer available.');
+    }
+    final selected = versions.where((v) => v['id'] == selectedId).firstOrNull;
+    if (selected != null) {
+      final grid = (selected['grid'] as List)
+          .map((r) => (r as List).map((c) => c.toString()).toList())
+          .toList();
+      TimetableImportPlan.fromGrid(grid);
+    }
+    await _prefs.writeJsonList(
       key: _prefs.scopedKey(baseKey: _timetablesKey, userId: userId),
-      value: jsonEncode([...previous, item]),
+      items: [
+        for (final item in versions)
+          {...item, 'selected': item['id'] == selectedId}
+      ],
     );
-    await _prefs.writeString(
-      key: _prefs.scopedKey(baseKey: _selectedKey, userId: userId),
-      value: id,
-    );
-    return HomeWeeklyTimetable(name: filename, classes: classes);
   }
 
-  /// Parses the same weekly grid as the original timetable viewer.
-  static List<TimeSlotClass> parseGridToTimeSlots(List<List<String>> grid) {
-    final slots = <TimeSlotClass>[];
-    if (grid.isEmpty) return slots;
-
-    final dayMap = {
-      'mon': 0,
-      'monday': 0,
-      'm': 0,
-      'tue': 1,
-      'tuesday': 1,
-      'tu': 1,
-      'wed': 2,
-      'wednesday': 2,
-      'w': 2,
-      'thu': 3,
-      'thursday': 3,
-      'th': 3,
-      'fri': 4,
-      'friday': 4,
-      'f': 4,
-      '\u4e00': 0,
-      '\u661f\u671f\u4e00': 0,
-      '\u9031\u4e00': 0,
-      '\u4e8c': 1,
-      '\u661f\u671f\u4e8c': 1,
-      '\u9031\u4e8c': 1,
-      '\u4e09': 2,
-      '\u661f\u671f\u4e09': 2,
-      '\u9031\u4e09': 2,
-      '\u56db': 3,
-      '\u661f\u671f\u56db': 3,
-      '\u9031\u56db': 3,
-      '\u4e94': 4,
-      '\u661f\u671f\u4e94': 4,
-      '\u9031\u4e94': 4,
-    };
-
-    String normalizeCell(String value) =>
-        value.toLowerCase().replaceAll('\u00a0', ' ').trim();
-
-    ({int? start, int? end}) parseTimeRange(String value) {
-      final match = RegExp(
-        r'(\d{1,2})\s*:\s*(\d{2})(?:\s*(?:-|~)\s*(\d{1,2})\s*:\s*(\d{2}))?',
-      ).firstMatch(value.replaceAll('\u00a0', ' ').trim());
-      if (match == null) {
-        return (start: null, end: null);
-      }
-
-      final startH = int.tryParse(match.group(1) ?? '');
-      final startM = int.tryParse(match.group(2) ?? '');
-      if (startH == null || startM == null) {
-        return (start: null, end: null);
-      }
-
-      final start = startH * 60 + startM;
-      final endH = int.tryParse(match.group(3) ?? '');
-      final endM = int.tryParse(match.group(4) ?? '');
-      final end = endH != null && endM != null ? (endH * 60 + endM) : null;
-      return (start: start, end: end);
-    }
-
-    Map<int, int> headerDays = {};
-    int headerRowIndex = -1;
-    final headerScanLimit = grid.length < 4 ? grid.length : 4;
-    for (int r = 0; r < headerScanLimit; r++) {
-      final row = grid[r];
-      final rowDays = <int, int>{};
-      for (int c = 0; c < row.length; c++) {
-        final norm = normalizeCell(row[c]);
-        final day = dayMap[norm];
-        if (day != null) {
-          rowDays[c] = day;
-        }
-      }
-      if (rowDays.length >= 3) {
-        headerDays = rowDays;
-        headerRowIndex = r;
-        break;
-      }
-    }
-
-    if (headerDays.isEmpty || headerRowIndex == -1) return slots;
-
-    bool rowHasClassData(List<String> row) {
-      for (final col in headerDays.keys) {
-        if (col < row.length && row[col].trim().isNotEmpty) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    final maxCols = grid.fold<int>(
-      0,
-      (max, row) => row.length > max ? row.length : max,
-    );
-    int timeColumn = 0;
-    int timeMatchCount = -1;
-    for (int c = 0; c < maxCols; c++) {
-      if (headerDays.containsKey(c)) continue;
-      int matches = 0;
-      for (int r = headerRowIndex + 1; r < grid.length; r++) {
-        if (c >= grid[r].length) continue;
-        if (parseTimeRange(grid[r][c]).start != null) {
-          matches++;
-        }
-      }
-      if (matches > timeMatchCount) {
-        timeMatchCount = matches;
-        timeColumn = c;
-      }
-    }
-
-    int inferEndMinutes(int rowIndex, int startMinutes) {
-      for (int r = rowIndex + 1; r < grid.length; r++) {
-        final row = grid[r];
-        if (timeColumn >= row.length) {
-          if (rowHasClassData(row)) break;
-          continue;
-        }
-
-        final candidate = parseTimeRange(row[timeColumn]).start;
-        if (candidate != null && candidate > startMinutes) {
-          return candidate;
-        }
-      }
-      return startMinutes + 50;
-    }
-
-    for (int r = headerRowIndex + 1; r < grid.length; r++) {
-      final row = grid[r];
-      if (row.isEmpty || !rowHasClassData(row)) continue;
-      if (timeColumn >= row.length) continue;
-
-      final timeRange = parseTimeRange(row[timeColumn]);
-      final startMin = timeRange.start;
-      if (startMin == null) continue;
-      final inferredEnd = timeRange.end ?? inferEndMinutes(r, startMin);
-      final endMin = inferredEnd > startMin ? inferredEnd : startMin + 50;
-
-      for (final entry in headerDays.entries) {
-        final c = entry.key;
-        if (c >= row.length) continue;
-        final className = row[c].trim();
-        if (className.isEmpty) continue;
-        slots.add(TimeSlotClass(
-          title: className,
-          dayOfWeek: entry.value,
-          startMinutes: startMin,
-          endMinutes: endMin,
-        ));
-      }
-    }
-
-    return slots;
-  }
-
+  /// Strict parsing never invents an end time or combines timed periods.
+  static List<TimeSlotClass> parseGridToTimeSlots(List<List<String>> grid) =>
+      TimetableImportPlan.fromGrid(grid).lessons;
 }

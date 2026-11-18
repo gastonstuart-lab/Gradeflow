@@ -1,0 +1,171 @@
+name: Teacher appearance PR checks
+
+on:
+  # Branch-only review run keeps the exact candidate testable even if the
+  # PR path-filtered workflow does not reschedule a subsequent synchronize.
+  push:
+    branches:
+      - feature/teacher-personalisation-v2-20261117
+  pull_request:
+    paths:
+      - 'lib/services/teacher_appearance_controller.dart'
+      - 'lib/widgets/teacher_appearance_*.dart'
+      - 'lib/widgets/teacher_colour_selector.dart'
+      - 'lib/widgets/teacher_quick_settings.dart'
+      - 'lib/widgets/teacher_account_menu.dart'
+      - 'lib/components/home/approved_teacher_home.dart'
+      - 'lib/services/browser_fullscreen_*.dart'
+      - 'lib/providers/app_providers.dart'
+      - 'lib/main.dart'
+      - 'lib/teacher_appearance_review_main.dart'
+      - 'e2e/teacher_appearance_native_preview.spec.ts'
+      - 'web/teacher_appearance_review_index.html'
+      - 'lib/os/gradeflow_os_shell.dart'
+      - 'lib/os/os_dock.dart'
+      - 'lib/os/surfaces/home_surface.dart'
+      - 'lib/os/surfaces/planner_surface.dart'
+      - 'lib/os/surfaces/class_surface.dart'
+      - 'lib/os/surfaces/class_directory_surface.dart'
+      - 'lib/screens/native_gradebook_screen.dart'
+      - 'lib/components/home/teacher_home_presentation.dart'
+      - 'test/teacher_appearance_*.dart'
+      - 'test/teacher_quick_settings_test.dart'
+      - 'test/teacher_account_menu_test.dart'
+      - 'test/teacher_personalisation_scoping_test.dart'
+      - '.github/workflows/appearance-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-appearance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Pull request default is a synthetic merge ref, not the feature SHA.
+          # A release-review artifact must be built from one concrete commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Assert exact reviewed source SHA
+        shell: bash
+        env:
+          EXPECTED_REVIEW_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_REVIEW_SHA"
+          echo "Exact review source SHA: $actual" >> "$GITHUB_STEP_SUMMARY"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - name: Install locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze application
+        run: flutter analyze
+      - name: Verify appearance, account menu, scoping and gestures
+        run: |
+          flutter test \
+            test/teacher_appearance_controller_test.dart \
+            test/teacher_appearance_interaction_test.dart \
+            test/teacher_personalisation_scoping_test.dart \
+            test/teacher_quick_settings_test.dart \
+            test/teacher_account_menu_test.dart
+      - name: Enforce background-only custom colour boundary
+        run: |
+          ! grep -Eq 'themeAccent\(|backgroundGlowColor|appearance\.accentColor' lib/main.dart
+          ! grep -Eq 'themeAccent\(|backgroundGlowColor|appearance\.accentColor' lib/teacher_appearance_review_main.dart
+          grep -q 'theme: lightTheme,' lib/main.dart
+          grep -q 'darkTheme: darkTheme,' lib/main.dart
+          grep -q 'theme: lightTheme,' lib/teacher_appearance_review_main.dart
+          grep -q 'darkTheme: darkTheme,' lib/teacher_appearance_review_main.dart
+      - name: Build web application without deployment
+        run: flutter build web --release --no-wasm-dry-run
+      - name: Verify reviewed LIVE-mode build and Hosting-only configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const data = JSON.parse(fs.readFileSync('firebase.live.json', 'utf8'));
+          if (Object.keys(data).sort().join(',') !== 'hosting') {
+            throw new Error('firebase.live.json must contain Hosting only');
+          }
+          if (data.hosting.public !== 'build/web' ||
+              !data.hosting.rewrites?.some(r => r.source === '**' &&
+                  r.destination === '/index.html')) {
+            throw new Error('Unexpected hosting public directory or routing');
+          }
+          NODE
+          grep -q 'GRADEFLOW_LIVE_CLASSROOM_V2' lib/config/gradeflow_live_v2_release.dart
+          grep -q "gradeflow-20260113" lib/config/gradeflow_live_v2_release.dart
+          flutter build web --release --no-wasm-dry-run \
+            --target lib/main.dart --base-href / \
+            --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+          test -s build/web/index.html
+          test -s build/web/main.dart.js
+          test -s build/web/flutter_bootstrap.js
+          {
+            echo "## Review-only Hosting candidate (NOT DEPLOYED)"
+            echo "Commit: \`$(git rev-parse HEAD)\`"
+            echo "Built with GRADEFLOW_LIVE_CLASSROOM_V2=true"
+            echo "Hosting configuration checked for Hosting-only scope."
+            echo "main.dart.js SHA256: \`$(sha256sum build/web/main.dart.js | cut -d' ' -f1)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain exact live-mode website bundle for human review only
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-v2-live-mode-review-not-deployed
+          path: build/web/
+          retention-days: 5
+          if-no-files-found: error
+      - name: Assert native preview cannot access Firebase or academic records
+        run: |
+          ! grep -Eq 'Firebase.initializeApp|RepositoryFactory.instance|FirebaseAuth.instance' lib/teacher_appearance_review_main.dart
+          grep -q 'fictional' lib/teacher_appearance_review_main.dart
+      - name: Build isolated real Flutter menu demo (no Firebase)
+        run: |
+          flutter build web --release --no-wasm-dry-run --no-web-resources-cdn \
+            --target lib/teacher_appearance_review_main.dart
+          test -s build/web/main.dart.js
+          find build/web/canvaskit -name 'canvaskit.wasm' -print -quit | grep -q .
+      - name: "Seal native demo: local assets only, no third-party auth or academic services"
+        run: |
+          cp web/teacher_appearance_review_index.html build/web/index.html
+          ! grep -q 'google-signin-client_id' build/web/index.html
+          grep -q 'Content-Security-Policy' build/web/index.html
+          grep -q "connect-src 'self' data: blob:" build/web/index.html
+          test -s build/web/flutter_bootstrap.js
+      - name: Retain native Flutter appearance demo for public visual preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-real-flutter-menu-demo
+          path: build/web/
+          retention-days: 5
+          if-no-files-found: error
+      - name: Install browser review dependencies
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked Playwright packages
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install Chromium for native Flutter browser inspection
+        run: npx playwright install --with-deps chromium
+      - name: Native Flutter menu acceptance and desktop/mobile screenshot evidence
+        env:
+          E2E_WEB_SERVER_COMMAND: 'npx serve build/web -s -l 7357'
+          PLAYWRIGHT_DISABLE_FORCED_CHROMIUM_PROXIED_LOOPBACK: '1'
+        run: npx playwright test e2e/teacher_appearance_native_preview.spec.ts --workers=1 --retries=0
+      - name: Retain real browser screenshots, trace and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-native-menu-browser-evidence
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 5
+          if-no-files-found: ignore

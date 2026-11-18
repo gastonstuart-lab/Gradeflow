@@ -1,3 +1,4 @@
+import 'package:gradeflow/components/timetable_import_dialog.dart';
 // GradeFlow OS — Home Surface
 //
 // The teacher's primary landing surface should read like an actual OS home:
@@ -14,6 +15,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
+import 'package:gradeflow/widgets/teacher_appearance_studio.dart';
+import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/components/home/teacher_home_integration_panel.dart';
 import 'package:gradeflow/components/home/home_teaching_class_context.dart';
 import 'package:gradeflow/models/class.dart';
@@ -176,8 +179,9 @@ class _HomeSurfaceState extends State<HomeSurface> {
       if (bytes == null) {
         throw const FormatException('Could not read the selected file.');
       }
-      final timetable = await const HomeWeeklyTimetableService()
-          .importForTeacher(userId: userId, filename: picked.name, bytes: bytes);
+      if (!mounted || _homeStorageUserId(context.read<AuthService>()) != userId) return;
+      final timetable = await confirmTimetableImport(context, filename: picked.name, bytes: bytes);
+      if (timetable == null) return;
       if (!mounted || _loadedUserId != userId) return;
       setState(() {
         _homeTimetable = timetable;
@@ -364,6 +368,15 @@ class _HomeSurfaceState extends State<HomeSurface> {
                         ],
                       ],
                     ),
+                    const SizedBox(height: 14),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        showTeacherAppearanceStudio(this.context);
+                      },
+                      icon: const Icon(Icons.palette_outlined),
+                      label: const Text('Personalisation Studio — all pages'),
+                    ),
                     const SizedBox(height: 22),
                     Text(
                       'Readability',
@@ -465,7 +478,12 @@ class _HomeSurfaceState extends State<HomeSurface> {
         _resolvedTotalStudents(classes: classes, fallback: totalStudents);
 
     if (!_showExistingHomeTools) {
+      final ambient = context.watch<TeacherAppearanceController?>();
+      final hasAmbient = ambient != null && ambient.enabled &&
+          ambient.background != 'minimal' && ambient.intensity > 0;
       return Scaffold(
+        // Only the decorative backdrop becomes translucent, never Home cards.
+        backgroundColor: hasAmbient ? Colors.transparent : null,
         body: SafeArea(
           child: TeacherHomeIntegrationPanel(
             approvedAppearance: true,
@@ -6075,6 +6093,10 @@ class _HomeShortcutShelf extends StatelessWidget {
   Widget build(BuildContext context) {
     final showLauncher = MediaQuery.sizeOf(context).width < 560;
     final shortcuts = <_HomeShortcutData>[
+      _shortcutFromApp(
+        OSAppId.whiteboard,
+        onTap: () => context.push(AppRoutes.whiteboard),
+      ),
       _shortcutFromApp(OSAppId.teach,
           onTap: () => context.go(AppRoutes.osTeach)),
       _shortcutFromApp(
@@ -6094,10 +6116,7 @@ class _HomeShortcutShelf extends StatelessWidget {
         onTap: onMessagesTap,
         badge: unread > 0 ? '$unread' : null,
       ),
-      _shortcutFromApp(
-        OSAppId.whiteboard,
-        onTap: () => context.push(AppRoutes.whiteboard),
-      ),
+
       if (showLauncher)
         _HomeShortcutData(
           label: 'Launcher',

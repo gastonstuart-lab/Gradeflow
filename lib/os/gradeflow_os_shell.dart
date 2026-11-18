@@ -15,6 +15,7 @@ import 'package:gradeflow/os/os_launcher.dart';
 import 'package:gradeflow/os/os_notification_shade.dart';
 import 'package:gradeflow/os/os_assistant.dart';
 import 'package:gradeflow/os/os_idle_screen.dart';
+import 'package:gradeflow/widgets/teacher_appearance_overlay.dart';
 
 class GradeFlowOSShell extends StatefulWidget {
   const GradeFlowOSShell({
@@ -33,6 +34,13 @@ class GradeFlowOSShell extends StatefulWidget {
 }
 
 class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
+  final ValueNotifier<Offset?> _ambientPointer = ValueNotifier<Offset?>(null);
+
+  @override
+  void dispose() {
+    _ambientPointer.dispose();
+    super.dispose();
+  }
   static const double _swipeCommitDistance = 78;
   static const double _swipeCommitVelocity = 640;
 
@@ -138,6 +146,10 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
         ? 0.0
         : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
 
+    // The account/settings menu lives only in the approved Home header.
+    // Other screens preserve their own controls and full working area; users
+    // return Home via the dock to change personalisation or sign out.
+
     final adjustedMQ = mq.copyWith(
       padding: mq.padding.copyWith(
         bottom: mq.padding.bottom,
@@ -150,7 +162,25 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
 
     final shellStack = Stack(
       children: [
+        // The painter is a background layer, painted BEFORE all routed UI.
+        // It cannot tint or cover grading cells, buttons, cards, text or menus.
         Positioned.fill(
+          child: TeacherAppearanceOverlay(
+            pointer: _ambientPointer,
+            teachMode: widget.teachMode,
+            attenuation: widget.teachMode
+                ? 0.18
+                : switch (controller.activeSurface) {
+                    OSSurface.home => 1.0,
+                    OSSurface.planner => 0.75,
+                    OSSurface.classWorkspace => 0.50,
+                    OSSurface.teach => 0.18,
+                    OSSurface.other => 0.60,
+                  },
+          ),
+        ),
+        Positioned.fill(
+          top: 0,
           bottom: homeBehindFloatingDock ? 0 : dockReserve,
           child: Transform.translate(
             offset: Offset(_dragDx, 0),
@@ -309,7 +339,12 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
           ? OSColors.teachBg
           : OSColors.appBackground(Theme.of(context).brightness == Brightness.dark),
       child: Listener(
-      onPointerDown: (_) => controller.registerActivity(),
+      onPointerHover: (event) => _ambientPointer.value = event.localPosition,
+      onPointerMove: (event) => _ambientPointer.value = event.localPosition,
+      onPointerDown: (event) {
+        _ambientPointer.value = event.localPosition;
+        controller.registerActivity();
+      },
       child: swipeNavigationEnabled
           ? GestureDetector(
               behavior: HitTestBehavior.translucent,

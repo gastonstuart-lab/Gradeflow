@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gradeflow/os/os_palette.dart';
+import 'package:provider/provider.dart';
+import 'package:gradeflow/services/teacher_appearance_controller.dart';
 
 /// Presentation extracted from the approved 72ad2d7 teaching desktop.
 /// Slots receive functional content; this widget owns no preview or saved state.
@@ -33,12 +35,22 @@ class TeacherHomePresentation extends StatelessWidget {
     final text = dark ? const Color(0xffeef6ff) : const Color(0xff133c67);
     final subtle = dark ? const Color(0xff9fb4c7) : const Color(0xff60758c);
     final line = dark ? const Color(0xff29445e) : const Color(0xffdce8f3);
+    final appearance = context.watch<TeacherAppearanceController?>();
+    final ambient = appearance != null && appearance.enabled &&
+        appearance.background != 'minimal' && appearance.intensity > 0;
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: dark
+          // The teacher's neon colour belongs exclusively to the backdrop.
+          // Preserve the approved gradient, with slight transparency only
+          // when an ambient background is intentionally selected.
+          colors: (dark
               ? const [Color(0xff07131f), Color(0xff0a1724), Color(0xff0c1d29)]
-              : const [Color(0xffe5eff9), Color(0xfff6f9fc), Color(0xffeaf5f3)],
+              : const [Color(0xffe5eff9), Color(0xfff6f9fc), Color(0xffeaf5f3)])
+              .map((colour) => ambient
+                  ? colour.withValues(alpha: .78)
+                  : colour)
+              .toList(),
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

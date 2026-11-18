@@ -3,7 +3,7 @@ import { ensureFlutterSemantics } from './helpers';
 
 test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators',
     async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(600_000);
   const browserDiagnostics: string[] = [];
   const unexpectedCloudRequests: string[] = [];
   let browserPhase = 'sign-in';
@@ -81,6 +81,79 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
 
+  // A teacher choosing a new background on HOME must stay on Home and
+  // retain that setting across Planner navigation and a browser reload.
+  // This tests the real authenticated GradeFlow menu, not the isolated
+  // appearance preview (which has no application router).
+  browserPhase = 'appearance-home-continuity';
+  await ensureFlutterSemantics(page);
+  const openAppearance = async () => {
+    await page.getByRole('button', { name: /Account and settings/i }).first()
+      .click({ timeout: 30_000 });
+    await page.getByRole('button', { name: /Appearance & colours/i })
+      .click({ timeout: 15_000 });
+  };
+  await openAppearance();
+  // Real pointer clicks, not just an isolated widget state change. A modal
+  // barrier must keep every tap within this panel and never open Planner.
+  await expect(page.getByText('Background glow colour')).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Dark', exact: true }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await expect(page.getByRole('checkbox', { name: 'Dark', exact: true }))
+    .toBeChecked();
+  // The reported LIVE failure also affects Aurora and Soft dots, not only
+  // Neon boxes. Every appearance option must work as a real browser click,
+  // remain on Home, and visibly update selected state while menu stays open.
+  for (const choice of ['Aurora', 'Soft dots', 'Minimal', 'Neon boxes']) {
+    const option = page.getByRole('checkbox', { name: choice, exact: true });
+    await expect(option).toBeVisible();
+    await option.click({ timeout: 15_000 });
+    await expect(page, `${choice} must not navigate to Planner`)
+      .toHaveURL('http://127.0.0.1:7357/os/home');
+    await expect(option, `${choice} must be applied`).toBeChecked();
+    await expect(page.getByText('Background glow colour')).toBeVisible();
+  }
+  await page.getByRole('button', { name: /Use cyan colour/ }).click({ timeout: 15_000 });
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await expect(page.getByText('Background glow colour')).toBeVisible();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await page.goto('/os/planner');
+  await ensureFlutterSemantics(page);
+  // Personalisation entry is intentionally Home-only, not an overlay on
+  // Planner, Gradebook, Classroom, or student workflows.
+  await expect(page.getByRole('button', { name: /Account and settings/i }))
+    .toHaveCount(0);
+  await page.goto('/os/home');
+  await ensureFlutterSemantics(page);
+  await openAppearance();
+  await expect(page.getByRole('checkbox', { name: 'Neon boxes', exact: true }))
+    .toBeChecked();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.reload();
+  await ensureFlutterSemantics(page);
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await openAppearance();
+  await expect(page.getByRole('checkbox', { name: 'Neon boxes', exact: true }))
+    .toBeChecked();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.screenshot({ path: 'test-results/appearance-home-after-reload.png' });
+
+  // Exercise the actual authenticated Planner route, not the synthetic shell.
+  await page.goto('/os/planner');
+  await ensureFlutterSemantics(page);
+  await expect(page.getByText('Import timetable', { exact: true }).first()).toBeVisible();
+  for (const view of ['Today', 'Month', 'Agenda', 'Tasks', 'Week']) {
+    try {
+      await page.getByRole('checkbox', { name: view, exact: true }).click({ timeout: 15_000 });
+    } catch (error) {
+      console.log('Planner accessibility at failed view:', view);
+      console.log(await page.locator('body').ariaSnapshot());
+      throw error;
+    }
+    await expect(page).toHaveURL('http://127.0.0.1:7357/os/planner');
+  }
+
   const emulatorOrigin = () => page.evaluate(
     () => window.sessionStorage.getItem('[DEFAULT]-firebaseEmulatorOrigin'));
   await expect.poll(emulatorOrigin).toBe('http://127.0.0.1:9099');
@@ -119,6 +192,8 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // columnheader ('Fictional Quiz out of 100'), not a standalone text node.
   // Locate the score field within its fictional pupil row so the test
   // verifies actual gradebook data rather than a text-layout implementation.
+  // Full Gradebook opens Summary; select the actual assessment category.
+  await page.getByRole('checkbox', { name: 'Quizzes', exact: true }).click();
   await expect(page.getByRole('columnheader', { name: /Fictional Quiz/ }))
     .toBeVisible({ timeout: 30_000 });
   const quizScore = page.getByRole('row', { name: /Fictional Pupil/ })
@@ -138,11 +213,64 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Gradebook').first()).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Quizzes', exact: true }).click();
   // After a full reload, the computed average must reflect the saved quiz.
   // This checks durable Firestore data, not the transient DOM editing proxy.
   await expect(page.getByRole('row', { name: /Fictional Pupil/ })
     .getByRole('cell', { name: '96', exact: true }))
     .toBeVisible({ timeout: 30_000 });
+
+  // Import through the real roster UI, then re-read Firestore by reloading.
+  // A duplicate must stay in the preview and must not replace the pupil.
+  browserPhase = 'import-roster';
+  await page.goto('/os/class/class-science-browser/students');
+  await ensureFlutterSemantics(page);
+  await expect(page.getByRole('group', { name: /Fictional Pupil ID: synthetic-student-one/ })).toBeVisible();
+  async function previewPastedRoster(id: string) {
+    await page.getByRole('button', { name: 'Paste from spreadsheet', exact: true }).click();
+    const rows = page.getByRole('textbox', { name: /Roster rows/ });
+    const pastedRows = 'studentId\tchineseName\tenglishFirstName\tenglishLastName\n'
+      + id + '\tFictional Import\tImport\tPupil, Jr';
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.evaluate((text) => navigator.clipboard.writeText(text), pastedRows);
+    // Use a real paste event. Flutter can replace a DOM-only fill during
+    // semantics focus activation; never proceed unless the whole input matches.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await rows.click();
+      await rows.press('ControlOrMeta+A');
+      await rows.press('ControlOrMeta+V');
+      try {
+        await expect(rows).toHaveValue(pastedRows, { timeout: 3_000 });
+        break;
+      } catch (error) {
+        if (attempt === 2) throw error;
+      }
+    }
+    await expect(rows).toHaveValue(pastedRows);
+    await rows.press('Tab');
+    await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    await expect(page.getByText('Import Preview', { exact: true })).toBeVisible();
+  }
+  await previewPastedRoster('synthetic-import-102');
+  await page.screenshot({ path: 'test-results/roster-import-preview.png' });
+  await page.getByRole('button', { name: 'Import 1 student', exact: true }).click();
+  await expect(page.locator('flt-semantics-host').getByText(/Imported 1 student/)).toBeVisible();
+  await page.reload();
+  await ensureFlutterSemantics(page);
+  await expect(page.getByRole('group', { name: /Import Pupil, Jr ID: synthetic-import-102/ })).toBeVisible();
+  await expect(page.getByRole('group', { name: /Fictional Pupil ID: synthetic-student-one/ })).toBeVisible();
+  await previewPastedRoster('synthetic-import-102');
+  await page.getByRole('button', { name: 'Import 1 student', exact: true }).click();
+  await expect(page.locator('flt-semantics-host').getByText(/Import was not completed.*already in this class/)).toBeVisible();
+  await page.screenshot({ path: 'test-results/roster-duplicate-rejected.png' });
+  await expect(page.getByText('Import Preview', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  // Importing a student must not disturb the existing student's saved score.
+  await page.goto('/os/class/class-science-browser/gradebook');
+  await ensureFlutterSemantics(page);
+  await page.getByRole('checkbox', { name: 'Quizzes', exact: true }).click();
+  await expect(page.getByRole('row', { name: /Fictional Pupil/ })
+    .getByRole('cell', { name: '96', exact: true })).toBeVisible();
 
   // Returning from Classroom to Home retains authorization and class
   // context; the browser connects only to localhost demo Firebase emulators.
@@ -157,11 +285,36 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // A successful refresh must restore this actual teacher workspace, not
   // merely avoid the safety-blocked screen or show an unauthenticated shell.
   await expect(page).toHaveURL(/\/os\/home$/);
-  await expect(page.getByText('Welcome, browser-teacher@example.invalid.').first())
-    .toBeVisible({ timeout: 30_000 });
-  // Reconnection must be driven by FlutterFire's actual per-app origin key,
-  // rather than a test-injected key ignored by the SDK.
+  // Restore Home and use its real class action instead of a decorative heading.
+  const openClassroom = page.getByRole('button', { name: 'Open Classroom', exact: true });
+  try {
+    await expect(openClassroom).toBeEnabled({ timeout: 15_000 });
+    await openClassroom.click({ timeout: 15_000 });
+    await expect.poll(() => ['/os/class/class-science-browser/classroom',
+      '/os/class/class-english-browser/classroom'].includes(new URL(page.url()).pathname)).toBe(true);
+  } catch (error) {
+    console.log('Restored Home accessibility:', await page.locator('body').ariaSnapshot());
+    throw error;
+  }
   await expect.poll(emulatorOrigin).toBe('http://127.0.0.1:9099');
+  browserPhase = 'teaching-studio';
+  await page.goto('/os/home');
+  await ensureFlutterSemantics(page);
+  await page.getByRole('button', { name: 'Whiteboard & PDF Open Teaching Studio', exact: true }).click();
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/teaching-studio/');
+  await expect(page.getByRole('heading', { name: 'Teaching Studio', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save board', exact: true })).toBeEnabled();
+  // Bottom navigation must retain the Studio tab and restore signed-in Home.
+  const [homeTab] = await Promise.all([
+    page.waitForEvent('popup'),
+    page.getByRole('link', { name: 'Home', exact: true }).click(),
+  ]);
+  await homeTab.waitForLoadState('domcontentloaded');
+  await ensureFlutterSemantics(homeTab);
+  await expect(homeTab).toHaveURL('http://127.0.0.1:7357/os/home');
+  await expect(homeTab.getByRole('button', { name: 'Open Classroom', exact: true })).toBeEnabled();
+  await expect(page.getByRole('heading', { name: 'Teaching Studio', exact: true })).toBeVisible();
+  await homeTab.close();
   expect(unexpectedCloudRequests,
     'A local-emulator build contacted live Firebase endpoints').toEqual([]);
 });

@@ -1,3 +1,4 @@
+import 'package:gradeflow/models/class.dart' as school;
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -118,6 +119,10 @@ void main() {
     ));
     final imported = await service.importForTeacher(
       userId: 'teacher-c',
+      classMatches: {'Synthetic English': 'english', 'Synthetic Science': 'science', 'Synthetic Maths': 'maths'},
+      availableClasses: [for (final subject in ['english', 'science', 'maths']) school.Class(
+        classId: subject, className: subject, subject: subject, teacherId: 'teacher-c',
+        schoolYear: '2026', term: 'Fall', createdAt: DateTime(2026), updatedAt: DateTime(2026))],
       filename: 'school-timetable.csv',
       bytes: bytes,
     );

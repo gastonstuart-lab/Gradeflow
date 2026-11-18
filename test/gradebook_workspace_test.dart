@@ -13,8 +13,9 @@ import 'package:gradeflow/services/gradebook_import_plan.dart';
 
 class FailingRepository extends LocalRepository {
   bool failScore=false,failHistory=false;
+  int scoreSaveCalls = 0;
   @override
-  Future<void> saveScores(String c,String i,List<StudentScore> s) async {if(failScore)throw StateError('disk unavailable');await super.saveScores(c,i,s);}
+  Future<void> saveScores(String c,String i,List<StudentScore> s) async {scoreSaveCalls++;if(failScore)throw StateError('disk unavailable');await super.saveScores(c,i,s);}
   @override
   Future<void> addScoreHistory(String c,ChangeHistory h,{int maxEntries=100}) async {if(failHistory)throw StateError('history unavailable');await super.addScoreHistory(c,h,maxEntries:maxEntries);}
 }
@@ -117,6 +118,76 @@ void main(){
     reopened.dispose();
     await expectLater(book.setCourseworkWeightPercent(120),throwsArgumentError);
     expect(book.courseworkWeightPercent,70);
+  });
+  test('fill assessment column uses one write and one undo, preserving zero and missing', () async {
+    final now = DateTime(2026);
+    final other = Student(
+      studentId: 'other', classId: 'c', chineseName: '第二',
+      englishFirstName: 'Other', englishLastName: 'Student',
+      createdAt: now, updatedAt: now,
+    );
+    await repo.saveStudents('c', [...await repo.loadStudents('c'), other]);
+    await book.load();
+    final item = book.items.first;
+    await book.saveScore('s', item, 0, 'teacher');
+    final before = repo.scoreSaveCalls;
+    expect(await book.saveAssessmentScores(
+      item, {'s': 100, 'other': 100}, 'teacher'), 2);
+    expect(repo.scoreSaveCalls, before + 1);
+    expect(book.score('s', item.gradeItemId), 100);
+    expect(book.score('other', item.gradeItemId), 100);
+    final reopened = GradebookWorkspace(repo, 'c');
+    await reopened.load();
+    expect(reopened.score('s', item.gradeItemId), 100);
+    expect(reopened.score('other', item.gradeItemId), 100);
+    reopened.dispose();
+    await book.undoLastEdit();
+    expect(book.score('s', item.gradeItemId), 0);
+    expect(book.score('other', item.gradeItemId), isNull);
+    final afterUndo = GradebookWorkspace(repo, 'c');
+    await afterUndo.load();
+    expect(afterUndo.score('s', item.gradeItemId), 0);
+    expect(afterUndo.score('other', item.gradeItemId), isNull);
+    afterUndo.dispose();
+  });
+  test('failed whole-column save does not claim success or alter scores', () async {
+    final item = book.items.first;
+    repo.failScore = true;
+    await expectLater(
+      book.saveAssessmentScores(item, {'s': 90}, 'teacher'),
+      throwsStateError,
+    );
+    expect(book.saveState, GradebookSaveState.failed);
+    expect(book.score('s', item.gradeItemId), isNull);
+    expect(await repo.loadScores('c', item.gradeItemId), isEmpty);
+    repo.failScore = false;
+    expect(await book.saveAssessmentScores(
+      item, {'s': 90}, 'teacher'), 1);
+    expect(book.score('s', item.gradeItemId), 90);
+  });
+  test('exam column fills and grouped undo preserve prior marks', () async {
+    final now = DateTime(2026);
+    await repo.saveStudents('c', [
+      ...await repo.loadStudents('c'),
+      Student(studentId: 'other', classId: 'c', chineseName: '第二',
+        englishFirstName: 'Other', englishLastName: 'Student',
+        createdAt: now, updatedAt: now),
+    ]);
+    await book.load();
+    expect(await book.saveExamScores({'s': 0, 'other': 88}), 2);
+    expect(await book.saveExamScores({'s': 100, 'other': 100}), 2);
+    expect(book.exam('s'), 100);
+    await book.undoLastEdit();
+    expect(book.exam('s'), 0);
+    expect(book.exam('other'), 88);
+    final reopened = GradebookWorkspace(repo, 'c');
+    await reopened.load();
+    expect(reopened.exam('s'), 0);
+    expect(reopened.exam('other'), 88);
+    reopened.dispose();
+    await expectLater(
+      book.saveExamScores({'other': 101}), throwsArgumentError);
+    expect(book.exam('other'), 88);
   });
   test('standalone import validates every ID and value before writes',(){
     final source={'columns':{for(final k in GradebookWorkspace.processWeights.keys)k:['Score']},'scores':{'s':{'exam':80,for(final k in GradebookWorkspace.processWeights.keys)k:[null]}}};

@@ -271,6 +271,121 @@ class GradebookWorkspace extends ChangeNotifier {
         if(!_undoing) _undo.add(()=>saveExam(student,oldValue));
     exams = next;
   });
+  /// Write a single assessment column in one repository operation. The
+  /// requested IDs are explicit, so filtered/sorted screens cannot silently
+  /// change the scope. A whole-column edit is one Undo action.
+  Future<int> saveAssessmentScores(
+    GradeItem item,
+    Map<String, double?> requested,
+    String teacher,
+  ) => _write(() async {
+    if (teacher.trim().isEmpty) throw StateError('Sign in before grading.');
+    if (item.classId != classId ||
+        !items.any((i) => i.gradeItemId == item.gradeItemId)) {
+      throw StateError('Assessment is not in this class.');
+    }
+    for (final entry in requested.entries) {
+      _student(entry.key);
+      final n = entry.value;
+      if (n != null && (!n.isFinite || n < 0 || n > item.maxScore)) {
+        throw ArgumentError('Score must be between 0 and ${item.maxScore}.');
+      }
+    }
+    if (requested.isEmpty) return 0;
+    final existing = await repository.loadScores(classId, item.gradeItemId);
+    final byStudent = {for (final s in existing) s.studentId: s};
+    final changes = requested.entries
+        .where((e) => byStudent[e.key]?.score != e.value)
+        .toList();
+    if (changes.isEmpty) return 0;
+    final previous = <String, double?>{
+      for (final e in changes) e.key: byStudent[e.key]?.score,
+    };
+    final ids = changes.map((e) => e.key).toSet();
+    final now = DateTime.now();
+    final updated = existing.where((s) => !ids.contains(s.studentId)).toList()
+      ..addAll(changes.map((e) => StudentScore(
+        studentId: e.key,
+        gradeItemId: item.gradeItemId,
+        score: e.value,
+        createdAt: byStudent[e.key]?.createdAt ?? now,
+        updatedAt: now,
+      )));
+    await repository.saveScores(classId, item.gradeItemId, updated);
+    for (final e in changes) {
+      values[key(e.key, item.gradeItemId)] = e.value;
+    }
+    if (!_undoing) {
+      _undo.add(() async {
+        await saveAssessmentScores(item, previous, teacher);
+      });
+    }
+    var failedHistory = 0;
+    for (final e in changes) {
+      try {
+        await repository.addScoreHistory(
+          classId,
+          ChangeHistory(
+            changeId: const Uuid().v4(),
+            classId: classId,
+            studentId: e.key,
+            gradeItemId: item.gradeItemId,
+            oldScore: previous[e.key],
+            newScore: e.value,
+            teacherId: teacher,
+            timestamp: now,
+          ),
+          maxEntries: 100,
+        );
+      } catch (_) {
+        failedHistory++;
+      }
+    }
+    if (failedHistory > 0) {
+      saveState = GradebookSaveState.historyIncomplete;
+      error = 'Scores saved; history missing for $failedHistory changes.';
+    }
+    return changes.length;
+  });
+
+  /// Exam-column equivalent, using the existing exam records and undo stack.
+  Future<int> saveExamScores(Map<String, double?> requested) => _write(() async {
+    for (final entry in requested.entries) {
+      _student(entry.key);
+      final n = entry.value;
+      if (n != null && (!n.isFinite || n < 0 || n > 100)) {
+        throw ArgumentError('Exam must be between 0 and 100.');
+      }
+    }
+    if (requested.isEmpty) return 0;
+    final existing = await repository.loadExams(classId);
+    final byStudent = {for (final e in existing) e.studentId: e};
+    final changes = requested.entries
+        .where((e) => byStudent[e.key]?.examScore != e.value)
+        .toList();
+    if (changes.isEmpty) return 0;
+    final previous = <String, double?>{
+      for (final e in changes) e.key: byStudent[e.key]?.examScore,
+    };
+    final ids = changes.map((e) => e.key).toSet();
+    final now = DateTime.now();
+    final updated = existing.where((e) => !ids.contains(e.studentId)).toList()
+      ..addAll(changes.map((e) => FinalExam(
+        studentId: e.key,
+        examScore: e.value,
+        createdAt: byStudent[e.key]?.createdAt ?? now,
+        updatedAt: now,
+      )));
+    await repository.saveExams(classId, updated);
+    exams = updated;
+    if (!_undoing) {
+      _undo.add(() async {
+        await saveExamScores(previous);
+      });
+    }
+    return changes.length;
+  });
+
   Future<void> addAssessment(String category, String name, double maxScore) =>
       _write(() async {
         if (!categories.any((c) => c.categoryId == category) ||

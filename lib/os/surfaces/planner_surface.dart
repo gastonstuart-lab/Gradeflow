@@ -1,3 +1,8 @@
+import 'package:gradeflow/components/planner/planner_teaching_workspace.dart';
+import 'package:gradeflow/components/time_slot_timetable.dart';
+import 'package:gradeflow/services/timetable_import_plan.dart';
+import 'package:gradeflow/components/timetable_import_dialog.dart';
+import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 /// GradeFlow OS - Planner Surface
 ///
 /// Teacher-wide calendar, reminders, timetable, and school-wide planning.
@@ -16,6 +21,7 @@ import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/communication_service.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
@@ -25,15 +31,47 @@ import 'package:gradeflow/components/planner/planner_date_math.dart';
 import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:gradeflow/theme.dart';
 
+/// Fictional, in-memory data for the standalone public Planner preview.
+/// This never authenticates, loads browser-local teacher data, or saves to a
+/// user's timetable storage. The real Planner views are reused unchanged.
+class PlannerSyntheticPreviewData {
+  const PlannerSyntheticPreviewData({
+    required this.teacherId,
+    required this.teacherName,
+    required this.lessons,
+    required this.reminders,
+  });
+
+  final String teacherId;
+  final String teacherName;
+  final List<TimeSlotClass> lessons;
+  final List<PlannerSyntheticReminder> reminders;
+}
+
+class PlannerSyntheticReminder {
+  const PlannerSyntheticReminder({
+    required this.text,
+    required this.timestamp,
+    this.endDate,
+    this.kind = 'task',
+  });
+
+  final String text;
+  final DateTime timestamp;
+  final DateTime? endDate;
+  final String kind;
+}
+
 class PlannerSurface extends StatefulWidget {
-  const PlannerSurface({super.key, this.initialDate});
+  const PlannerSurface({super.key, this.initialDate, this.syntheticPreview});
   final DateTime? initialDate;
+  final PlannerSyntheticPreviewData? syntheticPreview;
 
   @override
   State<PlannerSurface> createState() => _PlannerSurfaceState();
 }
 
-enum _PlannerDisplayMode { week, month, agenda, tasks }
+enum _PlannerDisplayMode { today, week, month, agenda, tasks }
 
 class _PlannerSurfaceState extends State<PlannerSurface> {
   static const String _remindersPrefsBaseKey = 'dashboard_reminders_v1';
@@ -61,6 +99,57 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
   void initState() {
     super.initState();
     _applyInitialDate();
+    if (widget.syntheticPreview != null) _setSyntheticState();
+  }
+
+  void _setSyntheticState() {
+    final fixture = widget.syntheticPreview!;
+    _loadedUserId = null; // Never use a real account-scoped storage key.
+    _planningLoading = false;
+    _reminders = fixture.reminders.map((entry) => _PlannerReminder(
+      text: entry.text,
+      timestamp: entry.timestamp,
+      endDate: entry.endDate,
+      kind: entry.kind,
+    )).toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    // Preserve the saved lesson objects but also supply a genuine-looking
+    // timetable grid so the actual Week view displays all bell times and lunch.
+    final clockTimes = <({int start, int end})>[];
+    for (final lesson in fixture.lessons) {
+      final interval = (start: lesson.startMinutes, end: lesson.endMinutes);
+      if (!clockTimes.contains(interval)) clockTimes.add(interval);
+    }
+    clockTimes.sort((a, b) => a.start.compareTo(b.start));
+    String clock(int minutes) => '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
+    final timetableGrid = <List<String>>[
+      ['Time', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+      for (final span in clockTimes)
+        [
+          '${clock(span.start)}–${clock(span.end)}',
+          for (var day = 0; day < 5; day++)
+            fixture.lessons
+                .where((lesson) => lesson.dayOfWeek == day &&
+                    lesson.startMinutes == span.start &&
+                    lesson.endMinutes == span.end)
+                .map((lesson) => lesson.title)
+                .join(' / '),
+        ],
+      ['11:50–12:50', 'Lunch', '', '', '', ''],
+    ];
+    _timetables = [
+      _PlannerTimetable(
+        id: 'fictional-week',
+        name: 'Fictional sample timetable',
+        base64: '',
+        uploadedAt: DateTime(2026, 11, 13),
+        grid: timetableGrid,
+        lessons: fixture.lessons
+            .map(HomeWeeklyTimetableService.lessonToJson)
+            .toList(),
+      ),
+    ];
+    _selectedTimetableId = 'fictional-week';
   }
 
   void _applyInitialDate() {
@@ -75,11 +164,16 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
   void didUpdateWidget(covariant PlannerSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialDate != widget.initialDate) _applyInitialDate();
+    if (oldWidget.syntheticPreview != widget.syntheticPreview &&
+        widget.syntheticPreview != null) {
+      _setSyntheticState();
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (widget.syntheticPreview != null) return;
     final auth = Provider.of<AuthService>(context);
     final userId = _plannerStorageUserId(auth);
     if (userId == null) {
@@ -100,7 +194,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
 
   String? _plannerStorageUserId(AuthService auth) {
     if (!auth.isInitialized || auth.isLoading) return null;
-    return auth.currentUser?.userId ?? 'local';
+    return auth.currentUser?.userId;
   }
 
   Future<void> _loadPlannerState(String userId) async {
@@ -170,14 +264,14 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
       userId: userId,
     );
     final raw = await _preferences.readScopedString(scopedKey: timetableKey);
-    final selectedId =
-        await _preferences.readScopedString(scopedKey: selectedKey);
+    var selectedId = await _preferences.readScopedString(scopedKey: selectedKey);
 
     final timetables = <_PlannerTimetable>[];
     if (raw != null && raw.trim().isNotEmpty) {
       final decoded = jsonDecode(raw);
       if (decoded is List) {
         for (final entry in decoded.whereType<Map>()) {
+          if (entry['selected'] == true) selectedId = entry['id']?.toString();
           final timetable =
               _PlannerTimetable.fromJson(Map<String, dynamic>.from(entry));
           if (timetable.id.trim().isEmpty || timetable.name.trim().isEmpty) {
@@ -208,25 +302,8 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     );
   }
 
-  String? _timetablePrefsKey() {
-    final userId = _loadedUserId;
-    if (userId == null) return null;
-    return _preferences.scopedKey(
-      baseKey: _timetablesPrefsBaseKey,
-      userId: userId,
-    );
-  }
-
-  String? _selectedTimetablePrefsKey() {
-    final userId = _loadedUserId;
-    if (userId == null) return null;
-    return _preferences.scopedKey(
-      baseKey: _selectedTimetablePrefsBaseKey,
-      userId: userId,
-    );
-  }
-
   Future<void> _saveReminders() async {
+    if (widget.syntheticPreview != null) return; // In-memory demonstration only.
     try {
       final key = _remindersPrefsKey();
       if (key == null) return;
@@ -256,25 +333,15 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     }
   }
 
-  Future<void> _saveTimetables() async {
+  Future<void> _changeTimetableVersion(String versionId, {bool delete = false}) async {
+    final userId = _plannerStorageUserId(context.read<AuthService>());
+    if (userId == null || userId != _loadedUserId) return;
     try {
-      final timetableKey = _timetablePrefsKey();
-      final selectedKey = _selectedTimetablePrefsKey();
-      if (timetableKey == null || selectedKey == null) return;
-      await _preferences.writeString(
-        key: timetableKey,
-        value: jsonEncode(_timetables.map((item) => item.toJson()).toList()),
-      );
-      await _preferences.writeString(
-        key: selectedKey,
-        value: _selectedTimetableId,
-      );
+      await const HomeWeeklyTimetableService().changeVersion(userId, versionId: versionId, delete: delete);
+      if (!mounted || _plannerStorageUserId(context.read<AuthService>()) != userId) return;
+      await _loadPlannerState(userId);
     } catch (e) {
-      debugPrint('Failed to save planner timetables: $e');
-      _showPlannerFeedback(
-        'Could not save the timetable change.',
-        tone: WorkspaceFeedbackTone.error,
-      );
+      if (mounted) _showPlannerFeedback('Timetable change was not saved: $e', tone: WorkspaceFeedbackTone.error);
     }
   }
 
@@ -287,6 +354,11 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
   }
 
   Future<void> _refreshSnapshot() async {
+    if (widget.syntheticPreview != null) {
+      setState(_setSyntheticState);
+      _showPlannerFeedback('Fictional timetable and calendar restored.');
+      return;
+    }
     final auth = context.read<AuthService>();
     setState(() => _planningLoading = true);
     await context.read<GlobalSystemShellController>().refreshWorkspaceSnapshot(
@@ -689,7 +761,7 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     } catch (e) {
       debugPrint('Planner timetable upload failed: $e');
       _showPlannerFeedback(
-        'Timetable upload failed. Use a CSV, Excel, or Word timetable table.',
+        'Timetable was not imported: $e',
         tone: WorkspaceFeedbackTone.error,
       );
     }
@@ -700,59 +772,29 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     String name,
     String? extension,
   ) async {
-    final ext = (extension ?? (name.contains('.') ? name.split('.').last : ''))
-        .toLowerCase();
-    List<List<String>> grid;
-    if (ext == 'docx') {
-      final rawGrid = FileImportService().extractDocxBestTableGrid(bytes);
-      grid = FileImportService().cleanTimetableGrid(rawGrid);
-    } else {
-      final rows = FileImportService().rowsFromAnyBytes(bytes);
-      grid = FileImportService().cleanTimetableGrid(rows);
-    }
-
-    final hasCells =
-        grid.any((row) => row.any((cell) => cell.trim().isNotEmpty));
-    if (grid.isEmpty || !hasCells) {
-      throw const FormatException('No timetable table found.');
-    }
-
-    final timetable = _PlannerTimetable(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      name: name,
-      base64: base64Encode(bytes),
-      mimeType: ext.isEmpty ? null : ext,
-      uploadedAt: DateTime.now(),
-      grid: grid,
-    );
-
-    setState(() {
-      _timetables = [timetable, ..._timetables];
-      _selectedTimetableId = timetable.id;
-    });
-    await _saveTimetables();
-    _showPlannerFeedback(
-      'Timetable "$name" uploaded.',
-      tone: WorkspaceFeedbackTone.success,
-      title: 'Timetable ready',
-    );
+    final userId = _plannerStorageUserId(context.read<AuthService>());
+    if (userId == null) throw StateError('Sign in before importing a timetable.');
+    final saved = await confirmTimetableImport(context, filename: name, bytes: bytes);
+    if (saved == null || !mounted || _plannerStorageUserId(context.read<AuthService>()) != userId) return;
+    await _loadPlannerState(userId);
+    _showPlannerFeedback('Saved ${saved.classes.length} individual periods on this device.',
+      tone: WorkspaceFeedbackTone.success, title: 'Timetable saved locally');
   }
 
   Future<void> _selectTimetable(_PlannerTimetable timetable) async {
-    setState(() => _selectedTimetableId = timetable.id);
-    await _saveTimetables();
+    if (timetable.lessons == null) {
+      try {
+        await _saveTimetableFromBytes(base64Decode(timetable.base64), timetable.name, timetable.mimeType);
+      } catch (e) {
+        if (mounted) _showPlannerFeedback('Review or reimport this older timetable before selecting it: $e', tone: WorkspaceFeedbackTone.error);
+      }
+      return;
+    }
+    await _changeTimetableVersion(timetable.id);
   }
 
   Future<void> _deleteTimetable(_PlannerTimetable timetable) async {
-    setState(() {
-      _timetables =
-          _timetables.where((item) => item.id != timetable.id).toList();
-      if (_selectedTimetableId == timetable.id) {
-        _selectedTimetableId =
-            _timetables.isEmpty ? null : _timetables.first.id;
-      }
-    });
-    await _saveTimetables();
+    await _changeTimetableVersion(timetable.id, delete: true);
   }
 
   Future<void> _showTimetableManagementDialog() async {
@@ -879,24 +921,35 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     // Keep class-linked items available in the filtered calendar as well.
     final calendarEntries = [..._reminders]
       ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
-    final today = PlannerDateMath.day(DateTime.now());
+    // Synthetic reviews have a fixed fictional calendar anchor. Using the
+    // wall clock makes this 2026 fixture fail once its dates become history.
+    // Live, authenticated Planner continues to use the real current date.
+    final today = PlannerDateMath.day(
+        widget.syntheticPreview != null
+            ? (widget.initialDate ?? DateTime.now())
+            : DateTime.now());
     final endOfComingUp = today.add(const Duration(days: 29));
     final comingUp = calendarEntries.where((reminder) =>
         (reminder.kind == 'school_event' || !reminder.done) &&
         PlannerDateMath.intersects(reminder.timestamp, reminder.endDate,
             today, endOfComingUp)).toList();
-    final selectedTimetable = _selectedTimetableId == null
+    final selectedTimetable = _planningLoading || _selectedTimetableId == null
         ? null
         : _timetables
             .where((item) => item.id == _selectedTimetableId)
             .firstOrNull;
     final classes = context.watch<ClassService>().activeClasses;
-    final shellSnapshot =
-        context.watch<GlobalSystemShellController>().workspaceSnapshot;
+    final synthetic = widget.syntheticPreview;
+    final shellSnapshot = synthetic == null
+        ? context.watch<GlobalSystemShellController>().workspaceSnapshot
+        : null;
     final totalStudents = shellSnapshot?.totalStudents ?? 0;
-    final unread = context.watch<CommunicationService>().totalUnreadCount;
+    final unread = synthetic == null
+        ? context.watch<CommunicationService>().totalUnreadCount
+        : 0;
 
     return _PlannerDashboardView(
+      syntheticPreview: widget.syntheticPreview,
       loading: _planningLoading,
       classesCount: classes.length,
       totalStudents: totalStudents,
@@ -942,15 +995,22 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
       onAddReminder: _addReminderForSelectedDate,
       onToggleReminder: _toggleReminder,
       onDeleteReminder: _deleteReminder,
-      onImportCalendar: _importCalendarFile,
-      onUploadTimetable: _pickAndUploadTimetable,
-      onManageTimetables: _showTimetableManagementDialog,
+      onImportCalendar: widget.syntheticPreview != null
+          ? () => _showPlannerFeedback('Calendar import is disabled in the fictional preview.')
+          : _importCalendarFile,
+      onUploadTimetable: widget.syntheticPreview != null
+          ? () => _showPlannerFeedback('Timetable import is disabled in the fictional preview.')
+          : _pickAndUploadTimetable,
+      onManageTimetables: widget.syntheticPreview != null
+          ? () => _showPlannerFeedback('Only one fictional timetable is available in this preview.')
+          : _showTimetableManagementDialog,
     );
   }
 }
 
 class _PlannerDashboardView extends StatelessWidget {
   const _PlannerDashboardView({
+    this.syntheticPreview,
     required this.loading,
     required this.classesCount,
     required this.totalStudents,
@@ -979,6 +1039,7 @@ class _PlannerDashboardView extends StatelessWidget {
     required this.onManageTimetables,
   });
 
+  final PlannerSyntheticPreviewData? syntheticPreview;
   final bool loading;
   final int classesCount;
   final int totalStudents;
@@ -1009,14 +1070,46 @@ class _PlannerDashboardView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
-    final user = context.watch<AuthService>().currentUser;
-    final name = (user?.fullName.trim().isNotEmpty ?? false)
-        ? user!.fullName.trim()
-        : 'Teacher';
+    final user = syntheticPreview == null
+        ? context.watch<AuthService>().currentUser
+        : null;
+    final name = syntheticPreview?.teacherName ??
+        ((user?.fullName.trim().isNotEmpty ?? false)
+            ? user!.fullName.trim() : 'Teacher');
     final now = DateTime.now();
     final chosenDay = selectedDate ?? PlannerDateMath.day(now);
 
+    final lessons = <TimeSlotClass>[];
+    PlannerLunch? lunch;
+    final periods = <({int start, int end})>[];
+    try {
+      if (selectedTimetable?.lessons != null) {
+        lessons.addAll(selectedTimetable!.lessons!.map((v) => HomeWeeklyTimetableService.lessonFromJson(Map<String, dynamic>.from(v as Map))));
+      } else if (selectedTimetable?.grid != null) {
+        lessons.addAll(HomeWeeklyTimetableService.parseGridToTimeSlots(selectedTimetable!.grid!));
+      }
+      for (final row in selectedTimetable?.grid ?? <List<String>>[]) {
+        final times = RegExp(r'\d{1,2}:\d{2}').allMatches(row.join(' ')).map((m) => m[0]!).toList();
+        if (times.length != 2) continue;
+        final start = TimetableImportPlan.clock(times[0]);
+        final end = TimetableImportPlan.clock(times[1]);
+        if (end <= start) continue;
+        if (RegExp(r'\blunch\b|午餐|午休', caseSensitive: false).hasMatch(row.join(' '))) {
+          lunch = PlannerLunch(start, end);
+        } else {
+          periods.add((start: start, end: end));
+        }
+      }
+    } on FormatException { /* Keep older incomplete timetables available for reimport. */ }
+    final teaching = PlannerTeachingWorkspace(lessons: lessons,
+      classes: context.read<ClassService>().activeClasses
+          .where((c) => c.teacherId ==
+              (syntheticPreview?.teacherId ?? user?.userId)).toList(),
+      date: chosenDay, todayView: displayMode == _PlannerDisplayMode.today, lunch: lunch, periods: periods,
+      onSelectDate: (day) { onSelectDate(day); onChangeDisplayMode(_PlannerDisplayMode.today); },
+      onUpload: onUploadTimetable, onManage: onManageTimetables);
     final calendar = switch (displayMode) {
+      _PlannerDisplayMode.today => const SizedBox.shrink(),
       _PlannerDisplayMode.week => _PlannerWeekCard(
           selectedDate: chosenDay,
           reminders: allReminders,
@@ -1053,11 +1146,6 @@ class _PlannerDashboardView extends StatelessWidget {
         onImportCalendar: onImportCalendar,
         onToggleReminder: onToggleReminder,
         onDeleteReminder: onDeleteReminder);
-    final timetable = _PlannerWeeklyTimetableCard(
-        selectedTimetable: selectedTimetable,
-        timetables: timetables,
-        onUpload: onUploadTimetable,
-        onManage: onManageTimetables);
     final dayDetail = _PlannerCard(
         child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1081,15 +1169,19 @@ class _PlannerDashboardView extends StatelessWidget {
         const SizedBox(height: 16),
       ],
       reminders,
-      const SizedBox(height: 16),
-      timetable,
     ]);
 
+    final appearance = context.watch<TeacherAppearanceController?>();
+    final ambient = appearance != null && appearance.enabled &&
+        appearance.background != 'minimal' && appearance.intensity > 0;
     return Theme(
         data: Theme.of(context),
         child: Scaffold(
-          backgroundColor:
-              dark ? const Color(0xff07131f) : const Color(0xfff0f5fa),
+          // Keep all calendar/lesson cards untouched. Only the bare planner
+          // background reveals the teacher's ambient visual selection.
+          backgroundColor: ambient
+              ? Colors.transparent
+              : (dark ? const Color(0xff07131f) : const Color(0xfff0f5fa)),
           body: SafeArea(
               child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(24, 18, 24, 100),
@@ -1108,8 +1200,34 @@ class _PlannerDashboardView extends StatelessWidget {
                           onChange: onChangeDisplayMode,
                           onGoToday: onGoToday,
                         ),
+                        const SizedBox(height: 8),
+                        if (displayMode == _PlannerDisplayMode.week) Text('Selected: ${_formatDate(chosenDay)}'),
+                        TextButton.icon(onPressed: onImportCalendar, icon: const Icon(Icons.calendar_month_outlined), label: const Text('Import calendar')),
                         const SizedBox(height: 16),
-                        LayoutBuilder(
+                        if (displayMode == _PlannerDisplayMode.week || displayMode == _PlannerDisplayMode.today) ...[
+                          teaching,
+                          const SizedBox(height: 16),
+                        ],
+                        if (displayMode == _PlannerDisplayMode.today) dayDetail
+                        else if (displayMode == _PlannerDisplayMode.week) ...[
+                          // Keep upcoming reminders visible without restoring
+                          // the old permanent multi-column dashboard.
+                          if (pendingReminders.isNotEmpty) ...[
+                            reminders,
+                            const SizedBox(height: 12),
+                          ],
+                          // If no timetable is imported, the calendar is still
+                          // immediately usable. Once lessons exist, this is
+                          // secondary to the full-width teaching grid.
+                          ExpansionTile(
+                            key: ValueKey('planner-week-calendar-${lessons.isEmpty ? 'empty' : 'loaded'}'),
+                            initiallyExpanded: lessons.isEmpty,
+                            title: const Text('Week dates & school events'),
+                            subtitle: const Text('Open the week calendar'),
+                            children: [calendar],
+                          ),
+                        ]
+                        else LayoutBuilder(
                             builder: (context, size) => size.maxWidth >= 900
                                 ? Row(
                                     crossAxisAlignment:
@@ -1149,6 +1267,7 @@ class _PlannerDisplaySwitch extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         for (final entry in const [
+          (_PlannerDisplayMode.today, 'Today'),
           (_PlannerDisplayMode.week, 'Week'),
           (_PlannerDisplayMode.month, 'Month'),
           (_PlannerDisplayMode.agenda, 'Agenda'),
@@ -1162,9 +1281,9 @@ class _PlannerDisplaySwitch extends StatelessWidget {
           ),
         const SizedBox(width: 8),
         OutlinedButton.icon(
-          onPressed: onGoToday,
+          onPressed: () { onGoToday(); onChange(_PlannerDisplayMode.today); },
           icon: const Icon(Icons.today_outlined, size: 18),
-          label: const Text('Today'),
+          label: const Text('Go to today'),
         ),
       ],
     );
@@ -1742,150 +1861,6 @@ class _PlannerCalendarCard extends StatelessWidget {
   }
 }
 
-class _PlannerWeeklyTimetableCard extends StatelessWidget {
-  const _PlannerWeeklyTimetableCard({
-    required this.selectedTimetable,
-    required this.timetables,
-    required this.onUpload,
-    required this.onManage,
-  });
-
-  final _PlannerTimetable? selectedTimetable;
-  final List<_PlannerTimetable> timetables;
-  final VoidCallback onUpload;
-  final VoidCallback onManage;
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = _previewTimetableRows(selectedTimetable?.grid);
-    final dark = context.isDark;
-    return _PlannerCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _PlannerCardHeader(
-            title: 'Weekly Timetable',
-            actionLabel: timetables.isEmpty ? 'Upload' : 'Manage',
-            onAction: timetables.isEmpty ? onUpload : onManage,
-          ),
-          const SizedBox(height: 16),
-          if (rows.isEmpty)
-            Text(
-              'Upload a timetable to show the next teaching blocks here.',
-              style: TextStyle(
-                color: OSColors.textSecondary(dark),
-                height: 1.45,
-              ),
-            )
-          else
-            for (final row in rows) ...[
-              _TimetableListRow(time: row.$1, title: row.$2, detail: row.$3),
-              if (row != rows.last) const SizedBox(height: 10),
-            ],
-        ],
-      ),
-    );
-  }
-
-  List<(String, String, String)> _previewTimetableRows(
-      List<List<String>>? grid) {
-    if (grid == null || grid.isEmpty) return const [];
-    final rows = <(String, String, String)>[];
-    for (final row in grid.skip(1)) {
-      final cells = row
-          .map((cell) => cell.trim())
-          .where((cell) => cell.isNotEmpty)
-          .toList();
-      if (cells.length < 2) continue;
-      rows.add((
-        cells.first,
-        cells.length > 1 ? cells[1] : 'Class',
-        cells.skip(2).take(2).join(' - ')
-      ));
-      if (rows.length == 4) break;
-    }
-    return rows;
-  }
-}
-
-class _TimetableListRow extends StatelessWidget {
-  const _TimetableListRow({
-    required this.time,
-    required this.title,
-    required this.detail,
-  });
-
-  final String time;
-  final String title;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = context.isDark;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: dark
-            ? Colors.white.withValues(alpha: 0.04)
-            : const Color(0xFFF3F5FF),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: dark
-                  ? Colors.white.withValues(alpha: 0.06)
-                  : const Color(0xFFE8EBFA),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              time,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: OSColors.text(dark),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    color: OSColors.text(dark),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  detail.isEmpty ? 'Planning block' : detail,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: OSColors.textSecondary(dark),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.link_rounded, size: 18, color: OSColors.blue),
-        ],
-      ),
-    );
-  }
-}
-
 class _PlannerCardHeader extends StatelessWidget {
   const _PlannerCardHeader({
     required this.title,
@@ -2033,6 +2008,7 @@ class _PlannerTimetable {
     required this.uploadedAt,
     this.mimeType,
     this.grid,
+    this.lessons,
   });
 
   final String id;
@@ -2041,6 +2017,7 @@ class _PlannerTimetable {
   final String? mimeType;
   final DateTime uploadedAt;
   final List<List<String>>? grid;
+  final List<dynamic>? lessons;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -2048,6 +2025,7 @@ class _PlannerTimetable {
         'base64': base64,
         'mimeType': mimeType,
         'grid': grid,
+        'lessons': lessons,
         'uploadedAt': uploadedAt.toIso8601String(),
       };
 
@@ -2057,6 +2035,7 @@ class _PlannerTimetable {
       name: (json['name'] ?? '').toString(),
       base64: (json['base64'] ?? '').toString(),
       mimeType: json['mimeType']?.toString(),
+      lessons: json['lessons'] as List<dynamic>?,
       grid: (json['grid'] is List)
           ? (json['grid'] as List)
               .map(

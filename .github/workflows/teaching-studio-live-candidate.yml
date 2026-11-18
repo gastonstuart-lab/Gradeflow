@@ -1,0 +1,48 @@
+name: Teaching Studio integrated live candidate
+on:
+  push:
+    branches: [release/pdf-ink-candidate-20261116]
+    paths: ['teacher-tools-preview/**', '.github/workflows/teaching-studio-live-candidate.yml']
+permissions:
+  contents: read
+jobs:
+  application:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+      - name: Build self-hosted Teaching Studio under existing app
+        working-directory: teacher-tools-preview
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          npx playwright install --with-deps chromium
+          npm test
+          mkdir -p ../build/web/teaching-studio
+          cp -a dist/. ../build/web/teaching-studio/
+      - name: Preserve existing Hosting-only configuration
+        run: |
+          mkdir -p candidate
+          cp -a build candidate/
+          cp firebase.live.json candidate/
+          test -s candidate/build/web/teaching-studio/index.html
+          test -s candidate/build/web/teaching-studio/pdfjs/build/pdf.worker.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GradeFlow-Teaching-Studio-Live
+          path: candidate/
+          retention-days: 14

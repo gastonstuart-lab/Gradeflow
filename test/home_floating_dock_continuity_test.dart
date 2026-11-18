@@ -64,6 +64,20 @@ void main() {
           900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin,
           1,
         ));
+
+    // The account menu now lives only in the approved Home header, so
+    // Classroom and detail pages no longer reserve its old 64px top band.
+    // All non-Home surfaces still reserve space for the floating dock.
+    for (final surface in [OSSurface.classWorkspace, OSSurface.other]) {
+      controller.setSurface(surface);
+      await tester.pump();
+      expect(find.byType(OSDock), findsOneWidget);
+      expect(tester.getSize(find.byKey(const ValueKey('full-page-probe'))).height,
+          closeTo(
+            900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin,
+            1,
+          ));
+    }
   });
 
   testWidgets('approved Home scroll inset clears the floating OS dock',

@@ -30,6 +30,7 @@ class StudentDetailScreen extends StatefulWidget {
 
 class _StudentDetailScreenState extends State<StudentDetailScreen> {
   final CalculationService _calcService = CalculationService();
+  double _courseworkWeightPercent = 40;
   Map<String, double?>? _grades;
   bool _updatingPhoto = false;
 
@@ -78,6 +79,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final examService = context.read<FinalExamService>();
 
     await _ensureClassContextLoaded();
+    if (!mounted) return;
+    _courseworkWeightPercent = context.read<ClassService>()
+        .getClassById(widget.classId)?.courseworkWeightPercent ?? 40;
     await studentService.loadStudents(widget.classId);
     await categoryService.loadCategories(widget.classId);
     await gradeItemService.loadGradeItems(widget.classId);
@@ -94,6 +98,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       gradeItemService.gradeItems,
       scoreService.scores,
       exam,
+      courseworkWeightPercent: _courseworkWeightPercent,
     );
 
     setState(() => _grades = grades);
@@ -335,12 +340,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           }),
           const Divider(height: WorkspaceSpacing.xl),
           _ScoreSummaryRow(
-            label: 'Process score (40%)',
+            label: 'Process score (${_courseworkWeightPercent.toStringAsFixed(0)}%)',
             value: _grades!['processScore'],
           ),
           const SizedBox(height: WorkspaceSpacing.sm),
           _ScoreSummaryRow(
-            label: 'Exam score (60%)',
+            label: 'Exam score (${(100 - _courseworkWeightPercent).toStringAsFixed(0)}%)',
             value: _grades!['examScore'],
           ),
           const Divider(height: WorkspaceSpacing.xl),
