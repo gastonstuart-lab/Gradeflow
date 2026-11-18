@@ -94,12 +94,21 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
       .click({ timeout: 15_000 });
   };
   await openAppearance();
+  // Real pointer clicks, not just an isolated widget state change. A modal
+  // barrier must keep every tap within this panel and never open Planner.
+  await expect(page.getByText('Background glow colour')).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Dark', exact: true }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await expect(page.getByRole('checkbox', { name: 'Dark', exact: true }))
+    .toBeChecked();
   const neonBoxes = page.getByRole('checkbox', { name: 'Neon boxes', exact: true });
   await expect(neonBoxes).toBeVisible();
   await neonBoxes.click();
-  // The only permitted effect of this click is an appearance change.
   await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
   await expect(neonBoxes).toBeChecked();
+  await page.getByRole('button', { name: 'Use cyan colour', exact: true }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await expect(page.getByText('Background glow colour')).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
   await page.goto('/os/planner');
