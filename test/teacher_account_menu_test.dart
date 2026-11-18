@@ -70,21 +70,21 @@ void main() {
     await tester.ensureVisible(doneFinder);
     await tester.pumpAndSettle();
     final donePalette = Theme.of(tester.element(doneFinder)).colorScheme;
-    FilledButton done = tester.widget<FilledButton>(doneFinder);
+    OutlinedButton done = tester.widget<OutlinedButton>(doneFinder);
     expect(done.style?.foregroundColor?.resolve(<WidgetState>{}),
-        donePalette.onPrimary);
+        donePalette.onSurface);
     expect(tester.widget<Text>(
       find.descendant(of: doneFinder, matching: find.text('Done')),
-    ).style?.color, donePalette.onPrimary);
+    ).style?.color, donePalette.onSurface);
 
     appearance.setCustomAccent(const Color(0xFFFF7700));
     await tester.pumpAndSettle();
-    done = tester.widget<FilledButton>(doneFinder);
+    done = tester.widget<OutlinedButton>(doneFinder);
     expect(done.style?.foregroundColor?.resolve(<WidgetState>{}),
-        donePalette.onPrimary);
+        donePalette.onSurface);
     expect(tester.widget<Text>(
       find.descendant(of: doneFinder, matching: find.text('Done')),
-    ).style?.color, donePalette.onPrimary);
+    ).style?.color, donePalette.onSurface);
 
     await tester.pumpWidget(const SizedBox.shrink());
     auth.dispose();
