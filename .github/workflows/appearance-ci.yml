@@ -119,6 +119,7 @@ jobs:
           retention-days: 5
           if-no-files-found: ignore
       - name: Retain native Flutter appearance demo for public visual preview
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gradeflow-real-flutter-menu-demo
