@@ -85,9 +85,10 @@ jobs:
           grep -q 'fictional' lib/teacher_appearance_review_main.dart
       - name: Build isolated real Flutter menu demo (no Firebase)
         run: |
-          flutter build web --release --no-wasm-dry-run \
+          flutter build web --release --no-wasm-dry-run --no-web-resources-cdn \
             --target lib/teacher_appearance_review_main.dart
           test -s build/web/main.dart.js
+          find build/web/canvaskit -name 'canvaskit.wasm' -print -quit | grep -q .
       - name: "Seal native demo: local assets only, no third-party auth or academic services"
         run: |
           cp web/teacher_appearance_review_index.html build/web/index.html
