@@ -52,7 +52,7 @@ void main() {
 
     await tester.tap(find.text('Appearance & colours'));
     await tester.pumpAndSettle();
-    expect(find.text('Choose your colours'), findsOneWidget);
+    expect(find.text('Background glow colour'), findsOneWidget);
     expect(find.text('Neon boxes'), findsOneWidget);
     await tester.tap(find.text('Neon boxes'));
     await tester.pumpAndSettle();
