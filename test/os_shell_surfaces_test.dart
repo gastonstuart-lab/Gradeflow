@@ -304,6 +304,9 @@ void main() {
 
     var scienceHubTaps = 0;
     final controller = GradeFlowOSController();
+    // Widget tests control the fake clock; prevent a five-minute activity
+    // timeout from remaining scheduled after pointer interactions.
+    controller.setIdleTimeout(0);
     addTearDown(controller.dispose);
     final router = GoRouter(
       initialLocation: AppRoutes.osHome,
