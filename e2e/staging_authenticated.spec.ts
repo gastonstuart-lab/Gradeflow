@@ -94,12 +94,28 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
       .click({ timeout: 15_000 });
   };
   await openAppearance();
-  const neonBoxes = page.getByRole('checkbox', { name: 'Neon boxes', exact: true });
-  await expect(neonBoxes).toBeVisible();
-  await neonBoxes.click();
-  // The only permitted effect of this click is an appearance change.
+  // Real pointer clicks, not just an isolated widget state change. A modal
+  // barrier must keep every tap within this panel and never open Planner.
+  await expect(page.getByText('Background glow colour')).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Dark', exact: true }).click();
   await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
-  await expect(neonBoxes).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Dark', exact: true }))
+    .toBeChecked();
+  // The reported LIVE failure also affects Aurora and Soft dots, not only
+  // Neon boxes. Every appearance option must work as a real browser click,
+  // remain on Home, and visibly update selected state while menu stays open.
+  for (const choice of ['Aurora', 'Soft dots', 'Minimal', 'Neon boxes']) {
+    const option = page.getByRole('checkbox', { name: choice, exact: true });
+    await expect(option).toBeVisible();
+    await option.click({ timeout: 15_000 });
+    await expect(page, `${choice} must not navigate to Planner`)
+      .toHaveURL('http://127.0.0.1:7357/os/home');
+    await expect(option, `${choice} must be applied`).toBeChecked();
+    await expect(page.getByText('Background glow colour')).toBeVisible();
+  }
+  await page.getByRole('button', { name: /Use cyan colour/ }).click({ timeout: 15_000 });
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await expect(page.getByText('Background glow colour')).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
   await page.goto('/os/planner');
