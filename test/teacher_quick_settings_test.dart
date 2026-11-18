@@ -43,7 +43,7 @@ void main() {
     expect(find.text('Dark'), findsOneWidget);
     expect(find.text('Neon boxes'), findsOneWidget);
     expect(find.text('More personalisation'), findsOneWidget);
-    expect(find.text('Colours'), findsOneWidget);
+    expect(find.text('Background glow colour'), findsOneWidget);
     expect(find.byKey(const Key('custom-colour-button')), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const Key('custom-colour-button')));
