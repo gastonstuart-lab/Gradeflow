@@ -24,6 +24,7 @@ jobs:
       - name: Check merged source and successful post-merge evidence
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: gastonstuart-lab/Gradeflow
         run: |
           set -euo pipefail
           test "$(gh api repos/gastonstuart-lab/Gradeflow/pulls/165 --jq .merged)" = true
