@@ -180,7 +180,10 @@ void main() {
     expect(appearance.background, 'boxes');
     expect(plannerTaps, 0);
 
-    await tester.tap(find.bySemanticsLabel('Use cyan colour'));
+    final cyanChoice = find.bySemanticsLabel('Use cyan colour');
+    await tester.ensureVisible(cyanChoice);
+    await tester.pumpAndSettle();
+    await tester.tap(cyanChoice);
     await tester.pumpAndSettle();
     expect(appearance.accent, 'cyan');
     expect(plannerTaps, 0);
