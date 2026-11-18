@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/services/teacher_appearance_controller.dart';
 
-/// A decorative layer painted over the OS, but never intercepting gestures.
+/// A decorative underlay painted behind the OS, never over controls.
 ///
-/// All surfaces can use the teacher's chosen effect. Dense pages attenuate
+/// All surfaces may use the teacher's chosen BACKGROUND effect. Dense pages attenuate
 /// intensity automatically, and fullscreen teaching screens are opt-in.
 class TeacherAppearanceOverlay extends StatelessWidget {
   const TeacherAppearanceOverlay({
