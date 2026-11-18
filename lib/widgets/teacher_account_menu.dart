@@ -244,7 +244,7 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
             key: const Key('account-appearance-option'),
             icon: Icons.palette_outlined,
             title: 'Appearance & colours',
-            subtitle: 'Themes, neon backgrounds and custom colours',
+            subtitle: 'Background glow, pattern and display mode',
             onTap: () => setState(() => _showAppearance = true),
           ),
           if (display.browserFullscreenAvailable) ...[
@@ -334,7 +334,7 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          Text('Changes apply instantly across your workspace.',
+          Text('Glow colours apply to backgrounds only. Controls and grades keep their existing colours.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: palette.onSurfaceVariant)),
           const SizedBox(height: 17),
@@ -366,7 +366,7 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
               ),
           ]),
           const SizedBox(height: 16),
-          Text('Choose your colours',
+          Text('Background glow colour',
             style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 10),
           const TeacherColourSelector(compact: true),
