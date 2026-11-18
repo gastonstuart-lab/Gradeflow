@@ -64,6 +64,28 @@ void main() {
     expect(find.textContaining('Background intensity'), findsOneWidget);
     expect(find.text('Sign out'), findsNothing);
 
+    // The Done label must stay readable and use the ORIGINAL Material UI
+    // palette, regardless of the teacher's background glow colour.
+    final doneFinder = find.byKey(const Key('teacher-appearance-done'));
+    await tester.ensureVisible(doneFinder);
+    await tester.pumpAndSettle();
+    final donePalette = Theme.of(tester.element(doneFinder)).colorScheme;
+    FilledButton done = tester.widget<FilledButton>(doneFinder);
+    expect(done.style?.foregroundColor?.resolve(<WidgetState>{}),
+        donePalette.onPrimary);
+    expect(tester.widget<Text>(
+      find.descendant(of: doneFinder, matching: find.text('Done')),
+    ).style?.color, donePalette.onPrimary);
+
+    appearance.setCustomAccent(const Color(0xFFFF7700));
+    await tester.pumpAndSettle();
+    done = tester.widget<FilledButton>(doneFinder);
+    expect(done.style?.foregroundColor?.resolve(<WidgetState>{}),
+        donePalette.onPrimary);
+    expect(tester.widget<Text>(
+      find.descendant(of: doneFinder, matching: find.text('Done')),
+    ).style?.color, donePalette.onPrimary);
+
     await tester.pumpWidget(const SizedBox.shrink());
     auth.dispose();
     appearance.dispose();
