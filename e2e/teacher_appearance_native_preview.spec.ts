@@ -53,7 +53,7 @@ test('@appearance-native actual Flutter account menu is clickable at desktop and
   await page.getByRole('button', { name: /Account and settings/i }).first().click();
   await expect(page.getByRole('button', { name: /Appearance & colours/i })).toBeVisible();
   await page.getByRole('button', { name: /Appearance & colours/i }).click();
-  await expect(page.getByText('Choose your colours', { exact: true })).toBeVisible();
+  await expect(page.getByText('Background glow colour', { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('05-native-phone-appearance.png') });
 
   // CSP must stop all remote connections; no real Firebase API calls.
