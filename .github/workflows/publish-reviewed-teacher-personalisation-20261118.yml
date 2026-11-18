@@ -1,0 +1,255 @@
+name: Review and manually publish GradeFlow teacher personalisation
+# Never publishes from a PR or a push. Human-triggered deploy only, with production environment.
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/publish-reviewed-teacher-personalisation-20261118.yml']
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'check is read-only; deploy requires owner approval and production environment'
+        type: choice
+        required: true
+        default: check
+        options: [check, deploy]
+      confirmation:
+        description: 'For deploy only, type REPLACE exactly'
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: gradeflow-existing-firebase-hosting-live
+  cancel-in-progress: false
+
+jobs:
+  review-exact-package:
+    name: Read-only verified source, complete package and actual LIVE baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Reject invalid actions before any work
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_ACTION: ${{ inputs.action }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            [[ "$RELEASE_ACTION" == check || "$RELEASE_ACTION" == deploy ]]
+            if [[ "$RELEASE_ACTION" == deploy ]]; then
+              [[ "$GITHUB_REF" == refs/heads/main && "$CONFIRMATION" == REPLACE ]]
+            fi
+          else
+            [[ "$EVENT_NAME" == pull_request ]]
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: 4a87559c88b15ec403066fca8f9760822aa0b441
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify pinned feature source, four successful gates and artifact digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "4a87559c88b15ec403066fca8f9760822aa0b441"
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/pulls/162 --jq .head.sha)" = "4a87559c88b15ec403066fca8f9760822aa0b441"
+          for run in 44219883554 44219883481 44219883596 44219883664; do
+            test "$(gh run view "$run" --json conclusion --jq .conclusion)" = success
+            test "$(gh run view "$run" --json headSha --jq .headSha)" = "4a87559c88b15ec403066fca8f9760822aa0b441"
+          done
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14390478121 --jq .digest)" = "sha256:b6069310903509b5492861941d3b730a8ecc1cec17d79f2d3fb274dda737090a"
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14390478121 --jq .expired)" = false
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14328198655 --jq .digest)" = "sha256:3e0e21b7fe28dfba20778c7eda2857bb76fe9317defeef07b6750950bf1e4902"
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14328198655 --jq .expired)" = false
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-gradebook-review-app
+          path: candidate/build/web
+          run-id: 44219883596
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-gradebook-review-app
+          path: previous/build/web
+          run-id: 44083954934
+          github-token: ${{ github.token }}
+      - name: Verify every candidate byte, manifest and preserved Teaching Studio
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, subprocess
+          from pathlib import Path
+          source = '4a87559c88b15ec403066fca8f9760822aa0b441'
+          root = Path('candidate/build/web')
+          manifest = json.loads((root/'review-manifest.json').read_text())
+          git = lambda *args: subprocess.check_output(['git',*args], text=True).strip()
+          assert manifest['commit'] == source
+          assert manifest['run'] == '44219883596'
+          assert manifest['tree'] == git('rev-parse','HEAD^{tree}')
+          assert manifest['nativeGradebookBlob'] == git('rev-parse','HEAD:lib/screens/native_gradebook_screen.dart')
+          actual = {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()
+                    and p.name != 'review-manifest.json'
+                    and not any(part.startswith('.') for part in p.relative_to(root).parts)}
+          assert set(manifest['files']) == actual, 'Unexpected missing/extra release files'
+          for path, digest in manifest['files'].items():
+              assert hashlib.sha256((root/path).read_bytes()).hexdigest() == digest, path
+          for required in ('main.dart.js', 'index.html', 'flutter_bootstrap.js',
+                           'teaching-studio/index.html',
+                           'teaching-studio/pdfjs/build/pdf.worker.mjs',
+                           'teaching-studio/pdfjs/web/gradeflow-pen.mjs'):
+              assert (root/required).is_file(), required
+          prior = json.loads(Path('previous/build/web/review-manifest.json').read_text())
+          assert prior['commit'] == '321403169bcbd7ae32abda6098e015d32a8a0a8a'
+          print('Candidate complete, pinned, and every byte SHA-verified:', len(actual), 'files')
+          PY
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const c = JSON.parse(fs.readFileSync('firebase.live.json', 'utf8'));
+          if (Object.keys(c).join(',') !== 'hosting' ||
+              c.hosting.public !== 'build/web' ||
+              !c.hosting.rewrites?.some(x => x.source === '**' && x.destination === '/index.html')) {
+            throw Error('Unexpected production Hosting config');
+          }
+          NODE
+      - name: Load pinned read-only Hosting byte verifier from last approved release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api 'repos/gastonstuart-lab/Gradeflow/contents/scripts/verify-hosting-release.sh?ref=503869467d40e30539224e53824b07d947a81554' \
+            -H 'Accept: application/vnd.github.raw+json' > verify-hosting-release.sh
+          bash -n verify-hosting-release.sh
+      - name: Verify public LIVE site still matches last recorded production release
+        run: |
+          set -euo pipefail
+          bash verify-hosting-release.sh previous/build/web \
+            https://gradeflow-20260113.web.app baseline-$GITHUB_RUN_ID
+          echo "Actual LIVE byte match: 17 November tested application source 3214031." >> "$GITHUB_STEP_SUMMARY"
+          echo "New candidate: 4a87559c88b15ec403066fca8f9760822aa0b441; complete Flutter + Studio, not deployed." >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-with-human-approval:
+    name: Human-approved Hosting-only release with backup and byte receipt
+    needs: review-exact-package
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'deploy'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: production
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - name: Require manual main-branch deploy and reviewed feature PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == refs/heads/main && "$CONFIRMATION" == REPLACE ]]
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/pulls/162 --jq .head.sha)" = "4a87559c88b15ec403066fca8f9760822aa0b441"
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/pulls/162 --jq .merged)" = true
+      - uses: actions/checkout@v4
+        with:
+          ref: 4a87559c88b15ec403066fca8f9760822aa0b441
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-gradebook-review-app
+          path: candidate/build/web
+          run-id: 44219883596
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-gradebook-review-app
+          path: previous/build/web
+          run-id: 44083954934
+          github-token: ${{ github.token }}
+      - name: Revalidate pinned package, not a branch rebuild or appearance-only bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "4a87559c88b15ec403066fca8f9760822aa0b441"
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14390478121 --jq .digest)" = "sha256:b6069310903509b5492861941d3b730a8ecc1cec17d79f2d3fb274dda737090a"
+          python3 - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          root = Path('candidate/build/web')
+          manifest = json.loads((root/'review-manifest.json').read_text())
+          assert manifest['commit'] == '4a87559c88b15ec403066fca8f9760822aa0b441'
+          assert manifest['run'] == '44219883596'
+          for rel, digest in manifest['files'].items():
+              assert hashlib.sha256((root/rel).read_bytes()).hexdigest() == digest, rel
+          assert (root/'teaching-studio/pdfjs/build/pdf.worker.mjs').is_file()
+          PY
+          cp firebase.live.json candidate/firebase.live.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const c = JSON.parse(fs.readFileSync('candidate/firebase.live.json'));
+          if (Object.keys(c).join(',') !== 'hosting' || c.hosting.public !== 'build/web' ||
+              !c.hosting.rewrites?.some(r => r.source === '**' && r.destination === '/index.html')) process.exit(1);
+          NODE
+      - name: Load pinned read-only Hosting byte verifier from last approved release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api 'repos/gastonstuart-lab/Gradeflow/contents/scripts/verify-hosting-release.sh?ref=503869467d40e30539224e53824b07d947a81554' \
+            -H 'Accept: application/vnd.github.raw+json' > verify-hosting-release.sh
+          bash -n verify-hosting-release.sh
+      - name: Verify LIVE baseline again immediately before replacement
+        run: |
+          bash verify-hosting-release.sh previous/build/web \
+            https://gradeflow-20260113.web.app predeploy-$GITHUB_RUN_ID
+      - name: Check existing-project short-lived identity
+        env:
+          WIF_PROVIDER: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          [[ "$WIF_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+$ ]]
+          [[ "$WIF_SERVICE_ACCOUNT" =~ ^[^@]+@gradeflow-20260113\.iam\.gserviceaccount\.com$ ]]
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          service_account: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+          project_id: gradeflow-20260113
+          create_credentials_file: true
+          export_environment_variables: true
+      - run: npm install --global firebase-tools
+      - name: Save actual LIVE rollback channel before Hosting-only publish
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          backup="before-pers-$GITHUB_RUN_ID"
+          firebase hosting:clone gradeflow-20260113:live "gradeflow-20260113:$backup" \
+            --project gradeflow-20260113 --non-interactive
+          printf '%s\n' "$backup" > backup-channel.txt
+          echo "Backup channel: $backup" >> "$GITHUB_STEP_SUMMARY"
+          echo "On a problem, human operator restores with:" >> "$GITHUB_STEP_SUMMARY"
+          echo "firebase hosting:clone gradeflow-20260113:$backup gradeflow-20260113:live --project gradeflow-20260113" >> "$GITHUB_STEP_SUMMARY"
+          firebase deploy --only hosting --project gradeflow-20260113 \
+            --config firebase.live.json --non-interactive
+      - name: Compare actual published app and Teaching Studio bytes
+        run: |
+          bash verify-hosting-release.sh candidate/build/web \
+            https://gradeflow-20260113.web.app personalisation-$GITHUB_RUN_ID
+          echo "Published and byte-verified exact 4a87559c88b15ec403066fca8f9760822aa0b441 app + Studio." >> "$GITHUB_STEP_SUMMARY"
+          echo "Human smoke test required: login, Home, Planner, Gradebook scoring/Excel, Classroom, Studio, settings and sign-out." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: teacher-personalisation-release-receipt
+          path: candidate/backup-channel.txt
+          if-no-files-found: ignore
+          retention-days: 30
