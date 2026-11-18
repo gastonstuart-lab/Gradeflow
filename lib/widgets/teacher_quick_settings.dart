@@ -109,7 +109,7 @@ class _QuickSettingsSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          Text('Colours', style: Theme.of(context).textTheme.titleSmall),
+          Text('Background glow colour', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 9),
           const TeacherColourSelector(compact: true),
           const SizedBox(height: 6),
