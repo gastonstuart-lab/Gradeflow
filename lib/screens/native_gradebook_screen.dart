@@ -1289,6 +1289,9 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                           if (book.loaded)
                             Expanded(
                               child: Card(
+                                // Real student scores must never reveal the ambient effect.
+                                color: theme.colorScheme.surface,
+                                surfaceTintColor: Colors.transparent,
                                 margin: EdgeInsets.zero,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(24),
