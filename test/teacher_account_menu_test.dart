@@ -116,9 +116,10 @@ void main() {
     await tester.tap(find.byKey(const Key('teacher-account-settings-button')));
     await tester.pumpAndSettle();
     expect(find.text('Appearance & colours'), findsOneWidget);
+    expect(find.byKey(const Key('teacher-account-modal-panel')), findsOneWidget);
 
-    // Dismissing a popup must consume the event; it must not click a
-    // navigation control that happens to be underneath the popup barrier.
+    // A real modal barrier must absorb the underlying Planner click instead
+    // of letting it reach the dock while appearance settings are visible.
     final plannerButton = find.text('Navigate to Planner');
     await tester.tapAt(tester.getCenter(plannerButton));
     await tester.pumpAndSettle();
@@ -128,6 +129,71 @@ void main() {
     await tester.tap(plannerButton);
     await tester.pumpAndSettle();
     expect(plannerTaps, 1);
+  });
+
+  testWidgets('every appearance choice stays in the modal and cannot navigate',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final auth = _SampleAuth();
+    final appearance = TeacherAppearanceController();
+    final theme = ThemeModeNotifier();
+    var plannerTaps = 0;
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthService>.value(value: auth),
+        ChangeNotifierProvider<TeacherAppearanceController>.value(
+            value: appearance),
+        ChangeNotifierProvider<ThemeModeNotifier>.value(value: theme),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: Stack(children: [
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: FilledButton(
+                onPressed: () => plannerTaps++,
+                child: const Text('Planner'),
+              ),
+            ),
+            const Positioned(
+              top: 12, right: 12, child: TeacherAccountMenu(),
+            ),
+          ]),
+        ),
+      ),
+    ));
+
+    await tester.tap(find.byKey(const Key('teacher-account-settings-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Appearance & colours'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('teacher-account-modal-panel')), findsOneWidget);
+
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+    expect(theme.themeMode, ThemeMode.dark);
+    expect(plannerTaps, 0);
+    expect(find.text('Background glow colour'), findsOneWidget);
+
+    await tester.tap(find.text('Neon boxes'));
+    await tester.pumpAndSettle();
+    expect(appearance.background, 'boxes');
+    expect(plannerTaps, 0);
+
+    await tester.tap(find.bySemanticsLabel('Use cyan colour'));
+    await tester.pumpAndSettle();
+    expect(appearance.accent, 'cyan');
+    expect(plannerTaps, 0);
+
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('teacher-account-modal-panel')), findsNothing);
+    expect(plannerTaps, 0);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    auth.dispose();
+    appearance.dispose();
+    theme.dispose();
   });
 
   testWidgets('signing out requires confirmation and allows cancellation',
