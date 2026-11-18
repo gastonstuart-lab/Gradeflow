@@ -137,11 +137,12 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
 
-    // Reserve the dock's interactive area on EVERY routed surface.
-    // Previously Home drew its tappable shortcuts behind the floating dock,
-    // so clicks meant for Classes could open a Science shortcut underneath.
-    // The ambient painter below still fills the entire shell, including
-    // the cleared bottom strip. Keep teacher cards and shortcuts above it.
+    // Keep the approved Home wallpaper and content full-height behind the
+    // floating dock. The dock itself must absorb pointer events across its
+    // complete pill, including transparent launcher margins and gaps.
+    // Other routed surfaces retain their dock reservation.
+    final homeBehindFloatingDock =
+        !widget.teachMode && controller.activeSurface == OSSurface.home;
     final dockReserve = widget.teachMode
         ? 0.0
         : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
@@ -181,7 +182,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
         ),
         Positioned.fill(
           top: 0,
-          bottom: dockReserve,
+          bottom: homeBehindFloatingDock ? 0 : dockReserve,
           child: Transform.translate(
             offset: Offset(_dragDx, 0),
             child: AnimatedOpacity(
@@ -339,8 +340,9 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
       ],
     );
 
-    // The interactive content stops above the dock on every routed surface.
-    // The OS ambient underlay still paints full-height through this area.
+    // Home keeps its full-height backdrop; other surfaces reserve the
+    // dock's vertical strip. The dock's opaque hit zone blocks shortcuts
+    // underneath its visible pill on either surface.
     return ColoredBox(
       color: widget.teachMode
           ? OSColors.teachBg
