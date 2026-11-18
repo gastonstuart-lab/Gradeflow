@@ -360,14 +360,18 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    // The OS contains continuously animated surfaces. Pump a bounded frame
+    // rather than using pumpAndSettle, which need not ever become idle.
+    await tester.pump(const Duration(milliseconds: 250));
 
     final science = tester.getRect(
         find.byKey(const Key('science-hub-below-dock')));
     final dock = tester.getRect(find.byType(OSDock));
-    // Previously Home's entire clickable page reached beneath the dock
-    // (only its scroll content had bottom padding). Never allow that.
-    expect(science.bottom, lessThanOrEqualTo(dock.top + 1.0));
+    // Home deliberately extends behind the floating dock to keep its full
+    // background. This synthetic Science tile REALLY overlaps the pill;
+    // hit testing, not clipping/shortening Home, must stop click-through.
+    expect(science.bottom, closeTo(900, 1.0));
+    expect(science.contains(dock.center), isTrue);
 
     // A tap on the visible pill's padding must not reach the Science card.
     await tester.tapAt(Offset(dock.left + 6, dock.center.dy));
@@ -379,7 +383,8 @@ void main() {
     // belong to Classes too, not to Science Hub behind it.
     final classesIcon = tester.getRect(find.byTooltip('Classes'));
     await tester.tapAt(Offset(classesIcon.center.dx, classesIcon.top + 3));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
     expect(find.text('Classes destination'), findsOneWidget);
     expect(scienceHubTaps, 0);
   });
