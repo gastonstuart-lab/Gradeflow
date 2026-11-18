@@ -374,8 +374,11 @@ void main() {
     await tester.pump();
     expect(scienceHubTaps, 0);
 
-    // Clicking the actual Classes icon must open Classes, not Science Hub.
-    await tester.tap(find.byTooltip('Classes'));
+    // Click near the TOP edge of the Classes dock tile, where its animated
+    // icon card used to have unpainted vertical margins. That area must
+    // belong to Classes too, not to Science Hub behind it.
+    final classesIcon = tester.getRect(find.byTooltip('Classes'));
+    await tester.tapAt(Offset(classesIcon.center.dx, classesIcon.top + 3));
     await tester.pumpAndSettle();
     expect(find.text('Classes destination'), findsOneWidget);
     expect(scienceHubTaps, 0);
