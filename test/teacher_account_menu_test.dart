@@ -92,6 +92,44 @@ void main() {
     theme.dispose();
   });
 
+  testWidgets('outside taps close the account menu without activating navigation',
+      (tester) async {
+    var plannerTaps = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Stack(children: [
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: FilledButton(
+              onPressed: () => plannerTaps++,
+              child: const Text('Navigate to Planner'),
+            ),
+          ),
+          const Positioned(
+            right: 12,
+            top: 12,
+            child: TeacherAccountMenu(),
+          ),
+        ]),
+      ),
+    ));
+    await tester.tap(find.byKey(const Key('teacher-account-settings-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Appearance & colours'), findsOneWidget);
+
+    // Dismissing a popup must consume the event; it must not click a
+    // navigation control that happens to be underneath the popup barrier.
+    final plannerButton = find.text('Navigate to Planner');
+    await tester.tapAt(tester.getCenter(plannerButton));
+    await tester.pumpAndSettle();
+    expect(plannerTaps, 0);
+    expect(find.text('Appearance & colours'), findsNothing);
+
+    await tester.tap(plannerButton);
+    await tester.pumpAndSettle();
+    expect(plannerTaps, 1);
+  });
+
   testWidgets('signing out requires confirmation and allows cancellation',
       (tester) async {
     final auth = _SampleAuth();

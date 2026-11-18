@@ -81,6 +81,48 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
 
+  // A teacher choosing a new background on HOME must stay on Home and
+  // retain that setting across Planner navigation and a browser reload.
+  // This tests the real authenticated GradeFlow menu, not the isolated
+  // appearance preview (which has no application router).
+  browserPhase = 'appearance-home-continuity';
+  await ensureFlutterSemantics(page);
+  const openAppearance = async () => {
+    await page.getByRole('button', { name: /Account and settings/i }).first()
+      .click({ timeout: 30_000 });
+    await page.getByRole('button', { name: /Appearance & colours/i })
+      .click({ timeout: 15_000 });
+  };
+  await openAppearance();
+  const neonBoxes = page.getByRole('checkbox', { name: 'Neon boxes', exact: true });
+  await expect(neonBoxes).toBeVisible();
+  await neonBoxes.click();
+  // The only permitted effect of this click is an appearance change.
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await expect(neonBoxes).toBeChecked();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await page.goto('/os/planner');
+  await ensureFlutterSemantics(page);
+  // Personalisation entry is intentionally Home-only, not an overlay on
+  // Planner, Gradebook, Classroom, or student workflows.
+  await expect(page.getByRole('button', { name: /Account and settings/i }))
+    .toHaveCount(0);
+  await page.goto('/os/home');
+  await ensureFlutterSemantics(page);
+  await openAppearance();
+  await expect(page.getByRole('checkbox', { name: 'Neon boxes', exact: true }))
+    .toBeChecked();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.reload();
+  await ensureFlutterSemantics(page);
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await openAppearance();
+  await expect(page.getByRole('checkbox', { name: 'Neon boxes', exact: true }))
+    .toBeChecked();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.screenshot({ path: 'test-results/appearance-home-after-reload.png' });
+
   // Exercise the actual authenticated Planner route, not the synthetic shell.
   await page.goto('/os/planner');
   await ensureFlutterSemantics(page);

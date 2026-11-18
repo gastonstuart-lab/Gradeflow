@@ -65,27 +65,19 @@ void main() {
           1,
         ));
 
-    // Every ordinary class workspace screen needs an account/menu band.
-    // Gradebook Export Excel and class setup actions must never be covered.
-    controller.setSurface(OSSurface.classWorkspace);
-    await tester.pump();
-    expect(
-      tester.getSize(find.byKey(const ValueKey('full-page-probe'))).height,
-      closeTo(
-        900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin - 64,
-        1,
-      ),
-    );
-
-    // Detail pages (such as Gradebook) reserve a slim account bar so their
-    // top-right Export Excel button cannot be covered by the OS avatar.
-    controller.setSurface(OSSurface.other);
-    await tester.pump();
-    expect(tester.getSize(find.byKey(const ValueKey('full-page-probe'))).height,
-        closeTo(
-          900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin - 64,
-          1,
-        ));
+    // The account menu now lives only in the approved Home header, so
+    // Classroom and detail pages no longer reserve its old 64px top band.
+    // All non-Home surfaces still reserve space for the floating dock.
+    for (final surface in [OSSurface.classWorkspace, OSSurface.other]) {
+      controller.setSurface(surface);
+      await tester.pump();
+      expect(find.byType(OSDock), findsOneWidget);
+      expect(tester.getSize(find.byKey(const ValueKey('full-page-probe'))).height,
+          closeTo(
+            900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin,
+            1,
+          ));
+    }
   });
 
   testWidgets('approved Home scroll inset clears the floating OS dock',
