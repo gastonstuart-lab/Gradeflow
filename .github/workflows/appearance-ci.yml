@@ -72,10 +72,41 @@ jobs:
           grep -q 'darkTheme: darkTheme,' lib/teacher_appearance_review_main.dart
       - name: Build web application without deployment
         run: flutter build web --release --no-wasm-dry-run
-      - name: Retain compiled GradeFlow candidate for protected review
+      - name: Verify reviewed LIVE-mode build and Hosting-only configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const data = JSON.parse(fs.readFileSync('firebase.live.json', 'utf8'));
+          if (Object.keys(data).sort().join(',') !== 'hosting') {
+            throw new Error('firebase.live.json must contain Hosting only');
+          }
+          if (data.hosting.public !== 'build/web' ||
+              !data.hosting.rewrites?.some(r => r.source === '**' &&
+                  r.destination === '/index.html')) {
+            throw new Error('Unexpected hosting public directory or routing');
+          }
+          NODE
+          grep -q 'GRADEFLOW_LIVE_CLASSROOM_V2' lib/config/gradeflow_live_v2_release.dart
+          grep -q "gradeflow-20260113" lib/config/gradeflow_live_v2_release.dart
+          flutter build web --release --no-wasm-dry-run \\
+            --target lib/main.dart --base-href / \\
+            --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
+          test -s build/web/index.html
+          test -s build/web/main.dart.js
+          test -s build/web/flutter_bootstrap.js
+          {
+            echo "## Review-only Hosting candidate (NOT DEPLOYED)"
+            echo "Commit: \`$(git rev-parse HEAD)\`"
+            echo "Built with GRADEFLOW_LIVE_CLASSROOM_V2=true"
+            echo "Hosting configuration checked for Hosting-only scope."
+            echo "main.dart.js SHA256: \`$(sha256sum build/web/main.dart.js | cut -d' ' -f1)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain exact live-mode website bundle for human review only
         uses: actions/upload-artifact@v4
         with:
-          name: gradeflow-v2-review-web
+          name: gradeflow-v2-live-mode-review-not-deployed
           path: build/web/
           retention-days: 5
           if-no-files-found: error
