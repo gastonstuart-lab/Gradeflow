@@ -1,5 +1,9 @@
 name: GradeFlow V2 actual browser acceptance
 on:
+  pull_request:
+    branches: [integration/gradeflow-v2-release-candidate-20261115]
+    paths:
+      - '.github/workflows/gradeflow-v2-browser-acceptance.yml'
   push:
     branches: [integration/gradeflow-v2-release-candidate-20261115]
     paths:
@@ -52,6 +56,19 @@ jobs:
             --dart-define=GRADEFLOW_STAGING_FIREBASE_STORAGE_BUCKET=demo-gradeflow-v2-staging.firebasestorage.app
       - run: npm install --no-audit --no-fund
       - run: npm install --prefix staging-tests --no-audit --no-fund
+      - name: Include real Teaching Studio in emulator-only browser test build
+        # The full-site server intentionally falls back to Flutter index.html
+        # if /teaching-studio/index.html is absent. Without this step the
+        # navigation test can reach the expected URL yet render the wrong app.
+        working-directory: teacher-tools-preview
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          mkdir -p ../build/web/teaching-studio
+          cp -a dist/. ../build/web/teaching-studio/
+          test -s ../build/web/teaching-studio/index.html
+          test -s ../build/web/teaching-studio/pdfjs/build/pdf.worker.mjs
+          test -s ../build/web/teaching-studio/pdfjs/web/gradeflow-pen.mjs
       - run: npx playwright install --with-deps chromium
       - name: Parse browser tests before emulator startup
         run: npx playwright test --config=playwright.staging.config.ts --list
