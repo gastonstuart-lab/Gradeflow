@@ -6,6 +6,7 @@ import 'package:gradeflow/models/class.dart' as school;
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:gradeflow/services/auth_service.dart';
+import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/services/class_directory_insights_loader.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/home_weekly_timetable_service.dart';
@@ -164,8 +165,12 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
       filtered.sort((a,b) => (entries[b.classId]?.unseated ?? -1)
           .compareTo(entries[a.classId]?.unseated ?? -1));
     }
+    final appearance = context.watch<TeacherAppearanceController?>();
+    final ambient = appearance != null && appearance.enabled &&
+        appearance.background != 'minimal' && appearance.intensity > 0;
     return Scaffold(
-      backgroundColor: dark ? const Color(0xff091725) : const Color(0xffF1F6FA),
+      backgroundColor: ambient ? Colors.transparent :
+          (dark ? const Color(0xff091725) : const Color(0xffF1F6FA)),
       body: SafeArea(child: LayoutBuilder(builder: (context, size) {
         final double margin = size.maxWidth >= 700 ? 24 : 12;
         final bool twoColumns = size.maxWidth >= 1170;
