@@ -23,6 +23,11 @@ on:
       - 'lib/os/gradeflow_os_shell.dart'
       - 'lib/os/os_dock.dart'
       - 'lib/os/surfaces/home_surface.dart'
+      - 'lib/os/surfaces/planner_surface.dart'
+      - 'lib/os/surfaces/class_surface.dart'
+      - 'lib/os/surfaces/class_directory_surface.dart'
+      - 'lib/screens/native_gradebook_screen.dart'
+      - 'lib/components/home/teacher_home_presentation.dart'
       - 'test/teacher_appearance_*.dart'
       - 'test/teacher_quick_settings_test.dart'
       - 'test/teacher_account_menu_test.dart'
@@ -57,6 +62,14 @@ jobs:
             test/teacher_personalisation_scoping_test.dart \
             test/teacher_quick_settings_test.dart \
             test/teacher_account_menu_test.dart
+      - name: Enforce background-only custom colour boundary
+        run: |
+          ! grep -Eq 'themeAccent\(|backgroundGlowColor|appearance\.accentColor' lib/main.dart
+          ! grep -Eq 'themeAccent\(|backgroundGlowColor|appearance\.accentColor' lib/teacher_appearance_review_main.dart
+          grep -q 'theme: lightTheme,' lib/main.dart
+          grep -q 'darkTheme: darkTheme,' lib/main.dart
+          grep -q 'theme: lightTheme,' lib/teacher_appearance_review_main.dart
+          grep -q 'darkTheme: darkTheme,' lib/teacher_appearance_review_main.dart
       - name: Build web application without deployment
         run: flutter build web --release --no-wasm-dry-run
       - name: Retain compiled GradeFlow candidate for protected review
