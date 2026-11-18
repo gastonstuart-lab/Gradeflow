@@ -272,6 +272,10 @@ class _DockItemState extends State<_DockItem>
             })
           },
           child: GestureDetector(
+            // The visible dock item is 52×68, but its painted icon card
+            // has vertical margins. Without an opaque hit region those
+            // unpainted pixels can route to a Home tile underneath.
+            behavior: HitTestBehavior.opaque,
             onTap: d.onTap,
             onTapDown: (_) {
               _ac.forward();
