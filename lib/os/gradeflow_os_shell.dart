@@ -137,11 +137,11 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
 
-    // Home owns its scrolling bottom inset, so its background can continue
-    // beneath the floating dock instead of ending in a solid footer stripe.
-    // Planner, Classroom and all other routes retain their dock reservation.
-    final homeBehindFloatingDock =
-        !widget.teachMode && controller.activeSurface == OSSurface.home;
+    // Reserve the dock's interactive area on EVERY routed surface.
+    // Previously Home drew its tappable shortcuts behind the floating dock,
+    // so clicks meant for Classes could open a Science shortcut underneath.
+    // The ambient painter below still fills the entire shell, including
+    // the cleared bottom strip. Keep teacher cards and shortcuts above it.
     final dockReserve = widget.teachMode
         ? 0.0
         : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
@@ -181,7 +181,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
         ),
         Positioned.fill(
           top: 0,
-          bottom: homeBehindFloatingDock ? 0 : dockReserve,
+          bottom: dockReserve,
           child: Transform.translate(
             offset: Offset(_dragDx, 0),
             child: AnimatedOpacity(
@@ -209,7 +209,14 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
                 right: isPhone ? 12 : 24,
               ),
               child: Center(
-                child: OSDock(teachMode: widget.teachMode),
+                // The entire visible dock is a hit-test boundary, including
+                // translucent gaps between its launchers. A miss inside the
+                // pill must NEVER activate a Home shortcut behind it.
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {},
+                  child: OSDock(teachMode: widget.teachMode),
+                ),
               ),
             ),
           ),
@@ -332,8 +339,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
       ],
     );
 
-    // Other routed surfaces stop above the dock; Home paints through to the
-    // bottom. This fallback still protects the unused part of other routes.
+    // The interactive content stops above the dock on every routed surface.
+    // The OS ambient underlay still paints full-height through this area.
     return ColoredBox(
       color: widget.teachMode
           ? OSColors.teachBg
