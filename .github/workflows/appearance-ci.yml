@@ -90,8 +90,8 @@ jobs:
           NODE
           grep -q 'GRADEFLOW_LIVE_CLASSROOM_V2' lib/config/gradeflow_live_v2_release.dart
           grep -q "gradeflow-20260113" lib/config/gradeflow_live_v2_release.dart
-          flutter build web --release --no-wasm-dry-run \\
-            --target lib/main.dart --base-href / \\
+          flutter build web --release --no-wasm-dry-run \
+            --target lib/main.dart --base-href / \
             --dart-define=GRADEFLOW_LIVE_CLASSROOM_V2=true
           test -s build/web/index.html
           test -s build/web/main.dart.js
