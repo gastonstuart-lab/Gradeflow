@@ -408,6 +408,12 @@ class _SampleTeacherPageState extends State<_SampleTeacherPage> {
   }
 
   Widget _card(String title, List<Widget> contents) => Card(
+        key: title.contains('Gradebook')
+            ? const ValueKey('sample-opaque-gradebook-card')
+            : null,
+        // User-selected glow may illuminate empty background pixels only.
+        color: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
