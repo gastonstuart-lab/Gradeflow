@@ -129,6 +129,9 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
 
     return MenuAnchor(
       controller: _controller,
+      // A click that dismisses this menu must NOT activate the Home, Planner
+      // or other dock action underneath the popup on the same pointer event.
+      consumeOutsideTap: true,
       alignmentOffset: const Offset(0, 8),
       style: MenuStyle(
         padding: const WidgetStatePropertyAll(EdgeInsets.zero),
