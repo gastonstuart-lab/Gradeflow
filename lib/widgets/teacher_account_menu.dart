@@ -417,19 +417,21 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
+            child: OutlinedButton.icon(
               key: const Key('teacher-appearance-done'),
               onPressed: _closeMenu,
-              style: FilledButton.styleFrom(
-                // This is normal Material UI styling, independent of the
-                // teacher-selected background glow colour.
-                backgroundColor: palette.primary,
-                foregroundColor: palette.onPrimary,
+              style: OutlinedButton.styleFrom(
+                // Use a high-contrast, opaque control in both light and dark.
+                // Never derive menu control colours from the neon background.
+                backgroundColor: palette.surface,
+                foregroundColor: palette.onSurface,
+                side: BorderSide(color: palette.outlineVariant),
               ),
-              child: Text(
+              icon: Icon(Icons.check_rounded, color: palette.primary),
+              label: Text(
                 'Done',
                 style: TextStyle(
-                  color: palette.onPrimary,
+                  color: palette.onSurface,
                   fontWeight: FontWeight.w700,
                 ),
               ),
