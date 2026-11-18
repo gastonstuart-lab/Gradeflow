@@ -88,7 +88,7 @@ jobs:
           flutter build web --release --no-wasm-dry-run \
             --target lib/teacher_appearance_review_main.dart
           test -s build/web/main.dart.js
-      - name: Seal native demo: local assets only, no third-party auth or academic services
+      - name: "Seal native demo: local assets only, no third-party auth or academic services"
         run: |
           cp web/teacher_appearance_review_index.html build/web/index.html
           ! grep -q 'google-signin-client_id' build/web/index.html
