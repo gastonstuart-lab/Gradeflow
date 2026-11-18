@@ -1,0 +1,143 @@
+name: Review GradeFlow Home-only settings complete package
+# READ-ONLY PR GATE: no deploy, no Firebase credentials, no production writes.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/review-home-menu-fix-20261118.yml'
+      - 'docs/releases/home-only-settings-release-review-20261118.md'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: gradeflow-home-menu-package-review
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Verify exact source, build Studio, assemble package and check LIVE baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check merged source and successful post-merge evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/pulls/165 --jq .merged)" = true
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/pulls/165 --jq .merge_commit_sha)" = 072be2c331c87554f4a2e9c8587f2da9575370ea
+          for run in 44243424728 44243424792 44243432062; do
+            test "$(gh run view "$run" --json conclusion --jq .conclusion)" = success
+            test "$(gh run view "$run" --json headSha --jq .headSha)" = 072be2c331c87554f4a2e9c8587f2da9575370ea
+          done
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14400718024 --jq .digest)" = sha256:e6ed1ade30a859d5e3ab3b235139975a165df951aa1481d4602fcde633a24996
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14400718024 --jq .expired)" = false
+          test "$(gh run view 44232332243 --json conclusion --jq .conclusion)" = success
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14390478121 --jq .digest)" = sha256:b6069310903509b5492861941d3b730a8ecc1cec17d79f2d3fb274dda737090a
+          test "$(gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14390478121 --jq .expired)" = false
+      - uses: actions/checkout@v4
+        with:
+          ref: 072be2c331c87554f4a2e9c8587f2da9575370ea
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify checked out exact integration commit
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 072be2c331c87554f4a2e9c8587f2da9575370ea
+          git rev-parse HEAD^{tree}
+      - uses: actions/download-artifact@v4
+        with:
+          name: gradeflow-v2-integrated-app
+          run-id: 44243424792
+          github-token: ${{ github.token }}
+          path: build/web
+      - name: Verify actual LIVE V2 Flutter artifact files
+        run: |
+          set -euo pipefail
+          test -s build/web/main.dart.js
+          test -s build/web/index.html
+          test -s build/web/flutter_bootstrap.js
+      - name: Build and test preserved Teaching Studio at exact same source
+        working-directory: teacher-tools-preview
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+          npx playwright install --with-deps chromium
+          npm test
+          mkdir -p ../build/web/teaching-studio
+          cp -a dist/. ../build/web/teaching-studio/
+          test -s ../build/web/teaching-studio/index.html
+          test -s ../build/web/teaching-studio/pdfjs/web/gradeflow-pen.mjs
+          test -s ../build/web/teaching-studio/pdfjs/build/pdf.worker.mjs
+      - name: Verify Hosting-only configuration and generate full SHA-256 manifest
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          root = Path('build/web')
+          required = ('index.html','main.dart.js','flutter_bootstrap.js',
+             'teaching-studio/index.html',
+             'teaching-studio/pdfjs/build/pdf.worker.mjs',
+             'teaching-studio/pdfjs/web/gradeflow-pen.mjs',
+             'teaching-studio/pdfjs/web/gradeflow-pen.css')
+          for rel in required:
+              assert (root/rel).is_file() and (root/rel).stat().st_size, rel
+          config = json.loads(Path('firebase.live.json').read_text())
+          assert list(config) == ['hosting'], 'Hosting-only config required'
+          assert config['hosting']['public'] == 'build/web'
+          assert any(x.get('source') == '**' and x.get('destination') == '/index.html'
+                     for x in config['hosting']['rewrites'])
+          git = lambda *args: subprocess.check_output(['git',*args], text=True).strip()
+          assert git('rev-parse','HEAD') == '072be2c331c87554f4a2e9c8587f2da9575370ea'
+          files = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+                   for p in sorted(root.rglob('*')) if p.is_file()
+                   and p.name != 'review-manifest.json'
+                   and not any(part.startswith('.') for part in p.relative_to(root).parts)}
+          assert len(files) > 20, 'Incomplete application package'
+          manifest = {'commit':git('rev-parse','HEAD'),
+             'tree':git('rev-parse','HEAD^{tree}'), 'run':os.environ['GITHUB_RUN_ID'],
+             'sourcePr':165,'flutterCiRun':44243424792,'flutterArtifact':14400718024,
+             'flutterArtifactDigest':'sha256:e6ed1ade30a859d5e3ab3b235139975a165df951aa1481d4602fcde633a24996',
+             'teacherMenuBlob':git('rev-parse','HEAD:lib/widgets/teacher_account_menu.dart'),
+             'osShellBlob':git('rev-parse','HEAD:lib/os/gradeflow_os_shell.dart'),
+             'hostingConfigSha256':hashlib.sha256(Path('firebase.live.json').read_bytes()).hexdigest(),
+             'files':files}
+          (root/'review-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          print('Exact tested Git source:',manifest['commit'])
+          print('Complete release file count:',len(files))
+          print('Flutter JS SHA-256:',files['main.dart.js'])
+          print('Studio index SHA-256:',files['teaching-studio/index.html'])
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-gradebook-review-app
+          run-id: 44219883596
+          github-token: ${{ github.token }}
+          path: previous/build/web
+      - name: Load pinned and already reviewed read-only public Hosting verifier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api 'repos/gastonstuart-lab/Gradeflow/contents/scripts/verify-hosting-release.sh?ref=503869467d40e30539224e53824b07d947a81554' \
+            -H 'Accept: application/vnd.github.raw+json' > verify-hosting-release.sh
+          bash -n verify-hosting-release.sh
+      - name: Verify existing LIVE Hosting still matches last published package
+        run: |
+          set -euo pipefail
+          bash verify-hosting-release.sh previous/build/web \
+            https://gradeflow-20260113.web.app home-menu-review-$GITHUB_RUN_ID
+          echo 'Read-only current LIVE byte baseline verified; NO deployment.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Complete future package is pinned to commit 072be2c331c87554f4a2e9c8587f2da9575370ea.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: home-only-settings-complete-review-package
+          path: build/web/
+          retention-days: 14
+          if-no-files-found: error
