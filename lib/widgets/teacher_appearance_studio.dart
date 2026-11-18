@@ -85,7 +85,7 @@ class _AppearanceSheet extends StatelessWidget {
                       child: _BackgroundChoice(
                         label: entry.value,
                         id: entry.key,
-                        accent: choices.accentColor,
+                        accent: choices.backgroundGlowColor,
                         selected: choices.background == entry.key,
                         onTap: () => context.read<TeacherAppearanceController>().setBackground(entry.key),
                       ),
@@ -150,7 +150,8 @@ class _LiveWorkspacePreview extends StatelessWidget {
     final settings = context.watch<TeacherAppearanceController>();
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
-    final accent = settings.accentColor;
+    final glow = settings.backgroundGlowColor;
+    final uiAccent = theme.colorScheme.primary;
     final foreground = dark ? const Color(0xFFEDF3FF) : const Color(0xFF122136);
     final base = dark ? const Color(0xFF101827) : const Color(0xFFF4F7FC);
     return ClipRRect(
@@ -169,7 +170,7 @@ class _LiveWorkspacePreview extends StatelessWidget {
               child: Opacity(
                 opacity: settings.intensity,
                 child: CustomPaint(
-                  painter: _PreviewPainter(settings.background, accent),
+                  painter: _PreviewPainter(settings.background, glow),
                 ),
               ),
             ),
@@ -183,7 +184,7 @@ class _LiveWorkspacePreview extends StatelessWidget {
                     Container(
                       width: 10, height: 10,
                       decoration: BoxDecoration(
-                        color: accent, borderRadius: BorderRadius.circular(3),
+                        color: uiAccent, borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -194,14 +195,14 @@ class _LiveWorkspacePreview extends StatelessWidget {
                     Container(
                       width: 62, height: 12,
                       decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.35),
+                        color: uiAccent.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),
                   ]),
                   const SizedBox(height: 18),
                   Row(children: [
-                    Expanded(child: _PreviewPanel(color: foreground, accent: accent)),
+                    Expanded(child: _PreviewPanel(color: foreground, accent: uiAccent)),
                     const SizedBox(width: 10),
                     Expanded(child: _PreviewPanel(color: foreground, accent: accent)),
                     const SizedBox(width: 10),
@@ -279,7 +280,7 @@ class _BackgroundChoice extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: selected ? accent : Theme.of(context).colorScheme.outlineVariant,
+                color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outlineVariant,
                 width: selected ? 2 : 1,
               ),
             ),
@@ -301,7 +302,7 @@ class _BackgroundChoice extends StatelessWidget {
               ),
               if (selected)
                 Positioned(right: 8, top: 8,
-                  child: Icon(Icons.check_circle, color: accent, size: 21)),
+                  child: Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary, size: 21)),
             ]),
           ),
         ),
