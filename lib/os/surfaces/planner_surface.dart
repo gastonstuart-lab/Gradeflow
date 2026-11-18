@@ -921,7 +921,13 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
     // Keep class-linked items available in the filtered calendar as well.
     final calendarEntries = [..._reminders]
       ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
-    final today = PlannerDateMath.day(DateTime.now());
+    // Synthetic reviews have a fixed fictional calendar anchor. Using the
+    // wall clock makes this 2026 fixture fail once its dates become history.
+    // Live, authenticated Planner continues to use the real current date.
+    final today = PlannerDateMath.day(
+        widget.syntheticPreview != null
+            ? (widget.initialDate ?? DateTime.now())
+            : DateTime.now());
     final endOfComingUp = today.add(const Duration(days: 29));
     final comingUp = calendarEntries.where((reminder) =>
         (reminder.kind == 'school_event' || !reminder.done) &&
