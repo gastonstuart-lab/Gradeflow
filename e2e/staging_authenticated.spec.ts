@@ -104,6 +104,10 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
   await page.goto('/os/planner');
   await ensureFlutterSemantics(page);
+  // Personalisation entry is intentionally Home-only, not an overlay on
+  // Planner, Gradebook, Classroom, or student workflows.
+  await expect(page.getByRole('button', { name: /Account and settings/i }))
+    .toHaveCount(0);
   await page.goto('/os/home');
   await ensureFlutterSemantics(page);
   await openAppearance();
