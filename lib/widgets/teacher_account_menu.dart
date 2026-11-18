@@ -24,24 +24,90 @@ class TeacherAccountMenu extends StatefulWidget {
 }
 
 class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
-  final MenuController _controller = MenuController();
+  // A real modal route blocks ALL interaction with the Home dock and cards.
+  // MenuAnchor consumed outside taps but did not isolate appearance changes
+  // from the page underneath; the user could still be sent to Planner.
+  bool _isPanelOpen = false;
+  BuildContext? _panelContext;
+  StateSetter? _panelSetState;
   bool _showAppearance = false;
   bool _advancedOpen = false;
 
+  void _updatePanel(VoidCallback change) {
+    final update = _panelSetState;
+    if (update != null) update(change);
+  }
+
   void _toggleMenu() {
-    if (_controller.isOpen) {
-      _controller.close();
-    } else {
-      setState(() {
-        _showAppearance = false;
-        _advancedOpen = false;
-      });
-      _controller.open();
+    if (_isPanelOpen) {
+      _closeMenu();
+      return;
     }
+    _isPanelOpen = true;
+    _showAppearance = false;
+    _advancedOpen = false;
+    unawaited(showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close account settings',
+      barrierColor: Colors.black.withValues(alpha: 0.22),
+      transitionDuration: const Duration(milliseconds: 150),
+      pageBuilder: (routeContext, _, __) => StatefulBuilder(
+        builder: (panelContext, rebuild) {
+          _panelContext = panelContext;
+          _panelSetState = rebuild;
+          final colourScheme = Theme.of(panelContext).colorScheme;
+          final viewport = MediaQuery.sizeOf(panelContext);
+          final teacher = panelContext.watch<AuthService?>()?.currentUser;
+          final fullName = teacher?.fullName.trim() ?? '';
+          final email = teacher?.email.trim() ?? '';
+          final initial =
+              fullName.isEmpty ? 'T' : fullName.characters.first.toUpperCase();
+
+          return Align(
+            alignment: Alignment.topRight,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 54, 12, 12),
+                child: Material(
+                  key: const Key('teacher-account-modal-panel'),
+                  elevation: 12,
+                  color: colourScheme.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  clipBehavior: Clip.antiAlias,
+                  child: SizedBox(
+                    width: (viewport.width - 28).clamp(260.0, 368.0),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: (viewport.height - 100).clamp(240.0, 720.0),
+                      ),
+                      child: SingleChildScrollView(
+                        primary: false,
+                        child: _showAppearance
+                            ? _appearancePane(panelContext)
+                            : _accountPane(
+                                panelContext, fullName, email, initial),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ).whenComplete(() {
+      _isPanelOpen = false;
+      _panelContext = null;
+      _panelSetState = null;
+    }));
   }
 
   void _closeMenu() {
-    if (_controller.isOpen) _controller.close();
+    final panelContext = _panelContext;
+    if (_isPanelOpen && panelContext != null && panelContext.mounted) {
+      Navigator.of(panelContext, rootNavigator: true).pop();
+    }
   }
 
   Future<void> _confirmSignOut() async {
@@ -123,70 +189,37 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
     final initial = name.isEmpty ? 'T' : name.characters.first.toUpperCase();
     final palette = Theme.of(context).colorScheme;
     final availableWidth = MediaQuery.sizeOf(context).width;
-    final panelWidth = (availableWidth - 28).clamp(260.0, 368.0);
-    final maxHeight = (MediaQuery.sizeOf(context).height - 100)
-        .clamp(240.0, 720.0);
-
-    return MenuAnchor(
-      controller: _controller,
-      // A click that dismisses this menu must NOT activate the Home, Planner
-      // or other dock action underneath the popup on the same pointer event.
-      consumeOutsideTap: true,
-      alignmentOffset: const Offset(0, 8),
-      style: MenuStyle(
-        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
-        backgroundColor: WidgetStatePropertyAll(palette.surface),
-        elevation: const WidgetStatePropertyAll(12),
-        shape: WidgetStatePropertyAll(
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        ),
-      ),
-      menuChildren: [
-        SizedBox(
-          width: panelWidth,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: maxHeight),
-            child: SingleChildScrollView(
-              primary: false,
-              child: _showAppearance
-                  ? _appearancePane(context)
-                  : _accountPane(context, name, email, initial),
-            ),
+    return Tooltip(
+      message: 'Account and settings',
+      child: InkWell(
+        key: const Key('teacher-account-settings-button'),
+        onTap: _toggleMenu,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
+          decoration: BoxDecoration(
+            color: palette.surface.withValues(alpha: .94),
+            border: Border.all(color: palette.outlineVariant),
+            borderRadius: BorderRadius.circular(18),
           ),
-        ),
-      ],
-      builder: (context, controller, child) => Tooltip(
-        message: 'Account and settings',
-        child: InkWell(
-          key: const Key('teacher-account-settings-button'),
-          onTap: _toggleMenu,
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
-            decoration: BoxDecoration(
-              color: palette.surface.withValues(alpha: .94),
-              border: Border.all(color: palette.outlineVariant),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _avatar(initial, palette),
-                if (availableWidth >= 1100) ...[
-                  const SizedBox(width: 7),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 78),
-                    child: Text(shortName,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w800)),
-                  ),
-                ],
-                const SizedBox(width: 5),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 16, color: palette.onSurfaceVariant),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _avatar(initial, palette),
+              if (availableWidth >= 1100) ...[
+                const SizedBox(width: 7),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 78),
+                  child: Text(shortName,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w800)),
+                ),
               ],
-            ),
+              const SizedBox(width: 5),
+              Icon(Icons.keyboard_arrow_down_rounded,
+                size: 16, color: palette.onSurfaceVariant),
+            ],
           ),
         ),
       ),
@@ -248,7 +281,7 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
             icon: Icons.palette_outlined,
             title: 'Appearance & colours',
             subtitle: 'Background glow, pattern and display mode',
-            onTap: () => setState(() => _showAppearance = true),
+            onTap: () => _updatePanel(() => _showAppearance = true),
           ),
           if (display.browserFullscreenAvailable) ...[
             _menuAction(
@@ -329,7 +362,7 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
         children: [
           TextButton.icon(
             key: const Key('account-settings-back'),
-            onPressed: () => setState(() => _showAppearance = false),
+            onPressed: () => _updatePanel(() => _showAppearance = false),
             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
             label: const Text('Back to settings'),
           ),
@@ -382,7 +415,7 @@ class _TeacherAccountMenuState extends State<TeacherAccountMenu> {
             onChanged: context.read<TeacherAppearanceController>().setEnabled,
           ),
           OutlinedButton.icon(
-            onPressed: () => setState(() => _advancedOpen = !_advancedOpen),
+            onPressed: () => _updatePanel(() => _advancedOpen = !_advancedOpen),
             icon: Icon(_advancedOpen
                 ? Icons.keyboard_arrow_up_rounded
                 : Icons.tune_rounded),
