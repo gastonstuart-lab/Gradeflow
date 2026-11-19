@@ -1,21 +1,124 @@
 rules_version = '2';
+// Communication access is provisioned by a trusted administrator, never clients.
+// communicationAccess/{uid}: active bool, schoolKey string (1..200),
+// role admin|departmentLead|teacher, displayName string (1..100),
+// channelIds list (<=100 trusted channel IDs). One primary school per user.
+// schools/{schoolKey}/communicationChannels/{channelId}: existing channel schema;
+// metadata/ACLs are administrator-managed. Clients may only update the summary
+// atomically with a new message. lastMessageId (nullable string <=128) binds it.
+// .../messages/{messageId}: messageId/channelId/schoolKey/authorId/authorName,
+// authorRole/text/createdAt/isAlert/severity; immutable after creation.
+// Existing users/{uid}/** academic ownership is deliberately unchanged.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
-    match /{document=**} {
-      allow read, write: if false;
+    function signedIn() { return request.auth != null; }
+    function accessPath() {
+      return /databases/$(database)/documents/communicationAccess/$(request.auth.uid);
     }
-
-    // Gradeflow per-user data
+    function access() { return get(accessPath()).data; }
+    function member(schoolKey) {
+      return signedIn() && exists(accessPath())
+        && access().active == true
+        && access().schoolKey is string && access().schoolKey.size() > 0
+        && access().schoolKey.size() <= 200 && access().schoolKey == schoolKey
+        && access().role in ['admin', 'departmentLead', 'teacher']
+        && access().displayName is string && access().displayName.size() > 0
+        && access().displayName.size() <= 100
+        && access().channelIds is list && access().channelIds.size() <= 100;
+    }
+    function channelMember(schoolKey, channelId) {
+      return member(schoolKey) && channelId in access().channelIds;
+    }
+    function channelPath(schoolKey, channelId) {
+      return /databases/$(database)/documents/schools/$(schoolKey)/communicationChannels/$(channelId);
+    }
+    function optionalText(value, maxLength) {
+      return value == null || (value is string && value.size() <= maxLength);
+    }
+    function validChannel(d, schoolKey, channelId) {
+      return d.keys().hasAll(['channelId','schoolKey','name','description','kind',
+          'readOnly','memberCount','sortOrder','createdBy','createdAt','updatedAt',
+          'lastMessagePreview','lastSenderName','lastMessageAt'])
+        && d.keys().hasOnly(['channelId','schoolKey','name','description','kind',
+          'readOnly','memberCount','sortOrder','createdBy','createdAt','updatedAt',
+          'lastMessagePreview','lastSenderName','lastMessageAt','lastMessageId'])
+        && d.channelId == channelId && d.channelId is string && d.channelId.size() <= 128
+        && d.schoolKey == schoolKey && d.schoolKey is string && d.schoolKey.size() <= 200
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 120
+        && d.description is string && d.description.size() <= 1000
+        && d.kind in ['adminAlerts','staffRoom','department','gradeTeam','direct','sharedFiles']
+        && d.readOnly is bool && d.memberCount is int && d.memberCount >= 0 && d.memberCount <= 10000
+        && d.sortOrder is int && d.sortOrder >= 0 && d.sortOrder <= 10000
+        && d.createdBy is string && d.createdBy.size() > 0 && d.createdBy.size() <= 100
+        && d.createdAt is timestamp && d.updatedAt is timestamp
+        && optionalText(d.lastMessagePreview, 4000) && optionalText(d.lastSenderName, 100)
+        && (d.lastMessageAt == null || d.lastMessageAt is timestamp)
+        && optionalText(d.get('lastMessageId', null), 128);
+    }
+    function validMessage(d, schoolKey, channelId, messageId) {
+      return d.keys().hasAll(['messageId','channelId','schoolKey','authorId','authorName',
+          'authorRole','text','createdAt','isAlert','severity'])
+        && d.keys().hasOnly(['messageId','channelId','schoolKey','authorId','authorName',
+          'authorRole','text','createdAt','isAlert','severity'])
+        && d.messageId is string && d.messageId == messageId && d.messageId.size() <= 128
+        && d.channelId is string && d.channelId == channelId && d.channelId.size() <= 128
+        && d.schoolKey is string && d.schoolKey == schoolKey && d.schoolKey.size() <= 200
+        && d.authorId is string && d.authorId == request.auth.uid && d.authorId.size() <= 128
+        && d.authorName is string && d.authorName == access().displayName && d.authorName.size() <= 100
+        && d.authorRole == access().role
+        && d.text is string && d.text.size() > 0 && d.text.size() <= 4000
+        && d.createdAt == request.time && d.createdAt is timestamp
+        && d.isAlert is bool && d.severity in ['info','attention','urgent'];
+    }
+    function mayPost(schoolKey, channelId, d) {
+      let c = get(channelPath(schoolKey, channelId)).data;
+      return (!c.readOnly || access().role == 'admin')
+        && (d.isAlert
+          ? (access().role == 'admin' && channelId == 'admin-alerts' && c.kind == 'adminAlerts')
+          : (c.kind != 'adminAlerts' && d.severity == 'info'));
+    }
+    function summaryMatches(schoolKey, channelId, messageId, d) {
+      let c = getAfter(channelPath(schoolKey, channelId)).data;
+      return c.lastMessageId == messageId && c.lastMessagePreview == d.text
+        && c.lastSenderName == d.authorName && c.lastMessageAt == request.time
+        && c.updatedAt == request.time;
+    }
+    function validSummary(schoolKey, channelId) {
+      let d = request.resource.data;
+      let messageId = d.get('lastMessageId', '');
+      let path = /databases/$(database)/documents/schools/$(schoolKey)/communicationChannels/$(channelId)/messages/$(messageId);
+      let m = getAfter(path).data;
+      return validChannel(d, schoolKey, channelId)
+        && d.diff(resource.data).affectedKeys().hasOnly([
+          'lastMessagePreview','lastSenderName','lastMessageAt','lastMessageId','updatedAt'])
+        && messageId is string && messageId.size() > 0 && messageId.size() <= 128
+        && !exists(path) && validMessage(m, schoolKey, channelId, messageId)
+        && mayPost(schoolKey, channelId, m)
+        && summaryMatches(schoolKey, channelId, messageId, m);
+    }
+    match /{document=**} { allow read, write: if false; }
     match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if signedIn() && request.auth.uid == userId;
     }
-
-    // Shared-school communication data used by the Messages workspace.
-    match /schools/{schoolKey}/communicationChannels/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-          && request.resource.data.schoolKey == schoolKey;
+    match /communicationAccess/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
+    }
+    match /schools/{schoolKey}/communicationChannels/{channelId} {
+      allow read: if channelMember(schoolKey, channelId);
+      // Provision channels/ACLs through a trusted administrator, not client UI.
+      allow create, delete: if false;
+      allow update: if channelMember(schoolKey, channelId) && validSummary(schoolKey, channelId);
+      match /messages/{messageId} {
+        allow get: if channelMember(schoolKey, channelId) && exists(channelPath(schoolKey, channelId));
+        allow list: if channelMember(schoolKey, channelId) && exists(channelPath(schoolKey, channelId))
+          && request.query.limit != null && request.query.limit <= 100;
+        allow create: if channelMember(schoolKey, channelId) && exists(channelPath(schoolKey, channelId))
+          && validMessage(request.resource.data, schoolKey, channelId, messageId)
+          && mayPost(schoolKey, channelId, request.resource.data)
+          && summaryMatches(schoolKey, channelId, messageId, request.resource.data);
+        allow update, delete: if false;
+      }
     }
   }
 }

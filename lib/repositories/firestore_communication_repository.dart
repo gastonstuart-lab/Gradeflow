@@ -3,6 +3,8 @@ import 'package:gradeflow/models/communication_models.dart';
 import 'package:gradeflow/models/user.dart';
 import 'package:gradeflow/repositories/communication_repository.dart';
 import 'package:uuid/uuid.dart';
+import 'package:gradeflow/models/communication_access.dart';
+import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
 
 class FirestoreCommunicationRepository implements CommunicationRepository {
   FirestoreCommunicationRepository();
@@ -17,81 +19,37 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
     required String description,
     required CommunicationChannelKind kind,
   }) async {
-    final schoolKey = communicationSchoolKeyForUser(user);
-    final channels = await loadChannels(user: user);
-    final now = DateTime.now();
-    final channel = CommunicationChannelRecord(
-      channelId: createCommunicationChannelId(
-        name,
-        channels.map((item) => item.channelId),
-      ),
-      schoolKey: schoolKey,
-      name: name.trim(),
-      description: description.trim(),
-      kind: kind,
-      readOnly: false,
-      memberCount: _defaultMemberCountForKind(kind),
-      sortOrder: channels.isEmpty
-          ? 0
-          : channels
-                  .map((item) => item.sortOrder)
-                  .reduce((a, b) => a > b ? a : b) +
-              1,
-      createdBy:
-          user.fullName.trim().isEmpty ? user.email : user.fullName.trim(),
-      createdAt: now,
-      updatedAt: now,
+    throw StateError(
+      'Shared channels are provisioned by your school administrator.',
     );
-
-    await _channelDoc(schoolKey, channel.channelId)
-        .set(_channelToFirestore(channel));
-    return channel;
   }
 
   @override
-  Future<void> ensureDefaultChannels({
-    required User user,
-  }) async {
-    final batch = _firestore.batch();
-    final channels = buildDefaultCommunicationChannels(user);
-    for (final channel in channels) {
-      batch.set(
-        _channelDoc(channel.schoolKey, channel.channelId),
-        _channelToFirestore(channel),
-        SetOptions(merge: true),
-      );
-    }
-    await batch.commit();
+  Future<void> ensureDefaultChannels({required User user}) async {
+    // Cloud startup must never seed sample channels or impersonated messages.
+  }
 
-    for (final message in buildDefaultCommunicationMessages(user)) {
-      final messagesCollection =
-          _messagesCollection(message.schoolKey, message.channelId);
-      final existing = await messagesCollection.limit(1).get();
-      if (existing.docs.isNotEmpty) {
-        continue;
-      }
-      final doc = messagesCollection.doc(message.messageId);
-      await doc.set(_messageToFirestore(message));
-      await _channelDoc(message.schoolKey, message.channelId).set(
-        {
-          'lastMessagePreview': message.text,
-          'lastSenderName': message.authorName,
-          'lastMessageAt': Timestamp.fromDate(message.createdAt),
-          'updatedAt': Timestamp.fromDate(message.createdAt),
-        },
-        SetOptions(merge: true),
-      );
+  Future<CommunicationAccess> _access(User user) async {
+    final doc = await _firestore
+        .collection('communicationAccess')
+        .doc(user.userId)
+        .get(const GetOptions(source: Source.server));
+    return CommunicationAccess.fromData(doc.data());
+  }
+
+  void _requireWrites() {
+    if (GradeFlowExistingProjectPreview.enabled) {
+      throw StateError('This review preview cannot send shared messages.');
     }
   }
 
   @override
-  Future<Map<String, DateTime>> loadReadMarkers({
-    required User user,
-  }) async {
-    final schoolKey = communicationSchoolKeyForUser(user);
-    final snapshot = await _readMarkersCollection(user.userId)
-        .where('schoolKey', isEqualTo: schoolKey)
-        .get();
+  Future<Map<String, DateTime>> loadReadMarkers({required User user}) async {
+    final access = await _access(user);
+    final schoolKey = access.schoolKey;
+    final snapshot = await _readMarkersCollection(
+      user.userId,
+    ).where('schoolKey', isEqualTo: schoolKey).get();
     return {
       for (final doc in snapshot.docs)
         (doc.data()['channelId'] as String? ?? doc.id):
@@ -105,10 +63,13 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
     required String channelId,
     required DateTime readAt,
   }) async {
-    final schoolKey = communicationSchoolKeyForUser(user);
-    await _readMarkersCollection(user.userId)
-        .doc(_readMarkerDocId(schoolKey, channelId))
-        .set({
+    if (GradeFlowExistingProjectPreview.enabled) return;
+    final access = await _access(user);
+    access.requireChannel(channelId);
+    final schoolKey = access.schoolKey;
+    await _readMarkersCollection(
+      user.userId,
+    ).doc(_readMarkerDocId(schoolKey, channelId)).set({
       'channelId': channelId,
       'schoolKey': schoolKey,
       'readAt': Timestamp.fromDate(readAt),
@@ -120,14 +81,21 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
   Future<List<CommunicationChannelRecord>> loadChannels({
     required User user,
   }) async {
-    final schoolKey = communicationSchoolKeyForUser(user);
-    final snapshot = await _firestore
-        .collection(_channelsPath(schoolKey))
-        .orderBy('sortOrder')
-        .get();
-    final channels = snapshot.docs
-        .map((doc) => _channelFromFirestore(doc.data()))
-        .toList(growable: false);
+    final access = await _access(user);
+    final schoolKey = access.schoolKey;
+    final channels = <CommunicationChannelRecord>[];
+    // Query only administrator-granted document IDs; rules never filter a broad list.
+    for (var offset = 0; offset < access.channelIds.length; offset += 10) {
+      final ids = access.channelIds.skip(offset).take(10).toList();
+      final snapshot = await _firestore
+          .collection(_channelsPath(schoolKey))
+          .where(FieldPath.documentId, whereIn: ids)
+          .limit(10)
+          .get(const GetOptions(source: Source.server));
+      channels.addAll(
+        snapshot.docs.map((doc) => _channelFromFirestore(doc.data())),
+      );
+    }
     channels.sort((a, b) {
       final order = a.sortOrder.compareTo(b.sortOrder);
       if (order != 0) return order;
@@ -144,11 +112,15 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
     required String channelId,
     int limit = 40,
   }) async {
-    final schoolKey = communicationSchoolKeyForUser(user);
+    final access = await _access(user);
+    final schoolKey = access.schoolKey;
+    access.requireChannel(channelId);
+    if (limit < 1 || limit > 100)
+      throw RangeError.range(limit, 1, 100, 'limit');
     final snapshot = await _messagesCollection(schoolKey, channelId)
         .orderBy('createdAt', descending: true)
         .limit(limit)
-        .get();
+        .get(const GetOptions(source: Source.server));
     final messages = snapshot.docs
         .map((doc) => _messageFromFirestore(doc.data()))
         .toList(growable: false)
@@ -164,31 +136,7 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
     required String text,
     CommunicationRole authorRole = CommunicationRole.teacher,
   }) async {
-    final schoolKey = communicationSchoolKeyForUser(user);
-    final now = DateTime.now();
-    final message = CommunicationMessage(
-      messageId: _uuid.v4(),
-      channelId: channel.channelId,
-      schoolKey: schoolKey,
-      authorId: user.userId,
-      authorName: user.fullName.trim().isEmpty ? user.email : user.fullName,
-      authorRole: authorRole,
-      text: text.trim(),
-      createdAt: now,
-    );
-
-    await _messagesCollection(schoolKey, channel.channelId)
-        .doc(message.messageId)
-        .set(_messageToFirestore(message));
-    await _channelDoc(schoolKey, channel.channelId).set(
-      {
-        'lastMessagePreview': message.text,
-        'lastSenderName': message.authorName,
-        'lastMessageAt': Timestamp.fromDate(now),
-        'updatedAt': Timestamp.fromDate(now),
-      },
-      SetOptions(merge: true),
-    );
+    await _send(user: user, channelId: channel.channelId, text: text);
   }
 
   @override
@@ -197,33 +145,60 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
     required String text,
     required CommunicationAlertSeverity severity,
   }) async {
-    final schoolKey = communicationSchoolKeyForUser(user);
-    final now = DateTime.now();
-    final message = CommunicationMessage(
-      messageId: _uuid.v4(),
+    await _send(
+      user: user,
       channelId: 'admin-alerts',
-      schoolKey: schoolKey,
-      authorId: user.userId,
-      authorName: user.fullName.trim().isEmpty ? 'School Admin' : user.fullName,
-      authorRole: CommunicationRole.admin,
-      text: text.trim(),
-      createdAt: now,
+      text: text,
       isAlert: true,
       severity: severity,
     );
+  }
 
-    await _messagesCollection(schoolKey, 'admin-alerts')
-        .doc(message.messageId)
-        .set(_messageToFirestore(message));
-    await _channelDoc(schoolKey, 'admin-alerts').set(
-      {
-        'lastMessagePreview': message.text,
-        'lastSenderName': message.authorName,
-        'lastMessageAt': Timestamp.fromDate(now),
-        'updatedAt': Timestamp.fromDate(now),
-      },
-      SetOptions(merge: true),
+  Future<void> _send({
+    required User user,
+    required String channelId,
+    required String text,
+    bool isAlert = false,
+    CommunicationAlertSeverity severity = CommunicationAlertSeverity.info,
+  }) async {
+    _requireWrites();
+    final access = await _access(user);
+    access.requireChannel(channelId);
+    if (isAlert && access.role != CommunicationRole.admin) {
+      throw StateError('Only a school administrator can publish admin alerts.');
+    }
+    final body = text.trim();
+    if (body.isEmpty || body.length > 4000) {
+      throw ArgumentError('Messages must contain 1 to 4000 characters.');
+    }
+    final message = CommunicationMessage(
+      messageId: _uuid.v4(),
+      channelId: channelId,
+      schoolKey: access.schoolKey,
+      authorId: user.userId,
+      authorName: access.displayName,
+      authorRole: access.role,
+      text: body,
+      createdAt: DateTime.now(),
+      isAlert: isAlert,
+      severity: severity,
     );
+    final batch = _firestore.batch();
+    batch.set(
+      _messagesCollection(access.schoolKey, channelId).doc(message.messageId),
+      {
+        ..._messageToFirestore(message),
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    );
+    batch.update(_channelDoc(access.schoolKey, channelId), {
+      'lastMessageId': message.messageId,
+      'lastMessagePreview': body,
+      'lastSenderName': access.displayName,
+      'lastMessageAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
   }
 
   String _channelsPath(String schoolKey) =>
@@ -251,27 +226,6 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
 
   String _readMarkerDocId(String schoolKey, String channelId) =>
       '${schoolKey}__$channelId';
-
-  Map<String, dynamic> _channelToFirestore(CommunicationChannelRecord channel) {
-    return {
-      'channelId': channel.channelId,
-      'schoolKey': channel.schoolKey,
-      'name': channel.name,
-      'description': channel.description,
-      'kind': communicationChannelKindKey(channel.kind),
-      'readOnly': channel.readOnly,
-      'memberCount': channel.memberCount,
-      'sortOrder': channel.sortOrder,
-      'createdBy': channel.createdBy,
-      'createdAt': Timestamp.fromDate(channel.createdAt),
-      'updatedAt': Timestamp.fromDate(channel.updatedAt),
-      'lastMessagePreview': channel.lastMessagePreview,
-      'lastSenderName': channel.lastSenderName,
-      'lastMessageAt': channel.lastMessageAt == null
-          ? null
-          : Timestamp.fromDate(channel.lastMessageAt!),
-    };
-  }
 
   CommunicationChannelRecord _channelFromFirestore(Map<String, dynamic> data) {
     return CommunicationChannelRecord(
@@ -320,22 +274,5 @@ class FirestoreCommunicationRepository implements CommunicationRepository {
       isAlert: data['isAlert'] as bool? ?? false,
       severity: communicationAlertSeverityFromKey(data['severity'] as String?),
     );
-  }
-
-  int _defaultMemberCountForKind(CommunicationChannelKind kind) {
-    switch (kind) {
-      case CommunicationChannelKind.adminAlerts:
-        return 12;
-      case CommunicationChannelKind.staffRoom:
-        return 18;
-      case CommunicationChannelKind.department:
-        return 8;
-      case CommunicationChannelKind.gradeTeam:
-        return 6;
-      case CommunicationChannelKind.direct:
-        return 2;
-      case CommunicationChannelKind.sharedFiles:
-        return 5;
-    }
   }
 }

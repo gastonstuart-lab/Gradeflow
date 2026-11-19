@@ -10,6 +10,31 @@ import 'package:gradeflow/repositories/repository_factory.dart';
 import 'package:gradeflow/services/auth_service.dart';
 
 class CommunicationService extends ChangeNotifier {
+  CommunicationService(
+      {CommunicationRepository Function(RepositoryBackend)? repositoryFactory})
+      : _repositoryFactory = repositoryFactory;
+  final CommunicationRepository Function(RepositoryBackend)? _repositoryFactory;
+  int _epoch = 0;
+  bool _disposed = false;
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  void _clearWorkspace() {
+    _channels = const [];
+    _selectedChannelId = null;
+    _messagesByChannel.clear();
+    _readMarkersByChannel.clear();
+    _unreadCountsByChannel.clear();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _epoch++;
+    super.dispose();
+  }
+
   User? _user;
   CommunicationRepository? _repository;
   bool _loading = false;
@@ -71,20 +96,15 @@ class CommunicationService extends ChangeNotifier {
       return;
     }
 
+    _epoch++;
     _user = nextUser;
     _repository = repository;
-
-    if (nextUser == null) {
-      _channels = const [];
-      _selectedChannelId = null;
-      _messagesByChannel.clear();
-      _readMarkersByChannel.clear();
-      _unreadCountsByChannel.clear();
-      _error = null;
-      _loading = false;
-      notifyListeners();
-      return;
-    }
+    _clearWorkspace();
+    _error = null;
+    _loading = false;
+    _sending = false;
+    _notify();
+    if (nextUser == null) return;
 
     Future.microtask(load);
   }
@@ -96,59 +116,70 @@ class CommunicationService extends ChangeNotifier {
       return;
     }
 
+    final epoch = _epoch;
     _loading = true;
     _error = null;
-    notifyListeners();
-
+    _clearWorkspace();
+    _notify();
     try {
       await repository.ensureDefaultChannels(user: user);
+      if (epoch != _epoch) return;
       final channels = await repository.loadChannels(user: user);
+      if (epoch != _epoch) return;
       final readMarkers = await repository.loadReadMarkers(user: user);
-      final selectedId = _resolveSelectedChannelId(channels);
+      final messages = <String, List<CommunicationMessage>>{};
+      for (final channel in channels) {
+        if (epoch != _epoch) return;
+        messages[channel.channelId] = await repository.loadMessages(
+            user: user, channelId: channel.channelId);
+      }
+      if (epoch != _epoch) return;
       _channels = channels;
-      _selectedChannelId = selectedId;
-      _messagesByChannel.clear();
+      _selectedChannelId = _resolveSelectedChannelId(channels);
+      _messagesByChannel
+        ..clear()
+        ..addAll(messages);
       _readMarkersByChannel
         ..clear()
         ..addAll(readMarkers);
-      for (final channel in channels) {
-        _messagesByChannel[channel.channelId] = await repository.loadMessages(
-          user: user,
-          channelId: channel.channelId,
-        );
-      }
       _recomputeUnreadCounts();
-      if (selectedId != null) {
-        await _markChannelRead(selectedId, notify: false);
-      }
+      if (_selectedChannelId != null)
+        await _markChannelRead(_selectedChannelId!, notify: false);
     } catch (error) {
-      _error = error.toString();
+      if (epoch == _epoch) {
+        _clearWorkspace();
+        _error = error.toString();
+      }
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (epoch == _epoch) {
+        _loading = false;
+        _notify();
+      }
     }
   }
 
   Future<void> selectChannel(String channelId) async {
     final user = _user;
     final repository = _repository;
-    if (user == null || repository == null || _selectedChannelId == channelId) {
-      return;
-    }
-
-    _selectedChannelId = channelId;
+    final epoch = _epoch;
+    if (user == null ||
+        repository == null ||
+        _selectedChannelId == channelId ||
+        !_channels.any((c) => c.channelId == channelId)) return;
     try {
-      if (!_messagesByChannel.containsKey(channelId)) {
-        _messagesByChannel[channelId] = await repository.loadMessages(
-          user: user,
-          channelId: channelId,
-        );
-      }
+      final messages = _messagesByChannel[channelId] ??
+          await repository.loadMessages(user: user, channelId: channelId);
+      if (epoch != _epoch) return;
+      _messagesByChannel[channelId] = messages;
+      _selectedChannelId = channelId;
       await _markChannelRead(channelId, notify: false);
-      notifyListeners();
+      if (epoch == _epoch) _notify();
     } catch (error) {
-      _error = error.toString();
-      notifyListeners();
+      if (epoch == _epoch) {
+        _clearWorkspace();
+        _error = error.toString();
+        _notify();
+      }
     }
   }
 
@@ -168,9 +199,10 @@ class CommunicationService extends ChangeNotifier {
       return false;
     }
 
+    final epoch = _epoch;
     _sending = true;
     _error = null;
-    notifyListeners();
+    _notify();
 
     try {
       final channel = await repository.createChannel(
@@ -179,20 +211,30 @@ class CommunicationService extends ChangeNotifier {
         description: trimmedDescription,
         kind: kind,
       );
-      _channels = await repository.loadChannels(user: user);
-      _messagesByChannel[channel.channelId] = await repository.loadMessages(
+      if (epoch != _epoch) return false;
+      final channels = await repository.loadChannels(user: user);
+      if (epoch != _epoch) return false;
+      _channels = channels;
+      final messages = await repository.loadMessages(
         user: user,
         channelId: channel.channelId,
       );
+      if (epoch != _epoch) return false;
+      _messagesByChannel[channel.channelId] = messages;
       _selectedChannelId = channel.channelId;
       await _markChannelRead(channel.channelId, notify: false);
-      return true;
+      return epoch == _epoch;
     } catch (error) {
-      _error = error.toString();
+      if (epoch == _epoch) {
+        _clearWorkspace();
+        _error = error.toString();
+      }
       return false;
     } finally {
-      _sending = false;
-      notifyListeners();
+      if (epoch == _epoch) {
+        _sending = false;
+        _notify();
+      }
     }
   }
 
@@ -209,9 +251,10 @@ class CommunicationService extends ChangeNotifier {
       return;
     }
 
+    final epoch = _epoch;
     _sending = true;
     _error = null;
-    notifyListeners();
+    _notify();
 
     try {
       await repository.sendMessage(
@@ -219,13 +262,20 @@ class CommunicationService extends ChangeNotifier {
         channel: channel,
         text: trimmed,
       );
+      if (epoch != _epoch) return;
       await _refreshChannel(channel.channelId);
+      if (epoch != _epoch) return;
       await _markChannelRead(channel.channelId, notify: false);
     } catch (error) {
-      _error = error.toString();
+      if (epoch == _epoch) {
+        _clearWorkspace();
+        _error = error.toString();
+      }
     } finally {
-      _sending = false;
-      notifyListeners();
+      if (epoch == _epoch) {
+        _sending = false;
+        _notify();
+      }
     }
   }
 
@@ -239,9 +289,10 @@ class CommunicationService extends ChangeNotifier {
       return;
     }
 
+    final epoch = _epoch;
     _sending = true;
     _error = null;
-    notifyListeners();
+    _notify();
 
     try {
       await repository.postAdminAlert(
@@ -249,19 +300,27 @@ class CommunicationService extends ChangeNotifier {
         text: text.trim(),
         severity: severity,
       );
+      if (epoch != _epoch) return;
       await _refreshChannel('admin-alerts');
+      if (epoch != _epoch) return;
       if (_selectedChannelId == 'admin-alerts') {
         await _markChannelRead('admin-alerts', notify: false);
       }
     } catch (error) {
-      _error = error.toString();
+      if (epoch == _epoch) {
+        _clearWorkspace();
+        _error = error.toString();
+      }
     } finally {
-      _sending = false;
-      notifyListeners();
+      if (epoch == _epoch) {
+        _sending = false;
+        _notify();
+      }
     }
   }
 
   CommunicationRepository _createRepository(RepositoryBackend backend) {
+    if (_repositoryFactory != null) return _repositoryFactory(backend);
     switch (backend) {
       case RepositoryBackend.firestore:
         return FirestoreCommunicationRepository();
@@ -289,43 +348,33 @@ class CommunicationService extends ChangeNotifier {
   Future<void> _refreshChannel(String channelId) async {
     final user = _user;
     final repository = _repository;
-    if (user == null || repository == null) {
-      return;
-    }
-
+    final epoch = _epoch;
+    if (user == null || repository == null) return;
     final channels = await repository.loadChannels(user: user);
+    if (epoch != _epoch) return;
+    final messages =
+        await repository.loadMessages(user: user, channelId: channelId);
+    if (epoch != _epoch) return;
     _channels = channels;
-    _messagesByChannel[channelId] = await repository.loadMessages(
-      user: user,
-      channelId: channelId,
-    );
+    _messagesByChannel[channelId] = messages;
     _recomputeUnreadCounts();
     _selectedChannelId ??= _resolveSelectedChannelId(channels);
   }
 
-  Future<void> _markChannelRead(
-    String channelId, {
-    bool notify = true,
-  }) async {
+  Future<void> _markChannelRead(String channelId, {bool notify = true}) async {
     final user = _user;
     final repository = _repository;
-    if (user == null || repository == null) {
-      return;
-    }
-
+    final epoch = _epoch;
+    if (user == null || repository == null) return;
     final messages = _messagesByChannel[channelId] ?? const [];
     final latestMessage =
         messages.isNotEmpty ? messages.last.createdAt : DateTime.now();
-    _readMarkersByChannel[channelId] = latestMessage;
     await repository.markChannelRead(
-      user: user,
-      channelId: channelId,
-      readAt: latestMessage,
-    );
+        user: user, channelId: channelId, readAt: latestMessage);
+    if (epoch != _epoch) return;
+    _readMarkersByChannel[channelId] = latestMessage;
     _recomputeUnreadCounts();
-    if (notify) {
-      notifyListeners();
-    }
+    if (notify) _notify();
   }
 
   void _recomputeUnreadCounts() {
