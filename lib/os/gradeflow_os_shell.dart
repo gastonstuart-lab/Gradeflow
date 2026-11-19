@@ -210,12 +210,10 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
                 right: isPhone ? 12 : 24,
               ),
               child: Center(
-                // The entire visible dock is a hit-test boundary, including
-                // translucent gaps between its launchers. A miss inside the
-                // pill must NEVER activate a Home shortcut behind it.
-                child: GestureDetector(
+                // Dock gaps block clicks on Home shortcuts underneath.
+                // Only the launchers expose tap actions to accessibility.
+                child: Listener(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () {},
                   child: OSDock(teachMode: widget.teachMode),
                 ),
               ),
