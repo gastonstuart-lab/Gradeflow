@@ -137,9 +137,10 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
 
-    // Home owns its scrolling bottom inset, so its background can continue
-    // beneath the floating dock instead of ending in a solid footer stripe.
-    // Planner, Classroom and all other routes retain their dock reservation.
+    // Keep the approved Home wallpaper and content full-height behind the
+    // floating dock. The dock itself must absorb pointer events across its
+    // complete pill, including transparent launcher margins and gaps.
+    // Other routed surfaces retain their dock reservation.
     final homeBehindFloatingDock =
         !widget.teachMode && controller.activeSurface == OSSurface.home;
     final dockReserve = widget.teachMode
@@ -209,7 +210,12 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
                 right: isPhone ? 12 : 24,
               ),
               child: Center(
-                child: OSDock(teachMode: widget.teachMode),
+                // Dock gaps block clicks on Home shortcuts underneath.
+                // Only the launchers expose tap actions to accessibility.
+                child: Listener(
+                  behavior: HitTestBehavior.opaque,
+                  child: OSDock(teachMode: widget.teachMode),
+                ),
               ),
             ),
           ),
@@ -332,8 +338,9 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
       ],
     );
 
-    // Other routed surfaces stop above the dock; Home paints through to the
-    // bottom. This fallback still protects the unused part of other routes.
+    // Home keeps its full-height backdrop; other surfaces reserve the
+    // dock's vertical strip. The dock's opaque hit zone blocks shortcuts
+    // underneath its visible pill on either surface.
     return ColoredBox(
       color: widget.teachMode
           ? OSColors.teachBg

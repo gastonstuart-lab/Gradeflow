@@ -3,6 +3,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:gradeflow/nav.dart';
+import 'package:gradeflow/os/os_dock.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/models/user.dart';
 import 'package:gradeflow/os/gradeflow_os_shell.dart';
@@ -290,6 +293,105 @@ void main() {
 
     expect(taps, 1);
   });
+  testWidgets(
+      'Home dock wins over Science shortcut underneath at desktop viewport',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var scienceHubTaps = 0;
+    final controller = GradeFlowOSController();
+    // Widget tests control the fake clock; prevent a five-minute activity
+    // timeout from remaining scheduled after pointer interactions.
+    controller.setIdleTimeout(0);
+    addTearDown(controller.dispose);
+    final router = GoRouter(
+      initialLocation: AppRoutes.osHome,
+      routes: [
+        GoRoute(
+          path: AppRoutes.osHome,
+          builder: (context, state) => GradeFlowOSShell(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Align(
+                alignment: Alignment.bottomCenter,
+                child: SizedBox(
+                  height: 160,
+                  width: 900,
+                  child: Material(
+                    child: InkWell(
+                      key: const Key('science-hub-below-dock'),
+                      onTap: () => scienceHubTaps++,
+                      child: const Center(child: Text('Science Hub')),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.osClasses,
+          builder: (context, state) =>
+              const Scaffold(body: Center(child: Text('Classes destination'))),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthService>(create: (_) => AuthService()),
+          ChangeNotifierProvider<ClassService>(create: (_) => ClassService()),
+          ChangeNotifierProvider<StudentService>(
+              create: (_) => StudentService()),
+          ChangeNotifierProvider<CommunicationService>(
+              create: (_) => CommunicationService()),
+          ChangeNotifierProvider<GlobalSystemShellController>(
+              create: (_) => GlobalSystemShellController()),
+          ChangeNotifierProvider<GradeFlowOSController>.value(
+              value: controller),
+          ChangeNotifierProvider<ThemeModeNotifier>(
+              create: (_) => ThemeModeNotifier()),
+        ],
+        child: MaterialApp.router(
+          theme: darkTheme,
+          routerConfig: router,
+        ),
+      ),
+    );
+    // The OS contains continuously animated surfaces. Pump a bounded frame
+    // rather than using pumpAndSettle, which need not ever become idle.
+    await tester.pump(const Duration(milliseconds: 250));
+
+    final science = tester.getRect(
+        find.byKey(const Key('science-hub-below-dock')));
+    final dock = tester.getRect(find.byType(OSDock));
+    // Home deliberately extends behind the floating dock to keep its full
+    // background. This synthetic Science tile REALLY overlaps the pill;
+    // hit testing, not clipping/shortening Home, must stop click-through.
+    expect(science.bottom, closeTo(900, 1.0));
+    expect(science.contains(dock.center), isTrue);
+
+    // A tap on the visible pill's padding must not reach the Science card.
+    await tester.tapAt(Offset(dock.left + 6, dock.center.dy));
+    await tester.pump();
+    expect(scienceHubTaps, 0);
+
+    // Click near the TOP edge of the Classes dock tile, where its animated
+    // icon card used to have unpainted vertical margins. That area must
+    // belong to Classes too, not to Science Hub behind it.
+    final classesIcon = tester.getRect(find.byTooltip('Classes'));
+    await tester.tapAt(Offset(classesIcon.center.dx, classesIcon.top + 3));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('Classes destination'), findsOneWidget);
+    expect(scienceHubTaps, 0);
+  });
+
   testWidgets('Planner switches among Week Month Agenda and Tasks without leaving the page',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
