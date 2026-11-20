@@ -143,6 +143,19 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // must win over any Science/quick-tool tile underneath its visible bounds.
   // This catches the reported live click-through; don't only test menu state.
   browserPhase = 'home-bottom-dock-classes-hit-test';
+  // Firebase Auth's JS emulator injects a fixed bottom warning banner into
+  // the *test* DOM. It can cover the lower three pixels of the real dock and
+  // intercept clicks, although that banner never exists in the live app.
+  // Keep the safety warning visible, but stop this non-product banner from
+  // stealing pointer events in our edge/gap hit test. Reapply after reload.
+  const allowDockClicksUnderEmulatorBanner = async () => {
+    const banner = page.locator('.firebase-emulator-warning');
+    await expect(banner).toBeVisible();
+    await page.addStyleTag({
+      content: '.firebase-emulator-warning { pointer-events: none !important; }',
+    });
+  };
+  await allowDockClicksUnderEmulatorBanner();
   const classesDock = page.getByRole('button', { name: 'Classes', exact: true }).first();
   await expect(classesDock).toBeVisible();
   // First verify a normal desktop click on the actual authenticated dock.
@@ -150,6 +163,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await expect.poll(() => new URL(page.url()).pathname).toBe('/os/classes');
   await page.goto('/os/home');
   await ensureFlutterSemantics(page);
+  await allowDockClicksUnderEmulatorBanner();
 
   // Regression for the precise user-reported click-through: the top and
   // bottom three pixels of the visible Classes launcher belong to Classes,
@@ -172,6 +186,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     await expect.poll(() => new URL(page.url()).pathname).toBe('/os/classes');
     await page.goto('/os/home');
     await ensureFlutterSemantics(page);
+    await allowDockClicksUnderEmulatorBanner();
   }
 
   // The narrow separator/padding between Classes and All Apps is also part
