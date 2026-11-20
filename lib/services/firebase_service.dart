@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:gradeflow/config/planner_v2_firebase_config.dart';
 import 'package:gradeflow/config/planner_v2_staging_safety.dart';
 import 'package:gradeflow/config/local_auth_emulator_origin.dart';
+import 'package:gradeflow/config/gradeflow_public_review_safety.dart';
 
 /// Centralized Firebase initialization.
 /// Call [maybeInitialize] once at app startup (from main.dart).
@@ -25,6 +26,18 @@ class FirebaseService {
   /// Returns true if Firebase is now available, false if running local-only.
   static Future<bool> maybeInitialize() async {
     if (_initialized) return _available;
+
+    // This is the critical isolation boundary for the full-app web preview.
+    // AuthService may call maybeInitialize on refresh or from another tab:
+    // NEVER instantiate a Firebase app or restore live Firebase Auth there.
+    // The main entry point has already checked host and mutually exclusive
+    // build flags, so all preview state stays entirely in browser storage.
+    if (GradeFlowPublicReviewSafety.enabled) {
+      _initialized = true;
+      _available = false;
+      debugPrint('GradeFlow review: Firebase disabled; local demo only');
+      return false;
+    }
 
     try {
       if (PlannerV2EmulatorSafety.enabled) {
