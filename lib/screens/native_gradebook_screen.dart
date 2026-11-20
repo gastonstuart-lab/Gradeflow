@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:excel/excel.dart' hide Border;
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/models/grade_item.dart';
 import 'package:gradeflow/models/student.dart';
@@ -13,7 +11,7 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/gradebook_workspace.dart';
-import 'package:gradeflow/services/gradebook_export_projection.dart';
+import 'package:gradeflow/services/gradebook_excel_export.dart';
 import 'package:gradeflow/services/gradebook_import_plan.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:gradeflow/platform/browser_file_actions.dart';
@@ -50,6 +48,7 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
   final Map<String, Timer> _stepTimers = {};
   final Map<String, (Student, GradeItem?)> _pendingSteps = {};
   bool working = false;
+  bool _exporting = false;
   @override
   void initState() {
     super.initState();
@@ -996,95 +995,35 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
   }
 
   Future<void> export() async {
+    if (working || _savingFields.isNotEmpty ||
+        book.saveState == GradebookSaveState.saving) {
+      message('Wait for the current operation to finish before exporting.');
+      return;
+    }
     if (dirty.isNotEmpty) {
       message('Save or correct unfinished entries before exporting.');
       return;
     }
+    setState(() {
+      working = true;
+      _exporting = true;
+    });
     try {
-      final excel = Excel.createExcel(), sheet = excel['All Classes'];
-      excel.delete('Sheet1');
-      final headers = [
-        'Class',
-        'Subject',
-        'School Year',
-        'Term',
-        'Student ID',
-        'Chinese Name',
-        'English Name',
-        ...GradebookExportProjection.summaryHeaders,
-      ];
-      sheet.appendRow(headers.map(TextCellValue.new).toList());
-      final classes = await book.repository.loadClasses();
-      for (final c in classes.where((c) => !c.isArchived)) {
-        final w = GradebookWorkspace(book.repository, c.classId);
-        await w.load();
-        for (final s in w.students) {
-          CellValue? number(double? v) => v == null ? null : DoubleCellValue(v);
-          sheet.appendRow([
-            TextCellValue(c.className),
-            TextCellValue(c.subject),
-            TextCellValue(c.schoolYear),
-            TextCellValue(c.term),
-            TextCellValue(s.studentId),
-            TextCellValue(s.chineseName),
-            TextCellValue(s.englishFullName),
-            // Export exactly what the saved Gradebook policy calculates.
-            // Hardcoded spreadsheet formulas previously overrode teachers'
-            // category weights and class-specific coursework/exam split.
-            ...GradebookExportProjection.calculatedValues(
-              w, s.studentId,
-            ).map(number),
-          ]);
-        }
-        w.dispose();
-      }
-      final detail = excel['Assessments'];
-      detail.appendRow(
-        [
-          'Class ID',
-          'Student ID',
-          'Student',
-          'Category',
-          'Assessment',
-          'Maximum',
-          'Score',
-        ].map(TextCellValue.new).toList(),
-      );
-      for (final c in classes.where((c) => !c.isArchived)) {
-        final w = GradebookWorkspace(book.repository, c.classId);
-        await w.load();
-        for (final s in w.students) {
-          for (final i in w.items) {
-            final v = w.score(s.studentId, i.gradeItemId);
-            detail.appendRow([
-              TextCellValue(c.classId),
-              TextCellValue(s.studentId),
-              TextCellValue(s.englishFullName),
-              TextCellValue(
-                w.categories
-                        .where((c) => c.categoryId == i.categoryId)
-                        .firstOrNull
-                        ?.name ??
-                    '',
-              ),
-              TextCellValue(i.name),
-              DoubleCellValue(i.maxScore),
-              v == null ? null : DoubleCellValue(v),
-            ]);
-          }
-        }
-        w.dispose();
-      }
-      final bytes = excel.encode();
-      if (bytes == null ||
-          !await downloadBrowserBytes(
-            Uint8List.fromList(bytes),
-            'grades_all_classes.xlsx',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          )) throw StateError('Download unavailable.');
-      message('Excel downloaded. Missing scores remain blank.');
+      final bytes = await GradebookExcelExport.build(book.repository);
+      if (!mounted) return;
+      if (!await downloadBrowserBytes(
+        bytes,
+        'grades_all_classes.xlsx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      )) throw StateError('Download unavailable.');
+      if (mounted) message('Excel downloaded. Missing scores remain blank.');
     } catch (e) {
-      message('Export failed: $e');
+      if (mounted) message('Export failed: $e');
+    } finally {
+      if (mounted) setState(() {
+        working = false;
+        _exporting = false;
+      });
     }
   }
 
@@ -1095,7 +1034,9 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     final rows = visible,
         assessments =
             category == null ? <GradeItem>[] : book.categoryItems(category!);
-    final status = working || _savingFields.isNotEmpty
+    final status = _exporting
+        ? 'Preparing Excel…'
+        : working || _savingFields.isNotEmpty
         ? 'Saving…'
         : book.saveState == GradebookSaveState.failed
             ? 'Save failed — retry your entry'
