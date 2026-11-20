@@ -3,7 +3,12 @@ import { ensureFlutterSemantics } from './helpers';
 
 test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators',
     async ({ page }) => {
-  test.setTimeout(600_000);
+  // This full Flutter debug/emulator journey covers Home, dock edges/gaps,
+  // Planner, durable Gradebook, roster recovery, and Teaching Studio. It
+  // completed those key checks but timed out near its final screenshot at
+  // the original 10-minute cap on a slow GitHub runner (run #44685204350).
+  // Give the same assertions sufficient headroom; do not skip checks.
+  test.setTimeout(780_000);
   const browserDiagnostics: string[] = [];
   const unexpectedCloudRequests: string[] = [];
   let browserPhase = 'sign-in';
