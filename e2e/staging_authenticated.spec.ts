@@ -87,10 +87,10 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // appearance preview (which has no application router).
   browserPhase = 'appearance-home-continuity';
   await ensureFlutterSemantics(page);
-  const openAppearance = async () => {
-    await page.getByRole('button', { name: /Account and settings/i }).first()
+  const openAppearance = async (target = page) => {
+    await target.getByRole('button', { name: /Account and settings/i }).first()
       .click({ timeout: 30_000 });
-    await page.getByRole('button', { name: /Appearance & colours/i })
+    await target.getByRole('button', { name: /Appearance & colours/i })
       .click({ timeout: 15_000 });
   };
   await openAppearance();
@@ -143,6 +143,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.goto('/os/planner');
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Import timetable', { exact: true }).first()).toBeVisible();
+  await page.screenshot({ path: 'test-results/appearance-planner-dark.png' });
   for (const view of ['Today', 'Month', 'Agenda', 'Tasks', 'Week']) {
     try {
       await page.getByRole('checkbox', { name: view, exact: true }).click({ timeout: 15_000 });
@@ -314,6 +315,24 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await expect(homeTab).toHaveURL('http://127.0.0.1:7357/os/home');
   await expect(homeTab.getByRole('button', { name: 'Open Classroom', exact: true })).toBeEnabled();
   await expect(page.getByRole('heading', { name: 'Teaching Studio', exact: true })).toBeVisible();
+  // Keep the early dark captures and collect matching light-mode evidence
+  // after the other workflow checks have finished.
+  browserPhase = 'appearance-light-home-and-planner';
+  await openAppearance(homeTab);
+  const lightMode = homeTab.getByRole('checkbox', { name: 'Light', exact: true });
+  await lightMode.click();
+  await expect(lightMode).toBeChecked();
+  await expect(homeTab.getByRole('checkbox', { name: 'Neon boxes', exact: true }))
+    .toBeChecked();
+  await homeTab.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(homeTab).toHaveURL('http://127.0.0.1:7357/os/home');
+  await homeTab.screenshot({ path: 'test-results/appearance-home-light.png' });
+
+  await homeTab.goto('/os/planner');
+  await ensureFlutterSemantics(homeTab);
+  await expect(homeTab.getByText('Import timetable', { exact: true }).first())
+    .toBeVisible();
+  await homeTab.screenshot({ path: 'test-results/appearance-planner-light.png' });
   await homeTab.close();
   expect(unexpectedCloudRequests,
     'A local-emulator build contacted live Firebase endpoints').toEqual([]);
