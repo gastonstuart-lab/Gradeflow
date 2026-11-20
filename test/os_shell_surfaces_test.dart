@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/os/os_dock.dart';
+import 'package:gradeflow/os/os_palette.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/models/user.dart';
 import 'package:gradeflow/os/gradeflow_os_shell.dart';
@@ -370,15 +371,29 @@ void main() {
     final science = tester.getRect(
         find.byKey(const Key('science-hub-below-dock')));
     final dock = tester.getRect(find.byType(OSDock));
-    // Home deliberately extends behind the floating dock to keep its full
-    // background. This synthetic Science tile REALLY overlaps the pill;
-    // hit testing, not clipping/shortening Home, must stop click-through.
-    expect(science.bottom, closeTo(900, 1.0));
-    expect(science.contains(dock.center), isTrue);
+    // Home's interactive surface must end above the floating dock. Its
+    // separately painted ambient wallpaper still fills the viewport.
+    // The underlying Science Hub button is deliberately aligned to the
+    // bottom of Home content; it must not overlap the dock.
+    expect(science.bottom, closeTo(
+      900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin, 1.0));
+    expect(science.bottom, lessThanOrEqualTo(dock.top + 1));
+    expect(science.contains(dock.center), isFalse);
 
-    // A tap on the visible pill's padding must not reach the Science card.
+    // Dock padding must not activate the Science shortcut underneath.
     await tester.tapAt(Offset(dock.left + 6, dock.center.dy));
     await tester.pump();
+    expect(scienceHubTaps, 0);
+
+    // Verify the actual separator between Classes and All Apps as well:
+    // there must be no navigation to the Home shortcut behind the gap.
+    final classes = tester.getRect(find.byTooltip('Classes'));
+    final allApps = tester.getRect(find.byTooltip('All Apps'));
+    final gap = allApps.left - classes.right;
+    expect(gap, greaterThan(1));
+    await tester.tapAt(Offset(classes.right + gap / 2, dock.center.dy));
+    await tester.pump();
+    expect(find.text('Science Hub'), findsOneWidget);
     expect(scienceHubTaps, 0);
 
     // Click near the TOP edge of the Classes dock tile, where its animated
