@@ -145,12 +145,58 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   browserPhase = 'home-bottom-dock-classes-hit-test';
   const classesDock = page.getByRole('button', { name: 'Classes', exact: true }).first();
   await expect(classesDock).toBeVisible();
+  // First verify a normal desktop click on the actual authenticated dock.
   await classesDock.click({ timeout: 15_000 });
-  await expect.poll(() => new URL(page.url()).pathname)
-    .toBe('/os/classes');
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/os/classes');
   await page.goto('/os/home');
   await ensureFlutterSemantics(page);
+
+  // Regression for the precise user-reported click-through: the top and
+  // bottom three pixels of the visible Classes launcher belong to Classes,
+  // not to a quick-tool/Science Hub tile painted underneath the dock.
+  browserPhase = 'home-bottom-dock-launcher-edges';
+  for (const edge of ['top', 'bottom'] as const) {
+    const tile = page.getByRole('button', { name: 'Classes', exact: true }).first();
+    await expect(tile).toBeVisible();
+    const bounds = await tile.boundingBox();
+    if (!bounds || bounds.height < 7 || bounds.width < 7) {
+      throw new Error('Real Classes dock hit target is missing or too small');
+    }
+    await tile.click({
+      timeout: 15_000,
+      position: {
+        x: bounds.width / 2,
+        y: edge === 'top' ? 3 : bounds.height - 3,
+      },
+    });
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/os/classes');
+    await page.goto('/os/home');
+    await ensureFlutterSemantics(page);
+  }
+
+  // The narrow separator/padding between Classes and All Apps is also part
+  // of the floating pill. Clicking it must NOT trigger a Home tool behind it
+  // or activate either adjacent dock launcher.
+  browserPhase = 'home-bottom-dock-pill-gap';
+  const classesForGap = page.getByRole('button', { name: 'Classes', exact: true }).first();
+  const allAppsForGap = page.getByRole('button', { name: 'All Apps', exact: true }).first();
+  await expect(classesForGap).toBeVisible();
+  await expect(allAppsForGap).toBeVisible();
+  const classesRect = await classesForGap.boundingBox();
+  const allAppsRect = await allAppsForGap.boundingBox();
+  if (!classesRect || !allAppsRect) {
+    throw new Error('Desktop floating dock bounding boxes unavailable');
+  }
+  const gap = allAppsRect.x - (classesRect.x + classesRect.width);
+  if (gap < 2) {
+    throw new Error('Expected desktop dock separator gap is missing');
+  }
+  await page.mouse.click(
+    classesRect.x + classesRect.width + gap / 2,
+    classesRect.y + classesRect.height / 2,
+  );
   await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await expect(allAppsForGap).toBeVisible();
 
   // Exercise the actual authenticated Planner route, not the synthetic shell.
   await page.goto('/os/planner');
