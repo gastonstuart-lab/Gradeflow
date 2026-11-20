@@ -20,7 +20,11 @@ export PATH="$FLUTTER_ROOT/bin:$PATH"
 flutter --version
 flutter config --enable-web
 flutter pub get --enforce-lockfile
-flutter test test/gradeflow_public_review_safety_test.dart
+# Verify the full-bleed Home never recreates the former dock click-through.
+flutter test \
+  test/gradeflow_public_review_safety_test.dart \
+  test/home_floating_dock_continuity_test.dart \
+  test/os_shell_surfaces_test.dart
 flutter build web --release --no-wasm-dry-run \
   --target lib/main.dart --base-href / \
   --dart-define=GRADEFLOW_PUBLIC_REVIEW_LOCAL_ONLY=true
