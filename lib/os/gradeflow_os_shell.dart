@@ -210,10 +210,16 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
                 right: isPhone ? 12 : 24,
               ),
               child: Center(
-                // Dock gaps block clicks on Home shortcuts underneath.
-                // Only the launchers expose tap actions to accessibility.
-                child: Listener(
+                // The floating pill is one gesture target, including
+                // separators and padding between its launchers. An opaque
+                // Listener alone can receive pointer events without winning
+                // Flutter's tap gesture arena against a Home card beneath it.
+                // Consume taps on empty dock space; nested launcher taps win
+                // normally and are the only accessible actions.
+                child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
+                  excludeFromSemantics: true,
+                  onTap: () {},
                   child: OSDock(teachMode: widget.teachMode),
                 ),
               ),
