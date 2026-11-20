@@ -6,6 +6,7 @@ import 'package:gradeflow/os/gradeflow_os_shell.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/os_dock.dart';
 import 'package:gradeflow/os/os_palette.dart';
+import 'package:gradeflow/widgets/teacher_appearance_overlay.dart';
 import 'package:gradeflow/providers/app_providers.dart';
 import 'package:gradeflow/theme.dart';
 import 'package:gradeflow/services/auth_service.dart';
@@ -16,7 +17,7 @@ import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('only Home fills the space behind the floating OS dock',
+  testWidgets('all interactive surfaces clear dock; ambient fills viewport',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1440, 900);
@@ -52,10 +53,16 @@ void main() {
       ),
     );
     expect(find.byType(OSDock), findsOneWidget);
+    // Home must NOT put tappable content below the floating dock.
     expect(tester.getSize(find.byKey(const ValueKey('full-page-probe'))).height,
+        closeTo(
+          900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin, 1,
+        ));
+    // Only the decorative appearance background continues under the dock.
+    expect(tester.getSize(find.byType(TeacherAppearanceOverlay)).height,
         closeTo(900, 1));
 
-    // Other routed surfaces keep their established content reservation.
+    // Other routed surfaces retain the same protected content reservation.
     controller.setSurface(OSSurface.planner);
     await tester.pump();
     expect(find.byType(OSDock), findsOneWidget);

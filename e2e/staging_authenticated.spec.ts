@@ -3,6 +3,7 @@ import { ensureFlutterSemantics } from './helpers';
 
 test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators',
     async ({ page }) => {
+  // Keep independent Studio/appearance acceptance in its own test budget.
   test.setTimeout(600_000);
   const browserDiagnostics: string[] = [];
   const unexpectedCloudRequests: string[] = [];
@@ -86,11 +87,12 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // This tests the real authenticated GradeFlow menu, not the isolated
   // appearance preview (which has no application router).
   browserPhase = 'appearance-home-continuity';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
   await ensureFlutterSemantics(page);
-  const openAppearance = async () => {
-    await page.getByRole('button', { name: /Account and settings/i }).first()
+  const openAppearance = async (target = page) => {
+    await target.getByRole('button', { name: /Account and settings/i }).first()
       .click({ timeout: 30_000 });
-    await page.getByRole('button', { name: /Appearance & colours/i })
+    await target.getByRole('button', { name: /Appearance & colours/i })
       .click({ timeout: 15_000 });
   };
   await openAppearance();
@@ -139,10 +141,88 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.screenshot({ path: 'test-results/appearance-home-after-reload.png' });
 
+  // Real desktop pointer acceptance: the floating Classes dock launcher
+  // must win over any Science/quick-tool tile underneath its visible bounds.
+  // This catches the reported live click-through; don't only test menu state.
+  browserPhase = 'home-bottom-dock-classes-hit-test';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
+  // Firebase Auth's JS emulator injects a fixed bottom warning banner into
+  // the *test* DOM. It can cover the lower three pixels of the real dock and
+  // intercept clicks, although that banner never exists in the live app.
+  // Keep the safety warning visible, but stop this non-product banner from
+  // stealing pointer events in our edge/gap hit test. Reapply after reload.
+  const allowDockClicksUnderEmulatorBanner = async () => {
+    const banner = page.locator('.firebase-emulator-warning');
+    await expect(banner).toBeVisible();
+    await page.addStyleTag({
+      content: '.firebase-emulator-warning { pointer-events: none !important; }',
+    });
+  };
+  await allowDockClicksUnderEmulatorBanner();
+  const classesDock = page.getByRole('button', { name: 'Classes', exact: true }).first();
+  await expect(classesDock).toBeVisible();
+  // First verify a normal desktop click on the actual authenticated dock.
+  await classesDock.click({ timeout: 15_000 });
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/os/classes');
+  await page.goto('/os/home');
+  await ensureFlutterSemantics(page);
+  await allowDockClicksUnderEmulatorBanner();
+
+  // Regression for the precise user-reported click-through: the top and
+  // bottom three pixels of the visible Classes launcher belong to Classes,
+  // not to a quick-tool/Science Hub tile painted underneath the dock.
+  browserPhase = 'home-bottom-dock-launcher-edges';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
+  for (const edge of ['top', 'bottom'] as const) {
+    const tile = page.getByRole('button', { name: 'Classes', exact: true }).first();
+    await expect(tile).toBeVisible();
+    const bounds = await tile.boundingBox();
+    if (!bounds || bounds.height < 7 || bounds.width < 7) {
+      throw new Error('Real Classes dock hit target is missing or too small');
+    }
+    await tile.click({
+      timeout: 15_000,
+      position: {
+        x: bounds.width / 2,
+        y: edge === 'top' ? 3 : bounds.height - 3,
+      },
+    });
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/os/classes');
+    await page.goto('/os/home');
+    await ensureFlutterSemantics(page);
+    await allowDockClicksUnderEmulatorBanner();
+  }
+
+  // The narrow separator/padding between Classes and All Apps is also part
+  // of the floating pill. Clicking it must NOT trigger a Home tool behind it
+  // or activate either adjacent dock launcher.
+  browserPhase = 'home-bottom-dock-pill-gap';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
+  const classesForGap = page.getByRole('button', { name: 'Classes', exact: true }).first();
+  const allAppsForGap = page.getByRole('button', { name: 'All Apps', exact: true }).first();
+  await expect(classesForGap).toBeVisible();
+  await expect(allAppsForGap).toBeVisible();
+  const classesRect = await classesForGap.boundingBox();
+  const allAppsRect = await allAppsForGap.boundingBox();
+  if (!classesRect || !allAppsRect) {
+    throw new Error('Desktop floating dock bounding boxes unavailable');
+  }
+  const gap = allAppsRect.x - (classesRect.x + classesRect.width);
+  if (gap < 2) {
+    throw new Error('Expected desktop dock separator gap is missing');
+  }
+  await page.mouse.click(
+    classesRect.x + classesRect.width + gap / 2,
+    classesRect.y + classesRect.height / 2,
+  );
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+  await expect(allAppsForGap).toBeVisible();
+
   // Exercise the actual authenticated Planner route, not the synthetic shell.
   await page.goto('/os/planner');
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Import timetable', { exact: true }).first()).toBeVisible();
+  await page.screenshot({ path: 'test-results/appearance-planner-dark.png' });
   for (const view of ['Today', 'Month', 'Agenda', 'Tasks', 'Week']) {
     try {
       await page.getByRole('checkbox', { name: view, exact: true }).click({ timeout: 15_000 });
@@ -158,6 +238,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     () => window.sessionStorage.getItem('[DEFAULT]-firebaseEmulatorOrigin'));
   await expect.poll(emulatorOrigin).toBe('http://127.0.0.1:9099');
   browserPhase = 'open-class';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
   const directResponse = await page.goto('/os/class/class-science-browser');
   console.log('Class direct-request status and final HTTP URL:',
     directResponse?.status(), directResponse?.url());
@@ -175,6 +256,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   }
 
   browserPhase = 'open-classroom';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
   await page.goto('/os/class/class-science-browser/classroom');
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Fit to screen').first())
@@ -185,6 +267,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // save a changed score, and restore it after a full document reload.
   // This closes the gap left by navigation-only UI tests and SDK-only writes.
   browserPhase = 'save-grade';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
   await page.goto('/os/class/class-science-browser/gradebook');
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Gradebook').first()).toBeVisible();
@@ -210,6 +293,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     .toBeVisible({ timeout: 30_000 });
 
   browserPhase = 'reload-grade';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Gradebook').first()).toBeVisible();
@@ -223,6 +307,7 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // Import through the real roster UI, then re-read Firestore by reloading.
   // A duplicate must stay in the preview and must not replace the pupil.
   browserPhase = 'import-roster';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
   await page.goto('/os/class/class-science-browser/students');
   await ensureFlutterSemantics(page);
   await expect(page.getByRole('group', { name: /Fictional Pupil ID: synthetic-student-one/ })).toBeVisible();
@@ -275,10 +360,12 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // Returning from Classroom to Home retains authorization and class
   // context; the browser connects only to localhost demo Firebase emulators.
   browserPhase = 'return-home';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
   await page.goto('/os/home');
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Staging safety check')).toHaveCount(0);
   browserPhase = 'refresh-home';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
   await page.reload();
   await ensureFlutterSemantics(page);
   await expect(page.getByText('Staging safety check')).toHaveCount(0);
@@ -297,7 +384,48 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
   await expect.poll(emulatorOrigin).toBe('http://127.0.0.1:9099');
+  expect(unexpectedCloudRequests,
+    'A local-emulator build contacted live Firebase endpoints').toEqual([]);
+});
+
+test('@staging Studio retains its board while Home and Planner open in another tab',
+    async ({ page }) => {
+  test.setTimeout(600_000);
+  let browserPhase = 'studio-sign-in';
+  const unexpectedCloudRequests: string[] = [];
+  page.context().on('request', (request) => {
+    const endpoint = new URL(request.url());
+    if (['identitytoolkit.googleapis.com', 'securetoken.googleapis.com',
+         'firestore.googleapis.com'].includes(endpoint.hostname)) {
+      unexpectedCloudRequests.push(browserPhase + ': ' + endpoint.hostname + endpoint.pathname);
+    }
+  });
+  await page.goto('/');
+  await ensureFlutterSemantics(page);
+  for (const [name, value] of [['Email', 'browser-teacher@example.invalid'],
+      ['Password', 'FakePassword-Teacher123!']]) {
+    const field = page.getByRole('textbox', { name }).first();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await field.click();
+      await field.press('ControlOrMeta+A');
+      await field.pressSequentially(value, { delay: 24 });
+      if (await field.inputValue() === value) break;
+    }
+    await expect(field).toHaveValue(value);
+  }
+  await page.getByRole('button', { name: /^Sign in$/i }).first().click();
+  await expect.poll(() => new URL(page.url()).pathname, { timeout: 15_000 }).toBe('/os/home');
+  await ensureFlutterSemantics(page);
+  const openAppearance = async (target = page) => {
+    await target.getByRole('button', { name: /Account and settings/i }).first().click();
+    await target.getByRole('button', { name: /Appearance & colours/i }).click();
+  };
+  await openAppearance();
+  await page.getByRole('checkbox', { name: 'Dark', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Neon boxes', exact: true }).click();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
   browserPhase = 'teaching-studio';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
   await page.goto('/os/home');
   await ensureFlutterSemantics(page);
   await page.getByRole('button', { name: 'Whiteboard & PDF Open Teaching Studio', exact: true }).click();
@@ -314,6 +442,25 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await expect(homeTab).toHaveURL('http://127.0.0.1:7357/os/home');
   await expect(homeTab.getByRole('button', { name: 'Open Classroom', exact: true })).toBeEnabled();
   await expect(page.getByRole('heading', { name: 'Teaching Studio', exact: true })).toBeVisible();
+  // Keep the early dark captures and collect matching light-mode evidence
+  // after the other workflow checks have finished.
+  browserPhase = 'appearance-light-home-and-planner';
+  console.log('Browser phase:', browserPhase, new Date().toISOString());
+  await openAppearance(homeTab);
+  const lightMode = homeTab.getByRole('checkbox', { name: 'Light', exact: true });
+  await lightMode.click();
+  await expect(lightMode).toBeChecked();
+  await expect(homeTab.getByRole('checkbox', { name: 'Neon boxes', exact: true }))
+    .toBeChecked();
+  await homeTab.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(homeTab).toHaveURL('http://127.0.0.1:7357/os/home');
+  await homeTab.screenshot({ path: 'test-results/appearance-home-light.png' });
+
+  await homeTab.goto('/os/planner');
+  await ensureFlutterSemantics(homeTab);
+  await expect(homeTab.getByText('Import timetable', { exact: true }).first())
+    .toBeVisible();
+  await homeTab.screenshot({ path: 'test-results/appearance-planner-light.png' });
   await homeTab.close();
   expect(unexpectedCloudRequests,
     'A local-emulator build contacted live Firebase endpoints').toEqual([]);
