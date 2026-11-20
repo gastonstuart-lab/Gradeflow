@@ -12,8 +12,8 @@ class GradebookExcelExport {
 
   static Future<Uint8List> build(DataRepository repository) async {
     final excel = Excel.createExcel();
-    excel.delete('Sheet1');
     final summary = excel['All Classes'];
+    excel.delete('Sheet1');
     summary.appendRow(
       [
         'Class',
