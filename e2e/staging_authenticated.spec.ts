@@ -139,6 +139,19 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.screenshot({ path: 'test-results/appearance-home-after-reload.png' });
 
+  // Real desktop pointer acceptance: the floating Classes dock launcher
+  // must win over any Science/quick-tool tile underneath its visible bounds.
+  // This catches the reported live click-through; don't only test menu state.
+  browserPhase = 'home-bottom-dock-classes-hit-test';
+  const classesDock = page.getByRole('button', { name: 'Classes', exact: true }).first();
+  await expect(classesDock).toBeVisible();
+  await classesDock.click({ timeout: 15_000 });
+  await expect.poll(() => new URL(page.url()).pathname)
+    .toBe('/os/classes');
+  await page.goto('/os/home');
+  await ensureFlutterSemantics(page);
+  await expect(page).toHaveURL('http://127.0.0.1:7357/os/home');
+
   // Exercise the actual authenticated Planner route, not the synthetic shell.
   await page.goto('/os/planner');
   await ensureFlutterSemantics(page);
