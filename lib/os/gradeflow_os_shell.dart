@@ -137,12 +137,10 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
 
-    // Keep the approved Home wallpaper and content full-height behind the
-    // floating dock. The dock itself must absorb pointer events across its
-    // complete pill, including transparent launcher margins and gaps.
-    // Other routed surfaces retain their dock reservation.
-    final homeBehindFloatingDock =
-        !widget.teachMode && controller.activeSurface == OSSurface.home;
+    // Keep the floating dock clear of interactive content on every surface,
+    // including Home. The separate ambient background painter still fills
+    // the entire window behind the dock; only tappable page content ends
+    // above it. This avoids web semantics click-through at dock separators.
     final dockReserve = widget.teachMode
         ? 0.0
         : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
@@ -182,7 +180,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
         ),
         Positioned.fill(
           top: 0,
-          bottom: homeBehindFloatingDock ? 0 : dockReserve,
+          bottom: dockReserve,
           child: Transform.translate(
             offset: Offset(_dragDx, 0),
             child: AnimatedOpacity(
@@ -344,9 +342,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
       ],
     );
 
-    // Home keeps its full-height backdrop; other surfaces reserve the
-    // dock's vertical strip. The dock's opaque hit zone blocks shortcuts
-    // underneath its visible pill on either surface.
+    // The separate wallpaper/ambient layer stays full-height, while
+    // routed content stays above the dock and remains accessible by scrolling.
     return ColoredBox(
       color: widget.teachMode
           ? OSColors.teachBg
