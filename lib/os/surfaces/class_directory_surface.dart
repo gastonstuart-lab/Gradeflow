@@ -293,6 +293,8 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
     final semester = classes.isEmpty
         ? 'Teaching overview'
         : classes.first.schoolYear + ' ' + classes.first.term;
+    const title = Text('Your classes', style: TextStyle(
+      fontSize: 25, fontWeight: FontWeight.w900, color: Colors.white));
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -311,8 +313,14 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
           if (!phone) const SizedBox(width: 8),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Your classes', style: TextStyle(
-                fontSize: 25, fontWeight: FontWeight.w900, color: Colors.white)),
+              if (phone)
+                const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: title,
+                )
+              else
+                title,
               if (!phone || classes.isNotEmpty)
               Text(classes.length.toString() + ' active classes · ' + semester,
                 style: const TextStyle(color: Color(0xffD7E8F4), fontSize: 12)),
