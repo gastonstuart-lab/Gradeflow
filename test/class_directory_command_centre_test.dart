@@ -213,4 +213,43 @@ void main() {
     await tester.pump();
     expect(tester.takeException(),isNull);
   });
+
+  testWidgets('Phone Classes keeps the header and empty import action visible',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var imported = false;
+    Future<void> show(List<school.Class> classes) => tester.pumpWidget(
+      MaterialApp(
+        home: ClassDirectoryDashboard(
+          classes: classes,
+          loading: false,
+          onHome: () {},
+          onRefresh: () {},
+          onImport: () => imported = true,
+          onClassroom: (_) {},
+          onGradebook: (_) {},
+          onStudents: (_) {},
+        ),
+      ),
+    );
+
+    await show([]);
+    final title = find.text('Your classes');
+    expect(tester.getSize(title).height, lessThan(50));
+    expect(find.text('Total students'), findsNothing);
+    await tester.tap(find.text('Import classes or rosters').hitTestable());
+    expect(imported, isTrue);
+
+    await show([_class('science', 'J2 Science', 'Science')]);
+    await tester.pumpAndSettle();
+    expect(tester.getSize(title).height, lessThan(50));
+    expect(find.byKey(const ValueKey('class-search')).hitTestable(), findsOneWidget);
+    expect(find.text('J2 Science').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
 }
