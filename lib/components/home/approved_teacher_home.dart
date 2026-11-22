@@ -428,40 +428,70 @@ class ApprovedTeacherHome extends StatelessWidget {
         onCombineConsecutivePeriodsChanged: onCombineConsecutivePeriodsChanged,
       );
 
-  Widget _destinations(BuildContext context) => TeacherHomeCard(
+  Widget _destinations(BuildContext context) {
+    final actions = <(IconData, String, String, VoidCallback?)>[
+      (Icons.menu_book_rounded, 'Grades', 'Open class Gradebook',
+          loading ? null : onOpenGrades),
+      (Icons.people_alt_rounded, 'Students', 'Open student records',
+          loading ? null : onOpenStudents),
+      (Icons.draw_rounded, 'Whiteboard & PDF', 'Open Teaching Studio',
+          () => context.push(AppRoutes.whiteboard)),
+      (Icons.meeting_room_rounded, 'Classroom', 'Open the selected class',
+          loading ? null : onOpenClassroom),
+      (Icons.open_in_new_rounded, 'IED Studio', 'Open external resource',
+          onOpenIedStudio),
+      (Icons.open_in_new_rounded, 'Science', 'Open external resource',
+          onOpenScience),
+    ];
+    if (MediaQuery.sizeOf(context).width < 600) {
+      return PopupMenuButton<VoidCallback>(
+        tooltip: 'Open shortcuts',
+        position: PopupMenuPosition.under,
+        onSelected: (action) => action(),
+        itemBuilder: (_) => [
+          for (final (icon, title, _, action) in actions)
+            PopupMenuItem<VoidCallback>(
+              value: action,
+              enabled: action != null,
+              child: Row(children: [
+                Icon(icon, size: 20),
+                const SizedBox(width: 12),
+                Expanded(child: Text(title)),
+              ]),
+            ),
+        ],
+        child: TeacherHomeCard(
+          title: 'Within reach',
+          child: const Row(children: [
+            Expanded(child: Text('Choose a shortcut')),
+            Icon(Icons.expand_more_rounded),
+          ]),
+        ),
+      );
+    }
+    return TeacherHomeCard(
       title: 'Within reach',
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Where do you want to go?',
             style: TextStyle(color: _subtle(context), fontSize: 11.5)),
         const SizedBox(height: 10),
         LayoutBuilder(builder: (context, size) {
-          final actions = [
-            _quickTool(context, Icons.menu_book_rounded, 'Grades',
-                'Open class Gradebook', loading ? null : onOpenGrades),
-            _quickTool(context, Icons.people_alt_rounded, 'Students',
-                'Open student records', loading ? null : onOpenStudents),
-            _quickTool(context, Icons.draw_rounded, 'Whiteboard & PDF',
-                'Open Teaching Studio', () => context.push(AppRoutes.whiteboard)),
-            _quickTool(context, Icons.meeting_room_rounded, 'Classroom',
-                'Open the selected class', loading ? null : onOpenClassroom),
-            _quickTool(context, Icons.open_in_new_rounded, 'IED Studio',
-                'Open external resource', onOpenIedStudio),
-            _quickTool(context, Icons.open_in_new_rounded, 'Science',
-                'Open external resource', onOpenScience),
-          ];
           final columns = size.maxWidth < 520
               ? 1
               : size.maxWidth >= 590
                   ? 3
                   : 2;
           return Wrap(spacing: 10, runSpacing: 10, children: [
-            for (final action in actions)
+            for (final (icon, title, subtitle, action) in actions)
               SizedBox(
-                  width: (size.maxWidth - 10 * (columns - 1)) / columns,
-                  child: action)
+                width: (size.maxWidth - 10 * (columns - 1)) / columns,
+                child: _quickTool(context, icon, title, subtitle, action),
+              ),
           ]);
         }),
-      ]));
+      ]),
+    );
+  }
 
   Widget _quickTool(BuildContext context, IconData icon, String title,
           String subtitle, VoidCallback? onTap) =>
