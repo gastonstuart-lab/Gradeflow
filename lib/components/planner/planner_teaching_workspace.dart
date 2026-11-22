@@ -47,6 +47,7 @@ class PlannerTeachingWorkspace extends StatefulWidget {
       required this.classes,
       required this.date,
       required this.todayView,
+      this.phone = false,
       required this.onSelectDate,
       this.lunch,
       this.periods = const [],
@@ -57,6 +58,7 @@ class PlannerTeachingWorkspace extends StatefulWidget {
   final List<school.Class> classes;
   final DateTime date;
   final bool todayView;
+  final bool phone;
   final ValueChanged<DateTime> onSelectDate;
   final PlannerLunch? lunch;
   final List<({int start, int end})> periods;
@@ -317,9 +319,27 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text(widget.todayView ? 'Teaching today' : 'Weekly timetable',
+            Text(widget.phone ? 'Lessons' : (widget.todayView ? 'Teaching today' : 'Weekly timetable'),
                 style: Theme.of(context).textTheme.headlineSmall),
-            Wrap(
+            if (widget.phone)
+              PopupMenuButton<VoidCallback>(
+                tooltip: 'Timetable options',
+                onSelected: (action) => action(),
+                itemBuilder: (_) => [
+                  if (widget.lessons.isNotEmpty)
+                    CheckedPopupMenuItem(
+                      checked: combine,
+                      value: () => setState(() {
+                        combine = !combine;
+                        selected = null;
+                      }),
+                      child: const Text('Group doubles'),
+                    ),
+                  PopupMenuItem(value: widget.onUpload, child: const Text('Import timetable')),
+                  PopupMenuItem(value: widget.onManage, child: const Text('Versions')),
+                ],
+              )
+            else Wrap(
                 spacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
@@ -343,19 +363,27 @@ class _PlannerTeachingWorkspaceState extends State<PlannerTeachingWorkspace> {
                 ]),
           ]),
       const SizedBox(height: 8),
-      const Wrap(spacing: 18, children: [
+      if (!widget.phone || widget.lessons.isNotEmpty) const Wrap(spacing: 18, children: [
         Text('● EEP', style: TextStyle(color: Color(0xff306dc5))),
         Text('● Science', style: TextStyle(color: Color(0xff23815a))),
         Text('● Performance Arts', style: TextStyle(color: Color(0xffb9652c)))
       ]),
       const SizedBox(height: 12),
-      if (widget.lessons.isEmpty)
-        const Padding(
+      if (widget.lessons.isEmpty) ...[
+        if (widget.phone)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: widget.onUpload,
+              child: const Text('Import timetable'),
+            ),
+          )
+        else const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
             child: Text(
                 'Import and confirm a timetable to see your teaching periods here.'))
-      else if (widget.todayView) ...[
-        Text('${widget.date.day}/${widget.date.month}/${widget.date.year}',
+      ] else if (widget.todayView) ...[
+        if (!widget.phone) Text('${widget.date.day}/${widget.date.month}/${widget.date.year}',
             style: Theme.of(context).textTheme.titleMedium),
         if (sameDay && next == null && widget.lessons.isNotEmpty)
           Builder(builder: (context) {

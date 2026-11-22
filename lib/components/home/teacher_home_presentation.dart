@@ -44,6 +44,7 @@ class TeacherHomePresentation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final phone = MediaQuery.sizeOf(context).width < 600;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final text = dark ? const Color(0xffeef6ff) : const Color(0xff133c67);
     final subtle = dark ? const Color(0xff9fb4c7) : const Color(0xff60758c);
@@ -73,9 +74,9 @@ class TeacherHomePresentation extends StatelessWidget {
         Expanded(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-              MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
-              30,
-              MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
+              phone ? 12 : MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
+              phone ? 12 : 30,
+              phone ? 12 : MediaQuery.sizeOf(context).width < 700 ? 18 : 36,
               // The Home background extends under the dock; keep the final
               // card and footer fully scrollable above its 68+16px footprint.
               24 + OSSpacing.dockHeight + OSSpacing.dockBottomMargin,
@@ -86,12 +87,12 @@ class TeacherHomePresentation extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 8),
+                    if (!phone) const SizedBox(height: 8),
                     LayoutBuilder(builder: (context, size) {
                       final greeting = Text(
                         'Welcome, $teacherName.',
                         style: TextStyle(
-                          fontSize: size.maxWidth < 600 ? 28 : 34,
+                          fontSize: phone ? 23 : size.maxWidth < 600 ? 28 : 34,
                           height: 1,
                           letterSpacing: -.8,
                           fontWeight: FontWeight.w900,
@@ -116,6 +117,14 @@ class TeacherHomePresentation extends StatelessWidget {
                               fontWeight: FontWeight.w700),
                         ),
                       );
+                      if (phone) {
+                        return Wrap(
+                          spacing: 10,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [greeting, date],
+                        );
+                      }
                       if (size.maxWidth < 620) {
                         return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -127,11 +136,11 @@ class TeacherHomePresentation extends StatelessWidget {
                       }
                       return Row(children: [Expanded(child: greeting), date]);
                     }),
-                    const SizedBox(height: 14),
+                    SizedBox(height: phone ? 10 : 14),
                     LayoutBuilder(builder: (context, size) {
                       final main = Column(children: [
                         classCard,
-                        const SizedBox(height: 18),
+                        SizedBox(height: phone ? 10 : 18),
                         if (teachingDay != null) ...[
                           teachingDay!,
                           const SizedBox(height: 18),

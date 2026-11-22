@@ -121,6 +121,8 @@ class OSSpacing {
 
   // Dock
   static const double dockHeight = 68.0;
+  static const double phoneDockHeight = 48.0;
+  static const double phoneDockBottomMargin = 6.0;
   static const double dockBottomMargin = 16.0;
   static const double dockItemSize = 52.0;
 
