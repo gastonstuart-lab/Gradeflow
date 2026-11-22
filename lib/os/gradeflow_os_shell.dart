@@ -141,9 +141,10 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     // including Home. The separate ambient background painter still fills
     // the entire window behind the dock; only tappable page content ends
     // above it. This avoids web semantics click-through at dock separators.
+    final dockBottomMargin = isPhone ? OSSpacing.phoneDockBottomMargin : OSSpacing.dockBottomMargin;
     final dockReserve = widget.teachMode
         ? 0.0
-        : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
+        : (isPhone ? OSSpacing.phoneDockHeight : OSSpacing.dockHeight) + dockBottomMargin;
 
     // The account/settings menu lives only in the approved Home header.
     // Other screens preserve their own controls and full working area; users
@@ -203,7 +204,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             bottom: 0,
             child: Padding(
               padding: EdgeInsets.only(
-                bottom: mq.padding.bottom + OSSpacing.dockBottomMargin,
+                bottom: mq.padding.bottom + dockBottomMargin,
                 left: isPhone ? 12 : 24,
                 right: isPhone ? 12 : 24,
               ),

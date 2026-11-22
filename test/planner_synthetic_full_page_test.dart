@@ -105,4 +105,53 @@ void main() {
         isNull);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Phone week shows the selected day lessons and events', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ClassService>(
+        create: (_) => ClassService(),
+        child: MaterialApp(
+          home: PlannerSurface(
+            initialDate: DateTime(2026, 11, 13),
+            syntheticPreview: PlannerSyntheticPreviewData(
+              teacherId: 'fictional-mobile-teacher',
+              teacherName: 'Fictional Teacher',
+              lessons: [
+                TimeSlotClass(
+                  title: 'Friday Science',
+                  dayOfWeek: 4,
+                  startMinutes: 480,
+                  endMinutes: 530,
+                ),
+              ],
+              reminders: [
+                PlannerSyntheticReminder(
+                  text: 'Friday assembly',
+                  timestamp: DateTime(2026, 11, 13, 11),
+                  kind: 'school_event',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Friday Science').hitTestable(), findsOneWidget);
+    expect(find.text('Friday assembly'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('planner-week-date-2026-11-12')));
+    await tester.pumpAndSettle();
+    expect(find.text('Friday Science'), findsNothing);
+    expect(find.text('Friday assembly'), findsNothing);
+    expect(find.text('No teaching periods scheduled for this day.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
 }
