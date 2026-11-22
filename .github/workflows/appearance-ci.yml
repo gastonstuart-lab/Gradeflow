@@ -115,6 +115,37 @@ jobs:
             echo "Hosting configuration checked for Hosting-only scope."
             echo "main.dart.js SHA256: \`$(sha256sum build/web/main.dart.js | cut -d' ' -f1)\`"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify mobile Home, Classes, Planner and dock
+        run: |
+          flutter test test/approved_teacher_home_bindings_test.dart \
+            test/class_directory_command_centre_test.dart \
+            test/planner_synthetic_full_page_test.dart \
+            test/os_dock_activation_test.dart
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Bundle Teaching Studio and record exact source hashes
+        run: |
+          npm --prefix teacher-tools-preview ci --ignore-scripts --no-audit --no-fund
+          npm --prefix teacher-tools-preview run build
+          mkdir -p build/web/teaching-studio
+          cp -a teacher-tools-preview/dist/. build/web/teaching-studio/
+          test -s build/web/teaching-studio/index.html
+          test -s build/web/teaching-studio/pdfjs/build/pdf.worker.mjs
+          python3 - <<'PYTHON'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          root = Path('build/web')
+          manifest = {
+              'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+              'tree': subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], text=True).strip(),
+              'run': os.environ['GITHUB_RUN_ID'],
+              'files': {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+                        for path in sorted(root.rglob('*')) if path.is_file()
+                        and not any(part.startswith('.') for part in path.relative_to(root).parts)},
+          }
+          (root / 'review-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          PYTHON
       - name: Retain exact live-mode website bundle for human review only
         uses: actions/upload-artifact@v4
         with:

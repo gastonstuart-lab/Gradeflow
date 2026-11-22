@@ -167,6 +167,7 @@ class ApprovedTeacherHome extends StatelessWidget {
   }
 
   Widget _classCard(BuildContext context) {
+    final phone = MediaQuery.sizeOf(context).width < 600;
     final item = primaryClass;
     final count = item == null ? null : studentCounts[item.classId];
     return Container(
@@ -214,7 +215,7 @@ class ApprovedTeacherHome extends StatelessWidget {
               ),
             ),
           ],
-        if (heroBackgroundImage == null)
+        if (heroBackgroundImage == null && !phone)
         const Positioned(
             right: -18,
             top: -22,
@@ -242,10 +243,23 @@ class ApprovedTeacherHome extends StatelessWidget {
                                   size: 112, color: Colors.white)),
                         ]))))),
         Padding(
-            padding: const EdgeInsets.all(26),
+            padding: EdgeInsets.all(phone ? 14 : 26),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              SizedBox(
+              if (phone)
+                Row(children: [
+                  if (classes.isNotEmpty && !loading)
+                    Expanded(child: _classSelector(context, item))
+                  else
+                    const Spacer(),
+                  if (onCustomiseHome != null)
+                    IconButton(
+                      tooltip: 'Personalise',
+                      onPressed: onCustomiseHome,
+                      icon: const Icon(Icons.palette_outlined, color: Colors.white),
+                    ),
+                ])
+              else SizedBox(
                   width: double.infinity,
                   child: Wrap(
                     alignment: WrapAlignment.spaceBetween,
@@ -271,7 +285,7 @@ class ApprovedTeacherHome extends StatelessWidget {
                         ),
                     ],
                   )),
-              const SizedBox(height: 18),
+              SizedBox(height: phone ? 8 : 18),
               Row(children: [
                 Expanded(
                   child: AnimatedSwitcher(
@@ -283,8 +297,8 @@ class ApprovedTeacherHome extends StatelessWidget {
                       key: ValueKey('home-class-title-${item?.classId}'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 42,
+                      style: TextStyle(
+                        fontSize: phone ? 27 : 42,
                         height: 1.05,
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
@@ -314,7 +328,7 @@ class ApprovedTeacherHome extends StatelessWidget {
                   ),
                 ],
               ]),
-              const SizedBox(height: 9),
+              SizedBox(height: phone ? 2 : 9),
               Text(
                   item == null
                       ? 'Choose a class to open the existing classroom.'
@@ -323,6 +337,7 @@ class ApprovedTeacherHome extends StatelessWidget {
                       fontSize: 15.5,
                       fontWeight: FontWeight.w600,
                       color: Color(0xffd6e6ef))),
+              if (!phone) ...[
               const SizedBox(height: 20),
               const Text('Ready for class',
                   style: TextStyle(
@@ -338,14 +353,15 @@ class ApprovedTeacherHome extends StatelessWidget {
               Text(
                   '${classes.length} active class${classes.length == 1 ? '' : 'es'}',
                   style: const TextStyle(color: Color(0xffd6e6ef))),
-              const SizedBox(height: 20),
+              ],
+              SizedBox(height: phone ? 10 : 20),
               Wrap(spacing: 10, runSpacing: 10, children: [
                 FilledButton.icon(
                   style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: const Color(0xff164f72),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 16)),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: phone ? 12 : 20, vertical: phone ? 10 : 16)),
                   onPressed: loading ? null : onOpenClassroom,
                   icon: const Icon(Icons.arrow_forward_rounded),
                   label: Text(item == null ? 'Choose class' : 'Open Classroom'),
@@ -355,11 +371,11 @@ class ApprovedTeacherHome extends StatelessWidget {
                       foregroundColor: Colors.white,
                       side: BorderSide(
                           color: Colors.white.withValues(alpha: .42)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 16)),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: phone ? 12 : 18, vertical: phone ? 10 : 16)),
                   onPressed: onOpenPlanner,
                   icon: const Icon(Icons.schedule_rounded),
-                  label: const Text('Check Planner'),
+                  label: Text(phone ? 'Planner' : 'Check Planner'),
                 ),
               ]),
             ])),
@@ -412,40 +428,70 @@ class ApprovedTeacherHome extends StatelessWidget {
         onCombineConsecutivePeriodsChanged: onCombineConsecutivePeriodsChanged,
       );
 
-  Widget _destinations(BuildContext context) => TeacherHomeCard(
+  Widget _destinations(BuildContext context) {
+    final actions = <(IconData, String, String, VoidCallback?)>[
+      (Icons.menu_book_rounded, 'Grades', 'Open class Gradebook',
+          loading ? null : onOpenGrades),
+      (Icons.people_alt_rounded, 'Students', 'Open student records',
+          loading ? null : onOpenStudents),
+      (Icons.draw_rounded, 'Whiteboard & PDF', 'Open Teaching Studio',
+          () => context.push(AppRoutes.whiteboard)),
+      (Icons.meeting_room_rounded, 'Classroom', 'Open the selected class',
+          loading ? null : onOpenClassroom),
+      (Icons.open_in_new_rounded, 'IED Studio', 'Open external resource',
+          onOpenIedStudio),
+      (Icons.open_in_new_rounded, 'Science', 'Open external resource',
+          onOpenScience),
+    ];
+    if (MediaQuery.sizeOf(context).width < 600) {
+      return PopupMenuButton<VoidCallback>(
+        tooltip: 'Open shortcuts',
+        position: PopupMenuPosition.under,
+        onSelected: (action) => action(),
+        itemBuilder: (_) => [
+          for (final (icon, title, _, action) in actions)
+            PopupMenuItem<VoidCallback>(
+              value: action,
+              enabled: action != null,
+              child: Row(children: [
+                Icon(icon, size: 20),
+                const SizedBox(width: 12),
+                Expanded(child: Text(title)),
+              ]),
+            ),
+        ],
+        child: TeacherHomeCard(
+          title: 'Within reach',
+          child: const Row(children: [
+            Expanded(child: Text('Choose a shortcut')),
+            Icon(Icons.expand_more_rounded),
+          ]),
+        ),
+      );
+    }
+    return TeacherHomeCard(
       title: 'Within reach',
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Where do you want to go?',
             style: TextStyle(color: _subtle(context), fontSize: 11.5)),
         const SizedBox(height: 10),
         LayoutBuilder(builder: (context, size) {
-          final actions = [
-            _quickTool(context, Icons.menu_book_rounded, 'Grades',
-                'Open class Gradebook', loading ? null : onOpenGrades),
-            _quickTool(context, Icons.people_alt_rounded, 'Students',
-                'Open student records', loading ? null : onOpenStudents),
-            _quickTool(context, Icons.draw_rounded, 'Whiteboard & PDF',
-                'Open Teaching Studio', () => context.push(AppRoutes.whiteboard)),
-            _quickTool(context, Icons.meeting_room_rounded, 'Classroom',
-                'Open the selected class', loading ? null : onOpenClassroom),
-            _quickTool(context, Icons.open_in_new_rounded, 'IED Studio',
-                'Open external resource', onOpenIedStudio),
-            _quickTool(context, Icons.open_in_new_rounded, 'Science',
-                'Open external resource', onOpenScience),
-          ];
           final columns = size.maxWidth < 520
               ? 1
               : size.maxWidth >= 590
                   ? 3
                   : 2;
           return Wrap(spacing: 10, runSpacing: 10, children: [
-            for (final action in actions)
+            for (final (icon, title, subtitle, action) in actions)
               SizedBox(
-                  width: (size.maxWidth - 10 * (columns - 1)) / columns,
-                  child: action)
+                width: (size.maxWidth - 10 * (columns - 1)) / columns,
+                child: _quickTool(context, icon, title, subtitle, action),
+              ),
           ]);
         }),
-      ]));
+      ]),
+    );
+  }
 
   Widget _quickTool(BuildContext context, IconData icon, String title,
           String subtitle, VoidCallback? onTap) =>

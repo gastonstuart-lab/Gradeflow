@@ -137,14 +137,15 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
 
-    // Home owns its scrolling bottom inset, so its background can continue
-    // beneath the floating dock instead of ending in a solid footer stripe.
-    // Planner, Classroom and all other routes retain their dock reservation.
+    // Home scrolls above its floating dock while its background extends below it.
     final homeBehindFloatingDock =
         !widget.teachMode && controller.activeSurface == OSSurface.home;
+    final dockBottomMargin = isPhone
+        ? OSSpacing.phoneDockBottomMargin
+        : OSSpacing.dockBottomMargin;
     final dockReserve = widget.teachMode
         ? 0.0
-        : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
+        : (isPhone ? OSSpacing.phoneDockHeight : OSSpacing.dockHeight) + dockBottomMargin;
 
     // The account/settings menu lives only in the approved Home header.
     // Other screens preserve their own controls and full working area; users
@@ -204,12 +205,17 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             bottom: 0,
             child: Padding(
               padding: EdgeInsets.only(
-                bottom: mq.padding.bottom + OSSpacing.dockBottomMargin,
+                bottom: mq.padding.bottom + dockBottomMargin,
                 left: isPhone ? 12 : 24,
                 right: isPhone ? 12 : 24,
               ),
               child: Center(
-                child: OSDock(teachMode: widget.teachMode),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  excludeFromSemantics: true,
+                  onTap: () {},
+                  child: OSDock(teachMode: widget.teachMode),
+                ),
               ),
             ),
           ),
