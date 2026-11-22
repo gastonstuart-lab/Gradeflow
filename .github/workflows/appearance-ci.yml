@@ -74,6 +74,11 @@ jobs:
             test/teacher_personalisation_scoping_test.dart \
             test/teacher_quick_settings_test.dart \
             test/teacher_account_menu_test.dart
+      - name: Verify Classes, Planner and dock at phone widths
+        run: |
+          flutter test test/class_directory_command_centre_test.dart \
+            test/planner_synthetic_full_page_test.dart \
+            test/os_dock_activation_test.dart
       - name: Enforce background-only custom colour boundary
         run: |
           ! grep -Eq 'themeAccent\(|backgroundGlowColor|appearance\.accentColor' lib/main.dart
