@@ -371,14 +371,21 @@ void main() {
     final science = tester.getRect(
         find.byKey(const Key('science-hub-below-dock')));
     final dock = tester.getRect(find.byType(OSDock));
-    // Home's interactive surface must end above the floating dock. Its
-    // separately painted ambient wallpaper still fills the viewport.
-    // The underlying Science Hub button is deliberately aligned to the
-    // bottom of Home content; it must not overlap the dock.
-    expect(science.bottom, closeTo(
-      900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin, 1.0));
-    expect(science.bottom, lessThanOrEqualTo(dock.top + 1));
-    expect(science.contains(dock.center), isFalse);
+    // The Home scroll surface paints right to the window edge now, and
+    // intentionally overlaps the floating dock visually. Its independent
+    // opaque bottom shield must stop the overlapped shortcut receiving taps.
+    expect(science.bottom, closeTo(900, 1.0));
+    expect(science.bottom, greaterThan(dock.top));
+    expect(science.contains(dock.center), isTrue);
+    expect(dock.height, closeTo(OSSpacing.dockHeight, 1.0));
+    expect(dock.bottom, closeTo(900 - OSSpacing.dockBottomMargin, 1.0));
+
+    // A tap outside the pill but inside the protected bottom band must not
+    // activate an underlying Home quick action either.
+    await tester.tapAt(Offset(science.left + 24, 900 -
+        OSSpacing.dockBottomMargin - 10));
+    await tester.pump();
+    expect(scienceHubTaps, 0);
 
     // Dock padding must not activate the Science shortcut underneath.
     await tester.tapAt(Offset(dock.left + 6, dock.center.dy));

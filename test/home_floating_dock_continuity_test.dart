@@ -17,7 +17,7 @@ import 'package:gradeflow/services/global_system_shell_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('all interactive surfaces clear dock; ambient fills viewport',
+  testWidgets('Home backdrop fills viewport; other surfaces clear floating dock',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1440, 900);
@@ -53,14 +53,19 @@ void main() {
       ),
     );
     expect(find.byType(OSDock), findsOneWidget);
-    // Home must NOT put tappable content below the floating dock.
+    // Home's SCROLLABLE PAINTED background continues all the way to the
+    // bottom. An independent opaque hit shield protects the dock zone.
+    // This removes the 84px empty footer while allowing the Home scroll
+    // inset to expose its final buttons above the dock.
     expect(tester.getSize(find.byKey(const ValueKey('full-page-probe'))).height,
-        closeTo(
-          900 - OSSpacing.dockHeight - OSSpacing.dockBottomMargin, 1,
-        ));
-    // Only the decorative appearance background continues under the dock.
+        closeTo(900, 1));
     expect(tester.getSize(find.byType(TeacherAppearanceOverlay)).height,
         closeTo(900, 1));
+    final dock = tester.getRect(find.byType(OSDock));
+    expect(dock.height, closeTo(OSSpacing.dockHeight, 1));
+    expect(dock.bottom, closeTo(900 - OSSpacing.dockBottomMargin, 1));
+    expect(OSSpacing.dockHeight + OSSpacing.dockBottomMargin,
+        lessThanOrEqualTo(64));
 
     // Other routed surfaces retain the same protected content reservation.
     controller.setSurface(OSSurface.planner);

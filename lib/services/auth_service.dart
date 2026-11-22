@@ -10,12 +10,17 @@ import 'package:gradeflow/services/google_auth_service.dart';
 import 'package:gradeflow/services/migration_service.dart';
 import 'package:gradeflow/config/planner_v2_staging_safety.dart';
 import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
+import 'package:gradeflow/config/gradeflow_public_review_safety.dart';
 
 class AuthService extends ChangeNotifier {
   static const String _currentUserKey = 'current_user';
   static const String _usersKey = 'users';
 
-  static const bool demoLoginAvailable = GradeFlowExistingProjectPreview.enabled;
+  // The full-app public review uses the existing fictional demo account.
+  // It cannot sign in to Firebase because FirebaseService is disabled there.
+  static const bool demoLoginAvailable =
+      GradeFlowExistingProjectPreview.enabled ||
+      GradeFlowPublicReviewSafety.enabled;
   User? _currentUser;
   bool _isLoading = false;
   bool _initialized = false;
@@ -77,6 +82,8 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<bool> signInWithGoogle() async {
+    // Public fictional previews must never request real Google/Firebase login.
+    if (GradeFlowPublicReviewSafety.enabled) return false;
     _isLoading = true;
     notifyListeners();
 
@@ -193,6 +200,7 @@ class AuthService extends ChangeNotifier {
       final previewDemo = GradeFlowExistingProjectPreview.isSyntheticDemoLogin(
         email: email,
         password: password,
+        previewEnabled: demoLoginAvailable,
       );
       if (previewDemo && FirebaseService.isAvailable &&
           fb.FirebaseAuth.instance.currentUser != null) {

@@ -8,6 +8,7 @@ import 'package:gradeflow/config/gradeflow_product_config.dart';
 import 'package:gradeflow/config/planner_v2_staging_safety.dart';
 import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
 import 'package:gradeflow/config/gradeflow_live_v2_release.dart';
+import 'package:gradeflow/config/gradeflow_public_review_safety.dart';
 import 'package:gradeflow/config/planner_v2_firebase_config.dart';
 import 'package:gradeflow/config/planner_v2_emulator_safety.dart';
 import 'package:gradeflow/theme.dart';
@@ -86,6 +87,26 @@ void main() async {
     runApp(const _PlannerV2StagingBlocked(
       reason: 'Local Firebase emulators are allowed only on localhost '
           'with the synthetic demo GradeFlow staging project.',
+    ));
+    return;
+  }
+
+  // Distinct local-only *full application* preview. Block unexpected hosts
+  // and combinations before any Firebase/auth/provider initialization.
+  // This branch is intentionally not a Firebase Hosting preview; it uses
+  // only fictional browser-stored data through the regular V2 interface.
+  if (!GradeFlowPublicReviewSafety.permitted(
+    enabled: GradeFlowPublicReviewSafety.enabled,
+    isWeb: kIsWeb,
+    originHost: Uri.base.host,
+    liveEnabled: GradeFlowLiveV2Release.enabled,
+    existingProjectPreviewEnabled: GradeFlowExistingProjectPreview.enabled,
+    stagingEnabled: PlannerV2StagingSafety.stagingEnabled,
+    emulatorEnabled: PlannerV2EmulatorSafety.enabled,
+  )) {
+    runApp(const _PlannerV2StagingBlocked(
+      reason: 'This fictional, local-only GradeFlow review is available '
+          'only on its designated web preview. No Firebase data was loaded.',
     ));
     return;
   }

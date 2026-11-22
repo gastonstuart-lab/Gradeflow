@@ -53,7 +53,7 @@ class OSDock extends StatelessWidget {
             sigmaY: WorkspaceChrome.shellBlur,
           ),
           child: Container(
-            height: OSSpacing.dockHeight,
+            height: isPhone ? OSSpacing.phoneDockHeight : OSSpacing.dockHeight,
             decoration: BoxDecoration(
               borderRadius: OSRadius.pillBr,
               border: Border.all(
@@ -96,13 +96,13 @@ class OSDock extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(width: 12),
+                    SizedBox(width: isPhone ? 6 : 12),
                     for (int i = 0; i < items.length; i++) ...[
                       if (i > 0)
                         _DockDivider(dark: dark, items: items, index: i),
-                      _DockItem(data: items[i]),
+                      _DockItem(data: items[i], phone: isPhone),
                     ],
-                    const SizedBox(width: 12),
+                    SizedBox(width: isPhone ? 6 : 12),
                   ],
                 ),
               ],
@@ -223,7 +223,8 @@ class _DockDivider extends StatelessWidget {
 }
 
 class _DockItem extends StatefulWidget {
-  const _DockItem({required this.data});
+  const _DockItem({required this.data, required this.phone});
+  final bool phone;
   final _DockItemData data;
 
   @override
@@ -272,9 +273,9 @@ class _DockItemState extends State<_DockItem>
             })
           },
           child: GestureDetector(
-            // The visible dock item is 52×68, but its painted icon card
-            // has vertical margins. Without an opaque hit region those
-            // unpainted pixels can route to a Home tile underneath.
+            // The whole 44×56 dock target remains tappable, including its
+            // transparent icon margins. This is important for touch, pen
+            // and web semantics hit tests above Home shortcuts.
             behavior: HitTestBehavior.opaque,
             onTap: d.onTap,
             onTapDown: (_) {
@@ -296,14 +297,36 @@ class _DockItemState extends State<_DockItem>
                 message: d.label,
                 preferBelow: false,
                 child: SizedBox(
-                  width: OSSpacing.dockItemSize,
-                  height: OSSpacing.dockHeight,
-                  child: Stack(
+                  width: widget.phone ? 60 : OSSpacing.dockItemSize,
+                  height: widget.phone ? OSSpacing.phoneDockHeight : OSSpacing.dockHeight,
+                  child: widget.phone
+                      ? Center(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: d.isActive ? OSColors.blue.withValues(alpha: .14) : null,
+                              borderRadius: OSRadius.lgBr,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(d.icon, size: 19, color: d.isActive ? OSColors.blue : OSColors.text(dark)),
+                                  Text(d.label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.5),
+                                      style: TextStyle(fontSize: 10, color: OSColors.text(dark),
+                                        fontWeight: d.isActive ? FontWeight.bold : FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      : Stack(
                     alignment: Alignment.center,
                     children: [
                       if (d.isActive)
                         Positioned(
-                          bottom: 7,
+                          bottom: 4,
                           child: Container(
                             width: 18,
                             height: 3,
@@ -316,8 +339,8 @@ class _DockItemState extends State<_DockItem>
                       AnimatedContainer(
                         duration: OSMotion.fast,
                         curve: OSMotion.ease,
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.symmetric(vertical: 5),
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
                           color: d.isActive
                               ? OSColors.blue
@@ -361,7 +384,7 @@ class _DockItemState extends State<_DockItem>
                         ),
                         child: Icon(
                           d.icon,
-                          size: 24,
+                          size: 22,
                           color: d.isActive
                               ? OSColors.blue
                               : hovered

@@ -137,13 +137,22 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
 
-    // Keep the floating dock clear of interactive content on every surface,
-    // including Home. The separate ambient background painter still fills
-    // the entire window behind the dock; only tappable page content ends
-    // above it. This avoids web semantics click-through at dock separators.
-    final dockReserve = widget.teachMode
+    // Home owns an inset scroll view with enough bottom padding to bring
+    // its final cards ABOVE the dock. Let its painted background fill the
+    // actual viewport instead of leaving a full-width blank footer.
+    //
+    // Other routed surfaces retain their established protected content area.
+    // An opaque hit-test shield below covers the Home dock's footprint:
+    // empty pill separators must never activate a Home shortcut behind it.
+    final homeWithDock = !widget.teachMode &&
+        controller.activeSurface == OSSurface.home;
+    final dockBottomMargin = isPhone
+        ? OSSpacing.phoneDockBottomMargin
+        : OSSpacing.dockBottomMargin;
+    final dockHeight = isPhone ? OSSpacing.phoneDockHeight : OSSpacing.dockHeight;
+    final dockReserve = widget.teachMode || homeWithDock
         ? 0.0
-        : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
+        : dockHeight + dockBottomMargin;
 
     // The account/settings menu lives only in the approved Home header.
     // Other screens preserve their own controls and full working area; users
@@ -196,6 +205,22 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             ),
           ),
         ),
+        if (homeWithDock)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: dockHeight + dockBottomMargin + mq.padding.bottom,
+            // Only the last dock-sized strip blocks pointer events: the
+            // page paints through it, but cards behind the floating pill
+            // cannot steal taps from the real dock, even at its separators.
+            // The Home scroll view has its own bottom inset so nothing is
+            // stranded behind the shield after scrolling.
+            child: const AbsorbPointer(
+              absorbing: true,
+              child: SizedBox.expand(),
+            ),
+          ),
         if (!widget.teachMode)
           Positioned(
             left: 0,
@@ -203,7 +228,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             bottom: 0,
             child: Padding(
               padding: EdgeInsets.only(
-                bottom: mq.padding.bottom + OSSpacing.dockBottomMargin,
+                bottom: mq.padding.bottom + dockBottomMargin,
                 left: isPhone ? 12 : 24,
                 right: isPhone ? 12 : 24,
               ),
@@ -342,8 +367,8 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
       ],
     );
 
-    // The separate wallpaper/ambient layer stays full-height, while
-    // routed content stays above the dock and remains accessible by scrolling.
+    // The wallpaper and Home backdrop fill the viewport; content can
+    // always scroll above the floating dock, with its hit zone protected.
     return ColoredBox(
       color: widget.teachMode
           ? OSColors.teachBg
