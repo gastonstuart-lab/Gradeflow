@@ -173,14 +173,16 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
           (dark ? const Color(0xff091725) : const Color(0xffF1F6FA)),
       body: SafeArea(child: LayoutBuilder(builder: (context, size) {
         final double margin = size.maxWidth >= 700 ? 24 : 12;
+        final phone = size.maxWidth < 600;
         final bool twoColumns = size.maxWidth >= 1170;
         return CustomScrollView(
           key: const ValueKey('class-command-centre-scroll'),
           slivers: [
             SliverPadding(
               padding: EdgeInsets.fromLTRB(margin, 15, margin, 12),
-              sliver: SliverToBoxAdapter(child: _hero(context, now)),
+              sliver: SliverToBoxAdapter(child: _hero(context, now, phone: phone)),
             ),
+            if (!phone || classes.isNotEmpty)
             SliverPadding(
               padding: EdgeInsets.fromLTRB(margin, 0, margin, 14),
               sliver: SliverToBoxAdapter(
@@ -241,16 +243,30 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
             ),
             if (widget.loading)
               const SliverToBoxAdapter(child: LinearProgressIndicator(minHeight: 2)),
-            if (!widget.loading && classes.isEmpty)
+            if (!phone && !widget.loading && classes.isEmpty)
               const SliverFillRemaining(
                 child: Center(child: Text('No classes yet. Import your classes or rosters to begin.'))),
+            if (phone && !widget.loading && classes.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(children: [
+                    const Text('No classes yet.'),
+                    FilledButton.icon(
+                        onPressed: widget.onImport,
+                        icon: const Icon(Icons.upload_file_outlined),
+                        label: const Text('Import classes or rosters'),
+                      ),
+                  ]),
+                ),
+              ),
             if (classes.isNotEmpty && filtered.isEmpty)
               const SliverToBoxAdapter(
                 child: Padding(padding: EdgeInsets.all(32),
                   child: Center(child: Text('No classes match these filters.')))),
             if (filtered.isNotEmpty)
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(margin, 0, margin, 125),
+                padding: EdgeInsets.fromLTRB(margin, 0, margin, phone ? 16 : 125),
                 sliver: SliverGrid.builder(
                   itemCount: filtered.length,
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -271,7 +287,7 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
     );
   }
 
-  Widget _hero(BuildContext context, DateTime now) {
+  Widget _hero(BuildContext context, DateTime now, {required bool phone}) {
     final snapshot = widget.snapshot;
     final classes = widget.classes;
     final semester = classes.isEmpty
@@ -283,7 +299,7 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
           colors: [_navy, Color(0xff175976), _teal]),
         borderRadius: BorderRadius.circular(26),
       ),
-      padding: const EdgeInsets.fromLTRB(19, 15, 19, 17),
+      padding: phone ? const EdgeInsets.all(8) : const EdgeInsets.fromLTRB(19, 15, 19, 17),
       child: Column(children: [
         Row(children: [
           IconButton(
@@ -291,12 +307,13 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
             onPressed: widget.onHome,
             icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
           ),
-          const Icon(Icons.school_outlined, color: Colors.white),
-          const SizedBox(width: 8),
+          if (!phone) const Icon(Icons.school_outlined, color: Colors.white),
+          if (!phone) const SizedBox(width: 8),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('Your classes', style: TextStyle(
                 fontSize: 25, fontWeight: FontWeight.w900, color: Colors.white)),
+              if (!phone || classes.isNotEmpty)
               Text(classes.length.toString() + ' active classes · ' + semester,
                 style: const TextStyle(color: Color(0xffD7E8F4), fontSize: 12)),
             ])),
@@ -306,7 +323,13 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
             onPressed: widget.onRefresh,
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
           ),
-          OutlinedButton.icon(
+          if (phone && classes.isNotEmpty)
+            IconButton(
+              tooltip: 'Import classes or rosters',
+              onPressed: widget.onImport,
+              icon: const Icon(Icons.upload_file_outlined, color: Colors.white),
+            ),
+          if (!phone) OutlinedButton.icon(
             onPressed: widget.onImport,
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
@@ -317,7 +340,8 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
               style: TextStyle(fontSize: 12)),
           ),
         ]),
-        const SizedBox(height: 12),
+        if (!phone) const SizedBox(height: 12),
+        if (!phone || classes.isNotEmpty)
         LayoutBuilder(builder: (context, constraints) {
           final tiles = [
             _metric(Icons.groups_outlined, _num(snapshot?.totalStudents),
@@ -332,7 +356,7 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
             _metric(Icons.fact_check_outlined, _num(snapshot?.missingScores),
               'Unentered scores'),
           ];
-          return constraints.maxWidth >= 800
+          final metrics = constraints.maxWidth >= 800
             ? Row(children: [
                 for (var i = 0; i < tiles.length; i++) ...[
                   if (i != 0) const SizedBox(width: 9),
@@ -343,6 +367,16 @@ class _ClassDirectoryDashboardState extends State<ClassDirectoryDashboard> {
                 for (final tile in tiles)
                   SizedBox(width: (constraints.maxWidth - 8) / 2, child: tile),
               ]);
+          return phone
+              ? ExpansionTile(
+                  title: const Text('Overview'),
+                  textColor: Colors.white,
+                  collapsedTextColor: Colors.white,
+                  iconColor: Colors.white,
+                  collapsedIconColor: Colors.white,
+                  children: [metrics],
+                )
+              : metrics;
         }),
       ]),
     );

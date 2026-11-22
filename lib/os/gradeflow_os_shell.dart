@@ -146,9 +146,13 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     // empty pill separators must never activate a Home shortcut behind it.
     final homeWithDock = !widget.teachMode &&
         controller.activeSurface == OSSurface.home;
+    final dockBottomMargin = isPhone
+        ? OSSpacing.phoneDockBottomMargin
+        : OSSpacing.dockBottomMargin;
+    final dockHeight = isPhone ? OSSpacing.phoneDockHeight : OSSpacing.dockHeight;
     final dockReserve = widget.teachMode || homeWithDock
         ? 0.0
-        : OSSpacing.dockHeight + OSSpacing.dockBottomMargin;
+        : dockHeight + dockBottomMargin;
 
     // The account/settings menu lives only in the approved Home header.
     // Other screens preserve their own controls and full working area; users
@@ -206,8 +210,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             left: 0,
             right: 0,
             bottom: 0,
-            height: OSSpacing.dockHeight + OSSpacing.dockBottomMargin +
-                mq.padding.bottom,
+            height: dockHeight + dockBottomMargin + mq.padding.bottom,
             // Only the last dock-sized strip blocks pointer events: the
             // page paints through it, but cards behind the floating pill
             // cannot steal taps from the real dock, even at its separators.
@@ -225,7 +228,7 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             bottom: 0,
             child: Padding(
               padding: EdgeInsets.only(
-                bottom: mq.padding.bottom + OSSpacing.dockBottomMargin,
+                bottom: mq.padding.bottom + dockBottomMargin,
                 left: isPhone ? 12 : 24,
                 right: isPhone ? 12 : 24,
               ),

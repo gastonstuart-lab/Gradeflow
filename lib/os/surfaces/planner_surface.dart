@@ -1101,12 +1101,14 @@ class _PlannerDashboardView extends StatelessWidget {
         }
       }
     } on FormatException { /* Keep older incomplete timetables available for reimport. */ }
+    final phone = MediaQuery.sizeOf(context).width < 600;
     final teaching = PlannerTeachingWorkspace(lessons: lessons,
       classes: context.read<ClassService>().activeClasses
           .where((c) => c.teacherId ==
               (syntheticPreview?.teacherId ?? user?.userId)).toList(),
-      date: chosenDay, todayView: displayMode == _PlannerDisplayMode.today, lunch: lunch, periods: periods,
-      onSelectDate: (day) { onSelectDate(day); onChangeDisplayMode(_PlannerDisplayMode.today); },
+      date: chosenDay, todayView: phone || displayMode == _PlannerDisplayMode.today,
+      phone: phone, lunch: lunch, periods: periods,
+      onSelectDate: (day) { onSelectDate(day); if (!phone) onChangeDisplayMode(_PlannerDisplayMode.today); },
       onUpload: onUploadTimetable, onManage: onManageTimetables);
     final calendar = switch (displayMode) {
       _PlannerDisplayMode.today => const SizedBox.shrink(),
@@ -1115,6 +1117,7 @@ class _PlannerDashboardView extends StatelessWidget {
           reminders: allReminders,
           onSelectDate: onSelectDate,
           onShiftWeek: onShiftWeek,
+          phone: phone,
         ),
       _PlannerDisplayMode.month => _PlannerCalendarCard(
           reminders: allReminders,
@@ -1184,13 +1187,13 @@ class _PlannerDashboardView extends StatelessWidget {
               : (dark ? const Color(0xff07131f) : const Color(0xfff0f5fa)),
           body: SafeArea(
               child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 18, 24, 100),
+                  padding: phone ? const EdgeInsets.fromLTRB(12, 10, 12, 16) : const EdgeInsets.fromLTRB(24, 18, 24, 100),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         _PlannerTopBar(
-                            name: name,
-                            dateLabel: _formatLongPlannerDate(now),
+                            name: phone ? null : name,
+                            dateLabel: _formatLongPlannerDate(phone ? chosenDay : now),
                             onRefresh: onRefresh),
                         if (loading)
                           const LinearProgressIndicator(minHeight: 2),
@@ -1199,16 +1202,22 @@ class _PlannerDashboardView extends StatelessWidget {
                           mode: displayMode,
                           onChange: onChangeDisplayMode,
                           onGoToday: onGoToday,
+                          onImport: phone ? onImportCalendar : null,
                         ),
                         const SizedBox(height: 8),
-                        if (displayMode == _PlannerDisplayMode.week) Text('Selected: ${_formatDate(chosenDay)}'),
-                        TextButton.icon(onPressed: onImportCalendar, icon: const Icon(Icons.calendar_month_outlined), label: const Text('Import calendar')),
-                        const SizedBox(height: 16),
+                        if (!phone && displayMode == _PlannerDisplayMode.week) Text('Selected: ${_formatDate(chosenDay)}'),
+                        if (!phone) TextButton.icon(onPressed: onImportCalendar, icon: const Icon(Icons.calendar_month_outlined), label: const Text('Import calendar')),
+                        if (!phone) const SizedBox(height: 16),
+                        if (phone && displayMode == _PlannerDisplayMode.week) ...[
+                          calendar,
+                          const SizedBox(height: 12),
+                        ],
                         if (displayMode == _PlannerDisplayMode.week || displayMode == _PlannerDisplayMode.today) ...[
                           teaching,
                           const SizedBox(height: 16),
                         ],
-                        if (displayMode == _PlannerDisplayMode.today) dayDetail
+                        if (displayMode == _PlannerDisplayMode.today ||
+                            (phone && displayMode == _PlannerDisplayMode.week)) dayDetail
                         else if (displayMode == _PlannerDisplayMode.week) ...[
                           // Keep upcoming reminders visible without restoring
                           // the old permanent multi-column dashboard.
@@ -1252,14 +1261,51 @@ class _PlannerDisplaySwitch extends StatelessWidget {
     required this.mode,
     required this.onChange,
     required this.onGoToday,
+    this.onImport,
   });
 
   final _PlannerDisplayMode mode;
   final ValueChanged<_PlannerDisplayMode> onChange;
   final VoidCallback onGoToday;
+  final VoidCallback? onImport;
 
   @override
   Widget build(BuildContext context) {
+    if (onImport != null) {
+      return Row(children: [
+        Expanded(
+          child: DropdownButton<_PlannerDisplayMode>(
+            key: const ValueKey('planner-view-picker'),
+            value: mode,
+            isExpanded: true,
+            items: [
+              for (final view in _PlannerDisplayMode.values)
+                DropdownMenuItem(value: view, child: Text(
+                  view.name[0].toUpperCase() + view.name.substring(1),
+                )),
+            ],
+            onChanged: (view) {
+              if (view == null) return;
+              onChange(view);
+            },
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            onGoToday();
+            onChange(_PlannerDisplayMode.today);
+          },
+          child: const Text('Today'),
+        ),
+        PopupMenuButton<VoidCallback>(
+          tooltip: 'More planner options',
+          onSelected: (action) => action(),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: onImport, child: const Text('Import calendar')),
+          ],
+        ),
+      ]);
+    }
     return Wrap(
       key: const ValueKey('planner-view-picker'),
       spacing: 8,
@@ -1298,12 +1344,14 @@ class _PlannerWeekCard extends StatelessWidget {
     required this.reminders,
     required this.onSelectDate,
     required this.onShiftWeek,
+    required this.phone,
   });
 
   final DateTime selectedDate;
   final List<_PlannerReminder> reminders;
   final ValueChanged<DateTime> onSelectDate;
   final ValueChanged<int> onShiftWeek;
+  final bool phone;
 
   @override
   Widget build(BuildContext context) {
@@ -1313,11 +1361,12 @@ class _PlannerWeekCard extends StatelessWidget {
     final theme = Theme.of(context);
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return _PlannerCard(
+      padding: phone ? 8 : 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _PlannerCardHeader(title: 'Calendar'),
-          const SizedBox(height: 10),
+          if (!phone) const _PlannerCardHeader(title: 'Calendar'),
+          if (!phone) const SizedBox(height: 10),
           Row(
             children: [
               IconButton(
@@ -1369,9 +1418,9 @@ class _PlannerWeekCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                       onTap: () => onSelectDate(date),
                       child: Container(
-                        constraints: const BoxConstraints(minHeight: 128),
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 10, horizontal: 3),
+                        constraints: BoxConstraints(minHeight: phone ? 60 : 128),
+                        padding: EdgeInsets.symmetric(
+                            vertical: phone ? 4 : 10, horizontal: phone ? 0 : 3),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
                           color: chosen
@@ -1394,14 +1443,14 @@ class _PlannerWeekCard extends StatelessWidget {
                               fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: phone ? 2 : 8),
                           Text(
                             '${date.day}',
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: phone ? 2 : 8),
                           if (entries.isNotEmpty) ...[
                             Container(
                               key: ValueKey('planner-week-count-${_formatDate(date)}'),
@@ -1418,7 +1467,7 @@ class _PlannerWeekCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 5),
-                            Text(
+                            if (!phone) Text(
                               entries.first.text,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -1428,7 +1477,7 @@ class _PlannerWeekCard extends StatelessWidget {
                                 color: OSColors.textSecondary(dark),
                               ),
                             ),
-                          ] else
+                          ] else if (!phone)
                             Text(
                               '—',
                               style: theme.textTheme.bodySmall?.copyWith(
@@ -1443,8 +1492,8 @@ class _PlannerWeekCard extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
+          if (!phone) const SizedBox(height: 16),
+          if (!phone) Text(
             'Choose a day to see school events and tasks alongside this week.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: OSColors.textSecondary(dark),
@@ -1633,14 +1682,14 @@ class _PlannerTopBar extends StatelessWidget {
     required this.onRefresh,
   });
 
-  final String name;
+  final String? name;
   final String dateLabel;
   final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(name == null ? 8 : 20),
       decoration: BoxDecoration(
           gradient: const LinearGradient(
               colors: [Color(0xff173b63), Color(0xff187f79)]),
@@ -1659,7 +1708,7 @@ class _PlannerTopBar extends StatelessWidget {
                   color: Colors.white,
                   fontSize: 26,
                   fontWeight: FontWeight.w800)),
-          Text('$dateLabel · $name',
+          Text(name == null ? dateLabel : '$dateLabel · $name',
               style: const TextStyle(color: Colors.white70))
         ])),
         IconButton(
@@ -1900,15 +1949,17 @@ class _PlannerCardHeader extends StatelessWidget {
 class _PlannerCard extends StatelessWidget {
   const _PlannerCard({
     required this.child,
+    this.padding = 20,
   });
 
   final Widget child;
+  final double padding;
 
   @override
   Widget build(BuildContext context) {
     final dark = context.isDark;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: dark
             ? const Color(0xFF111827).withValues(alpha: 0.88)
