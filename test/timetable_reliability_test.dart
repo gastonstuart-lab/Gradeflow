@@ -111,6 +111,29 @@ void main() {
     expect(lesson.room, 'BC 5');
   });
 
+  test('Choose a teacher tab and read inline class and room lines', () {
+    final excel = Excel.createExcel();
+    for (final name in ['Sheet1', 'Teacher two']) {
+      final sheet = excel[name];
+      sheet.appendRow(['Period', 'Time', ...TimetableImportPlan.weekdays]
+          .map(TextCellValue.new).toList());
+      sheet.appendRow([
+        IntCellValue(1),
+        TextCellValue('08:00 ~ 08:50'),
+        TextCellValue(name == 'Sheet1' ? 'Other class' : 'Sci (4)\nJ2ABC\nScience Room II'),
+        if (name != 'Sheet1') TextCellValue('H1F(2)\nScience Room II'),
+      ]);
+    }
+    final bytes = Uint8List.fromList(excel.encode()!);
+    expect(HomeWeeklyTimetableService.timetableSheetNames('school.xlsx', bytes),
+        ['Sheet1', 'Teacher two']);
+    final lessons = HomeWeeklyTimetableService.inspectBytes(
+      filename: 'school.xlsx', bytes: bytes, sheetName: 'Teacher two',
+    ).classes;
+    expect(lessons.map((lesson) => lesson.title), ['Sci (4) J2ABC', 'H1F(2)']);
+    expect(lessons.map((lesson) => lesson.room), ['Science Room II', 'Science Room II']);
+  });
+
   test('CSV, XLSX and DOCX preserve 24 individual periods and eight groups',
       () {
     for (final multiRow in [false, true]) {

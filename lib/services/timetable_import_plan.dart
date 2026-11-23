@@ -187,7 +187,8 @@ class TimetableImportPlan {
         if (hasExplicitRange) {
           appendPending();
           pending = row;
-          pendingRooms = List.filled(names.length, '');
+          final rooms = List.filled(names.length, '');
+          pendingRooms = rooms;
           final start = clock(match?[1] ?? clocks[0]);
           final end = clock(match?[2] ?? clocks[1]);
           pendingStart = start;
@@ -197,6 +198,17 @@ class TimetableImportPlan {
                   RegExp(r'^\d+(?:\.0+)?$').hasMatch(row[periodColumn])
               ? r
               : null;
+          if (schoolPeriodRow != null) {
+            for (final column in days.keys) {
+              final lines = row[column].split(RegExp(r'\r?\n'))
+                  .map((line) => line.trim()).where((line) => line.isNotEmpty)
+                  .toList();
+              if (lines.length == 2 || lines.length == 3) {
+                rooms[column] = lines.last;
+                row[column] = lines.take(lines.length - 1).join(' ');
+              }
+            }
+          }
           if (end <= start) {
             final location = schoolPeriodRow == null
                 ? 'Timetable entry'
