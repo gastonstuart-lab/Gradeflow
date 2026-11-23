@@ -5,6 +5,7 @@ import 'package:gradeflow/services/timetable_import_plan.dart';
 import 'dart:typed_data';
 
 import 'package:csv/csv.dart';
+import 'package:excel/excel.dart';
 
 import 'package:gradeflow/components/time_slot_timetable.dart';
 import 'package:gradeflow/services/dashboard_preferences_service.dart';
@@ -173,11 +174,26 @@ class HomeWeeklyTimetableService {
     );
   }
 
+  static List<String> timetableSheetNames(String filename, Uint8List bytes) {
+    if (!filename.toLowerCase().endsWith('.xlsx') ||
+        bytes.isEmpty || bytes.length > 2 * 1024 * 1024) return const [];
+    try {
+      return Excel.decodeBytes(bytes).tables.entries.where((entry) =>
+          entry.value.rows.any((row) =>
+              row.where((cell) => TimetableImportPlan.weekday(
+                  cell?.value?.toString() ?? '') != null).length == 5))
+          .map((entry) => entry.key).toList();
+    } on Exception {
+      return const [];
+    }
+  }
+
   /// Validate a weekly schedule without storing anything. Use this result
   /// to show a confirmation preview before choosing to save the import.
   static ({List<List<String>> grid, List<TimeSlotClass> classes}) inspectBytes({
     required String filename,
     required Uint8List bytes,
+    String? sheetName,
   }) {
     if (bytes.isEmpty || bytes.lengthInBytes > 2 * 1024 * 1024) {
       throw const FormatException(
@@ -208,8 +224,16 @@ class HomeWeeklyTimetableService {
             .toList(),
       );
     } else if (extension == 'xlsx') {
-      grid =
-          fileService.cleanTimetableGrid(fileService.rowsFromAnyBytes(bytes));
+      if (sheetName == null) {
+        grid = fileService.cleanTimetableGrid(fileService.rowsFromAnyBytes(bytes));
+      } else {
+        final sheet = Excel.decodeBytes(bytes).tables[sheetName];
+        if (sheet == null) throw FormatException('Missing worksheet "$sheetName".');
+        grid = fileService.cleanTimetableGrid([
+          for (final row in sheet.rows)
+            [for (final cell in row) cell?.value?.toString() ?? ''],
+        ]);
+      }
     } else {
       throw const FormatException('Use an Excel, CSV or Word timetable.');
     }
@@ -246,13 +270,14 @@ class HomeWeeklyTimetableService {
     required String userId,
     required String filename,
     required Uint8List bytes,
+    String? sheetName,
     Map<String, String> classMatches = const {},
     List<school.Class> availableClasses = const [],
   }) =>
       _queue(() async {
         if (userId.trim().isEmpty || userId == 'local')
           throw StateError('Sign in before saving a timetable.');
-        final parsed = inspectBytes(filename: filename, bytes: bytes);
+        final parsed = inspectBytes(filename: filename, bytes: bytes, sheetName: sheetName);
         final lessons = TimetableImportPlan(parsed.classes)
             .confirmMatches(classMatches, availableClasses, userId);
         final previous = await loadVersions(userId);

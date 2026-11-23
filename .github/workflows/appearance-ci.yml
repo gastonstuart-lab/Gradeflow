@@ -22,6 +22,8 @@ on:
       - 'web/teacher_appearance_review_index.html'
       - 'lib/os/gradeflow_os_shell.dart'
       - 'lib/os/os_dock.dart'
+      - 'lib/services/timetable_import_plan.dart'
+      - 'test/timetable_reliability_test.dart'
       - 'lib/os/surfaces/home_surface.dart'
       - 'lib/os/surfaces/planner_surface.dart'
       - 'lib/os/surfaces/class_surface.dart'
@@ -120,7 +122,8 @@ jobs:
           flutter test test/approved_teacher_home_bindings_test.dart \
             test/class_directory_command_centre_test.dart \
             test/planner_synthetic_full_page_test.dart \
-            test/os_dock_activation_test.dart
+            test/os_dock_activation_test.dart \
+            test/timetable_reliability_test.dart
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

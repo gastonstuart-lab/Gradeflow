@@ -114,7 +114,10 @@ class TimetableImportPlan {
       }
       final range = RegExp(
           r'(\d{1,2}:\d{2}(?::\d{2})?)\s*[-~–—]\s*(\d{1,2}:\d{2}(?::\d{2})?)');
+      final periodColumn = names.indexOf('period');
+      final timeColumn = names.indexOf('time');
       List<String>? pending;
+      int? schoolPeriodRow;
       List<String>? pendingRooms;
       int? pendingStart;
       int? pendingEnd;
@@ -184,9 +187,35 @@ class TimetableImportPlan {
         if (hasExplicitRange) {
           appendPending();
           pending = row;
-          pendingRooms = List.filled(names.length, '');
-          pendingStart = clock(match?[1] ?? clocks[0]);
-          pendingEnd = clock(match?[2] ?? clocks[1]);
+          final rooms = List.filled(names.length, '');
+          pendingRooms = rooms;
+          final start = clock(match?[1] ?? clocks[0]);
+          final end = clock(match?[2] ?? clocks[1]);
+          pendingStart = start;
+          pendingEnd = end;
+          schoolPeriodRow = periodColumn >= 0 &&
+                  timeColumn >= 0 &&
+                  RegExp(r'^\d+(?:\.0+)?$').hasMatch(row[periodColumn])
+              ? r
+              : null;
+          if (schoolPeriodRow != null) {
+            for (final column in days.keys) {
+              final lines = row[column].split(RegExp(r'\r?\n'))
+                  .map((line) => line.trim()).where((line) => line.isNotEmpty)
+                  .toList();
+              if (lines.length == 2 || lines.length == 3) {
+                rooms[column] = lines.last;
+                row[column] = lines.take(lines.length - 1).join(' ');
+              }
+            }
+          }
+          if (end <= start) {
+            final location = schoolPeriodRow == null
+                ? 'Timetable entry'
+                : 'Period ${row[periodColumn]}';
+            throw FormatException(
+                '$location: end time must be after the start time ($metadata).');
+          }
         } else if (RegExp(r'\d{1,2}:\d{2}(?::\d{2})?').hasMatch(metadata)) {
           throw FormatException(
               'Row ${r + 1}: provide explicit start and end times.');
@@ -205,10 +234,18 @@ class TimetableImportPlan {
           // Only untimed continuation rows join labels, never timed periods.
           final roomRow = RegExp(r'^(room|教室)$', caseSensitive: false)
               .hasMatch(metadata.trim());
+          // The school's Excel template uses three rows per numbered period:
+          // subject, class group, then room. Only use this positional form when
+          // the intervening row has a group for every populated room cell.
+          final schoolRoomRow = schoolPeriodRow != null &&
+              r == schoolPeriodRow + 2 &&
+              metadata.trim().isEmpty &&
+              days.keys.where((c) => row[c].isNotEmpty).every((c) =>
+                  c < grid[r - 1].length && grid[r - 1][c].trim().isNotEmpty);
           final roomValues = pendingRooms!;
           for (final c in days.keys) {
             if (row[c].isEmpty) continue;
-            if (roomRow) {
+            if (roomRow || schoolRoomRow) {
               if (roomValues[c].isNotEmpty && roomValues[c] != row[c]) {
                 throw FormatException('Row ${r + 1}: conflicting room values.');
               }

@@ -5,6 +5,7 @@ import 'package:csv/csv.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gradeflow/components/time_slot_timetable.dart';
 import 'package:gradeflow/models/class.dart' as school;
 import 'package:gradeflow/services/home_weekly_timetable_service.dart';
 import 'package:gradeflow/services/timetable_import_plan.dart';
@@ -77,6 +78,61 @@ class FailingTimetablePreferences extends DashboardPreferencesService {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test('School XLSX reads the third row as a room and flags backwards times', () {
+    final excel = Excel.createExcel();
+    final sheet = excel['Sheet1'];
+    for (final row in <List<CellValue?>>[
+      [TextCellValue('School timetable')],
+      ['Period', 'Time', ...TimetableImportPlan.weekdays]
+          .map(TextCellValue.new).toList(),
+      [IntCellValue(7), TextCellValue('14:55 ~ 14:45'), TextCellValue('EEP (5)')],
+      [null, null, TextCellValue('J3DE')],
+      [null, null, TextCellValue('BC 5')],
+    ]) {
+      sheet.appendRow(row);
+    }
+    ({List<List<String>> grid, List<TimeSlotClass> classes}) inspect() =>
+        HomeWeeklyTimetableService.inspectBytes(
+        filename: 'school.xlsx',
+        bytes: Uint8List.fromList(excel.encode()!),
+      );
+
+    expect(
+      inspect,
+      throwsA(isA<FormatException>().having(
+        (error) => error.message, 'message', contains('Period 7'),
+      )),
+    );
+    sheet.cell(CellIndex.indexByString('B3')).value =
+        TextCellValue('14:55 ~ 15:45');
+    final lesson = inspect().classes.single;
+    expect(lesson.title, 'EEP (5) J3DE');
+    expect(lesson.room, 'BC 5');
+  });
+
+  test('Choose a teacher tab and read inline class and room lines', () {
+    final excel = Excel.createExcel();
+    for (final name in ['Sheet1', 'Teacher two']) {
+      final sheet = excel[name];
+      sheet.appendRow(['Period', 'Time', ...TimetableImportPlan.weekdays]
+          .map(TextCellValue.new).toList());
+      sheet.appendRow([
+        IntCellValue(1),
+        TextCellValue('08:00 ~ 08:50'),
+        TextCellValue(name == 'Sheet1' ? 'Other class' : 'Sci (4)\nJ2ABC\nScience Room II'),
+        if (name != 'Sheet1') TextCellValue('H1F(2)\nScience Room II'),
+      ]);
+    }
+    final bytes = Uint8List.fromList(excel.encode()!);
+    expect(HomeWeeklyTimetableService.timetableSheetNames('school.xlsx', bytes),
+        ['Sheet1', 'Teacher two']);
+    final lessons = HomeWeeklyTimetableService.inspectBytes(
+      filename: 'school.xlsx', bytes: bytes, sheetName: 'Teacher two',
+    ).classes;
+    expect(lessons.map((lesson) => lesson.title), ['Sci (4) J2ABC', 'H1F(2)']);
+    expect(lessons.map((lesson) => lesson.room), ['Science Room II', 'Science Room II']);
+  });
 
   test('CSV, XLSX and DOCX preserve 24 individual periods and eight groups',
       () {

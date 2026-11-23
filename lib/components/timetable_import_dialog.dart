@@ -15,8 +15,32 @@ Future<HomeWeeklyTimetable?> confirmTimetableImport(
 }) async {
   final userId = context.read<AuthService>().currentUser?.userId;
   if (userId == null) throw StateError('Sign in before importing a timetable.');
-  final inspected =
-      HomeWeeklyTimetableService.inspectBytes(filename: filename, bytes: bytes);
+  final sheets = HomeWeeklyTimetableService.timetableSheetNames(filename, bytes);
+  String? sheetName;
+  if (sheets.length > 1) {
+    sheetName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Choose your timetable tab'),
+        children: [
+          for (final sheet in sheets)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogContext, sheet),
+              child: Text(sheet),
+            ),
+        ],
+      ),
+    );
+    if (sheetName == null || !context.mounted) return null;
+    if (context.read<AuthService>().currentUser?.userId != userId) {
+      throw StateError('Account changed. Import cancelled without saving.');
+    }
+  } else {
+    sheetName = sheets.firstOrNull;
+  }
+  final inspected = HomeWeeklyTimetableService.inspectBytes(
+    filename: filename, bytes: bytes, sheetName: sheetName,
+  );
   final plan = TimetableImportPlan(inspected.classes);
   final classes = context
       .read<ClassService>()
@@ -100,6 +124,7 @@ Future<HomeWeeklyTimetable?> confirmTimetableImport(
     userId: userId,
     filename: filename,
     bytes: bytes,
+    sheetName: sheetName,
     classMatches: choices,
     availableClasses: context.read<ClassService>().activeClasses,
   );
