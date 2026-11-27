@@ -1,5 +1,7 @@
 # Release 1 — Slice 1: grading period contract and historical export
 
+Implementation review: [draft PR #182](https://github.com/gastonstuart-lab/Gradeflow/pull/182). Unmerged; no deployment.
+
 27 November 2026. Source under test: `5bd484d047513d59d8c37999f784ebcd4a19155a`. Authoritative baseline confirmed before editing and after testing: `origin/main` remains `5a49ec21077fc56c472fd69ce41cf29ba259dbcb`, with no drift. Read repository instructions and PRs [#180](https://github.com/gastonstuart-lab/Gradeflow/pull/180) and [#181](https://github.com/gastonstuart-lab/Gradeflow/pull/181). The user's Slice 1 instruction authorizes this domain implementation; production storage/rules/migration remain outside scope.
 
 ## Working implementation
