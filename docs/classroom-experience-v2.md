@@ -24,6 +24,8 @@ Phase 0 is documentation only. Releases 1–4 are pending. No code test, release
 
 ## Release 1 — Implementation Slice 1 · 27 November 2026
 
+Firestore follow-on: isolated durable adapter implemented on `classroom-experience-v2/release-1-firestore`, tested at `ed919a9245f2750362203994fc3e0850f224151d`: **10 emulator tests + the existing 42 regression tests pass**, targeted analysis clean. Atomic revision/receipt rollover, account/class isolation and sealed-record protection use a separate demo-only namespace. No production wiring, rules deployment, migration, merge or live data access. [Focused evidence and exact next step](releases/release1-firestore.md).
+
 Implementation: [draft PR #182](https://github.com/gastonstuart-lab/Gradeflow/pull/182), branch `classroom-experience-v2/release-1-slice-1`. Tested code revision is recorded below; later commits update documentation only. Merge state: unmerged. Deployment: none.
 
 The design in [draft PR #181](https://github.com/gastonstuart-lab/Gradeflow/pull/181) was accepted as the working engineering proposal. Slice 1 now has an isolated domain/service/export implementation: immutable historical datasets and materialized calculations; exactly one active period per owner/class; 20 editable defaults (2/6/6/6); revision-checked assessment edits and sealing; legacy snapshot compatibility; and class/student/combined historical XLSX adapters. Implementation remains draft, unmerged and undeployed. Persistent storage, rules, live adoption and UI activation remain pending; the Phase 0 evidence above is unchanged.
