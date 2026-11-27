@@ -1,0 +1,22 @@
+00:00 +0: loading docs/fixtures/release1/preservation_test.dart
+00:00 +0: missing is full marks; explicit null excluded; normalized max and weights
+RepositoryFactory: Switched to local storage
+00:00 +1: aggregation policy must be frozen with raw scores
+RepositoryFactory: Switched to local storage
+00:00 +2: JSON snapshot preserves calculation and decoded XLSX after live edits
+RepositoryFactory: Switched to local storage
+00:00 +3: 20 proposed defaults can all be edited through existing local service
+RepositoryFactory: Switched to local storage
+00:00 +4: mock backup restore retains exact keys and academic values
+RepositoryFactory: Switched to local storage
+00:00 +5: legacy precedence and baseline isolation hazards are explicit
+RepositoryFactory: Switched to local storage
+RepositoryFactory: Switched to local storage
+00:00 +6: default seeding fills explicit null unless fillNulls is false
+RepositoryFactory: Switched to local storage
+Ensured default scores for item=q1 (1 students)
+00:00 +7: local class deletion leaves global legacy data available by old class ID
+RepositoryFactory: Switched to local storage
+00:00 +8: 1000 synthetic roster and score rows roundtrip locally
+RepositoryFactory: Switched to local storage
+00:00 +9: All tests passed!
