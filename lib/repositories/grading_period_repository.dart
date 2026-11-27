@@ -1,5 +1,10 @@
 import 'dart:convert';
 import '../models/grading_period.dart';
+import '../models/grading_rollover_request.dart';
+
+abstract interface class TrustedGradingRolloverRepository {
+  Future<GradingPeriodBook> rolloverTrusted(GradingRolloverRequest request);
+}
 
 /// Bound to a single authenticated owner by the host. A durable adapter MUST
 /// enforce ownership, revision CAS and sealed-period preservation atomically.

@@ -24,6 +24,8 @@ Phase 0 is documentation only. Releases 1–4 are pending. No code test, release
 
 ## Release 1 — Implementation Slice 1 · 27 November 2026
 
+Slice 2B: trusted emulator sealing and receipt-aware rollover recovery complete at `479887834d8bbdae33efbb408ca59fb6af3bb28e`; **66 tests pass (all previous 52 + 14 new)**, targeted analysis clean. Authoritative calculation, client sealing denial, concurrent/stale requests, uncertain outcomes and synthetic backup/restore with Excel parity verified. Ready for Slice 3 interface work against the emulator; production remains disabled and unmerged. [Focused evidence and blockers](releases/release1-slice2b.md).
+
 Firestore follow-on: isolated durable adapter implemented on `classroom-experience-v2/release-1-firestore`, tested at `ed919a9245f2750362203994fc3e0850f224151d`: **10 emulator tests + the existing 42 regression tests pass**, targeted analysis clean. Atomic revision/receipt rollover, account/class isolation and sealed-record protection use a separate demo-only namespace. No production wiring, rules deployment, migration, merge or live data access. [Focused evidence and exact next step](releases/release1-firestore.md).
 
 Implementation: [draft PR #182](https://github.com/gastonstuart-lab/Gradeflow/pull/182), branch `classroom-experience-v2/release-1-slice-1`. Tested code revision is recorded below; later commits update documentation only. Merge state: unmerged. Deployment: none.
