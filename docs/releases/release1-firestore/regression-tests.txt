@@ -1,0 +1,83 @@
+00:00 +0: loading test/grading_period_test.dart
+00:00 +0: test/grading_period_test.dart: creates one active period and all 20 deterministic default assessments
+00:00 +1: test/grade_item_service_test.dart: seedDemoGradeItems uses category-aware default names
+RepositoryFactory: Switched to local storage
+Demo grade items seeded for class class-a
+00:00 +2: test/grading_period_test.dart: combined historical summary matches legacy layout with frozen metadata
+00:00 +3: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+00:00 +4: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+RepositoryFactory: Switched to local storage
+Demo classes seeded successfully
+Demo students seeded for class demo-class-1
+Default categories seeded for class demo-class-1
+Demo grade items seeded for class demo-class-1
+Demo scores seeded successfully
+Demo final exams seeded successfully
+Demo students seeded for class demo-class-2
+Default categories seeded for class demo-class-2
+Demo grade items seeded for class demo-class-2
+Demo scores seeded successfully
+Demo final exams seeded successfully
+Demo students seeded for class demo-class-3
+Default categories seeded for class demo-class-3
+Demo grade items seeded for class demo-class-3
+Demo scores seeded successfully
+Demo final exams seeded successfully
+00:00 +5: test/grading_period_test.dart: same period and student IDs remain isolated across independent classes and accounts
+00:00 +6: test/grading_period_test.dart: source lists include inactive categories and former-student raw records without rewriting
+00:00 +7: test/seating_service_test.dart: rotateTable swaps table orientation and preserves assignments
+RepositoryFactory: Switched to local storage
+00:00 +8: test/grading_period_test.dart: duplicate creation and stale revisions are rejected
+00:00 +9: test/seating_service_test.dart: moveTable keeps tables inside the room bounds
+RepositoryFactory: Switched to local storage
+00:00 +10: test/grading_period_test.dart: every default can be edited, extras added, and delete is soft without reseed
+00:00 +11: test/seating_service_test.dart: updateCanvasSize pulls existing tables back into view
+00:00 +12: test/seating_service_test.dart: updateCanvasSize pulls existing tables back into view
+RepositoryFactory: Switched to local storage
+00:00 +13: test/grading_period_test.dart: two concurrent creations or rollovers cannot produce two active periods
+00:00 +14: test/seating_service_test.dart: duplicateTable copies the furniture without copying assignments
+00:00 +15: test/seating_service_test.dart: duplicateTable copies the furniture without copying assignments
+00:00 +16: test/seating_service_test.dart: duplicateTable copies the furniture without copying assignments
+00:00 +17: test/seating_service_test.dart: duplicateTable copies the furniture without copying assignments
+RepositoryFactory: Switched to local storage
+00:00 +18: test/grading_period_test.dart: archive retains bestN aggregation and exact original weights
+00:00 +19: test/grading_period_test.dart: archive retains dropLowestN aggregation and exact original weights
+00:00 +20: test/seating_service_test.dart: duplicateSeat adds another seat and moveSeat can push it farther out
+RepositoryFactory: Switched to local storage
+00:00 +21: test/grading_period_test.dart: historical XLSX class/student values, ordering and types match legacy export
+00:00 +21: test/seating_service_test.dart: assignStudentToTable uses the next empty seat on the target table
+RepositoryFactory: Switched to local storage
+00:00 +22: test/grading_period_test.dart: historical XLSX class/student values, ordering and types match legacy export
+00:00 +22: test/seating_service_test.dart: updateSeatNote saves note text and reminder state
+RepositoryFactory: Switched to local storage
+00:00 +23: test/grading_period_test.dart: historical XLSX class/student values, ordering and types match legacy export
+00:00 +23: test/seating_service_test.dart: copyRoomLayoutToClass copies room structure without placements
+RepositoryFactory: Switched to local storage
+00:00 +24: test/grading_period_test.dart: historical XLSX class/student values, ordering and types match legacy export
+00:01 +24: test/seating_service_test.dart: saveRoomSetupFromLayout stores a reusable room and links the class
+RepositoryFactory: Switched to local storage
+00:01 +25: test/grading_period_test.dart: historical XLSX class/student values, ordering and types match legacy export
+00:01 +25: test/seating_service_test.dart: applyRoomSetupToClass reuses a blank class and protects an existing arrangement
+RepositoryFactory: Switched to local storage
+00:01 +26: test/grading_period_test.dart: historical XLSX class/student values, ordering and types match legacy export
+00:01 +26: test/seating_service_test.dart: refreshLinkedClassesFromRoomSetup updates linked rooms and preserves seat annotations
+RepositoryFactory: Switched to local storage
+00:01 +27: test/grading_period_test.dart: historical XLSX class/student values, ordering and types match legacy export
+00:01 +28: test/seating_service_test.dart: shuffleStudentPlacements randomizes seated students in seat order
+RepositoryFactory: Switched to local storage
+00:01 +29: test/class_schedule_service_test.dart: class schedule service scopes schedules per user
+00:01 +30: test/class_schedule_service_test.dart: class schedule service scopes schedules per user
+00:01 +30: test/seating_service_test.dart: shuffleStudentPlacements keeps locked seats fixed
+RepositoryFactory: Switched to local storage
+00:01 +31: test/class_schedule_service_test.dart: class schedule service scopes schedules per user
+00:01 +32: test/class_schedule_service_test.dart: class schedule service scopes schedules per user
+00:01 +33: test/class_schedule_service_test.dart: class schedule service scopes schedules per user
+00:01 +34: test/grading_period_test.dart: serialization roundtrip preserves complete book and rejects unsupported versions
+00:01 +35: test/grading_period_test.dart: serialization roundtrip preserves complete book and rejects unsupported versions
+00:01 +36: test/class_schedule_service_test.dart: clear with user id removes scoped and legacy schedule keys
+00:01 +37: test/grading_period_test.dart: legacy local canonical and global records are read without mutation
+00:01 +38: test/grading_period_test.dart: caller-owned lists and later live labels/weights do not alter snapshots
+00:01 +39: test/grading_period_test.dart: invalid aggregate, duplicates, joins, bad policy and corrupt results fail closed
+00:01 +40: test/grading_period_test.dart: custom new-period weights preserved exactly and incomplete templates rejected
+00:01 +41: test/student_list_screen_test.dart: student list defaults to ascending student id and still supports seat sorting
+00:05 +42: All tests passed!

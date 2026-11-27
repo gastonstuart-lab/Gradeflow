@@ -1,0 +1,14 @@
+00:00 +0: loading test/firestore_grading_period_emulator_test.dart
+00:00 +0: (setUpAll)
+00:00 +0: persists legacy data and reloads through a fresh authenticated SDK client
+00:00 +1: atomic rollover seals old data, saves 20 defaults and persists one pointer
+00:00 +2: simultaneous rollover requests commit once and repeated stale requests cannot duplicate
+00:01 +3: assessment edit persists; stale compare-and-set leaves server state unchanged
+00:01 +4: SDK rules deny cross-account reads, writes and deletes even with colliding IDs
+00:01 +5: class scope is isolated; orphan period creation and pointer-only rollover denied
+00:01 +6: sealed records, parent and operation receipts cannot be changed/deleted directly
+00:01 +7: rejected transaction rolls back pointer, successor and receipt together
+00:01 +8: legacy grading namespace remains untouched and unsupported environments rejected
+00:02 +9: oversized periods fail before any control or operation is written
+00:02 +10: (tearDownAll)
+00:02 +10: All tests passed!
