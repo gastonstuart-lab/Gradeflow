@@ -4,12 +4,16 @@ library;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core_web/firebase_core_web.dart';
+import 'package:firebase_auth_web/firebase_auth_web.dart';
+import 'package:cloud_firestore_web/cloud_firestore_web.dart';
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/models/grading_period.dart';
 import 'package:gradeflow/repositories/firestore_grading_period_repository.dart';
 import 'package:gradeflow/services/grading_period_service.dart';
 import 'package:gradeflow/services/historical_grade_export_adapter.dart';
-import '../grading_period_test.dart' as fixture;
+import 'grading_period_test.dart' as fixture;
 
 const options = FirebaseOptions(
     apiKey: 'synthetic-emulator-key',
@@ -33,6 +37,9 @@ void main() {
   var sequence = 0;
 
   setUpAll(() async {
+    FirebaseCoreWeb.registerWith(webPluginRegistrar);
+    FirebaseAuthWeb.registerWith(webPluginRegistrar);
+    FirebaseFirestoreWeb.registerWith(webPluginRegistrar);
     final app = await Firebase.initializeApp(options: options);
     auth = FirebaseAuth.instanceFor(app: app);
     await auth.useAuthEmulator('127.0.0.1', 9095);
@@ -277,5 +284,19 @@ void main() {
             firestore: db, auth: auth, host: 'production.example'),
         throwsArgumentError);
     await expectLater(repo.load('../bad'), throwsArgumentError);
+  });
+
+  test('oversized periods fail before any control or operation is written',
+      () async {
+    final json = data().toJson()..['subject'] = List.filled(600001, 'x').join();
+    await expectLater(
+        service.adoptLegacy(
+            dataset: GradebookDataset.fromJson(json),
+            periodId: 'large',
+            label: 'Large',
+            at: fixture.at),
+        throwsArgumentError);
+    expect(await repo.load(cid), isNull);
+    expect((await control().collection('operations').get()).docs, isEmpty);
   });
 }

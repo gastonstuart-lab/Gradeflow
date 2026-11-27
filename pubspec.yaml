@@ -41,6 +41,10 @@ dependencies:
   cloud_functions: ^5.6.2
 
 dev_dependencies:
+  # Explicit web plugin registration for real Firebase SDK emulator tests.
+  firebase_core_web: ^2.24.1
+  firebase_auth_web: ^5.15.3
+  cloud_firestore_web: ^4.4.12
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
