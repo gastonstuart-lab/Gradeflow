@@ -1,0 +1,81 @@
+// EMULATOR PROTOTYPE ONLY. Not referenced by the production firebase.json.
+// Control: owner/class/schema, revision(int), activePeriodId, ordered periodIds.
+// Period: immutable identity/labels/policy; datasetJson/resultsJson snapshots.
+// Operation: create-only revision receipt, source/target period identity.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner(uid) { return request.auth != null && request.auth.uid == uid; }
+    match /gradingPeriodBooks/{uid}/classes/{cid} {
+      function control() { return /databases/$(database)/documents/gradingPeriodBooks/$(uid)/classes/$(cid); }
+      function period(pid) { return /databases/$(database)/documents/gradingPeriodBooks/$(uid)/classes/$(cid)/periods/$(pid); }
+      function operation(rev) { return /databases/$(database)/documents/gradingPeriodBooks/$(uid)/classes/$(cid)/operations/$(string(rev)); }
+      function validControl(d) {
+        return d.keys().hasAll(['schemaVersion','ownerId','classId','revision','activePeriodId','periodIds'])
+          && d.keys().hasOnly(['schemaVersion','ownerId','classId','revision','activePeriodId','periodIds'])
+          && d.schemaVersion == 1 && d.ownerId == uid && d.classId == cid
+          && d.revision is int && d.revision >= 0 && d.activePeriodId is string
+          && d.periodIds is list && d.periodIds.size() > 0 && d.periodIds.size() <= 50
+          && d.periodIds.toSet().size() == d.periodIds.size()
+          && d.activePeriodId in d.periodIds
+          && getAfter(period(d.activePeriodId)).data.sealedAt == null
+          && existsAfter(operation(d.revision));
+      }
+      allow read: if owner(uid);
+      allow create: if owner(uid) && validControl(request.resource.data)
+        && request.resource.data.revision == 0
+        && request.resource.data.periodIds == [request.resource.data.activePeriodId];
+      allow update: if owner(uid) && validControl(request.resource.data)
+        && request.resource.data.revision == resource.data.revision + 1
+        && ((request.resource.data.activePeriodId == resource.data.activePeriodId
+            && request.resource.data.periodIds == resource.data.periodIds)
+          || (request.resource.data.activePeriodId != resource.data.activePeriodId
+            && !(request.resource.data.activePeriodId in resource.data.periodIds)
+            && request.resource.data.periodIds == resource.data.periodIds.concat([request.resource.data.activePeriodId])
+            && getAfter(period(resource.data.activePeriodId)).data.sealedAt != null));
+      allow delete: if false;
+
+      match /periods/{pid} {
+        function validPeriod(d) {
+          return d.keys().hasAll(['schemaVersion','ownerId','classId','periodId','label','createdAt','sealedAt','policyVersion','datasetJson','resultsJson'])
+            && d.keys().hasOnly(['schemaVersion','ownerId','classId','periodId','label','createdAt','sealedAt','policyVersion','datasetJson','resultsJson'])
+            && d.schemaVersion == 1 && d.ownerId == uid && d.classId == cid && d.periodId == pid
+            && d.label is string && d.label.size() > 0 && d.createdAt is string
+            && d.policyVersion == 'gradeflow-legacy-v1'
+            && d.datasetJson is string && d.datasetJson.size() <= 600000
+            && ((d.sealedAt == null && d.resultsJson == null)
+              || (d.sealedAt is string && d.resultsJson is string && d.resultsJson.size() <= 600000));
+        }
+        allow read: if owner(uid);
+        allow create: if owner(uid) && validPeriod(request.resource.data)
+          && request.resource.data.sealedAt == null
+          && getAfter(control()).data.activePeriodId == pid
+          && (!exists(control()) || (!(pid in get(control()).data.periodIds)
+            && getAfter(control()).data.revision == get(control()).data.revision + 1));
+        allow update: if owner(uid) && validPeriod(request.resource.data)
+          && resource.data.sealedAt == null && get(control()).data.activePeriodId == pid
+          && getAfter(control()).data.revision == get(control()).data.revision + 1
+          && ((getAfter(control()).data.activePeriodId == pid
+              && request.resource.data.sealedAt == null
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['datasetJson']))
+            || (getAfter(control()).data.activePeriodId != pid
+              && request.resource.data.sealedAt != null
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sealedAt','resultsJson'])));
+        allow delete: if false;
+      }
+      match /operations/{rev} {
+        allow read: if owner(uid);
+        allow create: if owner(uid)
+          && request.resource.data.keys().hasAll(['ownerId','classId','revision','fromPeriodId','toPeriodId'])
+          && request.resource.data.keys().hasOnly(['ownerId','classId','revision','fromPeriodId','toPeriodId'])
+          && request.resource.data.ownerId == uid && request.resource.data.classId == cid
+          && request.resource.data.revision is int && rev == string(request.resource.data.revision)
+          && getAfter(control()).data.revision == request.resource.data.revision
+          && getAfter(control()).data.activePeriodId == request.resource.data.toPeriodId
+          && ((!exists(control()) && request.resource.data.fromPeriodId == null)
+            || (exists(control()) && request.resource.data.fromPeriodId == get(control()).data.activePeriodId));
+        allow update, delete: if false;
+      }
+    }
+  }
+}

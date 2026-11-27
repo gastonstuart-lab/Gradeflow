@@ -26,35 +26,57 @@ class InMemoryGradingPeriodRepository implements GradingPeriodRepository {
   @override
   Future<void> compareAndSet(GradingPeriodBook next,
       {required int? expectedRevision}) async {
-    if (next.ownerId != ownerId) throw StateError('Account mismatch');
-    final old = _books[next.classId];
-    if (old?.revision != expectedRevision ||
-        next.revision !=
-            (expectedRevision == null ? 0 : expectedRevision + 1)) {
-      throw StateError('Stale grading period revision');
-    }
-    if (old != null) {
-      for (final previous in old.periods) {
-        final matches =
-            next.periods.where((p) => p.periodId == previous.periodId);
-        if (matches.isEmpty ||
-            (previous.isSealed &&
-                jsonEncode(matches.single.toJson()) !=
-                    jsonEncode(previous.toJson()))) {
-          throw StateError('Archive cannot be replaced or removed');
-        }
-        final updated = matches.single;
-        if (!previous.isSealed &&
-            updated.isSealed &&
-            (jsonEncode(previous.dataset.toJson()) !=
-                    jsonEncode(updated.dataset.toJson()) ||
-                previous.label != updated.label ||
-                previous.createdAt != updated.createdAt ||
-                previous.policyVersion != updated.policyVersion)) {
-          throw StateError('Sealing cannot rewrite the source period');
-        }
+    validateGradingPeriodTransition(
+        ownerId, _books[next.classId], next, expectedRevision);
+    _books[next.classId] = next;
+  }
+}
+
+void validateGradingPeriodTransition(String ownerId, GradingPeriodBook? old,
+    GradingPeriodBook next, int? expectedRevision) {
+  if (next.ownerId != ownerId) throw StateError('Account mismatch');
+  if (old?.revision != expectedRevision ||
+      next.revision != (expectedRevision == null ? 0 : expectedRevision + 1)) {
+    throw StateError('Stale grading period revision');
+  }
+  if (old != null) {
+    for (final previous in old.periods) {
+      final matches =
+          next.periods.where((p) => p.periodId == previous.periodId);
+      if (matches.isEmpty ||
+          (previous.isSealed &&
+              jsonEncode(matches.single.toJson()) !=
+                  jsonEncode(previous.toJson()))) {
+        throw StateError('Archive cannot be replaced or removed');
+      }
+      final updated = matches.single;
+      if (!previous.isSealed &&
+          updated.isSealed &&
+          (jsonEncode(previous.dataset.toJson()) !=
+                  jsonEncode(updated.dataset.toJson()) ||
+              previous.label != updated.label ||
+              previous.createdAt != updated.createdAt ||
+              previous.policyVersion != updated.policyVersion)) {
+        throw StateError('Sealing cannot rewrite the source period');
       }
     }
-    _books[next.classId] = next;
+  }
+
+  if (old == null) {
+    if (next.periods.length != 1)
+      throw StateError('Initial book must have one active period');
+  } else {
+    final oldIds = old.periods.map((p) => p.periodId).toList();
+    final nextIds = next.periods.map((p) => p.periodId).toList();
+    final rollover = next.activePeriodId != old.activePeriodId;
+    final expectedIds = [...oldIds, if (rollover) next.activePeriodId];
+    if (jsonEncode(nextIds) != jsonEncode(expectedIds) ||
+        (rollover &&
+            (oldIds.contains(next.activePeriodId) ||
+                !next.periods
+                    .firstWhere((p) => p.periodId == old.activePeriodId)
+                    .isSealed))) {
+      throw StateError('Invalid period transition');
+    }
   }
 }
