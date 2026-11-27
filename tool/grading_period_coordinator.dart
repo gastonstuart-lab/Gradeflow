@@ -62,6 +62,30 @@ class EmulatorStore {
         'options': {'readWrite': <String, dynamic>{}},
       }))['transaction'] as String;
   Future<Map<String, dynamic>?> read(String path, {String? transaction}) async {
+    if (transaction != null) {
+      // Emulator 1.20's GET query decoder cannot handle protobuf byte strings.
+      // batchGet carries the same transaction bytes in the JSON request body.
+      final response = await client
+          .post(uri(':batchGet'),
+              headers: {
+                'Authorization': 'Bearer owner',
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode({
+                'documents': ['$root/$path'],
+                'transaction': transaction
+              }))
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) throw StoreFailure(response.statusCode);
+      final raw = jsonDecode(response.body);
+      final rows = raw is List ? raw : [raw];
+      for (final row in rows) {
+        if (row['found'] != null)
+          return decodeFields(
+              Map<String, dynamic>.from(row['found']['fields'] ?? {}));
+      }
+      return null;
+    }
     final r = await client.get(
         uri(
             '/$path',
@@ -262,6 +286,7 @@ class TrustedSealingCoordinator {
             authenticatedOwner, old, book, old.revision);
         validateSize(book);
         final receipt = <String, dynamic>{
+          'committedAt': DateTime.now().toUtc().toIso8601String(),
           'ownerId': authenticatedOwner,
           'classId': request.classId,
           'operationId': request.operationId,

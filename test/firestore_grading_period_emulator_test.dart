@@ -1,6 +1,8 @@
 @TestOn('browser')
 library;
 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -10,6 +12,7 @@ import 'package:cloud_firestore_web/cloud_firestore_web.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/models/grading_period.dart';
+import 'package:gradeflow/models/grading_rollover_request.dart';
 import 'package:gradeflow/repositories/firestore_grading_period_repository.dart';
 import 'package:gradeflow/services/grading_period_service.dart';
 import 'package:gradeflow/services/historical_grade_export_adapter.dart';
@@ -284,6 +287,35 @@ void main() {
             firestore: db, auth: auth, host: 'production.example'),
         throwsArgumentError);
     await expectLater(repo.load('../bad'), throwsArgumentError);
+  });
+
+  test(
+      'service recovers a lost acknowledgement and retries the same intent idempotently',
+      () async {
+    await create();
+    final intent = GradingRolloverRequest(
+        ownerId: repo.ownerId,
+        classId: cid,
+        sourcePeriodId: 'old',
+        expectedRevision: 0,
+        nextPeriodId: 'next',
+        label: 'New',
+        at: fixture.at.add(const Duration(days: 1)));
+    final token = await auth.currentUser!.getIdToken();
+    final lost = await http.post(Uri.parse('http://127.0.0.1:8787/rollover'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'X-Test-Fault': 'after-commit'
+        },
+        body: jsonEncode(intent.toJson()));
+    expect(lost.statusCode, 503);
+    final recovered = await rollover();
+    final replayed = await rollover();
+    expect(recovered.revision, 1);
+    expect(replayed.toJson(), recovered.toJson());
+    expect(recovered.periods.first.results!['one']!['finalGrade'], 84.5);
+    expect((await control().collection('operations').get()).docs.length, 2);
   });
 
   test('oversized periods fail before any control or operation is written',

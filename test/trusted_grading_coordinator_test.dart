@@ -15,7 +15,8 @@ import 'grading_period_test.dart' as fixture;
 // Requires demo emulators and the isolated coordinator (--test-faults).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  HttpOverrides.global = null; // Actual loopback emulator I/O, never production.
+  HttpOverrides.global =
+      null; // Actual loopback emulator I/O, never production.
   final store = backend.EmulatorStore();
   late String owner, token, otherOwner, otherToken, cid, path;
   late GradingPeriodBook initial;
@@ -289,6 +290,28 @@ void main() {
     expect(await store.read('$path/periods/old'), huge);
     expect((await store.read(path))!['activePeriodId'], 'old');
     expect(await store.read(receiptPath()), isNull);
+  });
+
+  test('oversized successor aborts the entire rollover while source still fits',
+      () async {
+    final data = initial.active.dataset.toJson()
+      ..['subject'] = List.filled(580000, 'x').join();
+    GradingPeriod source() => GradingPeriod(
+        periodId: 'old',
+        label: initial.active.label,
+        createdAt: fixture.at,
+        dataset: GradebookDataset.fromJson(data));
+    final length = utf8.encode(jsonEncode(encodeStoredPeriod(source()))).length;
+    data['subject'] =
+        (data['subject'] as String) + List.filled(599000 - length, 'x').join();
+    final stored = encodeStoredPeriod(source());
+    expect(utf8.encode(jsonEncode(stored)).length, lessThan(600000));
+    await store.commit([store.write('$path/periods/old', stored)]);
+    expect((await call()).statusCode, 422);
+    expect(await store.read('$path/periods/old'), stored);
+    expect(await store.read('$path/periods/next'), isNull);
+    expect(await store.read(receiptPath()), isNull);
+    expect((await store.read(path))!['revision'], 0);
   });
 
   test('stale source revision never seals a later teacher edit', () async {
