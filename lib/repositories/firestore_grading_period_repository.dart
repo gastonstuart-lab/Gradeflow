@@ -106,13 +106,24 @@ class FirestoreGradingPeriodRepository implements GradingPeriodRepository {
     }
     final ref = _book(next.classId);
     final encoded = {for (final p in next.periods) p.periodId: _encode(p)};
-    await _db.runTransaction((tx) async {
-      _check();
-      final old = await _read(tx, ref);
-      validateGradingPeriodTransition(ownerId, old, next, expectedRevision);
+    final rejection = await _db.runTransaction<StateError?>((tx) async {
+      GradingPeriodBook? old;
       final receipt = ref.collection('operations').doc('${next.revision}');
-      if ((await tx.get(receipt)).exists)
-        throw StateError('Operation already committed');
+      try {
+        _check();
+        old = await _read(tx, ref);
+        validateGradingPeriodTransition(ownerId, old, next, expectedRevision);
+        if ((await tx.get(receipt)).exists) {
+          return StateError('Operation already committed');
+        }
+        // All fallible domain validation precedes writes. Return rejections
+        // across the web SDK bridge, which otherwise boxes Dart exceptions.
+        for (final p in next.periods) {
+          if (p.isSealed) HistoricalGradeExportAdapter().calculate(p);
+        }
+      } on StateError catch (error) {
+        return error;
+      }
       // No writes occur until the entire source and receipt have been read.
       tx.set(ref, {
         'schemaVersion': 1,
@@ -127,7 +138,6 @@ class FirestoreGradingPeriodRepository implements GradingPeriodRepository {
             old?.periods.where((v) => v.periodId == p.periodId).firstOrNull;
         if (previous == null ||
             jsonEncode(previous.toJson()) != jsonEncode(p.toJson())) {
-          if (p.isSealed) HistoricalGradeExportAdapter().calculate(p);
           tx.set(
               ref.collection('periods').doc(p.periodId), encoded[p.periodId]!);
         }
@@ -139,7 +149,9 @@ class FirestoreGradingPeriodRepository implements GradingPeriodRepository {
         'fromPeriodId': old?.activePeriodId,
         'toPeriodId': next.activePeriodId,
       });
+      return null;
     });
+    if (rejection != null) throw rejection;
   }
 
   Map<String, dynamic> _encode(GradingPeriod period) {
