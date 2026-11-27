@@ -27,12 +27,8 @@ service cloud.firestore {
         && request.resource.data.periodIds == [request.resource.data.activePeriodId];
       allow update: if owner(uid) && validControl(request.resource.data)
         && request.resource.data.revision == resource.data.revision + 1
-        && ((request.resource.data.activePeriodId == resource.data.activePeriodId
-            && request.resource.data.periodIds == resource.data.periodIds)
-          || (request.resource.data.activePeriodId != resource.data.activePeriodId
-            && !(request.resource.data.activePeriodId in resource.data.periodIds)
-            && request.resource.data.periodIds == resource.data.periodIds.concat([request.resource.data.activePeriodId])
-            && getAfter(period(resource.data.activePeriodId)).data.sealedAt != null));
+        && request.resource.data.activePeriodId == resource.data.activePeriodId
+        && request.resource.data.periodIds == resource.data.periodIds;
       allow delete: if false;
 
       match /periods/{pid} {
@@ -55,13 +51,14 @@ service cloud.firestore {
         allow update: if owner(uid) && validPeriod(request.resource.data)
           && resource.data.sealedAt == null && get(control()).data.activePeriodId == pid
           && getAfter(control()).data.revision == get(control()).data.revision + 1
-          && ((getAfter(control()).data.activePeriodId == pid
-              && request.resource.data.sealedAt == null
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['datasetJson']))
-            || (getAfter(control()).data.activePeriodId != pid
-              && request.resource.data.sealedAt != null
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sealedAt','resultsJson'])));
+          && getAfter(control()).data.activePeriodId == pid
+          && request.resource.data.sealedAt == null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['datasetJson']);
         allow delete: if false;
+      }
+      match /rollovers/{operationId} {
+        allow read: if owner(uid);
+        allow write: if false;
       }
       match /operations/{rev} {
         allow read: if owner(uid);
@@ -72,6 +69,7 @@ service cloud.firestore {
           && request.resource.data.revision is int && rev == string(request.resource.data.revision)
           && getAfter(control()).data.revision == request.resource.data.revision
           && getAfter(control()).data.activePeriodId == request.resource.data.toPeriodId
+          && (!exists(control()) || getAfter(control()).data.activePeriodId == get(control()).data.activePeriodId)
           && ((!exists(control()) && request.resource.data.fromPeriodId == null)
             || (exists(control()) && request.resource.data.fromPeriodId == get(control()).data.activePeriodId));
         allow update, delete: if false;
