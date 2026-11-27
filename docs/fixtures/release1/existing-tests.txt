@@ -1,0 +1,55 @@
+00:00 +0: loading test/grade_item_service_test.dart
+00:00 +0: test/grade_item_service_test.dart: seedDemoGradeItems uses category-aware default names
+RepositoryFactory: Switched to local storage
+Demo grade items seeded for class class-a
+00:04 +1: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+RepositoryFactory: Switched to local storage
+Demo classes seeded successfully
+Demo students seeded for class demo-class-1
+Default categories seeded for class demo-class-1
+Demo grade items seeded for class demo-class-1
+Demo scores seeded successfully
+Demo final exams seeded successfully
+Demo students seeded for class demo-class-2
+Default categories seeded for class demo-class-2
+Demo grade items seeded for class demo-class-2
+Demo scores seeded successfully
+Demo final exams seeded successfully
+Demo students seeded for class demo-class-3
+Default categories seeded for class demo-class-3
+Demo grade items seeded for class demo-class-3
+Demo scores seeded successfully
+Demo final exams seeded successfully
+00:04 +2: test/seating_service_test.dart: rotateTable swaps table orientation and preserves assignments
+RepositoryFactory: Switched to local storage
+00:04 +3: test/seating_service_test.dart: moveTable keeps tables inside the room bounds
+RepositoryFactory: Switched to local storage
+00:04 +4: test/seating_service_test.dart: updateCanvasSize pulls existing tables back into view
+RepositoryFactory: Switched to local storage
+00:04 +5: test/seating_service_test.dart: duplicateTable copies the furniture without copying assignments
+RepositoryFactory: Switched to local storage
+00:05 +6: test/seating_service_test.dart: duplicateSeat adds another seat and moveSeat can push it farther out
+RepositoryFactory: Switched to local storage
+00:05 +7: test/seating_service_test.dart: assignStudentToTable uses the next empty seat on the target table
+RepositoryFactory: Switched to local storage
+00:05 +8: test/seating_service_test.dart: updateSeatNote saves note text and reminder state
+RepositoryFactory: Switched to local storage
+00:05 +9: test/seating_service_test.dart: copyRoomLayoutToClass copies room structure without placements
+RepositoryFactory: Switched to local storage
+00:05 +10: test/seating_service_test.dart: saveRoomSetupFromLayout stores a reusable room and links the class
+RepositoryFactory: Switched to local storage
+00:05 +11: test/seating_service_test.dart: applyRoomSetupToClass reuses a blank class and protects an existing arrangement
+RepositoryFactory: Switched to local storage
+00:05 +12: test/seating_service_test.dart: refreshLinkedClassesFromRoomSetup updates linked rooms and preserves seat annotations
+RepositoryFactory: Switched to local storage
+00:05 +13: test/class_schedule_service_test.dart: class schedule service scopes schedules per user
+00:05 +13: test/seating_service_test.dart: shuffleStudentPlacements randomizes seated students in seat order
+RepositoryFactory: Switched to local storage
+00:05 +14: test/class_schedule_service_test.dart: class schedule service scopes schedules per user
+00:05 +14: test/seating_service_test.dart: shuffleStudentPlacements keeps locked seats fixed
+RepositoryFactory: Switched to local storage
+00:05 +15: test/class_schedule_service_test.dart: class schedule service scopes schedules per user
+00:05 +16: test/class_schedule_service_test.dart: class schedule service migrates legacy class schedule keys
+00:05 +17: test/class_schedule_service_test.dart: clear with user id removes scoped and legacy schedule keys
+00:24 +18: test/student_list_screen_test.dart: student list defaults to ascending student id and still supports seat sorting
+00:28 +19: All tests passed!
