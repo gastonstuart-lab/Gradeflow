@@ -1,0 +1,104 @@
+00:00 +0: loading test/trusted_grading_coordinator_test.dart
+00:00 +0: test/trusted_grading_coordinator_test.dart: (setUpAll)
+00:00 +0: test/trusted_grading_coordinator_test.dart: trusted seal uses authoritative stored scores, weights and labels, not client snapshots
+00:00 +1: test/trusted_grading_coordinator_test.dart: trusted seal uses authoritative stored scores, weights and labels, not client snapshots
+00:00 +1: test/grade_item_service_test.dart: seedDemoGradeItems uses category-aware default names
+RepositoryFactory: Switched to local storage
+Demo grade items seeded for class class-a
+00:00 +2: test/trusted_grading_coordinator_test.dart: trusted seal uses authoritative stored scores, weights and labels, not client snapshots
+00:00 +3: test/grading_period_test.dart: combined historical summary matches legacy layout with frozen metadata
+00:01 +4: test/grading_period_test.dart: combined historical summary matches legacy layout with frozen metadata
+00:01 +5: test/trusted_grading_coordinator_test.dart: valid-looking direct client archive transaction and forged receipt are denied by rules
+00:01 +6: test/trusted_grading_coordinator_test.dart: valid-looking direct client archive transaction and forged receipt are denied by rules
+00:01 +7: test/trusted_grading_coordinator_test.dart: valid-looking direct client archive transaction and forged receipt are denied by rules
+00:01 +8: test/grading_period_test.dart: source lists include inactive categories and former-student raw records without rewriting
+00:01 +9: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+00:01 +10: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+00:01 +11: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+00:01 +12: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+00:01 +13: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+00:01 +14: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+00:01 +15: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+00:01 +16: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+00:01 +17: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+00:01 +18: test/demo_data_service_test.dart: ensureDemoWorkspace seeds planning and seating context
+RepositoryFactory: Switched to local storage
+Demo classes seeded successfully
+Demo students seeded for class demo-class-1
+Default categories seeded for class demo-class-1
+Demo grade items seeded for class demo-class-1
+Demo scores seeded successfully
+Demo final exams seeded successfully
+Demo students seeded for class demo-class-2
+Default categories seeded for class demo-class-2
+Demo grade items seeded for class demo-class-2
+Demo scores seeded successfully
+Demo final exams seeded successfully
+Demo students seeded for class demo-class-3
+Default categories seeded for class demo-class-3
+Demo grade items seeded for class demo-class-3
+Demo scores seeded successfully
+Demo final exams seeded successfully
+00:01 +19: test/trusted_grading_coordinator_test.dart: lost acknowledgement recovers from durable receipt after coordinator recreation
+00:01 +20: test/grading_period_test.dart: historical XLSX class/student values, ordering and types match legacy export
+00:01 +21: test/trusted_grading_coordinator_test.dart: interruption before commit preserves old grades and the same intent can retry
+00:01 +22: test/trusted_grading_coordinator_test.dart: interruption before commit preserves old grades and the same intent can retry
+00:01 +23: test/trusted_grading_coordinator_test.dart: interruption before commit preserves old grades and the same intent can retry
+00:01 +24: test/trusted_grading_coordinator_test.dart: interruption before commit preserves old grades and the same intent can retry
+00:01 +25: test/trusted_grading_coordinator_test.dart: interruption before commit preserves old grades and the same intent can retry
+00:01 +26: test/trusted_grading_coordinator_test.dart: interruption before commit preserves old grades and the same intent can retry
+00:01 +27: test/trusted_grading_coordinator_test.dart: interruption before commit preserves old grades and the same intent can retry
+00:01 +28: test/trusted_grading_coordinator_test.dart: interruption before commit preserves old grades and the same intent can retry
+00:01 +29: test/trusted_grading_coordinator_test.dart: interruption before commit preserves old grades and the same intent can retry
+00:01 +29: test/seating_service_test.dart: rotateTable swaps table orientation and preserves assignments
+RepositoryFactory: Switched to local storage
+00:01 +30: test/trusted_grading_coordinator_test.dart: interruption before commit preserves old grades and the same intent can retry
+00:01 +31: test/seating_service_test.dart: moveTable keeps tables inside the room bounds
+RepositoryFactory: Switched to local storage
+00:01 +32: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:01 +32: test/seating_service_test.dart: updateCanvasSize pulls existing tables back into view
+RepositoryFactory: Switched to local storage
+00:01 +33: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:01 +33: test/seating_service_test.dart: duplicateTable copies the furniture without copying assignments
+RepositoryFactory: Switched to local storage
+00:01 +34: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:01 +34: test/seating_service_test.dart: duplicateSeat adds another seat and moveSeat can push it farther out
+RepositoryFactory: Switched to local storage
+00:01 +35: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:01 +35: test/seating_service_test.dart: assignStudentToTable uses the next empty seat on the target table
+RepositoryFactory: Switched to local storage
+00:01 +36: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:01 +36: test/seating_service_test.dart: updateSeatNote saves note text and reminder state
+RepositoryFactory: Switched to local storage
+00:01 +37: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:02 +37: test/seating_service_test.dart: copyRoomLayoutToClass copies room structure without placements
+RepositoryFactory: Switched to local storage
+00:02 +38: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:02 +39: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:02 +40: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:02 +40: test/seating_service_test.dart: saveRoomSetupFromLayout stores a reusable room and links the class
+RepositoryFactory: Switched to local storage
+00:02 +41: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:02 +42: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:02 +42: test/seating_service_test.dart: applyRoomSetupToClass reuses a blank class and protects an existing arrangement
+RepositoryFactory: Switched to local storage
+00:02 +43: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:02 +43: test/seating_service_test.dart: refreshLinkedClassesFromRoomSetup updates linked rooms and preserves seat annotations
+RepositoryFactory: Switched to local storage
+00:02 +44: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:02 +44: test/seating_service_test.dart: shuffleStudentPlacements randomizes seated students in seat order
+RepositoryFactory: Switched to local storage
+00:02 +45: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:02 +45: test/seating_service_test.dart: shuffleStudentPlacements keeps locked seats fixed
+RepositoryFactory: Switched to local storage
+00:02 +46: test/trusted_grading_coordinator_test.dart: concurrent identical intents return one committed outcome
+00:04 +47: test/student_list_screen_test.dart: student list defaults to ascending student id and still supports seat sorting
+00:06 +48: test/student_list_screen_test.dart: student list defaults to ascending student id and still supports seat sorting
+00:06 +49: test/student_list_screen_test.dart: student list defaults to ascending student id and still supports seat sorting
+00:06 +50: test/student_list_screen_test.dart: student list defaults to ascending student id and still supports seat sorting
+00:07 +51: test/trusted_grading_coordinator_test.dart: invalid authoritative snapshot and oversize source fail without data loss
+00:07 +52: test/trusted_grading_coordinator_test.dart: oversized successor aborts the entire rollover while source still fits
+00:08 +53: test/trusted_grading_coordinator_test.dart: stale source revision never seals a later teacher edit
+00:08 +54: test/trusted_grading_coordinator_test.dart: synthetic backup/restore preserves calculations, all XLSX cells and retry receipts
+00:09 +55: test/trusted_grading_coordinator_test.dart: (tearDownAll)
+00:10 +55: All tests passed!
