@@ -36,8 +36,17 @@ String _scoreFieldText(double? score) =>
 
 class GradebookScreen extends StatefulWidget {
   final String classId;
-
-  const GradebookScreen({super.key, required this.classId});
+  final Widget? periodHeader;
+  final Widget? historicalWorkspace;
+  final bool editingLocked;
+  final VoidCallback? onLeave;
+  const GradebookScreen(
+      {super.key,
+      required this.classId,
+      this.periodHeader,
+      this.historicalWorkspace,
+      this.editingLocked = false,
+      this.onLeave});
 
   @override
   State<GradebookScreen> createState() => _GradebookScreenState();
@@ -94,6 +103,10 @@ class _GradebookScreenState extends State<GradebookScreen> {
       item.name.trim().toLowerCase() == 'category total';
 
   void _goToClassWorkspace() {
+    if (widget.onLeave != null) {
+      widget.onLeave!();
+      return;
+    }
     context.go('${AppRoutes.osClass}/${widget.classId}');
   }
 
@@ -290,7 +303,7 @@ class _GradebookScreenState extends State<GradebookScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted && widget.historicalWorkspace == null) {
         _loadData();
       }
     });
@@ -742,6 +755,18 @@ class _GradebookScreenState extends State<GradebookScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.historicalWorkspace != null) {
+      final record = context.watch<ClassService>().getClassById(widget.classId);
+      return _GradebookNativeSurface(
+          eyebrow: 'Class workspace',
+          title: record?.className ?? 'Gradebook',
+          toolLabel: 'Gradebook',
+          subtitle:
+              '${record?.subject ?? ""} · ${record?.schoolYear ?? ""} · ${record?.term ?? ""}',
+          periodHeader: widget.periodHeader,
+          contextStrip: const Text('Archived period · Read only'),
+          workspace: widget.historicalWorkspace!);
+    }
     final classService = context.watch<ClassService>();
     final studentService = context.watch<StudentService>();
     final categoryService = context.watch<GradingCategoryService>();
@@ -779,6 +804,8 @@ class _GradebookScreenState extends State<GradebookScreen> {
         await _leaveToClassWorkspace();
       },
       child: _GradebookNativeSurface(
+        periodHeader: widget.periodHeader,
+        editingLocked: widget.editingLocked,
         eyebrow: 'Class workspace',
         title: classItem?.className ?? 'Gradebook',
         toolLabel: 'Gradebook',
@@ -1132,6 +1159,8 @@ class _GradebookNativeSurface extends StatelessWidget {
     this.leading,
     this.contextStrip,
     this.toolbar,
+    this.periodHeader,
+    this.editingLocked = false,
   });
 
   final String eyebrow;
@@ -1142,6 +1171,8 @@ class _GradebookNativeSurface extends StatelessWidget {
   final Widget? contextStrip;
   final Widget? toolbar;
   final Widget workspace;
+  final Widget? periodHeader;
+  final bool editingLocked;
 
   @override
   Widget build(BuildContext context) {
@@ -1167,13 +1198,19 @@ class _GradebookNativeSurface extends StatelessWidget {
                         subtitle: subtitle,
                         leading: leading,
                       ),
+                      if (periodHeader != null) periodHeader!,
                       const SizedBox(height: WorkspaceSpacing.sm),
                       _GradebookCommandStrip(
                         contextStrip: contextStrip,
-                        toolbar: toolbar,
+                        toolbar: toolbar == null
+                            ? null
+                            : AbsorbPointer(
+                                absorbing: editingLocked, child: toolbar!),
                       ),
                       const SizedBox(height: WorkspaceSpacing.md),
-                      Expanded(child: workspace),
+                      Expanded(
+                          child: AbsorbPointer(
+                              absorbing: editingLocked, child: workspace)),
                     ],
                   ),
                 ),

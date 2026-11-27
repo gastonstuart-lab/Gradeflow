@@ -1,8 +1,13 @@
+import 'package:gradeflow/repositories/data_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 
 class StudentService extends ChangeNotifier {
+  final DataRepository? repository;
+  StudentService({this.repository});
+  DataRepository get _repository => repository ?? RepositoryFactory.instance;
+
   List<Student> _students = [];
   bool _isLoading = false;
 
@@ -12,9 +17,9 @@ class StudentService extends ChangeNotifier {
   Future<void> loadStudents(String classId) async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       _students = _sortStudentsByStudentId(await repo.loadStudents(classId));
     } catch (e) {
       debugPrint('Failed to load students: $e');
@@ -28,7 +33,7 @@ class StudentService extends ChangeNotifier {
     try {
       _students.add(newStudent);
       _students = _sortStudentsByStudentId(_students);
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       await repo.saveStudents(newStudent.classId, _students);
       notifyListeners();
     } catch (e) {
@@ -41,7 +46,7 @@ class StudentService extends ChangeNotifier {
       _students.addAll(newStudents);
       _students = _sortStudentsByStudentId(_students);
       if (newStudents.isNotEmpty) {
-        final repo = RepositoryFactory.instance;
+        final repo = _repository;
         await repo.saveStudents(newStudents.first.classId, _students);
       }
       notifyListeners();
@@ -52,11 +57,12 @@ class StudentService extends ChangeNotifier {
 
   Future<void> updateStudent(Student updatedStudent) async {
     try {
-      final localIndex = _students.indexWhere((s) => s.studentId == updatedStudent.studentId);
+      final localIndex =
+          _students.indexWhere((s) => s.studentId == updatedStudent.studentId);
       if (localIndex == -1) return;
       _students[localIndex] = updatedStudent;
       _students = _sortStudentsByStudentId(_students);
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       await repo.saveStudents(updatedStudent.classId, _students);
       notifyListeners();
     } catch (e) {
@@ -66,8 +72,9 @@ class StudentService extends ChangeNotifier {
 
   Future<void> deleteStudent(String studentId) async {
     try {
-      final classId = _students.firstWhere((s) => s.studentId == studentId).classId;
-      final repo = RepositoryFactory.instance;
+      final classId =
+          _students.firstWhere((s) => s.studentId == studentId).classId;
+      final repo = _repository;
       await repo.deleteStudent(classId, studentId);
       _students.removeWhere((s) => s.studentId == studentId);
       notifyListeners();
@@ -86,7 +93,7 @@ class StudentService extends ChangeNotifier {
 
   Future<void> seedDemoStudents(String classId) async {
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       final existing = await repo.loadStudents(classId);
       if (existing.isEmpty) {
         final now = DateTime.now();
@@ -190,8 +197,9 @@ class StudentService extends ChangeNotifier {
         .allMatches(right)
         .map((match) => match.group(0)!)
         .toList();
-    final limit =
-        leftParts.length < rightParts.length ? leftParts.length : rightParts.length;
+    final limit = leftParts.length < rightParts.length
+        ? leftParts.length
+        : rightParts.length;
 
     for (int i = 0; i < limit; i++) {
       final leftPart = leftParts[i];

@@ -1,9 +1,14 @@
+import 'package:gradeflow/repositories/data_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:gradeflow/models/grading_category.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 
 class GradingCategoryService extends ChangeNotifier {
+  final DataRepository? repository;
+  GradingCategoryService({this.repository});
+  DataRepository get _repository => repository ?? RepositoryFactory.instance;
+
   List<GradingCategory> _categories = [];
   bool _isLoading = false;
 
@@ -13,9 +18,9 @@ class GradingCategoryService extends ChangeNotifier {
   Future<void> loadCategories(String classId) async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       final all = await repo.loadCategories(classId);
       _categories = all.where((c) => c.isActive).toList();
     } catch (e) {
@@ -29,7 +34,7 @@ class GradingCategoryService extends ChangeNotifier {
   Future<void> addCategory(GradingCategory newCategory) async {
     try {
       _categories.add(newCategory);
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       await repo.saveCategories(newCategory.classId, _categories);
       notifyListeners();
     } catch (e) {
@@ -39,10 +44,11 @@ class GradingCategoryService extends ChangeNotifier {
 
   Future<void> updateCategory(GradingCategory updatedCategory) async {
     try {
-      final localIndex = _categories.indexWhere((c) => c.categoryId == updatedCategory.categoryId);
+      final localIndex = _categories
+          .indexWhere((c) => c.categoryId == updatedCategory.categoryId);
       if (localIndex == -1) return;
       _categories[localIndex] = updatedCategory;
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       await repo.saveCategories(updatedCategory.classId, _categories);
       notifyListeners();
     } catch (e) {
@@ -55,9 +61,10 @@ class GradingCategoryService extends ChangeNotifier {
       final idx = _categories.indexWhere((c) => c.categoryId == categoryId);
       if (idx == -1) return;
       final classId = _categories[idx].classId;
-      final updated = _categories[idx].copyWith(isActive: false, updatedAt: DateTime.now());
+      final updated =
+          _categories[idx].copyWith(isActive: false, updatedAt: DateTime.now());
       _categories[idx] = updated;
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       await repo.saveCategories(classId, _categories);
       _categories.removeWhere((c) => c.categoryId == categoryId);
       notifyListeners();
@@ -67,7 +74,9 @@ class GradingCategoryService extends ChangeNotifier {
   }
 
   double getTotalWeight(String classId) {
-    return _categories.where((c) => c.classId == classId && c.isActive).fold(0.0, (sum, c) => sum + c.weightPercent);
+    return _categories
+        .where((c) => c.classId == classId && c.isActive)
+        .fold(0.0, (sum, c) => sum + c.weightPercent);
   }
 
   bool isWeightValid(String classId) {
@@ -76,21 +85,23 @@ class GradingCategoryService extends ChangeNotifier {
   }
 
   Future<void> autoFixWeights(String classId) async {
-    final activeCategories = _categories.where((c) => c.classId == classId && c.isActive).toList();
-    
+    final activeCategories =
+        _categories.where((c) => c.classId == classId && c.isActive).toList();
+
     if (activeCategories.isEmpty) return;
-    
+
     final equalWeight = 100.0 / activeCategories.length;
-    
+
     for (var category in activeCategories) {
-      final updated = category.copyWith(weightPercent: equalWeight, updatedAt: DateTime.now());
+      final updated = category.copyWith(
+          weightPercent: equalWeight, updatedAt: DateTime.now());
       await updateCategory(updated);
     }
   }
 
   Future<void> seedDefaultCategories(String classId) async {
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       final existing = await repo.loadCategories(classId);
       if (existing.isEmpty) {
         final now = DateTime.now();
@@ -136,7 +147,7 @@ class GradingCategoryService extends ChangeNotifier {
             updatedAt: now,
           ),
         ];
-        
+
         await repo.saveCategories(classId, defaultCategories);
         debugPrint('Default categories seeded for class $classId');
       }
