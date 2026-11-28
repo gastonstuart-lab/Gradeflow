@@ -268,8 +268,9 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
 
 // One timer state shared by the classroom toolbar and presentation route.
 class ClassroomTimer extends StatefulWidget {
-  const ClassroomTimer({super.key, this.fullPage = false});
+  const ClassroomTimer({super.key, this.fullPage = false, this.embedded = false});
   final bool fullPage;
+  final bool embedded;
 
   @override
   State<ClassroomTimer> createState() => ClassroomTimerState();
@@ -538,10 +539,14 @@ class ClassroomTimerState extends State<ClassroomTimer> {
           },
           itemBuilder: (_) => const [
             PopupMenuItem(value: 1, child: Text('1 minute')),
+            PopupMenuItem(value: 2, child: Text('2 minutes')),
             PopupMenuItem(value: 3, child: Text('3 minutes')),
             PopupMenuItem(value: 5, child: Text('5 minutes')),
             PopupMenuItem(value: 10, child: Text('10 minutes')),
             PopupMenuItem(value: 15, child: Text('15 minutes')),
+            PopupMenuItem(value: 20, child: Text('20 minutes')),
+            PopupMenuItem(value: 25, child: Text('25 minutes')),
+            PopupMenuItem(value: 30, child: Text('30 minutes')),
             PopupMenuItem(value: 0, child: Text('Custom minutes and seconds')),
           ],
         ),
@@ -588,7 +593,8 @@ class ClassroomTimerState extends State<ClassroomTimer> {
         backgroundColor: background,
         foregroundColor: Colors.white,
         title: const Text('Classroom timer'),
-        leading: IconButton(
+        automaticallyImplyLeading: !widget.embedded,
+        leading: widget.embedded ? null : IconButton(
           tooltip: 'Close timer',
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.close),
