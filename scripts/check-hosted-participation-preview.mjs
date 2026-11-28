@@ -102,8 +102,9 @@ try {
   await expect(demo.or(classroom).first()).toBeVisible({timeout:60000});
   if (await demo.isVisible()) {
     await demo.click();
-    await expect(page.getByRole('button',{name:'Open Classroom',exact:true})).toBeEnabled({timeout:90000});
-    await page.getByRole('button',{name:'Open Classroom',exact:true}).click();
+    const openClassroom = page.getByRole('button',{name:'Open Classroom',exact:true});
+    await expect(openClassroom.or(classroom).first()).toBeVisible({timeout:90000});
+    if (await openClassroom.isVisible()) await openClassroom.click();
   }
   await expect(page).toHaveURL(classroomURL);
   await expect(classroom).toBeVisible({timeout:60000});
