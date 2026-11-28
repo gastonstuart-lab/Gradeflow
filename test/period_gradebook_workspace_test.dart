@@ -101,7 +101,7 @@ void main() {
       home: PeriodGradebookWorkspace(
         session: session,
         classRecord: fixture.classRecord(),
-        export: (_, _) async {},
+        export: (bytes, filename) async {},
       ),
     ));
     await tester.pumpAndSettle();
