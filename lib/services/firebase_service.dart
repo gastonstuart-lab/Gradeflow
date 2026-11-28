@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gradeflow/config/planner_v2_emulator_safety.dart';
@@ -24,6 +25,11 @@ class FirebaseService {
   /// Returns true if Firebase is now available, false if running local-only.
   static Future<bool> maybeInitialize() async {
     if (_initialized) return _available;
+    if (GradeFlowExistingProjectPreview.syntheticOnly) {
+      _initialized = true;
+      _available = false;
+      return false;
+    }
 
     try {
       await Firebase.initializeApp(
