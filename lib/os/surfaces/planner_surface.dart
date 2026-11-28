@@ -78,9 +78,6 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
   static const String _legacyRemindersPrefsKey = 'dashboard_reminders';
   static const String _remindersMigrationFlagKey =
       'dashboard_reminders_migrated_v1';
-  static const String _timetablesPrefsBaseKey = 'dashboard_timetables_v1';
-  static const String _selectedTimetablePrefsBaseKey =
-      'dashboard_selected_timetable_v1';
 
   final DashboardPreferencesService _preferences =
       const DashboardPreferencesService();
@@ -255,32 +252,9 @@ class _PlannerSurfaceState extends State<PlannerSurface> {
   }
 
   Future<_PlannerTimetableState> _loadTimetables(String userId) async {
-    final timetableKey = _preferences.scopedKey(
-      baseKey: _timetablesPrefsBaseKey,
-      userId: userId,
-    );
-    final selectedKey = _preferences.scopedKey(
-      baseKey: _selectedTimetablePrefsBaseKey,
-      userId: userId,
-    );
-    final raw = await _preferences.readScopedString(scopedKey: timetableKey);
-    var selectedId = await _preferences.readScopedString(scopedKey: selectedKey);
-
-    final timetables = <_PlannerTimetable>[];
-    if (raw != null && raw.trim().isNotEmpty) {
-      final decoded = jsonDecode(raw);
-      if (decoded is List) {
-        for (final entry in decoded.whereType<Map>()) {
-          if (entry['selected'] == true) selectedId = entry['id']?.toString();
-          final timetable =
-              _PlannerTimetable.fromJson(Map<String, dynamic>.from(entry));
-          if (timetable.id.trim().isEmpty || timetable.name.trim().isEmpty) {
-            continue;
-          }
-          timetables.add(timetable);
-        }
-      }
-    }
+    final state = await const HomeWeeklyTimetableService().loadVersionState(userId);
+    final selectedId = state.selectedId;
+    final timetables = state.versions.map(_PlannerTimetable.fromJson).toList();
     timetables.sort(
       (left, right) => right.uploadedAt.compareTo(left.uploadedAt),
     );
