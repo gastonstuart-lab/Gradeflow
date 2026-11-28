@@ -24,7 +24,7 @@ jobs:
           cache: true
       - run: flutter pub get --enforce-lockfile
       - run: flutter analyze
-      - run: flutter test test/native_presentation_timer_test.dart test/gradeflow_existing_project_preview_test.dart test/planner_v2_staging_safety_test.dart test/planner_v2_firebase_config_test.dart
+      - run: flutter test test/native_presentation_timer_test.dart test/native_screensaver_test.dart test/gradeflow_existing_project_preview_test.dart test/planner_v2_staging_safety_test.dart test/planner_v2_firebase_config_test.dart
       - name: Build the complete authenticated preview application without deploying
         run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
       - uses: actions/upload-artifact@v4
