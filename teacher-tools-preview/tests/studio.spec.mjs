@@ -212,3 +212,39 @@ test('PDF handwriting stays separate and pen eraser deletes only touched ink wit
   expect(outside).toEqual([]);
 });
 
+
+
+test('quick PDF ink controls change native pen settings and erase a single stroke', async ({ page }, testInfo) => {
+  const outside = await ready(page, testInfo);
+  await page.getByTestId('pdf-file').setInputFiles({ name: 'quick-tools.pdf', mimeType: 'application/pdf', buffer: worksheet() });
+  const frame = page.frameLocator('iframe[title="PDF annotation editor"]');
+  const tools = frame.getByRole('group', { name: 'Quick PDF ink tools' });
+  await expect(tools).toBeVisible();
+  await tools.getByRole('button', { name: 'Pen', exact: true }).click();
+  await expect(tools.getByRole('button', { name: 'Pen', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  const colour = tools.getByLabel('Pen colour', { exact: true });
+  const thickness = tools.getByLabel('Pen thickness', { exact: true });
+  await expect(colour).toBeEnabled();
+  await expect(thickness).toBeEnabled();
+  await colour.fill('#e02020');
+  await expect(frame.locator('#editorInkColor')).toHaveValue('#e02020');
+  const width = await thickness.getAttribute('max');
+  await thickness.fill(width);
+  await expect(frame.locator('#editorInkThickness')).toHaveValue(width);
+  const paper = frame.locator('.page[data-page-number="1"]');
+  const box = await paper.boundingBox();
+  const x = box.x + box.width * .25, y = box.y + box.height * .30;
+  await page.mouse.move(x, y); await page.mouse.down();
+  await page.mouse.move(x + 80, y, { steps: 10 }); await page.mouse.up();
+  await expect(paper.locator('.inkEditor')).toHaveCount(1);
+  await tools.getByRole('button', { name: 'Eraser', exact: true }).click();
+  await expect(tools.getByRole('button', { name: 'Eraser', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.mouse.move(x + 40, y); await page.mouse.down(); await page.mouse.up();
+  await expect(paper.locator('.inkEditor')).toHaveCount(0);
+  await frame.locator('body').press('Control+z');
+  await expect(paper.locator('.inkEditor')).toHaveCount(1);
+  await tools.getByRole('button', { name: 'Pen', exact: true }).click();
+  await expect(colour).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath('pdf-quick-tools.png') });
+  expect(outside).toEqual([]);
+});
