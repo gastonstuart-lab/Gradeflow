@@ -75,4 +75,64 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('active period accepts scores and switching periods preserves both datasets',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repo = InMemoryGradingPeriodRepository(ownerId: 'owner');
+    final service = GradingPeriodService(repo);
+    await service.adoptLegacy(dataset: fixture.legacy(), periodId: 'old',
+        label: 'Old period', at: fixture.at);
+    final before = await service.rollover(classId: 'class', periodId: 'old',
+        expectedRevision: 0, nextPeriodId: 'new', label: 'New period',
+        at: fixture.at.add(const Duration(days: 1)));
+    final session = GradingPeriodUiController(repo, 'class');
+    addTearDown(session.dispose);
+    await session.initialize();
+    await tester.pumpWidget(MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(disableAnimations: true),
+        child: child!,
+      ),
+      home: PeriodGradebookWorkspace(
+        session: session,
+        classRecord: fixture.classRecord(),
+        export: (_, _) async {},
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'active gradebook layout');
+    expect(find.text('New grading period'), findsOneWidget);
+    expect(find.text('Student scores'), findsOneWidget);
+    final scoreField = find.byWidgetPredicate((widget) =>
+        widget is TextField && widget.decoration?.labelText == 'Score');
+    expect(scoreField, findsWidgets);
+    await tester.enterText(scoreField.first, '76');
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pumpAndSettle();
+    final after = (await repo.load('class'))!;
+    expect(after.active.dataset.assessments, hasLength(20));
+    expect(after.active.dataset.scores.singleWhere((s) =>
+        s.studentId == 'one' && s.gradeItemId == 'new:quiz:1').score, 76);
+    expect(after.periods.first.toJson(), before.periods.first.toJson());
+    await tester.tap(find.byKey(const ValueKey('period-new')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Old period · Archived').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Archived period · Read only'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('period-old')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New period · Active').last);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(scoreField.first).controller!.text, '76');
+    expect((await repo.load('class'))!.periods.first.toJson(), before.periods.first.toJson());
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
 }
