@@ -94,6 +94,19 @@ try {
   await page.getByText('Exit presentation',{exact:true}).click();
   await page.goto(classroomURL);
   await semantics();
+  // The synthetic login is intentionally session-scoped; a full browser
+  // reload can return to sign-in. Reopen the same fictional classroom
+  // through the real demo login, not injected storage or auth bypass.
+  const demo = page.getByRole('button',{name:'Open demo workspace',exact:true});
+  const classroom = page.getByText('Fit to screen').first();
+  await expect(demo.or(classroom).first()).toBeVisible({timeout:60000});
+  if (await demo.isVisible()) {
+    await demo.click();
+    await expect(page.getByRole('button',{name:'Open Classroom',exact:true})).toBeEnabled({timeout:90000});
+    await page.getByRole('button',{name:'Open Classroom',exact:true}).click();
+  }
+  await expect(page).toHaveURL(classroomURL);
+  await expect(classroom).toBeVisible({timeout:60000});
   await openSeat(await occupiedSeats(),0);
   await score(100);
   expect(outside.filter(h=>/googleapis|firebase|google\.com/i.test(h))).toEqual([]);
