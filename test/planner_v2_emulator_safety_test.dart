@@ -28,6 +28,22 @@ void main() {
       originHost: '127.0.0.1',
     ), isFalse);
   });
+  test('web auth bootstrap is strictly opt-in debug loopback demo', () {
+    bool allowed({bool enabled = true, bool staging = true,
+        String project = PlannerV2EmulatorSafety.demoProjectId,
+        String host = '127.0.0.1', bool debug = true}) =>
+        PlannerV2EmulatorSafety.mayPrimeWebAuth(
+          enabled: enabled, stagingEnabled: staging, projectId: project,
+          originHost: host, debugMode: debug,
+        );
+    expect(allowed(), isTrue);
+    expect(allowed(host: 'localhost'), isTrue);
+    expect(allowed(enabled: false), isFalse);
+    expect(allowed(staging: false), isFalse);
+    expect(allowed(project: 'gradeflow-20260113'), isFalse);
+    expect(allowed(host: 'gradeflow-test.vercel.app'), isFalse);
+    expect(allowed(debug: false), isFalse);
+  });
   test('only demo project and loopback are allowed with staging', () {
     for (final host in ['localhost', '127.0.0.1']) {
       expect(PlannerV2EmulatorSafety.permitted(

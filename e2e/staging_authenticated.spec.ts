@@ -41,9 +41,8 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
       }
     }
   });
-  // Let FlutterFire itself store the per-app emulator origin in debug mode.
-  // The previous fixture wrote the wrong sessionStorage key and masked
-  // the fact that the app was compiled in release mode.
+  // The application must prime its own per-tab emulator origin before
+  // FlutterFire restores Auth. Never seed it in the test harness.
   await page.goto('/');
   await ensureFlutterSemantics(page);
 
@@ -381,6 +380,10 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await homeTab.waitForLoadState('domcontentloaded');
   await ensureFlutterSemantics(homeTab);
   await expect(homeTab).toHaveURL('http://127.0.0.1:7357/os/home');
+  expect(await homeTab.evaluate(() => window.opener === null)).toBe(true);
+  await expect.poll(() => homeTab.evaluate(() =>
+    window.sessionStorage.getItem('[DEFAULT]-firebaseEmulatorOrigin')))
+    .toBe('http://127.0.0.1:9099');
   await expect(homeTab.getByRole('button', { name: 'Open Classroom', exact: true })).toBeEnabled();
   await expect(page.getByRole('heading', { name: 'Teaching Studio', exact: true })).toBeVisible();
   await homeTab.close();
