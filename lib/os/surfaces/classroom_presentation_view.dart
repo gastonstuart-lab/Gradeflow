@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gradeflow/services/browser_fullscreen_stub.dart'
+    if (dart.library.js_interop) 'package:gradeflow/services/browser_fullscreen_web.dart';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -262,6 +266,7 @@ class _ClassroomPresentationViewState extends State<ClassroomPresentationView> {
   }
 }
 
+// One timer state shared by the classroom toolbar and presentation route.
 class ClassroomTimer extends StatefulWidget {
   const ClassroomTimer({super.key, this.fullPage = false});
   final bool fullPage;
@@ -270,96 +275,408 @@ class ClassroomTimer extends StatefulWidget {
   State<ClassroomTimer> createState() => ClassroomTimerState();
 }
 
+class _ClassroomClock extends ChangeNotifier {
+  int duration = 180;
+  int paused = 180;
+  DateTime? deadline;
+  String theme = 'Neon';
+  String activity = '';
+  bool sound = false;
+  Timer? _expiry;
+  bool _loaded = false;
+  Future<void> loadPreferences() async {
+    if (_loaded) return;
+    _loaded = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedStyle = prefs.getString('classroom.timer.style');
+      if (['Neon', 'Arcade', 'Examination', 'Ocean', 'Sunset'].contains(savedStyle)) theme = savedStyle!;
+      activity = prefs.getString('classroom.timer.activity') ?? '';
+      sound = prefs.getBool('classroom.timer.sound') ?? false;
+      if (deadline == null && paused == duration) {
+        duration = (prefs.getInt('classroom.timer.duration') ?? duration).clamp(1, 59999).toInt();
+        paused = duration;
+      }
+      notifyListeners();
+    } catch (_) { /* Timer remains usable without preferences. */ }
+  }
+
+  Future<void> _savePreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('classroom.timer.style', theme);
+      await prefs.setString('classroom.timer.activity', activity);
+      await prefs.setBool('classroom.timer.sound', sound);
+      await prefs.setInt('classroom.timer.duration', duration);
+    } catch (_) { /* Timer remains usable without preferences. */ }
+  }
+
+  void _scheduleExpiry() {
+    _expiry?.cancel();
+    if (deadline != null) {
+      _expiry = Timer(Duration(milliseconds: max(0, deadline!.difference(DateTime.now()).inMilliseconds) + 1), tick);
+    }
+  }
+  int get remaining => deadline == null
+      ? paused
+      : max(0, (deadline!.difference(DateTime.now()).inMilliseconds / 1000).ceil());
+  bool get running => deadline != null && remaining > 0;
+
+  void tick() {
+    if (deadline != null && remaining == 0) {
+      deadline = null;
+      paused = 0;
+      if (sound) unawaited(SystemSound.play(SystemSoundType.alert));
+      notifyListeners();
+    }
+  }
+
+  void configure(int seconds) {
+    duration = seconds.clamp(1, 59999).toInt();
+    reset();
+    unawaited(_savePreferences());
+  }
+
+  void reset() {
+    deadline = null;
+    paused = duration;
+    _scheduleExpiry();
+    notifyListeners();
+  }
+
+  void toggle() {
+    tick();
+    if (running) {
+      paused = remaining;
+      deadline = null;
+    } else {
+      if (paused == 0) paused = duration;
+      deadline = DateTime.now().add(Duration(seconds: paused));
+    }
+    _scheduleExpiry();
+    notifyListeners();
+  }
+
+  void adjust(int seconds) {
+    tick();
+    final wasRunning = running;
+    final next = (remaining + seconds).clamp(0, 59999).toInt();
+    paused = next;
+    if (next > duration) duration = next;
+    deadline = wasRunning && next > 0
+        ? DateTime.now().add(Duration(seconds: next))
+        : null;
+    _scheduleExpiry();
+    if (wasRunning && next == 0 && sound) {
+      unawaited(SystemSound.play(SystemSoundType.alert));
+    }
+    notifyListeners();
+  }
+
+  void appearance(String style, String name, bool audible) {
+    theme = style;
+    activity = name;
+    sound = audible;
+    unawaited(_savePreferences());
+    notifyListeners();
+  }
+}
+
+final _classroomClock = _ClassroomClock();
+
 class ClassroomTimerState extends State<ClassroomTimer> {
-  int _selectedMinutes = 3;
-  int _remainingSeconds = 180;
-  DateTime? _deadline;
+  final _clock = _classroomClock;
   Timer? _ticker;
+  static const _styles = ['Neon', 'Arcade', 'Examination', 'Ocean', 'Sunset'];
+
+  @override
+  void initState() {
+    super.initState();
+    _clock.addListener(_refresh);
+    unawaited(_clock.loadPreferences());
+    _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      _clock.tick();
+      if (_clock.running) _refresh();
+    });
+    _clock.tick();
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _clock.removeListener(_refresh);
     super.dispose();
   }
 
-  void _tick() {
-    final deadline = _deadline;
-    if (!mounted || deadline == null) return;
-    final left = max(
-        0, (deadline.difference(DateTime.now()).inMilliseconds / 1000).ceil());
-    setState(() => _remainingSeconds = left);
-    if (left == 0) {
-      _ticker?.cancel();
-      setState(() => _deadline = null);
-    }
+  Future<void> _customDuration() async {
+    int minutes = _clock.duration ~/ 60;
+    int seconds = _clock.duration % 60;
+    final form = GlobalKey<FormState>();
+    final result = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set timer duration'),
+        content: Form(
+          key: form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                initialValue: '$minutes',
+                decoration: const InputDecoration(labelText: 'Minutes'),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  final n = int.tryParse(v ?? '');
+                  return n == null || n < 0 || n > 999 ? 'Enter 0–999' : null;
+                },
+                onSaved: (v) => minutes = int.parse(v!),
+              ),
+              TextFormField(
+                initialValue: '$seconds',
+                decoration: const InputDecoration(labelText: 'Seconds'),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  final n = int.tryParse(v ?? '');
+                  return n == null || n < 0 || n > 59 ? 'Enter 0–59' : null;
+                },
+                onSaved: (v) => seconds = int.parse(v!),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              if (!form.currentState!.validate()) return;
+              form.currentState!.save();
+              Navigator.pop(ctx, max(1, minutes * 60 + seconds));
+            },
+            child: const Text('Set duration'),
+          ),
+        ],
+      ),
+    );
+    if (result != null && mounted) _clock.configure(result);
   }
 
-  void _toggle() {
-    if (_deadline != null) {
-      _tick();
-      _ticker?.cancel();
-      setState(() => _deadline = null);
-    } else {
-      if (_remainingSeconds == 0) {
-        _remainingSeconds = _selectedMinutes * 60;
-      }
-      setState(() =>
-          _deadline = DateTime.now().add(Duration(seconds: _remainingSeconds)));
-      _ticker?.cancel();
-      _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
-    }
+  void _openFullPage() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => const ClassroomTimer(fullPage: true),
+    ));
   }
 
-  void _setMinutes(int minutes) {
-    _ticker?.cancel();
-    setState(() {
-      _selectedMinutes = minutes;
-      _remainingSeconds = minutes * 60;
-      _deadline = null;
-    });
+  Future<void> _settings() async {
+    String style = _clock.theme;
+    String activity = _clock.activity;
+    bool sound = _clock.sound;
+    final apply = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const Text('Timer appearance'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: style,
+                decoration: const InputDecoration(labelText: 'Style'),
+                items: _styles.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                onChanged: (s) => update(() => style = s ?? style),
+              ),
+              TextFormField(
+                initialValue: activity,
+                decoration: const InputDecoration(labelText: 'Activity or group name'),
+                maxLength: 80,
+                onChanged: (v) => activity = v,
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Sound at end'),
+                value: sound,
+                onChanged: (v) => update(() => sound = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Apply')),
+          ],
+        ),
+      ),
+    );
+    if (apply == true && mounted) _clock.appearance(style, activity, sound);
   }
 
   @override
   Widget build(BuildContext context) {
-    final mm = (_remainingSeconds ~/ 60).toString().padLeft(2, '0');
-    final ss = (_remainingSeconds % 60).toString().padLeft(2, '0');
-    final controls = Row(mainAxisSize: MainAxisSize.min, children: [
-      PopupMenuButton<int>(
-        tooltip: 'Set timer duration',
-        icon: const Icon(Icons.timer_outlined, color: Colors.white),
-        onSelected: _setMinutes,
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 1, child: Text('1 minute')),
-          PopupMenuItem(value: 3, child: Text('3 minutes')),
-          PopupMenuItem(value: 5, child: Text('5 minutes')),
-          PopupMenuItem(value: 10, child: Text('10 minutes')),
+    final remaining = _clock.remaining;
+    final mm = (remaining ~/ 60).toString().padLeft(2, '0');
+    final ss = (remaining % 60).toString().padLeft(2, '0');
+    final text = '$mm:$ss';
+    final running = _clock.running;
+    final action = running ? 'Pause' : remaining > 0 && remaining < _clock.duration ? 'Resume' : 'Start';
+    final controls = Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 6,
+      children: [
+        PopupMenuButton<int>(
+          tooltip: 'Set timer duration',
+          icon: const Icon(Icons.timer_outlined, color: Colors.white),
+          onSelected: (n) {
+            if (n == 0) {
+              unawaited(_customDuration());
+            } else {
+              _clock.configure(n * 60);
+            }
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 1, child: Text('1 minute')),
+            PopupMenuItem(value: 3, child: Text('3 minutes')),
+            PopupMenuItem(value: 5, child: Text('5 minutes')),
+            PopupMenuItem(value: 10, child: Text('10 minutes')),
+            PopupMenuItem(value: 15, child: Text('15 minutes')),
+            PopupMenuItem(value: 0, child: Text('Custom minutes and seconds')),
+          ],
+        ),
+        OutlinedButton.icon(
+          onPressed: _clock.toggle,
+          icon: Icon(running ? Icons.pause_rounded : Icons.play_arrow_rounded),
+          label: Text(widget.fullPage ? action : text),
+          style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
+        ),
+        IconButton(
+          tooltip: 'Reset timer',
+          onPressed: _clock.reset,
+          icon: const Icon(Icons.restart_alt_rounded, color: Colors.white),
+        ),
+        if (widget.fullPage) ...[
+          TextButton(onPressed: () => _clock.adjust(-30),
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            child: const Text('−30 sec')),
+          TextButton(onPressed: () => _clock.adjust(30),
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            child: const Text('+30 sec')),
+        ] else
+          IconButton(
+            tooltip: 'Full-page timer',
+            onPressed: _openFullPage,
+            icon: const Icon(Icons.open_in_full, color: Colors.white),
+          ),
+      ],
+    );
+    if (!widget.fullPage) return controls;
+
+    final (background, glow, accent) = switch (_clock.theme) {
+      'Arcade' => (const Color(0xff080b19), const Color(0xff241443), const Color(0xff30f4a0)),
+      'Examination' => (const Color(0xff141414), const Color(0xff141414), Colors.white),
+      'Ocean' => (const Color(0xff061821), const Color(0xff164765), const Color(0xff54dded)),
+      'Sunset' => (const Color(0xff20101c), const Color(0xff733743), const Color(0xffffb46c)),
+      _ => (const Color(0xff090e1c), const Color(0xff242951), const Color(0xff9d92ff)),
+    };
+    final warning = remaining <= 10 ? const Color(0xffff5252)
+        : remaining <= 30 ? const Color(0xffffb648) : accent;
+    return Scaffold(
+      backgroundColor: background,
+      appBar: AppBar(
+        backgroundColor: background,
+        foregroundColor: Colors.white,
+        title: const Text('Classroom timer'),
+        leading: IconButton(
+          tooltip: 'Close timer',
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.close),
+        ),
+        actions: [
+          IconButton(tooltip: 'Timer settings', onPressed: _settings, icon: const Icon(Icons.tune)),
+          if (browserFullscreenAvailable)
+            IconButton(
+              tooltip: 'Toggle browser full screen',
+              onPressed: () async {
+                final ok = await toggleBrowserFullscreen();
+                if (!ok && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Browser full screen is unavailable.')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.fullscreen),
+            ),
         ],
       ),
-      OutlinedButton.icon(
-        onPressed: _toggle,
-        icon: Icon(
-            _deadline == null ? Icons.play_arrow_rounded : Icons.pause_rounded),
-        label: Text(widget.fullPage ? '${_deadline == null ? 'Start' : 'Pause'} $mm:$ss' : '$mm:$ss'),
-        style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(center: Alignment.topCenter, radius: 1.2, colors: [glow, background]),
+        ),
+        child: LayoutBuilder(
+          builder: (context, bounds) {
+            final diameter = max(100.0, min(bounds.maxWidth * .8, bounds.maxHeight * .66));
+            return Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: diameter,
+                      height: diameter,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CircularProgressIndicator(
+                            value: remaining / _clock.duration,
+                            strokeWidth: max(5, diameter * .026).toDouble(),
+                            strokeCap: StrokeCap.round,
+                            backgroundColor: Colors.white12,
+                            color: warning,
+                          ),
+                          Padding(
+                            padding: EdgeInsets.all(diameter * .10),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Semantics(
+                                    liveRegion: remaining == 0,
+                                    child: Text(text, style: TextStyle(
+                                      fontSize: diameter * .23,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      fontFeatures: const [FontFeature.tabularFigures()],
+                                    )),
+                                  ),
+                                ),
+                                Text(remaining == 0 ? 'TIME IS UP' : running ? 'TIME REMAINING' : 'READY / PAUSED',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: warning, letterSpacing: 2, fontSize: max(9, diameter * .035).toDouble())),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_clock.activity.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 18),
+                        child: Text(_clock.activity, textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white, fontSize: 24)),
+                      ),
+                    const SizedBox(height: 16),
+                    controls,
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
-      IconButton(
-        tooltip: 'Reset timer',
-        onPressed: () => _setMinutes(_selectedMinutes),
-        icon: const Icon(Icons.restart_alt_rounded, color: Colors.white),
-      ),
-    ]);
-    if (!widget.fullPage) return controls;
-    return Scaffold(
-      backgroundColor: const Color(0xff102a30),
-      appBar: AppBar(backgroundColor: const Color(0xff102a30), foregroundColor: Colors.white, title: const Text('Classroom timer'),
-        leading: IconButton(tooltip: 'Close timer', onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close))),
-      body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Semantics(liveRegion: _remainingSeconds == 0, child: Text('$mm:$ss',
-          style: TextStyle(fontSize: MediaQuery.sizeOf(context).shortestSide * .24,
-            color: Colors.white, fontWeight: FontWeight.w700))),
-        if (_remainingSeconds == 0) const Text('Time is up', style: TextStyle(color: Colors.white, fontSize: 28)),
-        controls,
-      ])),
     );
   }
 }
