@@ -75,6 +75,12 @@ class GradeFlowExistingProjectPreview {
         !stagingEnabled &&
         !emulatorEnabled &&
         projectId == GradeFlowExistingProjectPreview.projectId &&
-        isAllowedPreviewHost(originHost, expectedChannel: expectedChannel);
+        (isAllowedPreviewHost(originHost, expectedChannel: expectedChannel) ||
+            (syntheticOnly && (expectedChannel ?? channelId) == 'classroom-experience-review' &&
+             RegExp(r'^gradeflow-pr173-full-review(?:-[a-z0-9-]+)?\.vercel\.app
+  }
+}
+)
+                 .hasMatch(originHost.toLowerCase().trim())));
   }
 }
