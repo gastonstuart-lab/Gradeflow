@@ -1,0 +1,28 @@
+name: Deployed synthetic participation acceptance
+on:
+  push:
+    branches: [preview/classroom-experience-static-20261128]
+    paths: ['scripts/check-hosted-participation-preview.mjs', '.github/workflows/synthetic-participation-hosted-check.yml']
+permissions:
+  contents: read
+jobs:
+  hosted:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/check-hosted-participation-preview.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hosted-participation-evidence
+          path: preview-evidence/
+          if-no-files-found: ignore
+          retention-days: 7
