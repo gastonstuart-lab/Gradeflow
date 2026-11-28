@@ -1,0 +1,34 @@
+name: Teaching Studio ink regression
+on:
+  pull_request:
+    branches: [integration/instructos-classroom-experience-20261128]
+    paths: ['teacher-tools-preview/**', '.github/workflows/teaching-studio-ink-check.yml']
+permissions:
+  contents: read
+jobs:
+  studio:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: teacher-tools-preview
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --project=surface-light --project=desktop-light
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: teaching-studio-ink-evidence
+          path: |
+            teacher-tools-preview/test-results/
+            teacher-tools-preview/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
