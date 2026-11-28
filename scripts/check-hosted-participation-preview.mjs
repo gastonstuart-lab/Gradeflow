@@ -38,7 +38,12 @@ const semantics = async () => {
 };
 const host = page.locator('flt-semantics-host');
 const action = () => host.getByText('Participation demo', {exact:true});
-const score = n => host.getByText(n+' / 100', {exact:true});
+const dialog = page.getByRole('dialog');
+const score = async n => {
+  await expect(dialog).toBeVisible();
+  await expect.poll(async () => await dialog.ariaSnapshot()).toMatch(
+    new RegExp('(?:^|\\s)'+n+' / 100(?:\\s|$)'));
+};
 const close = () => page.getByRole('button',{name:'Close participation demo',exact:true}).click();
 async function occupiedSeats() {
   const seats = host.getByRole('button',{name:/\bSeat for\s+\S+/});
@@ -49,7 +54,9 @@ async function openSeat(seats, index) {
   await seats.nth(index).click();
   await expect(action()).toBeVisible();
   await action().click();
-  await expect(host.getByText('Participation demo · Session only',{exact:true})).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button',{name:'Close participation demo',exact:true})).toBeVisible();
+  await expect.poll(()=>dialog.ariaSnapshot()).toContain('Private teacher controls');
 }
 try {
   await page.goto(base);
@@ -61,33 +68,34 @@ try {
   const classroomURL = page.url();
   const seats = await occupiedSeats();
   await openSeat(seats,0);
-  await expect(score(100)).toBeVisible();
+  await score(100);
   const eating = page.getByRole('button',{name:/^Eating\s+−10$/});
-  await eating.click(); await expect(score(90)).toBeVisible();
-  await eating.click(); await expect(score(80)).toBeVisible();
+  await eating.click(); await score(90);
+  await eating.click(); await score(80);
   await page.screenshot({path:'preview-evidence/participation-two-incidents.png'});
   await page.getByRole('button',{name:'Undo last change',exact:true}).click();
-  await expect(score(90)).toBeVisible();
+  await score(90);
   await close();
   await page.getByRole('button',{name:'Close tools',exact:true}).click();
   await openSeat(seats,1);
-  await expect(score(100)).toBeVisible();
+  await score(100);
   await close();
   await page.getByRole('button',{name:'Close tools',exact:true}).click();
   await openSeat(seats,0);
-  await expect(score(90)).toBeVisible();
+  await score(90);
   await close();
   await page.getByRole('button',{name:'Close tools',exact:true}).click();
   await page.getByRole('button',{name:'Present',exact:true}).click();
   await expect(host.getByText('Exit presentation',{exact:true})).toBeVisible();
   await expect(action()).toHaveCount(0);
-  await expect(score(90)).toHaveCount(0);
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(()=>host.ariaSnapshot()).not.toContain('Private teacher controls');
   await page.screenshot({path:'preview-evidence/participation-projector.png'});
   await page.getByText('Exit presentation',{exact:true}).click();
   await page.goto(classroomURL);
   await semantics();
   await openSeat(await occupiedSeats(),0);
-  await expect(score(100)).toBeVisible();
+  await score(100);
   expect(outside.filter(h=>/googleapis|firebase|google\.com/i.test(h))).toEqual([]);
   console.log('Verified deployed fictional participation preview:',commit);
 } catch(error) {
