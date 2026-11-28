@@ -32,7 +32,9 @@ const page = await context.newPage();
 const semantics = async () => {
   const enable = page.locator('button[aria-label="Enable accessibility"]').first();
   if (await enable.isVisible().catch(()=>false)) await enable.click();
-  await page.waitForSelector('flt-semantics-host', {timeout:60000});
+  // Flutter's semantics host is a zero-size container. Its descendants
+  // are interactive even when the host itself fails the visibility check.
+  await page.waitForSelector('flt-semantics-host', {state:'attached', timeout:60000});
 };
 const host = page.locator('flt-semantics-host');
 const action = () => host.getByText('Participation demo', {exact:true});
