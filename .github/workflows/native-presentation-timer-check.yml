@@ -3,6 +3,9 @@ on:
   push:
     branches: [classroom-experience-v2/native-presentation-timer]
     paths: ['lib/os/surfaces/classroom_presentation_view.dart', 'test/native_presentation_timer_test.dart', '.github/workflows/native-presentation-timer-check.yml']
+  pull_request:
+    branches: [fix/school-timetable-xlsx-20261123]
+    paths: ['lib/os/surfaces/classroom_presentation_view.dart', 'test/native_presentation_timer_test.dart', '.github/workflows/native-presentation-timer-check.yml']
 permissions:
   contents: read
 jobs:
