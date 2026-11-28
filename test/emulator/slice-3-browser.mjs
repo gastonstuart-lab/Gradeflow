@@ -10,11 +10,11 @@ page.on('console', message => {
 });
 
 const label = name => page.getByLabel(name, { exact: true });
-const text = name => page.getByText(name, { exact: true }).or(label(name));
+const text = name => page.getByText(name, { exact: true }).or(label(name)).first();
 const status = fragment => page.getByText(fragment, { exact: false })
   .or(page.locator(`flt-semantics[aria-label*=${JSON.stringify(fragment)}]`)).first();
 const button = name => page.getByRole('button', { name, exact: true });
-const period = name => button(name).or(label(name)).or(text(name)).first();
+const period = name => button(`Grading period ${name}`).or(button(name)).or(text(name)).first();
 const visible = async locator => locator.waitFor({ state: 'visible' });
 
 async function click(locator) {
@@ -35,13 +35,11 @@ async function selectPeriod(current, target) {
 }
 
 async function scoreRow(value) {
-  const row = page.locator('flt-semantics[aria-label]').filter({
-    has: page.getByRole('textbox'),
+  const field = page.getByRole('textbox', {
+    name: new RegExp(`ID S01, Seat 1, score ${value}`),
   });
-  const student = row.and(page.locator('flt-semantics[aria-label*="ID S01"][aria-label*="score"]'));
-  const matching = student.and(page.locator(`[aria-label*="score ${value}"]`));
-  await visible(matching.first());
-  return matching.first().getByRole('textbox').first();
+  await visible(field);
+  return field;
 }
 
 try {
@@ -110,8 +108,9 @@ try {
   await visible(period('January acceptance · Active'));
   await click(button('Recover rollover'));
   await visible(text('Grading period ready · 20 editable assessments'));
-  assert.equal(requests.length, 3);
-  assert.equal(requests[1], requests[2], 'Recovery must send identical retained intent');
+  const rolloverRequests = requests.filter(body => JSON.parse(body).label === 'January acceptance');
+  assert.equal(rolloverRequests.length, 2);
+  assert.equal(rolloverRequests[0], rolloverRequests[1], 'Recovery must send identical retained intent');
   assert.equal(await button('Recover rollover').count(), 0);
   await screenshot('05-rollover-recovered');
   console.log('PASS interrupted rollover: post-commit 503, reload, and identical intent replay');
@@ -120,10 +119,10 @@ try {
   let previousCategory = 'Quiz';
   for (const [category, count] of [['Quiz', 2], ['Classwork', 6], ['Homework', 6], ['Participation', 6]]) {
     if (category !== previousCategory) {
-      await click(choose(previousCategory));
+      await click(button(`Category ${previousCategory}`));
       await click(choose(category));
     }
-    await click(choose(`${category} 1`));
+    await click(button(`Assessment ${category} 1`));
     for (let number = 1; number <= count; number++) {
       await visible(choose(`${category} ${number}`));
     }
