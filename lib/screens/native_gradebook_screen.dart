@@ -13,6 +13,9 @@ import 'package:gradeflow/services/auth_service.dart';
 import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/gradebook_workspace.dart';
+import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
+import 'package:gradeflow/components/native_period_review_dialog.dart';
+import 'package:gradeflow/services/native_period_snapshot.dart';
 import 'package:gradeflow/services/gradebook_export_projection.dart';
 import 'package:gradeflow/services/gradebook_import_plan.dart';
 import 'package:file_picker/file_picker.dart';
@@ -995,6 +998,27 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
     }
   }
 
+  Future<void> _reviewGradingPeriods() async {
+    if (!GradeFlowExistingProjectPreview.enabled ||
+        !GradeFlowExistingProjectPreview.syntheticOnly || !book.loaded) return;
+    if (working || dirty.isNotEmpty || _savingFields.isNotEmpty ||
+        _pendingSteps.isNotEmpty || book.saveState == GradebookSaveState.saving) {
+      message('Save or correct your unfinished entries first.');
+      return;
+    }
+    final record = context.read<ClassService>().getClassById(widget.classId);
+    if (record == null) { message('Fictional class not available.'); return; }
+    setState(() => working = true);
+    try {
+      final snapshot = await NativePeriodSnapshot.capture(book.repository,
+          ownerId: record.teacherId, classId: widget.classId);
+      if (!mounted) return;
+      await showDialog<void>(context: context, barrierDismissible: false,
+          builder: (_) => NativePeriodReviewDialog(snapshot: snapshot));
+    } catch (e) { if (mounted) message('Grading periods demo unavailable: $e'); }
+    finally {if (mounted) setState(() => working = false);}
+  }
+
   Future<void> export() async {
     if (dirty.isNotEmpty) {
       message('Save or correct unfinished entries before exporting.');
@@ -1222,6 +1246,12 @@ class _NativeGradebookScreenState extends State<NativeGradebookScreen> {
                                       child: const Text('Open full gradebook'),
                                     ),
                                   if (widget.studentId == null) ...[
+                                    if (GradeFlowExistingProjectPreview.enabled &&
+                                        GradeFlowExistingProjectPreview.syntheticOnly)
+                                      OutlinedButton.icon(
+                                        onPressed: working || !book.loaded ? null : _reviewGradingPeriods,
+                                        icon: const Icon(Icons.history),
+                                        label: const Text('Grading periods demo')),
                                     OutlinedButton.icon(
                                         onPressed:
                                             working ? null : importBackup,
