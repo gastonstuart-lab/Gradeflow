@@ -4,7 +4,7 @@ on:
     branches: [classroom-experience-v2/release-2-participation-core]
   pull_request:
     branches: [main]
-    paths: ['lib/services/lesson_participation_ledger.dart', 'test/lesson_participation_ledger_test.dart', 'lib/components/participation_teacher_panel.dart', 'test/participation_teacher_panel_test.dart', 'lib/services/participation_ledger_repository.dart', 'lib/services/synthetic_participation_local_store.dart', 'test/participation_ledger_repository_test.dart', 'lib/services/participation_grade_projection.dart', 'test/participation_grade_projection_test.dart', '.github/workflows/participation-core-check.yml']
+    paths: ['lib/services/lesson_participation_ledger.dart', 'test/lesson_participation_ledger_test.dart', 'lib/components/participation_teacher_panel.dart', 'test/participation_teacher_panel_test.dart', 'lib/services/participation_ledger_repository.dart', 'lib/services/synthetic_participation_local_store.dart', 'test/participation_ledger_repository_test.dart', 'lib/services/participation_grade_projection.dart', 'test/participation_grade_projection_test.dart', 'lib/services/participation_period_transaction.dart', 'test/participation_period_transaction_test.dart', '.github/workflows/participation-core-check.yml']
 permissions:
   contents: read
 concurrency:
@@ -23,5 +23,5 @@ jobs:
           flutter-version: '3.38.7'
           cache: true
       - run: flutter pub get --enforce-lockfile
-      - run: flutter analyze --no-pub lib/services/lesson_participation_ledger.dart test/lesson_participation_ledger_test.dart lib/components/participation_teacher_panel.dart test/participation_teacher_panel_test.dart lib/services/participation_ledger_repository.dart lib/services/synthetic_participation_local_store.dart test/participation_ledger_repository_test.dart lib/services/participation_grade_projection.dart test/participation_grade_projection_test.dart
-      - run: flutter test --no-pub test/lesson_participation_ledger_test.dart test/participation_teacher_panel_test.dart test/participation_ledger_repository_test.dart test/participation_grade_projection_test.dart --reporter expanded
+      - run: flutter analyze --no-pub lib/services/lesson_participation_ledger.dart test/lesson_participation_ledger_test.dart lib/components/participation_teacher_panel.dart test/participation_teacher_panel_test.dart lib/services/participation_ledger_repository.dart lib/services/synthetic_participation_local_store.dart test/participation_ledger_repository_test.dart lib/services/participation_grade_projection.dart test/participation_grade_projection_test.dart lib/services/participation_period_transaction.dart test/participation_period_transaction_test.dart
+      - run: flutter test --no-pub test/lesson_participation_ledger_test.dart test/participation_teacher_panel_test.dart test/participation_ledger_repository_test.dart test/participation_grade_projection_test.dart test/participation_period_transaction_test.dart --reporter expanded
