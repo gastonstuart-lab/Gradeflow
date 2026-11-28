@@ -188,7 +188,7 @@ class _OSIdleScreenState extends State<OSIdleScreen> with SingleTickerProviderSt
       child: Stack(fit: StackFit.expand, children: [
         AnimatedBuilder(
           animation: _motion,
-          builder: (_, _) => CustomPaint(painter: _SaverPainter(_preferences.style, _motion.value)),
+          builder: (_, child) => CustomPaint(painter: _SaverPainter(_preferences.style, _motion.value)),
         ),
         GestureDetector(
           behavior: HitTestBehavior.opaque, onTap: widget.onDismiss,
