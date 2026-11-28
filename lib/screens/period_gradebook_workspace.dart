@@ -52,7 +52,7 @@ class _WorkspaceState extends State<PeriodGradebookWorkspace> {
   }
 
   Future<void> _start() async {
-    final text = TextEditingController();
+    var name = '';
     final confirmed = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
@@ -67,7 +67,7 @@ class _WorkspaceState extends State<PeriodGradebookWorkspace> {
                             'The current period will become read only. The class and roster stay the same. Your new period will contain 2 quizzes and 6 each of classwork, homework and participation.'),
                         const SizedBox(height: 16),
                         TextField(
-                            controller: text,
+                            onChanged: (value) => name = value.trim(),
                             autofocus: true,
                             maxLength: 80,
                             decoration: const InputDecoration(
@@ -80,14 +80,12 @@ class _WorkspaceState extends State<PeriodGradebookWorkspace> {
                     child: const Text('Cancel')),
                 FilledButton(
                     onPressed: () {
-                      if (text.text.trim().isNotEmpty)
-                        Navigator.pop(context, text.text.trim());
+                      if (name.isNotEmpty) Navigator.pop(context, name);
                     },
                     child: const Text('Archive current & start'))
               ],
             ));
-    // Dialog route can still animate; retain its controller until it is removed.
-    if (confirmed != null) await widget.session.start(confirmed);
+    if (mounted && confirmed != null) await widget.session.start(confirmed);
   }
 
   Widget _header() {

@@ -106,7 +106,7 @@ class GradingPeriodUiController extends ChangeNotifier {
   Future<void> start(String name) async {
     if (locked || selected.isSealed || name.trim().isEmpty)
       throw StateError('Cannot start a period now');
-    await _writes;
+    // Reserve the rollover before yielding so another request cannot replace it.
     pending = GradingRolloverRequest(
         ownerId: repository.ownerId,
         classId: classId,
