@@ -1,0 +1,20 @@
+#gradeflowInkSettings:not([hidden]) {
+  height: 100%; width: 30px; flex: 0 0 30px; box-sizing: border-box;
+  padding: 0; border: 1px solid currentColor;
+  border-radius: 4px; background: transparent; color: var(--main-color, currentColor); font: 18px/1 system-ui, sans-serif;
+  cursor: pointer; white-space: nowrap;
+}
+.gradeflowInkPresets { display: flex; gap: 8px; padding: 6px; }
+.gradeflowInkPresets button {
+  background: var(--swatch); width: 34px; height: 34px;
+  border: 2px solid #8b8b8b; border-radius: 5px; cursor: pointer;
+}
+.gradeflowInkPresets button:focus-visible, #gradeflowInkSettings:focus-visible {
+  outline: 3px solid #3498ff; outline-offset: 2px;
+}
+#gradeflowPdfExportStatus:not([hidden]) {
+  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+  max-width: calc(100% - 40px); z-index: 10000; padding: 10px 14px;
+  background: #172331; color: white; border-radius: 6px;
+  font: 14px/1.4 system-ui, sans-serif; pointer-events: none;
+}

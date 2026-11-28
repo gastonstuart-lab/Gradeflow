@@ -46,5 +46,13 @@ if (!viewer.includes('href="gradeflow-pen.css"')) {
   viewer = viewer.replace('</head>', '<link rel="stylesheet" href="gradeflow-pen.css">\n</head>');
   await writeFile(viewerPath, viewer);
 }
+// Reapply the independent, pinned PDF review adapter to fresh or cached assets.
+await cp('scripts/pdf-review-controls.mjs', join(root, 'pdfjs/web/gradeflow-review-controls.mjs'));
+await cp('scripts/pdf-review-controls.css', join(root, 'pdfjs/web/gradeflow-review-controls.css'));
+if (!viewer.includes('src="gradeflow-review-controls.mjs"')) {
+  if (!viewer.includes('</head>')) throw Error('PDF.js viewer head missing');
+  viewer = viewer.replace('</head>', '<script type="module" src="gradeflow-review-controls.mjs"></script>\n<link rel="stylesheet" href="gradeflow-review-controls.css">\n</head>');
+  await writeFile(viewerPath, viewer);
+}
 console.log(`Self-hosted PDF.js ${version} (checksum verified) and Excalidraw fonts. No CDN needed at runtime.`);
 

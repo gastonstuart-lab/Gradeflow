@@ -168,7 +168,7 @@ function App() {
         </Excalidraw>
       </section>
       <section className={`editor-layer pdf-layer ${mode === 'pdf' ? '' : 'inactive'}`} aria-label="PDF editor" aria-hidden={mode !== 'pdf'}>
-        {pdf ? <iframe key={pdf.url} title="PDF annotation editor" src={`${assetBase}pdfjs/web/viewer.html?file=${encodeURIComponent(pdf.url)}`} allowFullScreen /> :
+        {pdf ? <iframe key={pdf.url} title="PDF annotation editor" src={`${assetBase}pdfjs/web/viewer.html?file=${encodeURIComponent(pdf.url)}&gradeflowFilename=${encodeURIComponent(pdf.name)}`} allowFullScreen /> :
           <div className="empty-pdf"><span className="document-symbol">PDF</span><h2>Open a worksheet. Teach straight onto it.</h2><p>Write with your pen, highlight passages, add notes and save an annotated copy.</p><button className="primary" onClick={() => pdfInput.current?.click()}>Choose a PDF</button><small>For Word or PowerPoint, save as PDF first.</small></div>}
       </section>
     </main>
