@@ -9,8 +9,10 @@ page.on('console', message => {
   if (message.type() === 'error') console.error(message.text());
 });
 
-const text = name => page.getByText(name, { exact: true });
 const label = name => page.getByLabel(name, { exact: true });
+const text = name => page.getByText(name, { exact: true }).or(label(name));
+const status = fragment => page.getByText(fragment, { exact: false })
+  .or(page.locator(`flt-semantics[aria-label*=${JSON.stringify(fragment)}]`)).first();
 const button = name => page.getByRole('button', { name, exact: true });
 const period = name => button(name).or(label(name)).or(text(name)).first();
 const visible = async locator => locator.waitFor({ state: 'visible' });
@@ -66,6 +68,7 @@ try {
   await page.keyboard.type('73');
   await page.keyboard.press('Enter');
   await scoreRow('73 of 100');
+  await visible(text('All changes saved').first());
   await page.reload();
   await visible(button('New grading period'));
   await scoreRow('73 of 100');
@@ -98,12 +101,12 @@ try {
   interruptNext = true;
   await click(button('Archive current & start'));
   await visible(button('Recover rollover'));
-  await visible(page.getByText('Rollover is unconfirmed.', { exact: false }));
+  await visible(status('Rollover is unconfirmed.'));
   assert.deepEqual(outcomes, [503]);
   await screenshot('04-rollover-response-interrupted');
 
   await page.reload();
-  await visible(page.getByText('Rollover outcome unconfirmed.', { exact: false }));
+  await visible(status('Rollover outcome unconfirmed.'));
   await visible(period('January acceptance · Active'));
   await click(button('Recover rollover'));
   await visible(text('Grading period ready · 20 editable assessments'));
