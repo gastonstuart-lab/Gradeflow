@@ -1,0 +1,63 @@
+name: Verify deployed InstructOS source
+on:
+  pull_request:
+    branches: [integration/instructos-classroom-experience-20261128]
+    paths: ['.github/workflows/verify-live-source.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 11c214ed090aa4fcfbb1bb4131779ce3b1a5c190
+          persist-credentials: false
+      - name: Verify public release manifest and essential served bytes
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,subprocess,urllib.request
+          base='https://gradeflow-20260113.web.app/'
+          def fetch(path):
+              req=urllib.request.Request(base+path+'?verify=20261128',headers={'Cache-Control':'no-cache'})
+              with urllib.request.urlopen(req,timeout=25) as response:
+                  return response.read()
+          m=json.loads(fetch('review-manifest.json'))
+          git=lambda *args:subprocess.check_output(['git',*args],text=True).strip()
+          print('Public manifest commit:',m.get('commit'))
+          print('Public manifest tree:',m.get('tree'))
+          print('Public manifest build run:',m.get('run'))
+          assert m['commit']==git('rev-parse','HEAD')
+          assert m['tree']==git('rev-parse','HEAD^{tree}')
+          assert str(m['run'])=='45088825844'
+          for route, rel in [('main.dart.js','main.dart.js'),('index.html','index.html'),
+              ('os/home','index.html'),('flutter_bootstrap.js','flutter_bootstrap.js'),
+              ('teaching-studio/index.html','teaching-studio/index.html'),
+              ('teaching-studio/pdfjs/web/gradeflow-pen.mjs','teaching-studio/pdfjs/web/gradeflow-pen.mjs'),
+              ('teaching-studio/pdfjs/web/gradeflow-pen.css','teaching-studio/pdfjs/web/gradeflow-pen.css')]:
+              actual=hashlib.sha256(fetch(route)).hexdigest()
+              assert actual==m['files'][rel],route
+              print('LIVE SHA-256 verified:',route,actual)
+          print('Live manifest and essential public bytes match the candidate source identifiers.')
+          PY
+      - name: Verify independent historical artifact if retained
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh api repos/gastonstuart-lab/Gradeflow/actions/artifacts/14779959415 > /tmp/artifact.json; then
+            echo '::warning::Historical artifact unavailable; manifest/served-byte match is not an independent package attestation.'
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json
+          a=json.load(open('/tmp/artifact.json'))
+          if a.get('expired'):
+              print('::warning::Historical artifact expired.')
+          else:
+              assert a.get('digest')=='sha256:7cdb5361fb4049a66042105740fbe8ca572bd43b33091c26fe8e3d6c0d1d309d'
+              print('Historical package digest matches protected release workflow.')
+          PY
