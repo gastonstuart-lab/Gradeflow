@@ -20,6 +20,9 @@ import 'package:gradeflow/services/class_service.dart';
 import 'package:gradeflow/services/seating_service.dart';
 import 'package:gradeflow/config/gradeflow_existing_project_preview.dart';
 import 'package:gradeflow/services/student_service.dart';
+import 'package:gradeflow/components/participation_teacher_panel.dart';
+import 'package:gradeflow/services/lesson_participation_ledger.dart';
+import 'package:uuid/uuid.dart';
 
 class ClassroomSurface extends StatefulWidget {
   const ClassroomSurface({
@@ -54,6 +57,46 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   bool _showUnseatedRoster = true;
   int _fitRevision = 0;
   double _zoomFactor = 1;
+  // Only the compile-time fictional review mode can open this demo.
+  ValueNotifier<LessonParticipationLedger>? _demoParticipation;
+  bool get _participationDemoEnabled =>
+      GradeFlowExistingProjectPreview.enabled &&
+      GradeFlowExistingProjectPreview.syntheticOnly;
+
+  void _openDemoParticipation(Student student, List<Student> students) {
+    if (!_participationDemoEnabled || _setupMode) return;
+    final roster = students.where((s) => s.classId == widget.classId)
+        .map((s) => s.studentId).toSet();
+    if (!roster.contains(student.studentId)) return;
+    final ledger = _demoParticipation ??= ValueNotifier(
+      LessonParticipationLedger(scope: (
+        ownerId: 'synthetic-review', classId: widget.classId,
+        periodId: 'demo-period', occurrenceId: const Uuid().v4(),
+        startsAt: DateTime.now().toUtc(),
+      ), studentIds: roster),
+    );
+    if (!ledger.value.studentIds.contains(student.studentId)) return;
+    showDialog<void>(context: context, builder: (context) => Dialog(
+      child: SizedBox(width: 560, height: MediaQuery.sizeOf(context).height * .8,
+        child: Column(children: [
+          Padding(padding: const EdgeInsets.fromLTRB(16, 8, 8, 0), child: Row(children: [
+            const Expanded(child: Text('Participation demo · Session only')),
+            IconButton(tooltip: 'Close participation demo', icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context)),
+          ])),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text(
+            'Fictional scores only. No gradebook updates; resets when this classroom is reopened.')),
+          Expanded(child: ParticipationTeacherPanel(
+            key: ValueKey(student.studentId), teacherPrivate: true,
+            ledger: ledger, studentId: student.studentId,
+            studentLabel: student.englishFullName, policy: BehaviourPolicy(),
+            newOperationId: () => const Uuid().v4(), clock: () => DateTime.now().toUtc(),
+            onSubmit: (event) async { ledger.value = ledger.value.append(event); },
+          )),
+        ]),
+      ),
+    ));
+  }
 
   @override
   void initState() {
@@ -69,6 +112,8 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
   void didUpdateWidget(covariant ClassroomSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.classId != widget.classId) {
+      _demoParticipation?.dispose();
+      _demoParticipation = null;
       setState(() {
         _selectedSeat = null;
         _selectedTableId = null;
@@ -90,6 +135,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
 
   @override
   void dispose() {
+    _demoParticipation?.dispose();
     _picker.cancel();
     super.dispose();
   }
@@ -209,6 +255,7 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
         layout?.seats.where((s) => s.seatId == _selectedSeat).firstOrNull;
     final table =
         layout?.tables.where((t) => t.tableId == seat?.tableId).firstOrNull;
+    final seatedStudent = students.where((s) => s.studentId == seat?.studentId).firstOrNull;
     final selectedTable = layout?.tables
         .where((t) => t.tableId == _selectedTableId).firstOrNull;
     Widget action(IconData icon, String title, VoidCallback onTap) => ListTile(
@@ -242,6 +289,9 @@ class _ClassroomSurfaceState extends State<ClassroomSurface> {
                 onPressed: () => setState(() => _selectedSeat = null),
                 icon: const Icon(Icons.arrow_back),
                 label: const Text('All classroom tools')),
+            if (_participationDemoEnabled && !_setupMode && seatedStudent != null)
+              action(Icons.fact_check_outlined, 'Participation demo',
+                  () => _openDemoParticipation(seatedStudent, students)),
             ClassroomSeatPanel(
                 key: ValueKey('${layout!.layoutId}:${seat.seatId}'),
                 classId: widget.classId,
