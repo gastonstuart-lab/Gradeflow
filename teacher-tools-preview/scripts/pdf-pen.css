@@ -4,3 +4,16 @@
 .annotationEditorLayer.inkEditing .inkEditor * {
   pointer-events: none !important;
 }
+
+/* Compact touch-sized controls, separate from the native PDF.js toolbar. */
+.gradeflow-ink-tools{position:fixed;top:48px;right:14px;z-index:1000;display:flex;align-items:center;gap:6px;padding:6px;border-radius:10px;background:#172b3a;color:white;box-shadow:0 3px 14px #0005;font:13px system-ui,sans-serif;max-width:calc(100vw - 28px);flex-wrap:wrap}
+.gradeflow-ink-tools[hidden]{display:none}
+.gradeflow-ink-tools button{background:#263f51;color:white;border:1px solid #7690a0;border-radius:7px;padding:8px 12px;min-height:40px;font:600 13px system-ui,sans-serif;cursor:pointer}
+.gradeflow-ink-tools button[aria-pressed=true]{background:#087b76;border-color:#9ce8dd}
+.gradeflow-ink-tools label{display:flex;align-items:center;gap:5px;padding:0 4px}
+.gradeflow-ink-tools input[type=color]{width:40px;height:36px;padding:2px;border:1px solid #7690a0;border-radius:6px;cursor:pointer}
+.gradeflow-ink-tools input[type=range]{width:85px;height:36px;accent-color:#5dd5c8}
+.gradeflow-ink-tools :focus-visible{outline:3px solid #a5f5ed;outline-offset:2px}
+.gradeflow-ink-tools input:disabled{opacity:.45}
+.gradeflow-quick-erase .annotationEditorLayer.inkEditing{cursor:crosshair!important}
+@media(max-width:600px){.gradeflow-ink-tools{right:6px;top:44px;gap:4px;max-width:calc(100vw - 12px)}.gradeflow-ink-tools input[type=range]{width:64px}}

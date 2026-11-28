@@ -9,6 +9,7 @@ let writing = null;
 let erasing = null;
 let pendingStroke = false;
 let finishTimer = null;
+let quickErase = false;
 
 function finishStroke() {
   const ui = manager();
@@ -83,9 +84,10 @@ function eraseTo(event) {
 
 function interceptEraser(event) {
   if (viewer.annotationEditorMode !== INK || !manager()) return false;
-  if (!isEraser(event) && erasing?.id !== event.pointerId) return false;
+  const activeButtons = isEraser(event) ? 32 : quickErase ? 1 : 0;
+  if (!isEraser(event) && !quickErase && erasing?.id !== event.pointerId) return false;
   // Ignore hover and keep toolbar, scrolling and other annotation tools native.
-  if (!erasing && (!(event.buttons & 32) || !event.target.closest?.('.page'))) return false;
+  if (!erasing && (!(event.buttons & activeButtons) || !event.target.closest?.('.page'))) return false;
   event.preventDefault();
   event.stopImmediatePropagation();
   if (!erasing) {
@@ -106,7 +108,7 @@ window.addEventListener('pointerdown', event => {
 }, { capture: true });
 
 window.addEventListener('pointermove', event => {
-  if (erasing?.id === event.pointerId && !(event.buttons & 32)) {
+  if (erasing?.id === event.pointerId && !(event.buttons & (quickErase ? 33 : 32))) {
     erasing = null;
     return;
   }
@@ -136,3 +138,83 @@ window.addEventListener('blur', () => {
   if (viewer.annotationEditorMode === INK) finishStroke();
 });
 
+
+// A large, direct pen/eraser switch works with mouse, touch and Surface pen.
+// The actual annotation and undo implementation remains native PDF.js.
+const toolbar = document.createElement('div');
+toolbar.className = 'gradeflow-ink-tools';
+toolbar.setAttribute('role', 'group');
+toolbar.setAttribute('aria-label', 'Quick PDF ink tools');
+const inkButton = document.getElementById('editorInkButton');
+function tool(label, title) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.title = title;
+  button.setAttribute('aria-pressed', 'false');
+  toolbar.append(button);
+  return button;
+}
+const penTool = tool('Pen', 'Write with the PDF pen');
+const eraseTool = tool('Eraser', 'Erase individual ink strokes (undo supported)');
+function mirrorInput(id, label) {
+  const native = document.getElementById(id);
+  if (!(native instanceof HTMLInputElement)) return null;
+  const wrapper = document.createElement('label');
+  wrapper.textContent = label;
+  const control = document.createElement('input');
+  control.type = native.type;
+  for (const attr of ['min', 'max', 'step']) {
+    if (native.hasAttribute(attr)) control.setAttribute(attr, native.getAttribute(attr));
+  }
+  control.value = native.value;
+  control.setAttribute('aria-label', label);
+  control.addEventListener('input', () => {
+    if (viewer.annotationEditorMode !== INK || quickErase) return;
+    finishPendingStroke();
+    native.value = control.value;
+    native.dispatchEvent(new Event('input', { bubbles: true }));
+    native.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  native.addEventListener('input', () => { control.value = native.value; });
+  native.addEventListener('change', () => { control.value = native.value; });
+  wrapper.append(control);
+  toolbar.append(wrapper);
+  return { control, native };
+}
+const color = mirrorInput('editorInkColor', 'Pen colour');
+const thickness = mirrorInput('editorInkThickness', 'Pen thickness');
+function refreshQuickTools() {
+  const inInk = viewer.annotationEditorMode === INK;
+  if (!inInk) quickErase = false;
+  penTool.setAttribute('aria-pressed', String(inInk && !quickErase));
+  eraseTool.setAttribute('aria-pressed', String(inInk && quickErase));
+  toolbar.classList.toggle('is-erasing', inInk && quickErase);
+  toolbar.hidden = !app.pdfDocument;
+  for (const item of [color, thickness]) {
+    if (!item) continue;
+    item.control.disabled = !inInk || quickErase;
+    item.control.value = item.native.value;
+  }
+  document.documentElement.classList.toggle('gradeflow-quick-erase', inInk && quickErase);
+}
+function enableInk(erase) {
+  if (!inkButton || !app.pdfDocument) return;
+  finishPendingStroke();
+  if (viewer.annotationEditorMode === INK) finishStroke();
+  else inkButton.click();
+  quickErase = erase;
+  // Native mode switches may complete asynchronously; the next mode event
+  // also updates pressed state and clears erasing if another tool is chosen.
+  if (viewer.annotationEditorMode === INK) refreshQuickTools();
+}
+penTool.addEventListener('click', () => enableInk(false));
+eraseTool.addEventListener('click', () => enableInk(true));
+if (inkButton) {
+  document.body.append(toolbar);
+  toolbar.hidden = true;
+  app.eventBus.on('documentloaded', refreshQuickTools);
+  app.eventBus.on('annotationeditormodechanged', refreshQuickTools);
+  app.eventBus.on('pagesloaded', refreshQuickTools);
+  refreshQuickTools();
+}

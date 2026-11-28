@@ -135,6 +135,46 @@ test('real PDF editor writes ink and saves a two-page annotated copy', async ({ 
   expect(outside).toEqual([]);
 });
 
+test('native fullscreen enters and exits without losing the loaded worksheet', async ({ page }, testInfo) => {
+  const outside = await ready(page, testInfo);
+  await page.getByTestId('pdf-file').setInputFiles({ name: 'fullscreen.pdf', mimeType: 'application/pdf', buffer: worksheet() });
+  const frame = page.frameLocator('iframe[title="PDF annotation editor"]');
+  await expect(frame.locator('#numPages')).toContainText('2');
+  await frame.locator('#editorInkButton').click();
+  const paper = frame.locator('.page[data-page-number="1"]');
+  await expect(paper.locator('canvas')).toBeVisible();
+  const box = await paper.boundingBox();
+  const x = box.x + box.width * .25, y = box.y + box.height * .25;
+  await page.mouse.move(x, y); await page.mouse.down();
+  await page.mouse.move(x + 80, y + 10, { steps: 10 }); await page.mouse.up();
+  await frame.locator('#editorInkButton').click();
+  await expect(paper.locator('.inkEditor')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Full screen', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === document.documentElement)).toBe(true);
+  await page.getByRole('button', { name: 'Show controls ▾', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Exit full screen', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Leave focus mode', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(page.getByRole('button', { name: 'Full screen', exact: true })).toBeVisible();
+  await expect(frame.locator('#numPages')).toContainText('2');
+  await expect(paper.locator('.inkEditor')).toHaveCount(1);
+  expect(outside).toEqual([]);
+});
+
+test('denied fullscreen keeps the explanation visible and focus mode available', async ({ page }, testInfo) => {
+  await ready(page, testInfo);
+  await page.evaluate(() => {
+    document.documentElement.requestFullscreen = () => Promise.reject(new DOMException('Denied', 'NotAllowedError'));
+  });
+  await page.getByRole('button', { name: 'Full screen', exact: true }).click();
+  await expect(page.getByRole('status', { name: 'Save and file status' })).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Save and file status' })).toContainText('Browser full screen is unavailable');
+  await expect(page.getByRole('button', { name: 'Hide controls', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Hide controls', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Show controls ▾', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+});
+
 test('PDF handwriting stays separate and pen eraser deletes only touched ink with undo', async ({ page }, testInfo) => {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
@@ -212,3 +252,39 @@ test('PDF handwriting stays separate and pen eraser deletes only touched ink wit
   expect(outside).toEqual([]);
 });
 
+
+
+test('quick PDF ink controls change native pen settings and erase a single stroke', async ({ page }, testInfo) => {
+  const outside = await ready(page, testInfo);
+  await page.getByTestId('pdf-file').setInputFiles({ name: 'quick-tools.pdf', mimeType: 'application/pdf', buffer: worksheet() });
+  const frame = page.frameLocator('iframe[title="PDF annotation editor"]');
+  const tools = frame.getByRole('group', { name: 'Quick PDF ink tools' });
+  await expect(tools).toBeVisible();
+  await tools.getByRole('button', { name: 'Pen', exact: true }).click();
+  await expect(tools.getByRole('button', { name: 'Pen', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  const colour = tools.getByLabel('Pen colour', { exact: true });
+  const thickness = tools.getByLabel('Pen thickness', { exact: true });
+  await expect(colour).toBeEnabled();
+  await expect(thickness).toBeEnabled();
+  await colour.fill('#e02020');
+  await expect(frame.locator('#editorInkColor')).toHaveValue('#e02020');
+  const width = await thickness.getAttribute('max');
+  await thickness.fill(width);
+  await expect(frame.locator('#editorInkThickness')).toHaveValue(width);
+  const paper = frame.locator('.page[data-page-number="1"]');
+  const box = await paper.boundingBox();
+  const x = box.x + box.width * .25, y = box.y + box.height * .30;
+  await page.mouse.move(x, y); await page.mouse.down();
+  await page.mouse.move(x + 80, y, { steps: 10 }); await page.mouse.up();
+  await expect(paper.locator('.inkEditor')).toHaveCount(1);
+  await tools.getByRole('button', { name: 'Eraser', exact: true }).click();
+  await expect(tools.getByRole('button', { name: 'Eraser', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.mouse.move(x + 40, y); await page.mouse.down(); await page.mouse.up();
+  await expect(paper.locator('.inkEditor')).toHaveCount(0);
+  await frame.locator('body').press('Control+z');
+  await expect(paper.locator('.inkEditor')).toHaveCount(1);
+  await tools.getByRole('button', { name: 'Pen', exact: true }).click();
+  await expect(colour).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath('pdf-quick-tools.png') });
+  expect(outside).toEqual([]);
+});
