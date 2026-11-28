@@ -11,6 +11,12 @@ class GradeFlowExistingProjectPreview {
     defaultValue: false,
   );
 
+  // Isolated visual review: this mode never initializes Firebase.
+  static const syntheticOnly = bool.fromEnvironment(
+    'GRADEFLOW_SYNTHETIC_REVIEW_ONLY',
+    defaultValue: false,
+  );
+
   static const projectId = 'gradeflow-20260113';
 
   /// Each review build is scoped to one known Hosting preview channel.
@@ -27,6 +33,7 @@ class GradeFlowExistingProjectPreview {
     'classroom-v2',
     'login-boxes',
     'classes-v2',
+    'classroom-experience-review',
   };
 
   /// A Firebase Hosting preview URL is SITE--CHANNEL-HASH.web.app.
