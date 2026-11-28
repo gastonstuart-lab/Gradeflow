@@ -194,7 +194,8 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await page.getByRole('button', { name: 'Full-page timer', exact: true }).first().click();
   await expect(page.getByText('Classroom timer', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Set timer duration' }).click();
-  await page.getByText('5 minutes', { exact: true }).click();
+  await expect(page.getByRole('menuitem', { name: '5 minutes', exact: true })).toBeVisible({ timeout: 15000 });
+  await page.getByRole('menuitem', { name: '5 minutes', exact: true }).click({ timeout: 15000 });
   await expect(page.getByText('05:00', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '+30 sec', exact: true }).click();
   await expect(page.getByText('05:30', { exact: true })).toBeVisible();
