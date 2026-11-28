@@ -7,6 +7,7 @@ on:
       - test/emulator/slice-3-*
 permissions:
   contents: read
+  actions: read
 jobs:
   preview:
     runs-on: ubuntu-24.04
@@ -15,7 +16,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Reuse the existing exact-source preview build
+        id: reuse
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 46103533613
+          name: gradeflow-slice-3-synthetic-preview
+          path: preview
       - uses: subosito/flutter-action@v2
+        if: steps.reuse.outcome != 'success'
         with:
           flutter-version: '3.38.7'
           cache: true
@@ -29,12 +40,13 @@ jobs:
           cache: npm
       - name: Install locked packages and browser
         run: |
-          flutter pub get --enforce-lockfile
           npm ci
           npx playwright install --with-deps chromium
           npm install --global firebase-tools@14.27.0
       - name: Build the standalone synthetic preview
+        if: steps.reuse.outcome != 'success'
         run: |
+          flutter pub get --enforce-lockfile
           flutter build web --release --no-pub --no-wasm-dry-run --no-web-resources-cdn --target lib/gradebook_period_preview.dart
           mkdir -p preview/emulator evidence
           cp -a build/web preview/web
@@ -50,6 +62,8 @@ jobs:
         env:
           GRADEFLOW_COORDINATOR_PROJECT: demo-gradeflow-periods
         run: |
+          mkdir -p evidence
+          chmod +x preview/coordinator-linux-x64
           firebase emulators:exec --only firestore,auth --project demo-gradeflow-periods --config test/emulator/firebase.json 'bash test/emulator/slice-3-run.sh'
       - name: Check the downloaded historical workbook
         if: always() && hashFiles('evidence/historical.xlsx') != ''

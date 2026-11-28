@@ -60,13 +60,12 @@ try {
   let editFailure;
   try {
     await scoreRow('blank');
-    await click(button('Student sheet'));
-    await visible(button('Done'));
-    const slider = page.getByRole('slider').last();
+    const slider = page.getByRole('slider').first();
+    await visible(slider);
     const box = await slider.boundingBox();
     assert(box, 'Expected the quick-grade slider');
     await page.mouse.click(box.x + box.width * 0.72, box.y + box.height / 2);
-    await click(button('Done'));
+
     const edited = await scoreRow('[1-9][0-9]? of 100');
     const editedName = await edited.ariaSnapshot();
     const score = /score (\d+) of 100/.exec(editedName)?.[1];
@@ -81,7 +80,7 @@ try {
     console.error('Active-period editing failed:', error);
     console.error(await page.locator('body').ariaSnapshot());
     await screenshot('01-active-edit-failure');
-    if (await button('Done').count()) await click(button('Done'));
+    if (await button('Dismiss').count()) await click(button('Dismiss'));
   }
 
   await selectPeriod('December · Active', 'November · Archived');
@@ -122,6 +121,7 @@ try {
     .map(key => JSON.parse(localStorage.getItem(key))));
   assert.equal(pendingIntent.length, 1);
   assert.equal(pendingIntent[0].label, 'January acceptance');
+  assert.deepEqual(pendingIntent[0], JSON.parse(requests.at(-1)));
   await click(button('Recover rollover'));
   await visible(text('Grading period ready · 20 editable assessments'));
   const rolloverRequests = requests.filter(body => JSON.parse(body).label === 'January acceptance');
