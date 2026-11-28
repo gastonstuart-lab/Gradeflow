@@ -31,6 +31,13 @@ void main() async {
     RendererBinding.instance.ensureSemantics();
   }
 
+  if (GradeFlowExistingProjectPreview.syntheticOnly &&
+      (!GradeFlowExistingProjectPreview.enabled ||
+       GradeFlowExistingProjectPreview.channelId != 'classroom-experience-review')) {
+    runApp(const _PlannerV2StagingBlocked(reason: 'Synthetic review requires the dedicated preview channel.'));
+    return;
+  }
+
   // The owner-authorized V2 live bundle is distinct from the preview
   // bundle. Refuse to boot before Firebase/auth/data initialization if the
   // target project, live origin or build-mode combination is unexpected.
@@ -109,7 +116,8 @@ void main() async {
     return;
   }
 
-  if (PlannerV2StagingSafety.authenticatedV2Mode) {
+  if (PlannerV2StagingSafety.authenticatedV2Mode &&
+      !GradeFlowExistingProjectPreview.syntheticOnly) {
     // All authenticated V2 modes must fail closed if Firebase cannot start;
     // never degrade to local-only login on the live release, either.
     // initialization fails. Normal production startup stays unchanged.
