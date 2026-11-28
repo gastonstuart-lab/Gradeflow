@@ -127,6 +127,42 @@ void main() {
     expect((await control().collection('operations').get()).docs.length, 2);
   });
 
+  test('native authenticated rollover preserves saved policy and blank marks', () async {
+    final json = data().toJson()
+      ..['courseworkWeightPercent'] = 70
+      ..['categories'] = [
+        for (final name in ['Quiz', 'Classwork', 'Homework', 'Participation'])
+          fixture.category(name, name == 'Quiz' || name == 'Homework' ? 30 : 20)
+              .copyWith(classId: cid).toJson(),
+      ]
+      ..['assessments'] = [
+        for (final name in ['Quiz', 'Classwork', 'Homework', 'Participation'])
+          fixture.assessment(name, name).copyWith(classId: cid).toJson(),
+      ]
+      ..['scores'] = [
+        fixture.score('Quiz', 80).toJson(),
+        fixture.score('Homework', 100).toJson(),
+        fixture.score('Classwork', 90).toJson(),
+        fixture.score('Participation', 0).toJson(),
+      ];
+    final initial = await service.adoptLegacy(
+        dataset: GradebookDataset.fromJson(json), periodId: 'old', label: 'Old', at: fixture.at);
+    final result = await rollover();
+    expect(result.periods.first.dataset.toJson(), initial.active.dataset.toJson());
+    expect(result.periods.first.results!['one']!['finalGrade'], closeTo(77.4, .000001));
+    expect(result.periods.first.results!['two']!['finalGrade'], isNull);
+    expect(result.active.policyVersion, GradingPeriod.nativeCalculationVersion);
+    expect(result.active.dataset.courseworkWeightPercent, 70);
+    expect(result.active.dataset.categories.map((c) => c.weightPercent), [30,20,30,20]);
+    expect(result.active.dataset.assessments, hasLength(20));
+    expect(result.active.dataset.scores, isEmpty);
+    expect((await repo.load(cid))!.toJson(), result.toJson());
+    await expectLater(control().collection('periods').doc('old')
+        .update({'policyVersion': GradingPeriod.calculationVersion}), denied);
+    await expectLater(otherDb.doc('${control().path}/periods/old').get(), denied);
+    expect((await rollover()).toJson(), result.toJson());
+  });
+
   test(
       'simultaneous rollover requests commit once and repeated stale requests cannot duplicate',
       () async {

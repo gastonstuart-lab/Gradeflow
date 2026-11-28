@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gradeflow/models/grading_period.dart';
 import 'package:gradeflow/services/historical_grade_export_adapter.dart';
 import 'grading_period_test.dart' as fixture;
+import 'package:gradeflow/services/grading_period_service.dart';
+import 'package:gradeflow/repositories/grading_period_repository.dart';
 
 void main() {
   final adapter = HistoricalGradeExportAdapter();
@@ -46,6 +48,23 @@ void main() {
     final combined = adapter.generateCombinedXlsx([restored], ownerId: 'owner', classIds: {'class'});
     expect(fixture.cells(combined).first, contains('Process Score (saved period weights)'));
     expect(Excel.decodeBytes(combined).tables['Periods']!.rows[1].last?.value.toString(), '30.0');
+  });
+
+  test('native rollover preserves exact source, split, category policy and blank defaults', () async {
+    final repo = InMemoryGradingPeriodRepository(ownerId: 'owner');
+    final service = GradingPeriodService(repo);
+    final original = await service.adoptLegacy(dataset: native(), periodId: 'old', label: 'Old', at: fixture.at);
+    final next = await service.rollover(classId: 'class', periodId: 'old', expectedRevision: 0,
+        nextPeriodId: 'next', label: 'New', at: fixture.at.add(const Duration(days: 1)));
+    expect(next.periods.first.dataset.toJson(), original.active.dataset.toJson());
+    expect(next.periods.first.results!['one']!['finalGrade'], closeTo(77.4, .000001));
+    expect(next.active.policyVersion, GradingPeriod.nativeCalculationVersion);
+    expect(next.active.dataset.courseworkWeightPercent, 70);
+    expect(next.active.dataset.categories.map((c) => c.weightPercent), [30, 20, 30, 20]);
+    expect(next.active.dataset.assessments, hasLength(20));
+    expect(next.active.dataset.scores, isEmpty);
+    expect(adapter.calculate(next.active)['one']!['finalGrade'], isNull);
+    expect((await repo.load('class'))!.toJson(), next.toJson());
   });
 
   test('missing mark is not an automatic full grade; legacy stays unchanged', () {

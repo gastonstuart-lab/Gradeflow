@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/class.dart';
+import '../models/grading_period.dart';
 import '../models/user.dart' as domain;
 import '../repositories/period_gradebook_adapter.dart';
 import '../services/grading_period_ui_controller.dart';
@@ -214,7 +215,8 @@ class _WorkspaceState extends State<PeriodGradebookWorkspace> {
                         v.studentId == s.studentId &&
                         v.gradeItemId == a.gradeItemId)
                     .firstOrNull;
-                return score == null ? a.maxScore : score.score;
+                return score == null && p.policyVersion == GradingPeriod.calculationVersion
+                    ? a.maxScore : score?.score;
               }()))),
           ])
       ]),

@@ -37,7 +37,7 @@ service cloud.firestore {
             && d.keys().hasOnly(['schemaVersion','ownerId','classId','periodId','label','createdAt','sealedAt','policyVersion','datasetJson','resultsJson'])
             && d.schemaVersion == 1 && d.ownerId == uid && d.classId == cid && d.periodId == pid
             && d.label is string && d.label.size() > 0 && d.createdAt is string
-            && d.policyVersion == 'gradeflow-legacy-v1'
+            && d.policyVersion in ['gradeflow-legacy-v1', 'gradeflow-native-v2']
             && d.datasetJson is string && d.datasetJson.size() <= 600000
             && ((d.sealedAt == null && d.resultsJson == null)
               || (d.sealedAt is string && d.resultsJson is string && d.resultsJson.size() <= 600000));
