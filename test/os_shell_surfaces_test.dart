@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/models/user.dart';
 import 'package:gradeflow/os/gradeflow_os_shell.dart';
+import 'package:gradeflow/os/os_dock.dart';
 import 'package:gradeflow/os/os_controller.dart';
 import 'package:gradeflow/os/surfaces/class_surface.dart';
 import 'package:gradeflow/os/surfaces/home_surface.dart';
@@ -257,6 +258,37 @@ void main() {
     expect(controller.launcherOpen, isFalse);
     expect(controller.shadeOpen, isFalse);
     expect(controller.assistantOpen, isTrue);
+  });
+
+  testWidgets('GradeFlowOSShell reserves dock space at compact Home sizes',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = GradeFlowOSController();
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const bodyKey = ValueKey('home-dock-layout-body');
+
+    tester.view.physicalSize = const Size(681, 468);
+    await tester.pumpWidget(_harness(
+      GradeFlowOSShell(
+        child: const Scaffold(body: SizedBox.expand(key: bodyKey)),
+      ),
+      controller: controller,
+    ));
+    await tester.pump();
+
+    // The observed browser acceptance viewport must leave the content
+    // viewport entirely above the dock, not merely scroll past it.
+    expect(tester.getRect(find.byKey(bodyKey)).bottom,
+        lessThanOrEqualTo(tester.getRect(find.byType(OSDock)).top + 0.5));
+    expect(tester.takeException(), isNull);
+
+    tester.view.physicalSize = const Size(1440, 900);
+    await tester.pump();
+    // Preserve the approved desktop Home backdrop extending to the bottom.
+    expect(tester.getRect(find.byKey(bodyKey)).bottom, closeTo(900, 0.5));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('GradeFlowOSShell keeps desktop child taps interactive', (

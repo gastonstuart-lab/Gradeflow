@@ -23,4 +23,20 @@ class PlannerV2EmulatorSafety {
       (stagingEnabled &&
           projectId == demoProjectId &&
           (originHost == 'localhost' || originHost == '127.0.0.1'));
+
+  /// The locked FlutterFire web version applies the per-tab Auth emulator
+  /// origin before restoring the persisted user only in debug mode.
+  static bool mayPrimeWebAuth({
+    required bool enabled,
+    required bool stagingEnabled,
+    required String projectId,
+    required String originHost,
+    required bool debugMode,
+  }) =>
+      enabled && debugMode && permitted(
+        enabled: enabled,
+        stagingEnabled: stagingEnabled,
+        projectId: projectId,
+        originHost: originHost,
+      );
 }

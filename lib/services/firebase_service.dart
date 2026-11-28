@@ -5,6 +5,8 @@ import 'package:gradeflow/config/planner_v2_emulator_safety.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/config/planner_v2_firebase_config.dart';
 import 'package:gradeflow/config/planner_v2_staging_safety.dart';
+import 'package:gradeflow/config/emulator_auth_bootstrap_stub.dart'
+    if (dart.library.js_interop) 'package:gradeflow/config/emulator_auth_bootstrap_web.dart';
 
 /// Centralized Firebase initialization.
 /// Call [maybeInitialize] once at app startup (from main.dart).
@@ -26,8 +28,24 @@ class FirebaseService {
     if (_initialized) return _available;
 
     try {
+      final options = PlannerV2FirebaseConfig.currentPlatform;
+      if (PlannerV2EmulatorSafety.enabled && kIsWeb) {
+        // FlutterFire 6.3.1 restores the Auth session inside initializeApp.
+        // A fresh noopener tab lacks the per-tab emulator setting. Prime it
+        // before any Firebase service initializes, only for the guarded demo.
+        if (!PlannerV2EmulatorSafety.mayPrimeWebAuth(
+          enabled: PlannerV2EmulatorSafety.enabled,
+          stagingEnabled: PlannerV2StagingSafety.stagingEnabled,
+          projectId: options.projectId,
+          originHost: Uri.base.host,
+          debugMode: kDebugMode,
+        )) {
+          throw StateError('Web emulator startup requires a loopback debug demo build');
+        }
+        primeWebAuthEmulator();
+      }
       await Firebase.initializeApp(
-        options: PlannerV2FirebaseConfig.currentPlatform,
+        options: options,
       ).timeout(const Duration(seconds: 4));
       if (PlannerV2EmulatorSafety.enabled) {
         // Guarded in main.dart before this function can run. Never direct

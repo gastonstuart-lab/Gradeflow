@@ -1,0 +1,20 @@
+name: Teaching card verification
+on:
+  pull_request:
+    branches: [integration/instructos-classroom-experience-20261128]
+    paths: ['lib/components/home/**', 'lib/os/surfaces/home_surface.dart', 'lib/services/home_weekly_timetable_service.dart', 'test/native_teaching_card_schedule_test.dart', 'test/timetable_reliability_test.dart', 'lib/os/surfaces/planner_surface.dart']
+permissions:
+  contents: read
+jobs:
+  teaching-card:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter test test/native_teaching_card_schedule_test.dart test/timetable_reliability_test.dart

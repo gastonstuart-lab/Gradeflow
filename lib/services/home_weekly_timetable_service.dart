@@ -24,12 +24,14 @@ class HomeTeachingMoment {
   final DateTime startAt;
   final DateTime endAt;
   final int periodCount;
+  final String? classId;
 
   const HomeTeachingMoment({
     required this.title,
     required this.startAt,
     required this.endAt,
     this.periodCount = 1,
+    this.classId,
   });
 }
 
@@ -59,6 +61,7 @@ class HomeTeachingSequence {
         final dayStart = DateTime(date.year, date.month, date.day);
         moments.add(HomeTeachingMoment(
           title: entry.title,
+          classId: entry.classId,
           startAt: dayStart.add(Duration(minutes: entry.startMinutes)),
           endAt: dayStart.add(Duration(minutes: entry.endMinutes)),
         ));
@@ -82,10 +85,12 @@ class HomeTeachingSequence {
             moment.title.trim().toLowerCase();
         if (sameDay &&
             sameClass &&
+            previous.classId == moment.classId &&
             !gap.isNegative &&
             gap <= const Duration(minutes: 15)) {
           sessions[sessions.length - 1] = HomeTeachingMoment(
             title: previous.title,
+            classId: previous.classId,
             startAt: previous.startAt,
             endAt: moment.endAt,
             periodCount: previous.periodCount + moment.periodCount,
@@ -140,22 +145,29 @@ class HomeWeeklyTimetableService {
   DashboardPreferencesService get _prefs =>
       _preferences ?? const DashboardPreferencesService();
 
-  Future<HomeWeeklyTimetable?> loadSelected(String userId) async {
-    final items = await _prefs.readScopedJsonList(
-      scopedKey: _prefs.scopedKey(baseKey: _timetablesKey, userId: userId),
-    );
-    final selected = await _prefs.readScopedString(
+  /// Single selection resolver shared by Home, Planner and version changes.
+  /// Embedded selected flag is authoritative; the separate legacy key is
+  /// read-only fallback. A missing selection uses the newest saved version.
+  Future<({List<Map<String, dynamic>> versions, String? selectedId})>
+      loadVersionState(String userId) async {
+    final versions = await loadVersions(userId);
+    final legacyId = await _prefs.readScopedString(
       scopedKey: _prefs.scopedKey(baseKey: _selectedKey, userId: userId),
     );
-    final valid = <Map<String, dynamic>>[];
-    for (final item in items) {
-      if (item is Map) valid.add(Map<String, dynamic>.from(item));
-    }
-    if (valid.isEmpty) return null;
-    final chosen =
-        valid.where((item) => item['selected'] == true).firstOrNull ??
-            valid.where((item) => item['id'] == selected).firstOrNull ??
-            valid.last;
+    final valid = versions.where((item) =>
+        item['id'] is String && (item['id'] as String).trim().isNotEmpty &&
+        item['name'] is String && (item['name'] as String).trim().isNotEmpty).toList();
+    final chosen = valid.where((item) => item['selected'] == true).firstOrNull ??
+        valid.where((item) => item['id'] == legacyId).firstOrNull ??
+        valid.lastOrNull;
+    return (versions: valid, selectedId: chosen?['id'] as String?);
+  }
+
+  Future<HomeWeeklyTimetable?> loadSelected(String userId) async {
+    final state = await loadVersionState(userId);
+    final chosen = state.versions.where((item) =>
+        item['id'] == state.selectedId).firstOrNull;
+    if (chosen == null) return null;
     final rawGrid = chosen['grid'];
     if (rawGrid is! List) return null;
     final grid = rawGrid.map((r) {
@@ -298,16 +310,12 @@ class HomeWeeklyTimetableService {
   Future<void> changeVersion(String userId,
           {required String versionId, bool delete = false}) =>
       _queue(() async {
+        final state = await loadVersionState(userId);
         final versions = await loadVersions(userId);
         if (!versions.any((v) => v['id'] == versionId))
           throw const FormatException(
               'Version no longer exists. Reload Planner.');
-        final selected =
-            versions.where((v) => v['selected'] == true).firstOrNull;
-        final previousId = selected?['id'] as String? ??
-            await _prefs.readScopedString(
-                scopedKey:
-                    _prefs.scopedKey(baseKey: _selectedKey, userId: userId));
+        final previousId = state.selectedId;
         final remaining =
             versions.where((v) => !delete || v['id'] != versionId).toList();
         final nextId = !delete

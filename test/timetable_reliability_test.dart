@@ -302,6 +302,35 @@ void main() {
         throwsFormatException);
     expect((await service.loadSelected('teacher-a'))!.name, 'first.csv');
   });
+  test('shared timetable selection uses embedded state, legacy fallback and newest version', () async {
+    const service = HomeWeeklyTimetableService();
+    final classes = timetableClasses('teacher-a');
+    final matches = {for (final c in classes) c.className: c.classId};
+    for (final name in ['first.csv', 'second.csv']) {
+      await service.importForTeacher(userId: 'teacher-a', filename: name,
+          bytes: csvBytes(timetableGrid()), classMatches: matches,
+          availableClasses: classes);
+    }
+    final saved = await service.loadVersions('teacher-a');
+    final firstId = saved.first['id'] as String;
+    final secondId = saved.last['id'] as String;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('dashboard_selected_timetable_v1:teacher-a', firstId);
+    expect((await service.loadVersionState('teacher-a')).selectedId, secondId);
+    expect((await service.loadSelected('teacher-a'))!.name, 'second.csv');
+    await prefs.setString('dashboard_timetables_v1:teacher-a', jsonEncode([
+      for (final v in saved) {...v, 'selected': false},
+    ]));
+    expect((await service.loadVersionState('teacher-a')).selectedId, firstId);
+    await prefs.setString('dashboard_selected_timetable_v1:teacher-a', 'missing');
+    expect((await service.loadVersionState('teacher-a')).selectedId, secondId);
+    expect((await service.loadSelected('teacher-a'))!.name, 'second.csv');
+    await service.changeVersion('teacher-a', versionId: secondId, delete: true);
+    expect((await service.loadVersionState('teacher-a')).selectedId, firstId);
+    expect((await service.loadSelected('teacher-a'))!.name, 'first.csv');
+    expect((await service.loadVersionState('teacher-b')).selectedId, isNull);
+  });
+
   test('corrected Day Start End Class ID format uses explicit Excel time cells',
       () {
     final excel = Excel.createExcel();

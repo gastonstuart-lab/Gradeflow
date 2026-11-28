@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/config/instructos_design.dart';
+import 'package:gradeflow/theme.dart' show appFontFamily;
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
 import 'package:gradeflow/services/home_weekly_timetable_service.dart';
@@ -39,6 +40,8 @@ class ApprovedTeacherHome extends StatelessWidget {
     this.heroBackgroundImage,
     this.onCustomiseHome,
     this.timetable,
+    this.scheduledClassId,
+    this.onFollowTimetable,
     this.onUploadTimetable,
     this.combineConsecutivePeriods = true,
     this.onCombineConsecutivePeriodsChanged,
@@ -67,6 +70,8 @@ class ApprovedTeacherHome extends StatelessWidget {
   final ImageProvider<Object>? heroBackgroundImage;
   final VoidCallback? onCustomiseHome;
   final HomeWeeklyTimetable? timetable;
+  final String? scheduledClassId;
+  final VoidCallback? onFollowTimetable;
   final VoidCallback? onUploadTimetable;
   final bool combineConsecutivePeriods;
   final ValueChanged<bool>? onCombineConsecutivePeriodsChanged;
@@ -93,7 +98,7 @@ class ApprovedTeacherHome extends StatelessWidget {
       calendar: _calendar(context, now),
       reminders: _reminders(context),
       footer: Text(
-        'Your selected class stays in focus as you move between teaching tools.',
+        timetable == null ? 'Your selected class stays in focus as you move between teaching tools.' : 'Home follows your timetable. Select a different class to override the current lesson.',
         style: TextStyle(fontSize: 12, color: _subtle(context)),
       ),
     );
@@ -285,6 +290,7 @@ class ApprovedTeacherHome extends StatelessWidget {
                         ),
                     ],
                   )),
+              if (timetable != null) _scheduleStatus(),
               SizedBox(height: phone ? 8 : 18),
               Row(children: [
                 Expanded(
@@ -384,6 +390,54 @@ class ApprovedTeacherHome extends StatelessWidget {
     );
   }
 
+  Widget _scheduleStatus() {
+    final now = DateTime.now();
+    final sequence = HomeTeachingSequence.fromSchedule(timetable!.classes, now,
+        combineConsecutivePeriods: combineConsecutivePeriods);
+    final current = sequence.current;
+    final moment = current ?? sequence.next;
+    if (moment == null) return const Text('No upcoming lessons',
+        style: TextStyle(color: Colors.white70));
+    final duration = (current != null ? moment.endAt : moment.startAt).difference(now);
+    final minutes = (duration.inSeconds / 60).ceil().clamp(0, 10080).toInt();
+    final until = minutes >= 1440 ? '${minutes ~/ 1440}d ${(minutes % 1440) ~/ 60}h'
+        : minutes >= 60 ? '${minutes ~/ 60}h ${minutes % 60}m' : '${minutes}m';
+    final following = current != null ? sequence.next : sequence.following;
+    String clock(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    final followingLabel = following == null ? null :
+        'Next: ${following.title} · ${clock(following.startAt)}';
+    final isFollowing = scheduledClassId != null && primaryClass?.classId == scheduledClassId;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: .17),
+              borderRadius: BorderRadius.circular(8)),
+            child: Text(current != null ? 'TEACHING NOW' : 'UP NEXT',
+              style: const TextStyle(color: Color(0xffb6fff0), fontSize: 11, fontWeight: FontWeight.w800)),
+          ),
+          Text(current != null ? '$until remaining' : 'Starts in $until',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        ]),
+        const SizedBox(height: 5),
+        Text('${moment.title} · ${clock(moment.startAt)}–${clock(moment.endAt)}',
+          maxLines: 2, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white70, fontSize: 13)),
+        if (followingLabel != null) Text(followingLabel, maxLines: 1,
+          overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        if (scheduledClassId == null)
+          const Text('Schedule entry not linked to a unique saved class.',
+            style: TextStyle(color: Colors.white70, fontSize: 12))
+        else if (!isFollowing)
+          TextButton(onPressed: onFollowTimetable,
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+            child: const Text('Return to scheduled class')),
+      ]),
+    );
+  }
+
   Widget _classSelector(BuildContext context, Class? item) =>
       DropdownButtonFormField<String>(
         key: ValueKey('home-class-selector-${item?.classId}'),
@@ -393,12 +447,19 @@ class ApprovedTeacherHome extends StatelessWidget {
         isExpanded: true,
         dropdownColor: const Color(0xff103553),
         iconEnabledColor: const Color(0xffd6e6ef),
-        style: const TextStyle(color: Colors.white, fontSize: 13),
+        style: const TextStyle(
+          fontFamily: appFontFamily,
+          color: Colors.white,
+          fontSize: 13,
+        ),
         decoration: const InputDecoration(
           labelText: 'Selected class',
           filled: true,
           fillColor: Color(0xff123f57),
-          labelStyle: TextStyle(color: Color(0xffd6e6ef)),
+          labelStyle: TextStyle(
+              fontFamily: appFontFamily, color: Color(0xffd6e6ef)),
+          floatingLabelStyle: TextStyle(
+              fontFamily: appFontFamily, color: Color(0xffd6e6ef)),
           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           isDense: true,
           border: OutlineInputBorder(),
@@ -407,7 +468,10 @@ class ApprovedTeacherHome extends StatelessWidget {
           for (final c in classes)
             DropdownMenuItem(
                 value: c.classId,
-                child: Text(c.className, overflow: TextOverflow.ellipsis))
+                child: Text(c.className,
+                    style: const TextStyle(
+                        fontFamily: appFontFamily, color: Colors.white),
+                    overflow: TextOverflow.ellipsis))
         ],
         onChanged: (value) {
           if (value != null) onSelectClass(value);

@@ -40,6 +40,19 @@ void main() {
     await tester.tap(find.byTooltip('Reset timer'));
     await tester.pumpAndSettle();
     expect(find.text('02:45'), findsOneWidget);
+    // Switching to the Teach surface's embedded view must keep the same timer.
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(
+      body: ClassroomTimer(fullPage: true, embedded: true),
+    )));
+    await tester.pumpAndSettle();
+    expect(find.text('02:45'), findsOneWidget);
+    expect(find.byTooltip('Close timer'), findsNothing);
+    await tester.tap(find.byTooltip('Set timer duration'));
+    await tester.pumpAndSettle();
+    expect(find.text('30 minutes'), findsOneWidget);
+    await tester.tap(find.text('30 minutes'));
+    await tester.pumpAndSettle();
+    expect(find.text('30:00'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

@@ -10,13 +10,13 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // Emulator-only builds must never silently contact live Firebase Auth or
   // Firestore. A real API-key rejection after refresh is a release blocker,
   // not a reason to weaken the navigation assertions.
-  page.on('request', (request) => {
-    const endpoint = new URL(request.url());
-    if (['identitytoolkit.googleapis.com', 'securetoken.googleapis.com',
-         'firestore.googleapis.com'].includes(endpoint.hostname)) {
+  await page.context().route(
+    /^https?:\/\/(identitytoolkit|securetoken|firestore)\.googleapis\.com\//,
+    async (route) => {
+      const endpoint = new URL(route.request().url());
       unexpectedCloudRequests.push(browserPhase + ': ' + endpoint.hostname + endpoint.pathname);
-    }
-  });
+      await route.abort('blockedbyclient');
+    });
   page.on('console', (message) => {
     if (message.text().includes('GRADEFLOW_STAGING_')) {
       browserDiagnostics.push('route: ' + message.text());
@@ -41,9 +41,8 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
       }
     }
   });
-  // Let FlutterFire itself store the per-app emulator origin in debug mode.
-  // The previous fixture wrote the wrong sessionStorage key and masked
-  // the fact that the app was compiled in release mode.
+  // The application must prime its own per-tab emulator origin before
+  // FlutterFire restores Auth. Never seed it in the test harness.
   await page.goto('/');
   await ensureFlutterSemantics(page);
 
@@ -81,6 +80,16 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
 
+  browserPhase = 'screensaver';
+  await ensureFlutterSemantics(page);
+  await page.getByRole('button', { name: 'Personalise', exact: true }).click();
+  await page.getByRole('button', { name: 'Screensaver', exact: true }).click();
+  await expect(page.getByText('Automatic start on Home only')).toBeVisible();
+  await page.getByRole('button', { name: 'Preview', exact: true }).click();
+  await expect(page.getByText('Tap anywhere to return')).toBeVisible();
+  await page.screenshot({ path: 'test-results/classroom-screensaver.png' });
+  await page.getByRole('button', { name: 'Dismiss screensaver' }).click();
+  await expect(page).toHaveURL(/\/os\/home$/);
   // A teacher choosing a new background on HOME must stay on Home and
   // retain that setting across Planner navigation and a browser reload.
   // This tests the real authenticated GradeFlow menu, not the isolated
@@ -180,6 +189,17 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await expect(page.getByText('Fit to screen').first())
     .toBeVisible({ timeout: 45_000 });
   await expect(page.getByText('Present').first()).toBeVisible();
+  browserPhase = 'upgraded-timer';
+  await page.getByRole('button', { name: 'Full-page timer', exact: true }).first().click();
+  await expect(page.getByText('Classroom timer', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Set timer duration' }).click();
+  await expect(page.getByRole('menuitem', { name: '5 minutes', exact: true })).toBeVisible({ timeout: 15000 });
+  await page.getByRole('menuitem', { name: '5 minutes', exact: true }).click({ timeout: 15000 });
+  await expect(page.getByText('05:00', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '+30 sec', exact: true }).click();
+  await expect(page.getByText('05:30', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'test-results/classroom-timer.png' });
+  await page.getByRole('button', { name: 'Close timer' }).click();
 
   // The real Flutter gradebook must read canonical fictional Firestore data,
   // save a changed score, and restore it after a full document reload.
@@ -289,6 +309,54 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   const openClassroom = page.getByRole('button', { name: 'Open Classroom', exact: true });
   try {
     await expect(openClassroom).toBeEnabled({ timeout: 15_000 });
+    // A Flutter semantics label can exist even when its canvas glyphs are
+    // invisible. Check the actual raster of the white Home action, excluding
+    // the leading icon, rounded border and outer shadow.
+    async function captureReadableHomeAction(suffix: string) {
+      const png = await openClassroom.screenshot({
+        path: `test-results/home-action-${suffix}.png`,
+        animations: 'disabled',
+      });
+      const pixels = await page.evaluate(async (base64) => {
+        const image = new Image();
+        image.src = 'data:image/png;base64,' + base64;
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(image, 0, 0);
+        const left = Math.floor(canvas.width * 0.40);
+        const top = Math.floor(canvas.height * 0.23);
+        const width = Math.max(1, Math.floor(canvas.width * 0.44));
+        const height = Math.max(1, Math.floor(canvas.height * 0.54));
+        const data = ctx.getImageData(left, top, width, height).data;
+        let ink = 0, white = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+          if (a > 200 && r < 95 && g < 145 && b < 185 && b > r + 20) ink++;
+          if (a > 200 && r > 225 && g > 225 && b > 225) white++;
+        }
+        const count = data.length / 4;
+        return { ink: ink / count, white: white / count };
+      }, png.toString('base64'));
+      expect(pixels.white, `Home action white background: ${suffix}`)
+        .toBeGreaterThan(0.45);
+      expect(pixels.ink, `Home action visible text pixels: ${suffix}`)
+        .toBeGreaterThan(0.006);
+      await page.screenshot({ path: `test-results/home-legibility-${suffix}.png` });
+    }
+    await captureReadableHomeAction('desktop');
+    const originalViewport = page.viewportSize();
+    if (originalViewport) {
+      try {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect(openClassroom).toBeEnabled({ timeout: 15_000 });
+        await captureReadableHomeAction('mobile');
+      } finally {
+        await page.setViewportSize(originalViewport);
+      }
+    }
     await openClassroom.click({ timeout: 15_000 });
     await expect.poll(() => ['/os/class/class-science-browser/classroom',
       '/os/class/class-english-browser/classroom'].includes(new URL(page.url()).pathname)).toBe(true);
@@ -312,6 +380,10 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await homeTab.waitForLoadState('domcontentloaded');
   await ensureFlutterSemantics(homeTab);
   await expect(homeTab).toHaveURL('http://127.0.0.1:7357/os/home');
+  expect(await homeTab.evaluate(() => window.opener === null)).toBe(true);
+  await expect.poll(() => homeTab.evaluate(() =>
+    window.sessionStorage.getItem('[DEFAULT]-firebaseEmulatorOrigin')))
+    .toBe('http://127.0.0.1:9099');
   await expect(homeTab.getByRole('button', { name: 'Open Classroom', exact: true })).toBeEnabled();
   await expect(page.getByRole('heading', { name: 'Teaching Studio', exact: true })).toBeVisible();
   await homeTab.close();
