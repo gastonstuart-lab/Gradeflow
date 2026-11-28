@@ -24,9 +24,14 @@ jobs:
           cache: true
       - run: flutter pub get --enforce-lockfile
       - run: flutter analyze
-      - run: flutter test test/native_presentation_timer_test.dart test/native_screensaver_test.dart test/gradeflow_existing_project_preview_test.dart test/planner_v2_staging_safety_test.dart test/planner_v2_firebase_config_test.dart
+      - run: flutter test test/native_presentation_timer_test.dart test/native_screensaver_test.dart test/native_teaching_card_schedule_test.dart test/gradeflow_existing_project_preview_test.dart test/planner_v2_staging_safety_test.dart test/planner_v2_firebase_config_test.dart
       - name: Build the complete authenticated preview application without deploying
         run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Package existing Teaching Studio and verify full application manifest
+        run: bash scripts/package-classroom-preview.sh
       - uses: actions/upload-artifact@v4
         with:
           name: instructos-full-preview-${{ github.sha }}
