@@ -25,6 +25,7 @@ import 'package:provider/provider.dart';
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/models/student.dart';
 import 'package:gradeflow/os/os_controller.dart';
+import 'package:gradeflow/os/surfaces/classroom_presentation_view.dart';
 import 'package:gradeflow/os/os_palette.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/screens/teacher_whiteboard_screen.dart';
@@ -255,7 +256,10 @@ class _TeachSurfaceState extends State<TeachSurface> {
       case _TeachTool.whiteboard:
         return const _WhiteboardContainer();
       case _TeachTool.timer:
-        return const _TimerTool();
+        return const Padding(
+          padding: EdgeInsets.only(top: _teachContentTopInset),
+          child: ClassroomTimer(fullPage: true, embedded: true),
+        );
       case _TeachTool.groups:
         return _GroupPickerTool(
           key: ValueKey('teach-groups-${_activeClass!.classId}'),
@@ -836,220 +840,6 @@ class _TeachSeatingTool extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TimerTool extends StatefulWidget {
-  const _TimerTool();
-
-  @override
-  State<_TimerTool> createState() => _TimerToolState();
-}
-
-class _TimerToolState extends State<_TimerTool> {
-  static const _presets = [1, 2, 3, 5, 10, 15, 20, 25, 30];
-
-  int _selectedMinutes = 5;
-  int _remainingSeconds = 0;
-  bool _running = false;
-  Timer? _timer;
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _start() {
-    _remainingSeconds = _selectedMinutes * 60;
-    _running = true;
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {
-        if (_remainingSeconds > 0) {
-          _remainingSeconds--;
-        } else {
-          _running = false;
-          _timer?.cancel();
-        }
-      });
-    });
-    setState(() {});
-  }
-
-  void _pause() {
-    _timer?.cancel();
-    setState(() => _running = false);
-  }
-
-  void _reset() {
-    _timer?.cancel();
-    setState(() {
-      _running = false;
-      _remainingSeconds = 0;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final minutes = (_running || _remainingSeconds > 0
-        ? _remainingSeconds ~/ 60
-        : _selectedMinutes);
-    final seconds =
-        _running || _remainingSeconds > 0 ? _remainingSeconds % 60 : 0;
-    final progress = (_running || _remainingSeconds > 0)
-        ? _remainingSeconds / (_selectedMinutes * 60)
-        : 1.0;
-
-    return Padding(
-      padding: const EdgeInsets.only(top: _teachContentTopInset),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Circular timer
-            SizedBox(
-              width: 220,
-              height: 220,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox.expand(
-                    child: CircularProgressIndicator(
-                      value: progress,
-                      strokeWidth: 8,
-                      backgroundColor: Colors.white.withValues(alpha: 0.06),
-                      color: _remainingSeconds < 30 && _running
-                          ? OSColors.urgent
-                          : OSColors.teachAccent,
-                    ),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-                        style: const TextStyle(
-                          fontSize: 56,
-                          fontWeight: FontWeight.w200,
-                          color: Colors.white,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            // Control buttons
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _TimerButton(
-                  icon: Icons.replay_rounded,
-                  onTap: _reset,
-                  subtle: true,
-                ),
-                const SizedBox(width: 12),
-                _TimerButton(
-                  icon:
-                      _running ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  onTap: _running ? _pause : _start,
-                  filled: true,
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Preset selector
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: _presets.map((p) {
-                  final selected = p == _selectedMinutes && !_running;
-                  return GestureDetector(
-                    onTap: _running
-                        ? null
-                        : () => setState(() => _selectedMinutes = p),
-                    child: AnimatedContainer(
-                      duration: OSMotion.fast,
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? OSColors.teachAccent.withValues(alpha: 0.18)
-                            : Colors.white.withValues(alpha: 0.06),
-                        borderRadius: OSRadius.pillBr,
-                        border: Border.all(
-                          color: selected
-                              ? OSColors.teachAccent
-                              : Colors.transparent,
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        '${p}m',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: selected
-                              ? OSColors.teachAccent
-                              : Colors.white.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TimerButton extends StatelessWidget {
-  const _TimerButton({
-    required this.icon,
-    required this.onTap,
-    this.filled = false,
-    this.subtle = false,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool filled;
-  final bool subtle;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: filled ? 64 : 48,
-        height: filled ? 64 : 48,
-        decoration: BoxDecoration(
-          color: filled
-              ? OSColors.teachAccent
-              : Colors.white.withValues(alpha: 0.08),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: filled ? 30 : 22,
-          color:
-              filled ? OSColors.teachBg : Colors.white.withValues(alpha: 0.7),
         ),
       ),
     );
