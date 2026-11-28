@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' show FontFeature;
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gradeflow/services/browser_fullscreen_stub.dart'
     if (dart.library.js_interop) 'package:gradeflow/services/browser_fullscreen_web.dart';
 
@@ -282,6 +283,41 @@ class _ClassroomClock extends ChangeNotifier {
   String theme = 'Neon';
   String activity = '';
   bool sound = false;
+  Timer? _expiry;
+  bool _loaded = false;
+  Future<void> loadPreferences() async {
+    if (_loaded) return;
+    _loaded = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedStyle = prefs.getString('classroom.timer.style');
+      if (['Neon', 'Arcade', 'Examination', 'Ocean', 'Sunset'].contains(savedStyle)) theme = savedStyle!;
+      activity = prefs.getString('classroom.timer.activity') ?? '';
+      sound = prefs.getBool('classroom.timer.sound') ?? false;
+      if (deadline == null && paused == duration) {
+        duration = (prefs.getInt('classroom.timer.duration') ?? duration).clamp(1, 59999).toInt();
+        paused = duration;
+      }
+      notifyListeners();
+    } catch (_) { /* Timer remains usable without preferences. */ }
+  }
+
+  Future<void> _savePreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('classroom.timer.style', theme);
+      await prefs.setString('classroom.timer.activity', activity);
+      await prefs.setBool('classroom.timer.sound', sound);
+      await prefs.setInt('classroom.timer.duration', duration);
+    } catch (_) { /* Timer remains usable without preferences. */ }
+  }
+
+  void _scheduleExpiry() {
+    _expiry?.cancel();
+    if (deadline != null) {
+      _expiry = Timer(Duration(milliseconds: max(0, deadline!.difference(DateTime.now()).inMilliseconds) + 1), tick);
+    }
+  }
   int get remaining => deadline == null
       ? paused
       : max(0, (deadline!.difference(DateTime.now()).inMilliseconds / 1000).ceil());
@@ -299,11 +335,13 @@ class _ClassroomClock extends ChangeNotifier {
   void configure(int seconds) {
     duration = seconds.clamp(1, 59999).toInt();
     reset();
+    unawaited(_savePreferences());
   }
 
   void reset() {
     deadline = null;
     paused = duration;
+    _scheduleExpiry();
     notifyListeners();
   }
 
@@ -316,6 +354,7 @@ class _ClassroomClock extends ChangeNotifier {
       if (paused == 0) paused = duration;
       deadline = DateTime.now().add(Duration(seconds: paused));
     }
+    _scheduleExpiry();
     notifyListeners();
   }
 
@@ -328,6 +367,7 @@ class _ClassroomClock extends ChangeNotifier {
     deadline = wasRunning && next > 0
         ? DateTime.now().add(Duration(seconds: next))
         : null;
+    _scheduleExpiry();
     if (wasRunning && next == 0 && sound) {
       unawaited(SystemSound.play(SystemSoundType.alert));
     }
@@ -338,6 +378,7 @@ class _ClassroomClock extends ChangeNotifier {
     theme = style;
     activity = name;
     sound = audible;
+    unawaited(_savePreferences());
     notifyListeners();
   }
 }
@@ -353,6 +394,7 @@ class ClassroomTimerState extends State<ClassroomTimer> {
   void initState() {
     super.initState();
     _clock.addListener(_refresh);
+    unawaited(_clock.loadPreferences());
     _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
       _clock.tick();
       if (_clock.running) _refresh();
