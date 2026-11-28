@@ -157,7 +157,33 @@ function tool(label, title) {
 }
 const penTool = tool('Pen', 'Write with the PDF pen');
 const eraseTool = tool('Eraser', 'Erase individual ink strokes (undo supported)');
-const colourTool = tool('Colour & width', 'Open the native PDF pen colour and thickness controls');
+function mirrorInput(id, label) {
+  const native = document.getElementById(id);
+  if (!(native instanceof HTMLInputElement)) return null;
+  const wrapper = document.createElement('label');
+  wrapper.textContent = label;
+  const control = document.createElement('input');
+  control.type = native.type;
+  for (const attr of ['min', 'max', 'step']) {
+    if (native.hasAttribute(attr)) control.setAttribute(attr, native.getAttribute(attr));
+  }
+  control.value = native.value;
+  control.setAttribute('aria-label', label);
+  control.addEventListener('input', () => {
+    if (viewer.annotationEditorMode !== INK || quickErase) return;
+    finishPendingStroke();
+    native.value = control.value;
+    native.dispatchEvent(new Event('input', { bubbles: true }));
+    native.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  native.addEventListener('input', () => { control.value = native.value; });
+  native.addEventListener('change', () => { control.value = native.value; });
+  wrapper.append(control);
+  toolbar.append(wrapper);
+  return { control, native };
+}
+const color = mirrorInput('editorInkColor', 'Pen colour');
+const thickness = mirrorInput('editorInkThickness', 'Pen thickness');
 function refreshQuickTools() {
   const inInk = viewer.annotationEditorMode === INK;
   if (!inInk) quickErase = false;
@@ -165,6 +191,11 @@ function refreshQuickTools() {
   eraseTool.setAttribute('aria-pressed', String(inInk && quickErase));
   toolbar.classList.toggle('is-erasing', inInk && quickErase);
   toolbar.hidden = !app.pdfDocument;
+  for (const item of [color, thickness]) {
+    if (!item) continue;
+    item.control.disabled = !inInk || quickErase;
+    item.control.value = item.native.value;
+  }
   document.documentElement.classList.toggle('gradeflow-quick-erase', inInk && quickErase);
 }
 function enableInk(erase) {
@@ -179,17 +210,6 @@ function enableInk(erase) {
 }
 penTool.addEventListener('click', () => enableInk(false));
 eraseTool.addEventListener('click', () => enableInk(true));
-colourTool.addEventListener('click', () => {
-  enableInk(false);
-  const show = () => {
-    const popup = document.getElementById('editorInkParamsToolbar');
-    const colour = document.getElementById('editorInkColor');
-    // PDF.js owns the settings and values. Never recreate annotation params.
-    if (popup?.classList.contains('hidden') && inkButton) inkButton.click();
-    if (colour && !colour.closest('.hidden')) colour.focus();
-  };
-  requestAnimationFrame(show);
-});
 if (inkButton) {
   document.body.append(toolbar);
   toolbar.hidden = true;
