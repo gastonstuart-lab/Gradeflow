@@ -9,6 +9,7 @@ let writing = null;
 let erasing = null;
 let pendingStroke = false;
 let finishTimer = null;
+let quickErase = false;
 
 function finishStroke() {
   const ui = manager();
@@ -83,9 +84,10 @@ function eraseTo(event) {
 
 function interceptEraser(event) {
   if (viewer.annotationEditorMode !== INK || !manager()) return false;
-  if (!isEraser(event) && erasing?.id !== event.pointerId) return false;
+  const activeButtons = isEraser(event) ? 32 : quickErase ? 1 : 0;
+  if (!isEraser(event) && !quickErase && erasing?.id !== event.pointerId) return false;
   // Ignore hover and keep toolbar, scrolling and other annotation tools native.
-  if (!erasing && (!(event.buttons & 32) || !event.target.closest?.('.page'))) return false;
+  if (!erasing && (!(event.buttons & activeButtons) || !event.target.closest?.('.page'))) return false;
   event.preventDefault();
   event.stopImmediatePropagation();
   if (!erasing) {
@@ -106,7 +108,7 @@ window.addEventListener('pointerdown', event => {
 }, { capture: true });
 
 window.addEventListener('pointermove', event => {
-  if (erasing?.id === event.pointerId && !(event.buttons & 32)) {
+  if (erasing?.id === event.pointerId && !(event.buttons & (quickErase ? 33 : 32))) {
     erasing = null;
     return;
   }
@@ -136,3 +138,63 @@ window.addEventListener('blur', () => {
   if (viewer.annotationEditorMode === INK) finishStroke();
 });
 
+
+// A large, direct pen/eraser switch works with mouse, touch and Surface pen.
+// The actual annotation and undo implementation remains native PDF.js.
+const toolbar = document.createElement('div');
+toolbar.className = 'gradeflow-ink-tools';
+toolbar.setAttribute('role', 'group');
+toolbar.setAttribute('aria-label', 'Quick PDF ink tools');
+const inkButton = document.getElementById('editorInkButton');
+function tool(label, title) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.title = title;
+  button.setAttribute('aria-pressed', 'false');
+  toolbar.append(button);
+  return button;
+}
+const penTool = tool('Pen', 'Write with the PDF pen');
+const eraseTool = tool('Eraser', 'Erase individual ink strokes (undo supported)');
+const colourTool = tool('Colour & width', 'Open the native PDF pen colour and thickness controls');
+function refreshQuickTools() {
+  const inInk = viewer.annotationEditorMode === INK;
+  if (!inInk) quickErase = false;
+  penTool.setAttribute('aria-pressed', String(inInk && !quickErase));
+  eraseTool.setAttribute('aria-pressed', String(inInk && quickErase));
+  toolbar.classList.toggle('is-erasing', inInk && quickErase);
+  toolbar.hidden = !app.pdfDocument;
+  document.documentElement.classList.toggle('gradeflow-quick-erase', inInk && quickErase);
+}
+function enableInk(erase) {
+  if (!inkButton || !app.pdfDocument) return;
+  finishPendingStroke();
+  if (viewer.annotationEditorMode === INK) finishStroke();
+  else inkButton.click();
+  quickErase = erase;
+  // Native mode switches may complete asynchronously; the next mode event
+  // also updates pressed state and clears erasing if another tool is chosen.
+  if (viewer.annotationEditorMode === INK) refreshQuickTools();
+}
+penTool.addEventListener('click', () => enableInk(false));
+eraseTool.addEventListener('click', () => enableInk(true));
+colourTool.addEventListener('click', () => {
+  enableInk(false);
+  const show = () => {
+    const popup = document.getElementById('editorInkParamsToolbar');
+    const colour = document.getElementById('editorInkColor');
+    // PDF.js owns the settings and values. Never recreate annotation params.
+    if (popup?.classList.contains('hidden') && inkButton) inkButton.click();
+    if (colour && !colour.closest('.hidden')) colour.focus();
+  };
+  requestAnimationFrame(show);
+});
+if (inkButton) {
+  document.body.append(toolbar);
+  toolbar.hidden = true;
+  app.eventBus.on('documentloaded', refreshQuickTools);
+  app.eventBus.on('annotationeditormodechanged', refreshQuickTools);
+  app.eventBus.on('pagesloaded', refreshQuickTools);
+  refreshQuickTools();
+}
