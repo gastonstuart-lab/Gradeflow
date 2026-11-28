@@ -310,6 +310,54 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   const openClassroom = page.getByRole('button', { name: 'Open Classroom', exact: true });
   try {
     await expect(openClassroom).toBeEnabled({ timeout: 15_000 });
+    // A Flutter semantics label can exist even when its canvas glyphs are
+    // invisible. Check the actual raster of the white Home action, excluding
+    // the leading icon, rounded border and outer shadow.
+    async function captureReadableHomeAction(suffix: string) {
+      const png = await openClassroom.screenshot({
+        path: `test-results/home-action-${suffix}.png`,
+        animations: 'disabled',
+      });
+      const pixels = await page.evaluate(async (base64) => {
+        const image = new Image();
+        image.src = 'data:image/png;base64,' + base64;
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(image, 0, 0);
+        const left = Math.floor(canvas.width * 0.40);
+        const top = Math.floor(canvas.height * 0.23);
+        const width = Math.max(1, Math.floor(canvas.width * 0.44));
+        const height = Math.max(1, Math.floor(canvas.height * 0.54));
+        const data = ctx.getImageData(left, top, width, height).data;
+        let ink = 0, white = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+          if (a > 200 && r < 95 && g < 145 && b < 185 && b > r + 20) ink++;
+          if (a > 200 && r > 225 && g > 225 && b > 225) white++;
+        }
+        const count = data.length / 4;
+        return { ink: ink / count, white: white / count };
+      }, png.toString('base64'));
+      expect(pixels.white, `Home action white background: ${suffix}`)
+        .toBeGreaterThan(0.45);
+      expect(pixels.ink, `Home action visible text pixels: ${suffix}`)
+        .toBeGreaterThan(0.006);
+      await page.screenshot({ path: `test-results/home-legibility-${suffix}.png` });
+    }
+    await captureReadableHomeAction('desktop');
+    const originalViewport = page.viewportSize();
+    if (originalViewport) {
+      try {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect(openClassroom).toBeEnabled({ timeout: 15_000 });
+        await captureReadableHomeAction('mobile');
+      } finally {
+        await page.setViewportSize(originalViewport);
+      }
+    }
     await openClassroom.click({ timeout: 15_000 });
     await expect.poll(() => ['/os/class/class-science-browser/classroom',
       '/os/class/class-english-browser/classroom'].includes(new URL(page.url()).pathname)).toBe(true);
