@@ -3,14 +3,14 @@
 ## Authority
 The live application is https://gradeflow-20260113.web.app/os/home.
 Reported deployed source: 11c214ed090aa4fcfbb1bb4131779ce3b1a5c190 (PR #178 head).
-Independent live bundle-to-source verification remains OPEN; this branch is a candidate baseline, not a certified production source.
+Live manifest commit/tree/build run and seven public endpoint SHA-256 checks PASSED (PR #189, run 46109136380). Historical immutable artifact unavailable; original package cannot be independently re-attested. Current served bytes agree with public manifest and pinned source identifiers.
 Do not merge divergent main or legacy UI work into this branch wholesale.
 Preserve approved Home, Planner V2, Teaching Studio, native gradebook, seating, dock, mobile layout and all existing teacher data.
 
 ## Release 1: classroom experience
-- Native timer: PR #186, head f85c1645826d05dc87728ad83f9debb75c6866a3; focused analyzer and widget test passed (Actions run 46108265339). Pending full integration, browser/Surface visual acceptance and sound verification.
-- Screensaver: aurora, space, ocean, sunset, minimal, grid; clock/date/message, speed, delay, fullscreen; never interrupt teaching.
-- Teaching card: automatically current/next scheduled lesson, time remaining, quick tools, no Home redesign.
+- Native timer: PR #186 merged to integration at 93145a30c7fd34a4eabb4ea4435320645db83aec; focused analyzer and widget test passed (run 46108265339). Browser/Surface visual acceptance and sound verification pending.
+- Screensaver: PR #187; full application analyzer, focused tests and main.dart preview compilation passed (run 46108957602); wider appearance check pending. Themes: aurora, space, ocean, sunset, minimal, grid; clock/date/message, speed, delay, fullscreen; never interrupt teaching.
+- Teaching card: PR #188; focused schedule tests passed (run 46109058282), full main.dart preview compilation passed (run 46109058236); wider appearance check pending. Automatically current/next scheduled lesson, time remaining, quick tools, no Home redesign.
 
 ## Subsequent workstreams
 - Teaching tools: PDF pen colour/thickness and eraser; collapsible/pinnable left whiteboard toolbar; free image/GIF/sticker search and insertion (verify license and safe search).
@@ -25,3 +25,6 @@ Preserve approved Home, Planner V2, Teaching Studio, native gradebook, seating, 
 
 ## Responsibilities
 GitHub is source of truth. GitHub Actions runs routine tests. Work handles bounded complex implementations and real browser verification; avoid repeated broad audits and waiting for CI on agent credits. ChatGPT reviews results, maintains this ledger and coordinates next actions. Report completed code, tested, deployed and verified separately. Do not describe a draft PR as shipped. Never request secrets in chat.
+
+## Packaging correction
+The initial preview build artifact contained the Flutter web build but did not explicitly bundle Teaching Studio. `scripts/package-classroom-preview.sh` preserves the proven Studio build process and creates a full source/hash manifest. It must be invoked by the final combined workflow before preview publication; this script itself does not deploy anything.
