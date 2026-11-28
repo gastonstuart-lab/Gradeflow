@@ -41,7 +41,7 @@ const action = () => host.getByText('Participation demo', {exact:true});
 const score = n => host.getByText(n+' / 100', {exact:true});
 const close = () => page.getByRole('button',{name:'Close participation demo',exact:true}).click();
 async function occupiedSeats() {
-  const seats = host.locator('[aria-label^="Seat for "]');
+  const seats = host.getByRole('button',{name:/\bSeat for\s+\S+/});
   await expect.poll(()=>seats.count(),{timeout:60000}).toBeGreaterThan(1);
   return seats;
 }
@@ -62,7 +62,7 @@ try {
   const seats = await occupiedSeats();
   await openSeat(seats,0);
   await expect(score(100)).toBeVisible();
-  const eating = page.getByRole('button',{name:'Eating  −10',exact:true});
+  const eating = page.getByRole('button',{name:/^Eating\s+−10$/});
   await eating.click(); await expect(score(90)).toBeVisible();
   await eating.click(); await expect(score(80)).toBeVisible();
   await page.screenshot({path:'preview-evidence/participation-two-incidents.png'});
