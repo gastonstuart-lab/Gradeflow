@@ -1,0 +1,60 @@
+name: Slice 3 emulator acceptance
+on:
+  push:
+    branches: [classroom-experience-v2/slice-3-acceptance]
+    paths:
+      - .github/workflows/check-slice-3-acceptance.yml
+      - test/emulator/slice-3-*
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.7'
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked packages and browser
+        run: |
+          flutter pub get --enforce-lockfile
+          npm ci
+          npx playwright install --with-deps chromium
+          npm install --global firebase-tools@14.27.0
+      - name: Build the standalone synthetic preview
+        run: |
+          flutter build web --release --no-pub --no-wasm-dry-run --no-web-resources-cdn --target lib/gradebook_period_preview.dart
+          mkdir -p preview/emulator evidence
+          cp -a build/web preview/web
+          cp test/emulator/{firebase.json,firestore.rules} preview/emulator/
+          cp test/emulator/slice-3-preview.md preview/README.md
+          dart compile exe tool/grading_period_coordinator.dart -o preview/coordinator-linux-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gradeflow-slice-3-synthetic-preview
+          path: preview/
+          retention-days: 14
+      - name: Exercise the built preview in one emulator session
+        env:
+          GRADEFLOW_COORDINATOR_PROJECT: demo-gradeflow-periods
+        run: |
+          firebase emulators:exec --only firestore,auth --project demo-gradeflow-periods --config test/emulator/firebase.json 'bash test/emulator/slice-3-run.sh'
+          python3 test/emulator/slice-3-xlsx.py | tee -a evidence/results.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gradeflow-slice-3-acceptance-evidence
+          path: evidence/
+          retention-days: 14
