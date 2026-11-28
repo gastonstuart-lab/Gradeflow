@@ -24,12 +24,14 @@ class HomeTeachingMoment {
   final DateTime startAt;
   final DateTime endAt;
   final int periodCount;
+  final String? classId;
 
   const HomeTeachingMoment({
     required this.title,
     required this.startAt,
     required this.endAt,
     this.periodCount = 1,
+    this.classId,
   });
 }
 
@@ -59,6 +61,7 @@ class HomeTeachingSequence {
         final dayStart = DateTime(date.year, date.month, date.day);
         moments.add(HomeTeachingMoment(
           title: entry.title,
+          classId: entry.classId,
           startAt: dayStart.add(Duration(minutes: entry.startMinutes)),
           endAt: dayStart.add(Duration(minutes: entry.endMinutes)),
         ));
@@ -82,10 +85,12 @@ class HomeTeachingSequence {
             moment.title.trim().toLowerCase();
         if (sameDay &&
             sameClass &&
+            previous.classId == moment.classId &&
             !gap.isNegative &&
             gap <= const Duration(minutes: 15)) {
           sessions[sessions.length - 1] = HomeTeachingMoment(
             title: previous.title,
+            classId: previous.classId,
             startAt: previous.startAt,
             endAt: moment.endAt,
             periodCount: previous.periodCount + moment.periodCount,
