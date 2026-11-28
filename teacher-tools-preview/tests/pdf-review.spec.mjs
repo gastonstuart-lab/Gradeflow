@@ -150,3 +150,35 @@ test('custom colour commits without disabling Draw and keyboard export saves it'
   expect(result[0].ink.map(x=>x.color)).toEqual(expect.arrayContaining([[0,0,0],[170,0,170]]));
   expect(outside).toEqual([]);
 });
+
+test('hosted PDF ink remains after real fullscreen exit and downloads correctly',async({page},testInfo)=>{
+  const {frame,outside}=await openPdf(page);
+  await preset(frame,'Red'); await stroke(page,frame,1);
+  await page.getByRole('button',{name:'Full screen',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>document.fullscreenElement===document.documentElement)).toBe(true);
+  await page.getByRole('button',{name:'Show controls ▾',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Exit full screen',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Leave focus mode',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>document.fullscreenElement===null)).toBe(true);
+  await expect(page.getByRole('button',{name:'Full screen',exact:true})).toBeVisible();
+  const bytes=await download(page,frame);
+  const result=await parse(frame,bytes);
+  expect(result).toHaveLength(2);
+  expect(result[0].ink.map(x=>x.color)).toContainEqual([255,0,0]);
+  await page.screenshot({path:testInfo.outputPath('fullscreen-exit-pdf.png')});
+  expect(outside).toEqual([]);
+});
+test('hosted fullscreen denial keeps an accessible explanation',async({page})=>{
+  const {outside}=await openPdf(page);
+  await page.evaluate(()=>{
+    document.documentElement.requestFullscreen=()=>Promise.reject(new DOMException('Denied','NotAllowedError'));
+  });
+  await page.getByRole('button',{name:'Full screen',exact:true}).click();
+  const status=page.getByRole('status',{name:'Save and file status'});
+  await expect(status).toBeVisible();
+  await expect(status).toContainText('Browser full screen is unavailable');
+  await page.getByRole('button',{name:'Hide controls',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Show controls ▾',exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.fullscreenElement)).toBeNull();
+  expect(outside).toEqual([]);
+});

@@ -59,6 +59,7 @@ function App() {
   const [dark, setDark] = useState(false);
   const [tools, setTools] = useState(true);
   const [focus, setFocus] = useState(false);
+  const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState('Session only — save your work before closing.');
@@ -70,17 +71,46 @@ function App() {
   const sceneVersion = useRef('');
   const connect = useCallback((value: BoardAPI) => { api.current = value; setReady(true); }, []);
   useEffect(() => {
-    const changed = () => { if (!document.fullscreenElement) { setFocus(false); setControlsOpen(false); } };
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setFocus(false); setControlsOpen(false); } };
+    const changed = () => {
+      const active = document.fullscreenElement === document.documentElement;
+      setNativeFullscreen(active);
+      setFocus(active);
+      setControlsOpen(false);
+    };
+    // Native Escape is handled by the browser's fullscreenchange event.
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !document.fullscreenElement) {
+        setFocus(false); setControlsOpen(false);
+      }
+    };
     document.addEventListener('fullscreenchange', changed);
     window.addEventListener('keydown', escape);
     return () => { document.removeEventListener('fullscreenchange', changed); window.removeEventListener('keydown', escape); };
   }, []);
+  async function leaveFullscreen() {
+    try {
+      await document.exitFullscreen();
+    } catch {
+      setControlsOpen(true);
+      setStatus('Could not leave browser full screen. Use Escape to exit.');
+    }
+  }
   async function fullscreen() {
-    if (document.fullscreenElement) { await document.exitFullscreen(); return; }
-    setFocus(true); setControlsOpen(false);
-    try { await document.documentElement.requestFullscreen(); }
-    catch { setStatus('Browser full screen is unavailable. Focus mode is active; use F11 to hide browser controls.'); }
+    if (document.fullscreenElement) { await leaveFullscreen(); return; }
+    try {
+      await document.documentElement.requestFullscreen();
+      if (document.fullscreenElement !== document.documentElement) {
+        throw new Error('Fullscreen not activated');
+      }
+    } catch {
+      // Keep the warning visible; focus mode is not true fullscreen.
+      setFocus(false); setControlsOpen(false);
+      setStatus('Browser full screen is unavailable. Use Hide controls for focus mode, or F11 on desktop.');
+    }
+  }
+  function toggleFocus() {
+    if (document.fullscreenElement) { void leaveFullscreen(); return; }
+    setFocus(value => !value); setControlsOpen(false);
   }
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
@@ -134,8 +164,8 @@ function App() {
       <div className="header-actions">
         <button onClick={() => setTools(!tools)} aria-pressed={tools}>Teaching tools</button>
         <button onClick={() => setDark(!dark)}>{dark ? 'Light theme' : 'Dark theme'}</button>
-        <button onClick={() => { setFocus(!focus); setControlsOpen(false); }}>{focus ? 'Leave focus mode' : 'Hide controls'}</button>
-        <button onClick={() => { void fullscreen(); }}>Full screen</button>
+        <button onClick={toggleFocus}>{focus ? 'Leave focus mode' : 'Hide controls'}</button>
+        <button onClick={() => { void fullscreen(); }} aria-pressed={nativeFullscreen}>{nativeFullscreen ? 'Exit full screen' : 'Full screen'}</button>
       </div>
     </header>
     <div className="workspace-bar">
