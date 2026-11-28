@@ -118,36 +118,57 @@ try {
 
   const pendingIntent = await page.evaluate(() => Object.keys(localStorage)
     .filter(key => key.includes('grading-period-preview:v1:'))
-    .map(key => JSON.parse(localStorage.getItem(key))));
+    .map(key => {
+      const stored = JSON.parse(localStorage.getItem(key));
+      return typeof stored === 'string' ? JSON.parse(stored) : stored;
+    }));
   assert.equal(pendingIntent.length, 1);
   assert.equal(pendingIntent[0].label, 'January acceptance');
   assert.deepEqual(pendingIntent[0], JSON.parse(requests.at(-1)));
+  await click(button('Reload'));
+  await visible(status('Rollover outcome unconfirmed.'));
+  const recovering = page.waitForResponse(response =>
+    response.url() === 'http://127.0.0.1:8787/rollover' &&
+    response.request().method() === 'POST' && response.status() === 200);
   await click(button('Recover rollover'));
   await visible(text('Grading period ready · 20 editable assessments'));
   const rolloverRequests = requests.filter(body => JSON.parse(body).label === 'January acceptance');
   assert.equal(rolloverRequests.length, 2);
   assert.equal(rolloverRequests[0], rolloverRequests[1], 'Recovery must send identical retained intent');
   assert.equal(await button('Recover rollover').count(), 0);
+  const { book, receipt, replayed } = await (await recovering).json();
+  assert.equal(replayed, true);
+  assert.equal(receipt.toPeriodId, pendingIntent[0].nextPeriodId);
+  assert.equal(book.activePeriodId, pendingIntent[0].nextPeriodId);
+  assert.equal(book.periods.length, 3);
+  assert.equal(book.periods.filter(item => item.label === 'January acceptance').length, 1);
   await screenshot('05-rollover-recovered');
   console.log('PASS interrupted rollover: post-commit 503, durable intent, and identical intent replay');
 
   const choose = name => label(name).or(text(name)).or(button(name)).first();
+  const groups = [['Quiz', 2], ['Classwork', 6], ['Homework', 6], ['Participation', 6]];
+  const active = book.periods.find(item => item.periodId === book.activePeriodId);
+  const expected = groups.flatMap(([category, count]) =>
+    Array.from({length: count}, (_, index) => `${category} ${index + 1}`));
+  assert.deepEqual(active.dataset.assessments.filter(item => item.isActive)
+    .map(item => item.name).sort(), expected.sort());
+  console.log('PASS all 20 default assessments: 2 Quiz, 6 Classwork, 6 Homework, 6 Participation');
+
   let previousCategory = 'Quiz';
-  for (const [category, count] of [['Quiz', 2], ['Classwork', 6], ['Homework', 6], ['Participation', 6]]) {
+  for (const [category, count] of groups) {
     if (category !== previousCategory) {
       await click(button(`Category ${previousCategory}`));
       await click(choose(category));
     }
-    await click(button(`Assessment ${category} 1`));
+    await click(page.getByRole('button', { name: /^Assessment(?: |$)/ }).first());
     for (let number = 1; number <= count; number++) {
       await visible(choose(`${category} ${number}`));
     }
     assert.equal(await choose(`${category} ${count + 1}`).count(), 0);
     await screenshot(`06-defaults-${category.toLowerCase()}`);
-    await page.keyboard.press('Escape');
+    await click(choose(`${category} 1`));
     previousCategory = category;
   }
-  console.log('PASS all 20 default assessments: 2 Quiz, 6 Classwork, 6 Homework, 6 Participation');
   if (editFailure) throw editFailure;
 } catch (error) {
   await screenshot('failure').catch(() => {});
