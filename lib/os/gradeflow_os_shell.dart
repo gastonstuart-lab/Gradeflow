@@ -5,6 +5,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/nav.dart';
@@ -37,7 +38,25 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
   final ValueNotifier<Offset?> _ambientPointer = ValueNotifier<Offset?>(null);
 
   @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  bool _onKey(KeyEvent event) {
+    if (!mounted) return false;
+    final controller = context.read<GradeFlowOSController>();
+    if (controller.idleActive) {
+      if (event is KeyDownEvent) controller.dismissIdle();
+      return true;
+    }
+    controller.registerActivity();
+    return false;
+  }
+
+  @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
     _ambientPointer.dispose();
     super.dispose();
   }
@@ -325,16 +344,9 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
             ),
           ),
         ),
-        AnimatedOpacity(
-          duration: OSMotion.slow,
-          opacity: controller.idleActive ? 1.0 : 0.0,
-          child: IgnorePointer(
-            ignoring: !controller.idleActive,
-            child: ExcludeSemantics(excluding: !controller.idleActive, child: OSIdleScreen(
-              onDismiss: controller.dismissIdle,
-            )),
-          ),
-        ),
+        if (controller.idleActive && !widget.teachMode &&
+            controller.activeSurface == OSSurface.home)
+          Positioned.fill(child: OSIdleScreen(onDismiss: controller.dismissIdle)),
       ],
     );
 
@@ -345,8 +357,14 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
           ? OSColors.teachBg
           : OSColors.appBackground(Theme.of(context).brightness == Brightness.dark),
       child: Listener(
-      onPointerHover: (event) => _ambientPointer.value = event.localPosition,
-      onPointerMove: (event) => _ambientPointer.value = event.localPosition,
+      onPointerHover: (event) {
+        _ambientPointer.value = event.localPosition;
+        controller.registerActivity();
+      },
+      onPointerMove: (event) {
+        _ambientPointer.value = event.localPosition;
+        controller.registerActivity();
+      },
       onPointerDown: (event) {
         _ambientPointer.value = event.localPosition;
         controller.registerActivity();
