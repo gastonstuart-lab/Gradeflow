@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gradeflow/components/workspace_shell.dart';
 import 'package:gradeflow/widgets/teacher_appearance_studio.dart';
+import 'package:gradeflow/os/os_idle_screen.dart';
 import 'package:gradeflow/services/teacher_appearance_controller.dart';
 import 'package:gradeflow/components/home/teacher_home_integration_panel.dart';
 import 'package:gradeflow/components/home/home_teaching_class_context.dart';
@@ -376,6 +377,14 @@ class _HomeSurfaceState extends State<HomeSurface> {
                       },
                       icon: const Icon(Icons.palette_outlined),
                       label: const Text('Personalisation Studio — all pages'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        showScreensaverSettings(this.context);
+                      },
+                      icon: const Icon(Icons.nights_stay_outlined),
+                      label: const Text('Screensaver'),
                     ),
                     const SizedBox(height: 22),
                     Text(

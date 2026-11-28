@@ -9,6 +9,7 @@
 
 import 'dart:async';
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SURFACE ENUM
@@ -36,7 +37,25 @@ enum OSSurface {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class GradeFlowOSController extends ChangeNotifier {
-  GradeFlowOSController();
+  GradeFlowOSController() { unawaited(_loadIdleTimeout()); }
+  bool _disposed = false;
+  bool _idleTimeoutChanged = false;
+
+  Future<void> _loadIdleTimeout() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      if (_disposed || _idleTimeoutChanged) return;
+      _idleTimeoutMinutes = (p.getInt('screensaver.delay') ?? 0).clamp(0, 30).toInt();
+      _resetIdleTimer();
+    } catch (_) { /* Automatic screensaver remains off. */ }
+  }
+
+  Future<void> _saveIdleTimeout() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setInt('screensaver.delay', _idleTimeoutMinutes);
+    } catch (_) { /* Current session retains the setting. */ }
+  }
 
   final PageStorageBucket pageStorageBucket = PageStorageBucket();
 
@@ -84,6 +103,8 @@ class GradeFlowOSController extends ChangeNotifier {
     if (_activeSurface == surface && _activeClassId == nextClassId) return;
     _activeSurface = surface;
     _activeClassId = nextClassId;
+    _idleActive = false;
+    _resetIdleTimer();
     _closeAllOverlays();
     notifyListeners();
   }
@@ -213,15 +234,18 @@ class GradeFlowOSController extends ChangeNotifier {
   Timer? _idleTimer;
 
   /// Idle timeout in minutes (0 = never auto-idle).
-  int _idleTimeoutMinutes = 5;
+  int _idleTimeoutMinutes = 0;
   int get idleTimeoutMinutes => _idleTimeoutMinutes;
 
   void setIdleTimeout(int minutes) {
-    _idleTimeoutMinutes = minutes;
+    _idleTimeoutChanged = true;
+    _idleTimeoutMinutes = minutes.clamp(0, 30).toInt();
     _resetIdleTimer();
+    unawaited(_saveIdleTimeout());
   }
 
   void triggerIdle() {
+    if (_activeSurface != OSSurface.home) return;
     _idleActive = true;
     _idleTimer?.cancel();
     notifyListeners();
@@ -242,7 +266,7 @@ class GradeFlowOSController extends ChangeNotifier {
 
   void _resetIdleTimer() {
     _idleTimer?.cancel();
-    if (_idleTimeoutMinutes <= 0) return;
+    if (_disposed || _idleTimeoutMinutes <= 0 || _activeSurface != OSSurface.home) return;
     _idleTimer = Timer(Duration(minutes: _idleTimeoutMinutes), () {
       if (!_idleActive) triggerIdle();
     });
@@ -264,6 +288,7 @@ class GradeFlowOSController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _idleTimer?.cancel();
     super.dispose();
   }
