@@ -135,6 +135,46 @@ test('real PDF editor writes ink and saves a two-page annotated copy', async ({ 
   expect(outside).toEqual([]);
 });
 
+test('native fullscreen enters and exits without losing the loaded worksheet', async ({ page }, testInfo) => {
+  const outside = await ready(page, testInfo);
+  await page.getByTestId('pdf-file').setInputFiles({ name: 'fullscreen.pdf', mimeType: 'application/pdf', buffer: worksheet() });
+  const frame = page.frameLocator('iframe[title="PDF annotation editor"]');
+  await expect(frame.locator('#numPages')).toContainText('2');
+  await frame.locator('#editorInkButton').click();
+  const paper = frame.locator('.page[data-page-number="1"]');
+  await expect(paper.locator('canvas')).toBeVisible();
+  const box = await paper.boundingBox();
+  const x = box.x + box.width * .25, y = box.y + box.height * .25;
+  await page.mouse.move(x, y); await page.mouse.down();
+  await page.mouse.move(x + 80, y + 10, { steps: 10 }); await page.mouse.up();
+  await frame.locator('#editorInkButton').click();
+  await expect(paper.locator('.inkEditor')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Full screen', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === document.documentElement)).toBe(true);
+  await page.getByRole('button', { name: 'Show controls ▾', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Exit full screen', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Leave focus mode', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(page.getByRole('button', { name: 'Full screen', exact: true })).toBeVisible();
+  await expect(frame.locator('#numPages')).toContainText('2');
+  await expect(paper.locator('.inkEditor')).toHaveCount(1);
+  expect(outside).toEqual([]);
+});
+
+test('denied fullscreen keeps the explanation visible and focus mode available', async ({ page }, testInfo) => {
+  await ready(page, testInfo);
+  await page.evaluate(() => {
+    document.documentElement.requestFullscreen = () => Promise.reject(new DOMException('Denied', 'NotAllowedError'));
+  });
+  await page.getByRole('button', { name: 'Full screen', exact: true }).click();
+  await expect(page.getByRole('status', { name: 'Save and file status' })).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Save and file status' })).toContainText('Browser full screen is unavailable');
+  await expect(page.getByRole('button', { name: 'Hide controls', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Hide controls', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Show controls ▾', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+});
+
 test('PDF handwriting stays separate and pen eraser deletes only touched ink with undo', async ({ page }, testInfo) => {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
