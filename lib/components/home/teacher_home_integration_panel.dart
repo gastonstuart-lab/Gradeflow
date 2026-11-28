@@ -41,6 +41,8 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
     this.heroBackgroundImage,
     this.onCustomiseHome,
     this.timetable,
+    this.scheduledClassId,
+    this.onFollowTimetable,
     this.onUploadTimetable,
     this.combineConsecutivePeriods = true,
     this.onCombineConsecutivePeriodsChanged,
@@ -72,6 +74,8 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
   final ImageProvider<Object>? heroBackgroundImage;
   final VoidCallback? onCustomiseHome;
   final HomeWeeklyTimetable? timetable;
+  final String? scheduledClassId;
+  final VoidCallback? onFollowTimetable;
   final VoidCallback? onUploadTimetable;
   final bool combineConsecutivePeriods;
   final ValueChanged<bool>? onCombineConsecutivePeriodsChanged;
@@ -103,6 +107,8 @@ class TeacherHomeIntegrationPanel extends StatelessWidget {
         heroBackgroundImage: heroBackgroundImage,
         onCustomiseHome: onCustomiseHome,
         timetable: timetable,
+        scheduledClassId: scheduledClassId,
+        onFollowTimetable: onFollowTimetable,
         onUploadTimetable: onUploadTimetable,
         combineConsecutivePeriods: combineConsecutivePeriods,
         onCombineConsecutivePeriodsChanged: onCombineConsecutivePeriodsChanged,
