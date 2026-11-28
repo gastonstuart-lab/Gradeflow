@@ -1,0 +1,125 @@
+name: Publish and verify classroom visual preview
+on:
+  push:
+    branches: [preview/classroom-experience-20261128]
+    paths: ['.github/workflows/classroom-hosted-visual-review.yml']
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: classroom-experience-review
+  cancel-in-progress: false
+jobs:
+  preview-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify preview-only target and available credentials (no secret output)
+        id: credentials
+        env:
+          PREVIEW_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          WIF_PROVIDER: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          WIF_ACCOUNT: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/preview/classroom-experience-20261128
+          python3 - <<'PY'
+          import json, os, re
+          c=json.load(open('firebase.preview.json'))
+          assert set(c)=={'hosting'} and c['hosting']['public']=='build/web'
+          assert 'classroom-experience-review' in open('lib/config/gradeflow_existing_project_preview.dart').read()
+          raw=os.environ.get('PREVIEW_KEY','')
+          provider=os.environ.get('WIF_PROVIDER','')
+          account=os.environ.get('WIF_ACCOUNT','')
+          if raw:
+              key=json.loads(raw)
+              assert key['project_id']=='gradeflow-20260113'
+              assert key['client_email'].endswith('@gradeflow-20260113.iam.gserviceaccount.com')
+              mode='key'
+          elif re.fullmatch(r'projects/[0-9]+/locations/global/workloadIdentityPools/[^/]+/providers/[^/]+',provider) and account.endswith('@gradeflow-20260113.iam.gserviceaccount.com'):
+              mode='wif'
+          else:
+              raise SystemExit('No existing preview deployment credentials available; do not deploy.')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('mode='+mode+'\n')
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - run: flutter test test/native_presentation_timer_test.dart test/native_screensaver_test.dart test/native_teaching_card_schedule_test.dart test/gradeflow_existing_project_preview_test.dart
+      - name: Build the actual full app, V2 routes, fictional records only
+        run: |
+          flutter build web --release --no-wasm-dry-run --no-web-resources-cdn --target lib/main.dart \
+            --base-href / --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true \
+            --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW_CHANNEL=classroom-experience-review \
+            --dart-define=GRADEFLOW_SYNTHETIC_REVIEW_ONLY=true
+          sed -i '/<meta name="google-signin-client_id"/d' build/web/index.html
+          bash scripts/package-classroom-preview.sh
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm install --prefix staging-tests --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - uses: google-github-actions/auth@v3
+        if: steps.credentials.outputs.mode == 'wif'
+        with:
+          workload_identity_provider: ${{ vars.GRADEFLOW_WIF_PROVIDER }}
+          service_account: ${{ vars.GRADEFLOW_WIF_SERVICE_ACCOUNT }}
+          project_id: gradeflow-20260113
+      - name: Deploy ONLY the named temporary Hosting channel; never change Auth domains
+        id: publish
+        env:
+          MODE: ${{ steps.credentials.outputs.mode }}
+          PREVIEW_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          if [[ "$MODE" == key ]]; then
+            umask 077
+            export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/gradeflow-preview-key.json"
+            printf '%s' "$PREVIEW_KEY" > "$GOOGLE_APPLICATION_CREDENTIALS"
+            trap 'rm -f "$GOOGLE_APPLICATION_CREDENTIALS"' EXIT
+          fi
+          ./staging-tests/node_modules/.bin/firebase hosting:channel:deploy classroom-experience-review \
+            --project gradeflow-20260113 --config firebase.preview.json --expires 7d \
+            --no-authorized-domains --non-interactive --json > "$RUNNER_TEMP/preview-result.json"
+          python3 - <<'PY'
+          import os,json,re
+          result=json.load(open(os.environ['RUNNER_TEMP']+'/preview-result.json'))
+          assert result['status']=='success'
+          urls=set(re.findall(r'https://gradeflow-20260113--classroom-experience-review-[a-z0-9-]+\.web\.app',json.dumps(result)))
+          assert len(urls)==1, 'Missing or ambiguous preview URL'
+          url=urls.pop()
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('url='+url+'\n')
+          print('Temporary preview deployed:',url)
+          PY
+      - name: Verify exact hosted bytes and real full-app browser controls
+        env:
+          PREVIEW_URL: ${{ steps.publish.outputs.url }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,hashlib,os,urllib.request
+          from pathlib import Path
+          root=Path('build/web')
+          base=os.environ['PREVIEW_URL']
+          for rel in ('main.dart.js','index.html','review-manifest.json','teaching-studio/index.html'):
+              with urllib.request.urlopen(base+'/'+rel+'?review='+os.environ['GITHUB_RUN_ID'],timeout=30) as r:
+                  data=r.read()
+              assert hashlib.sha256(data).hexdigest()==hashlib.sha256((root/rel).read_bytes()).hexdigest(), rel
+          PY
+          node scripts/check-classroom-hosted-preview.mjs
+          echo "Verified visual preview: $PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hosted-classroom-visual-evidence
+          path: preview-evidence/
+          if-no-files-found: ignore
+          retention-days: 7
