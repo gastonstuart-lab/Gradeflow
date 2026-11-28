@@ -1,0 +1,7 @@
+# Hosted-path Teaching Studio acceptance
+
+The pinned Excalidraw 0.18.1 font loader always appends a remote CDN fallback even with a configured local asset base. The build now rewrites that exact pinned fallback to the same local asset base, and fails on an unexpected library version or patch count. The hosting test serves the real built Studio at `/teaching-studio/` with the reviewed preview's content security policy.
+
+Reproduce from `teacher-tools-preview/`: `npm ci`, `npm run build`, `npx playwright install chromium`, then start `node scripts/serve-hosted-test.mjs` in a separate shell. Run `GRADEFLOW_STUDIO_URL=http://127.0.0.1:4174/teaching-studio/?classId=fictional-class npx playwright test tests/pdf-review.spec.mjs --project=desktop-light --project=surface-light`. The standalone existing regressions use `npx playwright test tests/studio.spec.mjs --project=desktop-light`.
+
+2026-11-28: build succeeded; six hosted-path PDF cases passed (three cases at each of 1440×1000 and 1280×900), including no observed cross-origin requests, actual download/reparse and injected failure/retry. Three existing standalone Studio regressions passed. Test browser Chromium 143, headless Linux; simulated Surface viewport/touch configuration is not hardware acceptance. No full Flutter shell, public Vercel preview, Edge or physical projector acceptance was performed; no deployment or real records accessed.

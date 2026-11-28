@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { cp, mkdir, writeFile, readFile, access, rm } from 'node:fs/promises';
+import { cp, mkdir, writeFile, readFile, access, rm, readdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -24,6 +24,29 @@ if (!installed) {
   finally { await rm(zip, { force: true }); }
   await writeFile(join(root, 'pdfjs-version.txt'), `${version} ${expected}\n`);
 }
+// Excalidraw 0.18.1 adds a CDN font fallback even when the local asset path
+// is configured. Keep the classroom offline: the fallback must also resolve
+// to the bundled fonts. Patch only the exact pinned distribution expression.
+const excalidrawProd = resolve('node_modules/@excalidraw/excalidraw/dist/prod');
+const excalidrawVersion = JSON.parse(await readFile(join(excalidrawProd, '../../package.json'), 'utf8')).version;
+if (excalidrawVersion !== '0.18.1') throw Error('Review the offline font adapter before changing Excalidraw');
+const cdnFallback = '`https://esm.sh/${M.PKG_NAME?`${M.PKG_NAME}@${M.PKG_VERSION}`:"@excalidraw/excalidraw"}/dist/prod/`';
+const localFallback = 'new URL(window.EXCALIDRAW_ASSET_PATH,window.location.origin).href';
+let fontAdapterMatches = 0;
+for (const name of await readdir(excalidrawProd)) {
+  if (!name.endsWith('.js')) continue;
+  const path = join(excalidrawProd, name);
+  const source = await readFile(path, 'utf8');
+  if (source.includes(cdnFallback)) {
+    if (source.split(cdnFallback).length !== 2) throw Error('Unexpected font fallback count');
+    await writeFile(path, source.replace(cdnFallback, localFallback));
+    fontAdapterMatches++;
+  } else if (source.includes(localFallback) && source.includes('ASSETS_FALLBACK_URL')) {
+    fontAdapterMatches++;
+  }
+}
+if (fontAdapterMatches !== 1) throw Error('Pinned offline font adapter missing or ambiguous');
+
 await mkdir(join(root, 'excalidraw'), { recursive: true });
 await cp('node_modules/@excalidraw/excalidraw/dist/prod/fonts', join(root, 'excalidraw/fonts'), { recursive: true });
 await cp('node_modules/@excalidraw/excalidraw/LICENSE', join(root, 'excalidraw/LICENSE')).catch(async () => {
