@@ -10,13 +10,13 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   // Emulator-only builds must never silently contact live Firebase Auth or
   // Firestore. A real API-key rejection after refresh is a release blocker,
   // not a reason to weaken the navigation assertions.
-  page.on('request', (request) => {
-    const endpoint = new URL(request.url());
-    if (['identitytoolkit.googleapis.com', 'securetoken.googleapis.com',
-         'firestore.googleapis.com'].includes(endpoint.hostname)) {
+  await page.context().route(
+    /^https?:\/\/(identitytoolkit|securetoken|firestore)\.googleapis\.com\//,
+    async (route) => {
+      const endpoint = new URL(route.request().url());
       unexpectedCloudRequests.push(browserPhase + ': ' + endpoint.hostname + endpoint.pathname);
-    }
-  });
+      await route.abort('blockedbyclient');
+    });
   page.on('console', (message) => {
     if (message.text().includes('GRADEFLOW_STAGING_')) {
       browserDiagnostics.push('route: ' + message.text());
@@ -81,6 +81,16 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
     throw error;
   }
 
+  browserPhase = 'screensaver';
+  await ensureFlutterSemantics(page);
+  await page.getByRole('button', { name: 'Personalise', exact: true }).click();
+  await page.getByRole('button', { name: 'Screensaver', exact: true }).click();
+  await expect(page.getByText('Automatic start on Home only')).toBeVisible();
+  await page.getByRole('button', { name: 'Preview', exact: true }).click();
+  await expect(page.getByText('Tap anywhere to return')).toBeVisible();
+  await page.screenshot({ path: 'test-results/classroom-screensaver.png' });
+  await page.getByRole('button', { name: 'Dismiss screensaver' }).click();
+  await expect(page).toHaveURL(/\/os\/home$/);
   // A teacher choosing a new background on HOME must stay on Home and
   // retain that setting across Planner navigation and a browser reload.
   // This tests the real authenticated GradeFlow menu, not the isolated
@@ -180,6 +190,16 @@ test('@staging authenticated GradeFlow routes to V2 Classroom on local emulators
   await expect(page.getByText('Fit to screen').first())
     .toBeVisible({ timeout: 45_000 });
   await expect(page.getByText('Present').first()).toBeVisible();
+  browserPhase = 'upgraded-timer';
+  await page.getByRole('button', { name: 'Full-page timer', exact: true }).first().click();
+  await expect(page.getByText('Classroom timer', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Set timer duration' }).click();
+  await page.getByText('5 minutes', { exact: true }).click();
+  await expect(page.getByText('05:00', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '+30 sec', exact: true }).click();
+  await expect(page.getByText('05:30', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'test-results/classroom-timer.png' });
+  await page.getByRole('button', { name: 'Close timer' }).click();
 
   // The real Flutter gradebook must read canonical fictional Firestore data,
   // save a changed score, and restore it after a full document reload.
