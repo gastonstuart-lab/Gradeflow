@@ -46,6 +46,15 @@ class _PreviewState extends State<_Preview> {
   }
 
   Future<void> _load() async {
+    // The preview uses only loopback demo emulators. Refuse a hosted
+    // copy before Firebase initializes or a cached account is restored.
+    final host = web.window.location.hostname;
+    if (host != 'localhost' && host != '127.0.0.1') {
+      if (mounted) {
+        setState(() => error = 'This synthetic gradebook preview is local-only.');
+      }
+      return;
+    }
     try {
       final app = await Firebase.initializeApp(
           options: const FirebaseOptions(

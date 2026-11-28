@@ -20,6 +20,7 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze --no-pub lib/gradebook_period_preview.dart lib/screens/period_gradebook_workspace.dart lib/services/grading_period_ui_controller.dart lib/repositories/period_gradebook_adapter.dart
       - run: flutter test --no-pub test/grading_period_test.dart --reporter expanded
+      - run: flutter test --no-pub test/period_gradebook_workspace_test.dart --reporter expanded
   emulator:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
