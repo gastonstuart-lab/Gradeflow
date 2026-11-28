@@ -77,6 +77,7 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<bool> signInWithGoogle() async {
+    if (GradeFlowExistingProjectPreview.syntheticOnly) return false;
     _isLoading = true;
     notifyListeners();
 
