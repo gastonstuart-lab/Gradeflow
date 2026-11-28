@@ -8,6 +8,8 @@ fi
 export PATH="$FLUTTER_ROOT/bin:$PATH"
 flutter pub get --enforce-lockfile
 flutter test test/native_presentation_timer_test.dart test/native_screensaver_test.dart test/native_teaching_card_schedule_test.dart
+flutter test test/shared_control_legibility_test.dart
+flutter test test/os_shell_surfaces_test.dart --plain-name 'GradeFlowOSShell reserves dock space at compact Home sizes'
 flutter build web --release --no-wasm-dry-run --no-web-resources-cdn --target lib/main.dart --base-href / \
   --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true \
   --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW_CHANNEL=classroom-experience-review \

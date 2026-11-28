@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gradeflow/nav.dart';
 import 'package:gradeflow/config/instructos_design.dart';
+import 'package:gradeflow/theme.dart' show appFontFamily;
 import 'package:gradeflow/models/class.dart';
 import 'package:gradeflow/services/teacher_workspace_snapshot_service.dart';
 import 'package:gradeflow/services/home_weekly_timetable_service.dart';
@@ -446,12 +447,19 @@ class ApprovedTeacherHome extends StatelessWidget {
         isExpanded: true,
         dropdownColor: const Color(0xff103553),
         iconEnabledColor: const Color(0xffd6e6ef),
-        style: const TextStyle(color: Colors.white, fontSize: 13),
+        style: const TextStyle(
+          fontFamily: appFontFamily,
+          color: Colors.white,
+          fontSize: 13,
+        ),
         decoration: const InputDecoration(
           labelText: 'Selected class',
           filled: true,
           fillColor: Color(0xff123f57),
-          labelStyle: TextStyle(color: Color(0xffd6e6ef)),
+          labelStyle: TextStyle(
+              fontFamily: appFontFamily, color: Color(0xffd6e6ef)),
+          floatingLabelStyle: TextStyle(
+              fontFamily: appFontFamily, color: Color(0xffd6e6ef)),
           contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           isDense: true,
           border: OutlineInputBorder(),
@@ -460,7 +468,10 @@ class ApprovedTeacherHome extends StatelessWidget {
           for (final c in classes)
             DropdownMenuItem(
                 value: c.classId,
-                child: Text(c.className, overflow: TextOverflow.ellipsis))
+                child: Text(c.className,
+                    style: const TextStyle(
+                        fontFamily: appFontFamily, color: Colors.white),
+                    overflow: TextOverflow.ellipsis))
         ],
         onChanged: (value) {
           if (value != null) onSelectClass(value);

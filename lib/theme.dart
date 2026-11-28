@@ -200,6 +200,10 @@ class FontSizes {
 // THEMES
 // =============================================================================
 
+/// The bundled family must also be used by component-specific styles: web
+/// review builds intentionally disallow fetching fonts from another origin.
+const appFontFamily = 'RobotoLocal';
+
 ThemeData get lightTheme => _productTheme(Brightness.light);
 ThemeData get darkTheme => _productTheme(Brightness.dark);
 
@@ -218,14 +222,16 @@ ThemeData _productTheme(Brightness brightness) {
   );
   final buttonShape =
       RoundedRectangleBorder(borderRadius: BorderRadius.circular(14));
+  final textTheme = _buildTextTheme(brightness).apply(fontFamily: appFontFamily);
+  final buttonLabel = textTheme.labelLarge!;
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
     colorScheme: scheme,
     scaffoldBackgroundColor:
         dark ? InstructOSDesign.night : InstructOSDesign.canvas,
-    fontFamily: 'RobotoLocal',
-    textTheme: _buildTextTheme(brightness).apply(fontFamily: 'RobotoLocal'),
+    fontFamily: appFontFamily,
+    textTheme: textTheme,
     appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
@@ -242,15 +248,21 @@ ThemeData _productTheme(Brightness brightness) {
         style: FilledButton.styleFrom(
             minimumSize: const Size(44, 48),
             shape: buttonShape,
-            textStyle: const TextStyle(fontWeight: FontWeight.w700))),
+            textStyle: buttonLabel.copyWith(fontWeight: FontWeight.w700))),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(textStyle: buttonLabel)),
     outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
             minimumSize: const Size(44, 48),
             shape: buttonShape,
+            textStyle: buttonLabel,
             side: BorderSide(color: scheme.outline))),
     textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-            minimumSize: const Size(44, 44), shape: buttonShape)),
+            minimumSize: const Size(44, 44), shape: buttonShape,
+            textStyle: buttonLabel)),
+    dropdownMenuTheme: DropdownMenuThemeData(textStyle: textTheme.bodyLarge),
+    popupMenuTheme: PopupMenuThemeData(textStyle: buttonLabel),
     iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(minimumSize: const Size(44, 44))),
     inputDecorationTheme: InputDecorationTheme(
