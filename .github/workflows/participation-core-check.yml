@@ -1,0 +1,27 @@
+name: Participation core checks
+on:
+  push:
+    branches: [classroom-experience-v2/release-2-participation-core]
+  pull_request:
+    branches: [main]
+    paths: ['lib/services/lesson_participation_ledger.dart', 'test/lesson_participation_ledger_test.dart', '.github/workflows/participation-core-check.yml']
+permissions:
+  contents: read
+concurrency:
+  group: participation-core-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.7'
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze --no-pub lib/services/lesson_participation_ledger.dart test/lesson_participation_ledger_test.dart
+      - run: flutter test --no-pub test/lesson_participation_ledger_test.dart --reporter expanded
