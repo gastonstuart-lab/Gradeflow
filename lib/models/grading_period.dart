@@ -17,6 +17,8 @@ class GradebookDataset {
   final String? groupNumber;
   final String schoolYear;
   final String term;
+  /// Explicit native policy input; absent in legacy-v1 snapshots.
+  final double? courseworkWeightPercent;
   final List<Student> students;
   final List<GradingCategory> categories;
   final List<GradeItem> assessments;
@@ -31,6 +33,7 @@ class GradebookDataset {
     this.groupNumber,
     required this.schoolYear,
     required this.term,
+    this.courseworkWeightPercent,
     required List<Student> students,
     required List<GradingCategory> categories,
     required List<GradeItem> assessments,
@@ -41,6 +44,10 @@ class GradebookDataset {
         assessments = List.unmodifiable(assessments),
         scores = List.unmodifiable(scores),
         exams = List.unmodifiable(exams) {
+    final split = courseworkWeightPercent;
+    if (split != null && (!split.isFinite || split < 0 || split > 100)) {
+      throw ArgumentError('Invalid saved coursework percentage');
+    }
     if (ownerId.isEmpty || classId.isEmpty) {
       throw ArgumentError('Owner and class are required');
     }
@@ -70,6 +77,7 @@ class GradebookDataset {
 
   factory GradebookDataset.fromLegacy({
     required Class classRecord,
+    double? courseworkWeightPercent,
     required List<Student> students,
     required List<GradingCategory> categories,
     required List<GradeItem> assessments,
@@ -84,6 +92,7 @@ class GradebookDataset {
         groupNumber: classRecord.groupNumber,
         schoolYear: classRecord.schoolYear,
         term: classRecord.term,
+        courseworkWeightPercent: courseworkWeightPercent,
         students: students,
         categories: categories,
         assessments: assessments,
@@ -99,6 +108,7 @@ class GradebookDataset {
         groupNumber: groupNumber,
         schoolYear: schoolYear,
         term: term,
+        courseworkWeightPercent: courseworkWeightPercent,
         students: students,
         categories: categories,
         assessments: values,
@@ -115,6 +125,8 @@ class GradebookDataset {
         'groupNumber': groupNumber,
         'schoolYear': schoolYear,
         'term': term,
+        if (courseworkWeightPercent != null)
+          'courseworkWeightPercent': courseworkWeightPercent,
         'students': students.map((s) => s.toJson()).toList(),
         'categories': categories.map((c) => c.toJson()).toList(),
         'assessments': assessments.map((a) => a.toJson()).toList(),
@@ -132,6 +144,7 @@ class GradebookDataset {
       groupNumber: json['groupNumber'] as String?,
       schoolYear: json['schoolYear'] as String,
       term: json['term'] as String,
+      courseworkWeightPercent: (json['courseworkWeightPercent'] as num?)?.toDouble(),
       students: _rows(json, 'students', Student.fromJson),
       categories: _rows(json, 'categories', GradingCategory.fromJson),
       assessments: _rows(json, 'assessments', GradeItem.fromJson),
@@ -145,6 +158,7 @@ class GradebookDataset {
 /// Construction is pure; persistence/authorization belongs to the repository.
 class GradingPeriod {
   static const calculationVersion = 'gradeflow-legacy-v1';
+  static const nativeCalculationVersion = 'gradeflow-native-v2';
   final String periodId;
   final String label;
   final DateTime createdAt;

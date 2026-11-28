@@ -1,16 +1,21 @@
 import '../models/grading_category.dart';
 import '../models/grading_period.dart';
 import 'calculation_service.dart';
+import 'native_period_grade_policy.dart';
 
 class GradingPeriodCalculation {
   final CalculationService _calculation;
   GradingPeriodCalculation({CalculationService? calculation})
       : _calculation = calculation ?? CalculationService();
   Map<String, Map<String, double?>> calculate(GradingPeriod period) {
-    if (period.policyVersion != GradingPeriod.calculationVersion) {
+    final native = period.policyVersion == GradingPeriod.nativeCalculationVersion;
+    if (!native && period.policyVersion != GradingPeriod.calculationVersion) {
       throw UnsupportedError('Unknown historical calculation policy');
     }
     final data = period.dataset;
+    if (native != (data.courseworkWeightPercent != null)) {
+      throw StateError('Snapshot and calculation policy do not match');
+    }
     // Do not normalize/repair historical inputs or emit NaN/Infinity silently.
     if (data.assessments.any((a) => !a.maxScore.isFinite || a.maxScore <= 0) ||
         data.categories.any((c) =>
@@ -24,8 +29,9 @@ class GradingPeriodCalculation {
     final exams = {for (final e in data.exams) e.studentId: e};
     final grades = <String, Map<String, double?>>{};
     for (final student in data.students) {
-      grades[student.studentId] = Map.unmodifiable(
-          _calculation.calculateStudentGrades(
+      grades[student.studentId] = Map.unmodifiable(native
+          ? NativePeriodGradePolicy.calculate(data, student.studentId)
+          : _calculation.calculateStudentGrades(
               student.studentId,
               data.categories.where((c) => c.isActive).toList(),
               data.assessments,

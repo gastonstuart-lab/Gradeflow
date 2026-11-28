@@ -55,6 +55,9 @@ void validateGradingPeriodTransition(String ownerId, GradingPeriodBook? old,
         throw StateError('Archive cannot be replaced or removed');
       }
       final updated = matches.single;
+      if (previous.policyVersion != updated.policyVersion) {
+        throw StateError('An existing period calculation policy cannot change');
+      }
       if (!previous.isSealed &&
           updated.isSealed &&
           (jsonEncode(previous.dataset.toJson()) !=

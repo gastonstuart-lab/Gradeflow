@@ -37,7 +37,9 @@ class GradingPeriodService {
       required DateTime at}) async {
     _scope(dataset);
     return _initial(GradingPeriod(
-        periodId: periodId, label: label, createdAt: at, dataset: dataset));
+        periodId: periodId, label: label, createdAt: at, dataset: dataset,
+        policyVersion: dataset.courseworkWeightPercent == null
+            ? GradingPeriod.calculationVersion : GradingPeriod.nativeCalculationVersion));
   }
 
   Future<GradingPeriodBook> _initial(GradingPeriod period) async {

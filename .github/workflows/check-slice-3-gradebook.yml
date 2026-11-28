@@ -1,0 +1,65 @@
+name: Slice 3 gradebook checks
+on:
+  push:
+    branches: [classroom-experience-v2/release-1-slice-3]
+permissions:
+  contents: read
+concurrency:
+  group: slice-3-gradebook
+  cancel-in-progress: true
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.7'
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-pub lib/gradebook_period_preview.dart lib/screens/period_gradebook_workspace.dart lib/services/grading_period_ui_controller.dart lib/repositories/period_gradebook_adapter.dart
+      - run: flutter test --no-pub test/grading_period_test.dart --reporter expanded
+      - run: flutter test --no-pub test/period_gradebook_workspace_test.dart --reporter expanded
+      - run: flutter test --no-pub test/native_period_grade_policy_test.dart --reporter expanded
+  emulator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # Reuse the repository's established emulator tooling source.
+      - uses: actions/checkout@v4
+        with:
+          ref: 97604434b9f4cadd5a878166fecb3a628ab7f853
+          path: .test-tools
+          sparse-checkout: staging-tests
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.7'
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: flutter pub get --enforce-lockfile
+      - run: npm install --prefix .test-tools/staging-tests --ignore-scripts --no-audit --no-fund
+      - name: Check Chrome and run isolated period coordinator and Firestore tests
+        run: |
+          google-chrome --version
+          ./.test-tools/staging-tests/node_modules/.bin/firebase emulators:exec \
+            --project demo-gradeflow-periods \
+            --config test/emulator/firebase.json --only firestore,auth \
+            "bash test/emulator/run-ci.sh"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: grading-period-emulator-evidence
+          path: test-results/grading-period-emulator/
+          if-no-files-found: ignore
+          retention-days: 7

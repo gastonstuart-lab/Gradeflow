@@ -14,6 +14,7 @@ import 'package:gradeflow/repositories/local_repository.dart';
 import 'package:gradeflow/services/calculation_service.dart';
 import 'package:gradeflow/services/export_service.dart';
 import 'package:gradeflow/services/grading_period_service.dart';
+import 'package:gradeflow/services/grading_period_ui_controller.dart';
 import 'package:gradeflow/services/historical_grade_export_adapter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -136,6 +137,30 @@ void main() {
         label: 'New period',
         at: at.add(const Duration(days: 1)));
   }
+
+  test(
+    'period UI rejects a second rollover while retaining the first',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      await create();
+      final session = GradingPeriodUiController(repo, 'class');
+      addTearDown(session.dispose);
+      await session.initialize();
+
+      final first = session.start('First request');
+      final second = expectLater(
+        session.start('Second request'),
+        throwsStateError,
+      );
+      await Future.wait([first, second]);
+
+      final book = (await repo.load('class'))!;
+      expect(book.active.label, 'First request');
+      expect(book.active.dataset.assessments, hasLength(20));
+      expect(book.periods.where((period) => period.isSealed), hasLength(1));
+      expect(session.pending, isNull);
+    },
+  );
 
   test('creates one active period and all 20 deterministic default assessments',
       () async {

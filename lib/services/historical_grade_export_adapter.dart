@@ -37,6 +37,16 @@ class HistoricalGradeExportAdapter {
       throw ArgumentError('Unknown archived student');
     final excel = Excel.decodeBytes(_export.generateXlsx(students,
         data.categories.where((c) => c.isActive).toList(), calculate(archive)));
+    if (archive.policyVersion == GradingPeriod.nativeCalculationVersion) {
+      final sheet = excel.sheets[excel.getDefaultSheet()]!;
+      final split = data.courseworkWeightPercent!;
+      final count = data.categories.where((c) => c.isActive).length;
+      String fmt(double n) => n.toStringAsFixed(2).replaceFirst(RegExp(r'\.00$'), '');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3 + count, rowIndex: 0)).value =
+          TextCellValue('Process Score (${fmt(split)}%)');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4 + count, rowIndex: 0)).value =
+          TextCellValue('Exam Score (${fmt(100 - split)}%)');
+    }
     _metadata(excel, [archive]);
     return Uint8List.fromList(excel.encode()!);
   }
@@ -50,6 +60,7 @@ class HistoricalGradeExportAdapter {
     required Set<String> classIds,
   }) {
     final names = <String>{};
+    final native = archives.any((p) => p.policyVersion == GradingPeriod.nativeCalculationVersion);
     final identities = <(String, String)>{};
     for (final archive in archives) {
       final data = archive.dataset;
@@ -78,8 +89,8 @@ class HistoricalGradeExportAdapter {
       'Chinese Name',
       'English Name',
       ...names,
-      'Process Score (40%)',
-      'Exam Score (60%)',
+      native ? 'Process Score (saved period weights)' : 'Process Score (40%)',
+      native ? 'Exam Score (saved period weights)' : 'Exam Score (60%)',
       'Final Grade'
     ]);
     for (final archive in archives) {
@@ -114,6 +125,7 @@ class HistoricalGradeExportAdapter {
   void _metadata(Excel excel, List<GradingPeriod> archives) {
     // Summary retains legacy cells; identity/period labels remain unambiguous.
     final metadata = excel['Periods'];
+    final native = archives.any((p) => p.policyVersion == GradingPeriod.nativeCalculationVersion);
     metadata.appendRow([
       'Class ID',
       'Period ID',
@@ -122,7 +134,8 @@ class HistoricalGradeExportAdapter {
       'Class',
       'Subject',
       'School Year',
-      'Term'
+      'Term',
+      if (native) ...['Coursework %', 'Exam %'],
     ].map<CellValue?>((v) => TextCellValue(v)).toList());
     for (final p in archives) {
       metadata.appendRow([
@@ -133,7 +146,11 @@ class HistoricalGradeExportAdapter {
         p.dataset.className,
         p.dataset.subject,
         p.dataset.schoolYear,
-        p.dataset.term
+        p.dataset.term,
+        if (native) ...[
+          (p.dataset.courseworkWeightPercent ?? 40).toString(),
+          (100 - (p.dataset.courseworkWeightPercent ?? 40)).toString(),
+        ],
       ].map<CellValue?>((v) => TextCellValue(v)).toList());
     }
   }

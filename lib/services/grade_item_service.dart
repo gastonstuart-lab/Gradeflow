@@ -1,3 +1,4 @@
+import 'package:gradeflow/repositories/data_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:gradeflow/models/grade_item.dart';
@@ -5,6 +6,10 @@ import 'package:gradeflow/models/grading_category.dart';
 import 'package:gradeflow/repositories/repository_factory.dart';
 
 class GradeItemService extends ChangeNotifier {
+  final DataRepository? repository;
+  GradeItemService({this.repository});
+  DataRepository get _repository => repository ?? RepositoryFactory.instance;
+
   List<GradeItem> _gradeItems = [];
   bool _isLoading = false;
 
@@ -14,9 +19,9 @@ class GradeItemService extends ChangeNotifier {
   Future<void> loadGradeItems(String classId) async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       final all = await repo.loadGradeItems(classId);
       _gradeItems = all.where((g) => g.isActive).toList();
     } catch (e) {
@@ -30,7 +35,7 @@ class GradeItemService extends ChangeNotifier {
   Future<void> addGradeItem(GradeItem newGradeItem) async {
     try {
       _gradeItems.add(newGradeItem);
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       await repo.saveGradeItems(newGradeItem.classId, _gradeItems);
       notifyListeners();
     } catch (e) {
@@ -40,10 +45,11 @@ class GradeItemService extends ChangeNotifier {
 
   Future<void> updateGradeItem(GradeItem updatedGradeItem) async {
     try {
-      final localIndex = _gradeItems.indexWhere((g) => g.gradeItemId == updatedGradeItem.gradeItemId);
+      final localIndex = _gradeItems
+          .indexWhere((g) => g.gradeItemId == updatedGradeItem.gradeItemId);
       if (localIndex == -1) return;
       _gradeItems[localIndex] = updatedGradeItem;
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       await repo.saveGradeItems(updatedGradeItem.classId, _gradeItems);
       notifyListeners();
     } catch (e) {
@@ -56,9 +62,10 @@ class GradeItemService extends ChangeNotifier {
       final idx = _gradeItems.indexWhere((g) => g.gradeItemId == gradeItemId);
       if (idx == -1) return;
       final classId = _gradeItems[idx].classId;
-      final updated = _gradeItems[idx].copyWith(isActive: false, updatedAt: DateTime.now());
+      final updated =
+          _gradeItems[idx].copyWith(isActive: false, updatedAt: DateTime.now());
       _gradeItems[idx] = updated;
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       await repo.saveGradeItems(classId, _gradeItems);
       _gradeItems.removeWhere((g) => g.gradeItemId == gradeItemId);
       notifyListeners();
@@ -68,18 +75,20 @@ class GradeItemService extends ChangeNotifier {
   }
 
   List<GradeItem> getItemsByCategory(String categoryId) {
-    return _gradeItems.where((g) => g.categoryId == categoryId && g.isActive).toList();
+    return _gradeItems
+        .where((g) => g.categoryId == categoryId && g.isActive)
+        .toList();
   }
 
   Future<void> seedDemoGradeItems(
       String classId, List<GradingCategory> categories) async {
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       final existingItems = await repo.loadGradeItems(classId);
       if (existingItems.isEmpty && categories.isNotEmpty) {
         final now = DateTime.now();
         final demoItems = <GradeItem>[];
-        
+
         for (final category in categories) {
           final baseName = _seedBaseName(category.name);
           demoItems.addAll([
@@ -105,7 +114,7 @@ class GradeItemService extends ChangeNotifier {
             ),
           ]);
         }
-        
+
         await repo.saveGradeItems(classId, demoItems);
         debugPrint('Demo grade items seeded for class $classId');
       }

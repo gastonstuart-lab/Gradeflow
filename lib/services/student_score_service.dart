@@ -1,3 +1,4 @@
+import 'package:gradeflow/repositories/data_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gradeflow/models/student_score.dart';
 import 'package:gradeflow/models/change_history.dart';
@@ -6,6 +7,10 @@ import 'dart:async';
 import 'package:gradeflow/repositories/repository_factory.dart';
 
 class StudentScoreService extends ChangeNotifier {
+  final DataRepository? repository;
+  StudentScoreService({this.repository});
+  DataRepository get _repository => repository ?? RepositoryFactory.instance;
+
   List<StudentScore> _scores = [];
   List<ChangeHistory> _history = [];
   bool _isLoading = false;
@@ -49,7 +54,7 @@ class StudentScoreService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       final out = <StudentScore>[];
       for (final gid in gradeItemIds) {
         final list = await repo.loadScores(classId, gid);
@@ -85,7 +90,7 @@ class StudentScoreService extends ChangeNotifier {
     required bool recordHistory,
   }) async {
     try {
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       final existing = await repo.loadScores(classId, score.gradeItemId);
 
       final idx = existing.indexWhere(
@@ -134,7 +139,7 @@ class StudentScoreService extends ChangeNotifier {
       List<String> studentIds, double? score, String teacherId) async {
     await _enqueueWrite(() async {
       try {
-        final repo = RepositoryFactory.instance;
+        final repo = _repository;
         final existing = await repo.loadScores(classId, gradeItemId);
 
         final now = DateTime.now();
@@ -189,7 +194,7 @@ class StudentScoreService extends ChangeNotifier {
         timestamp: DateTime.now(),
       );
 
-      final repo = RepositoryFactory.instance;
+      final repo = _repository;
       await repo.addScoreHistory(classId, change, maxEntries: 100);
       _history.insert(0, change);
 
@@ -206,7 +211,7 @@ class StudentScoreService extends ChangeNotifier {
       String classId, String studentId, List<String> gradeItemIds) async {
     await _enqueueWrite(() async {
       try {
-        final repo = RepositoryFactory.instance;
+        final repo = _repository;
         for (final gid in gradeItemIds) {
           final existing = await repo.loadScores(classId, gid);
           existing.removeWhere((s) => s.studentId == studentId);
@@ -225,7 +230,7 @@ class StudentScoreService extends ChangeNotifier {
       String classId, String studentId, List<String> gradeItemIds) async {
     return _enqueueWrite(() async {
       try {
-        final repo = RepositoryFactory.instance;
+        final repo = _repository;
         final removed = <StudentScore>[];
 
         for (final gid in gradeItemIds) {
@@ -257,7 +262,7 @@ class StudentScoreService extends ChangeNotifier {
     if (scoresToRestore.isEmpty) return;
     await _enqueueWrite(() async {
       try {
-        final repo = RepositoryFactory.instance;
+        final repo = _repository;
         final byItem = <String, List<StudentScore>>{};
         for (final sc in scoresToRestore) {
           byItem.putIfAbsent(sc.gradeItemId, () => []).add(sc);
@@ -296,7 +301,7 @@ class StudentScoreService extends ChangeNotifier {
   Future<bool> undoLastChange(String teacherId, String classId) async {
     return _enqueueWrite(() async {
       try {
-        final repo = RepositoryFactory.instance;
+        final repo = _repository;
         final latest = await repo.loadScoreHistory(classId, limit: 1);
         if (latest.isEmpty) return false;
         final lastChange = latest.first;
@@ -362,7 +367,7 @@ class StudentScoreService extends ChangeNotifier {
     if (studentIds.isEmpty) return;
     await _enqueueWrite(() async {
       try {
-        final repo = RepositoryFactory.instance;
+        final repo = _repository;
         final existing = await repo.loadScores(classId, gradeItemId);
         final byStudent = <String, StudentScore>{
           for (final s in existing) s.studentId: s,
@@ -438,7 +443,7 @@ class StudentScoreService extends ChangeNotifier {
       List<String> gradeItemIds) async {
     await _enqueueWrite(() async {
       try {
-        final repo = RepositoryFactory.instance;
+        final repo = _repository;
         final now = DateTime.now();
         for (final gradeItemId in gradeItemIds) {
           final existing = await repo.loadScores(classId, gradeItemId);
