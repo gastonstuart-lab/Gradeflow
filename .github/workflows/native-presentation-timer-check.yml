@@ -1,0 +1,23 @@
+name: Native presentation timer check
+on:
+  push:
+    branches: [classroom-experience-v2/native-presentation-timer]
+    paths: ['lib/os/surfaces/classroom_presentation_view.dart', 'test/native_presentation_timer_test.dart', '.github/workflows/native-presentation-timer-check.yml']
+permissions:
+  contents: read
+jobs:
+  timer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze lib/os/surfaces/classroom_presentation_view.dart test/native_presentation_timer_test.dart
+      - run: flutter test test/native_presentation_timer_test.dart
