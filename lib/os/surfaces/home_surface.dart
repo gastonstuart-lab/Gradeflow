@@ -63,6 +63,22 @@ class _HomeSurfaceState extends State<HomeSurface> {
   bool _loadingStudentCounts = false;
   bool _showExistingHomeTools = false;
   String? _selectedHomeClassId;
+  String? _manualScheduleKey;
+  Timer? _teachingClock;
+
+  @override
+  void initState() {
+    super.initState();
+    _teachingClock = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted && _homeTimetable != null) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _teachingClock?.cancel();
+    super.dispose();
+  }
   HomeWeeklyTimetable? _homeTimetable;
   String? _homeTimetableUserId;
   bool _importingHomeTimetable = false;
@@ -81,6 +97,8 @@ class _HomeSurfaceState extends State<HomeSurface> {
   void _syncWallpaperForUser(String userId) {
     if (_loadedUserId == userId) return;
     _loadedUserId = userId;
+    _selectedHomeClassId = null;
+    _manualScheduleKey = null;
     _homeTimetable = null;
     _homeTimetableUserId = null;
     _combineConsecutivePeriods = true;
@@ -461,11 +479,20 @@ class _HomeSurfaceState extends State<HomeSurface> {
     final unread = context.watch<CommunicationService>().totalUnreadCount;
     final now = DateTime.now();
     final controller = context.watch<GradeFlowOSController>();
-    final primaryClass = resolveHomeTeachingClass(
+    final timetable = wallpaperUserId != null && _homeTimetableUserId == wallpaperUserId
+        ? _homeTimetable : null;
+    final sequence = timetable == null ? const HomeTeachingSequence() :
+        HomeTeachingSequence.fromSchedule(timetable.classes, now,
+            combineConsecutivePeriods: _combineConsecutivePeriods);
+    final moment = sequence.current ?? sequence.next;
+    final scheduledClass = resolveScheduledTeachingClass(moment, classes, signedInTeacherId);
+    final scheduleKey = moment == null ? null : '${moment.startAt.toIso8601String()}|${moment.classId}| ${moment.title}';
+    final manual = _selectedHomeClassId != null && _manualScheduleKey == scheduleKey;
+    final primaryClass = (!manual ? scheduledClass : null) ?? resolveHomeTeachingClass(
       loadedClasses: classes,
       snapshotClasses: snapshot?.activeClasses,
       signedInTeacherId: signedInTeacherId,
-      selectedClassId: _selectedHomeClassId,
+      selectedClassId: manual ? _selectedHomeClassId : null,
       lastRoutedClassId: controller.lastSelectedClassId,
     );
     final primaryReminder = reminders.isNotEmpty ? reminders.first : null;
@@ -504,7 +531,10 @@ class _HomeSurfaceState extends State<HomeSurface> {
                 classService.isLoading,
             onSelectClass: (id) {
               controller.rememberSelectedClass(id);
-              setState(() => _selectedHomeClassId = id);
+              setState(() {
+                _selectedHomeClassId = id;
+                _manualScheduleKey = scheduleKey;
+              });
             },
             onMoreHomeTools: () =>
                 setState(() => _showExistingHomeTools = true),
@@ -518,9 +548,14 @@ class _HomeSurfaceState extends State<HomeSurface> {
                     ? MemoryImage(_wallpaperImageBytes!)
                     : null,
             onCustomiseHome: _showWallpaperSheet,
-            timetable: _homeTimetableUserId == wallpaperUserId
-                ? _homeTimetable
-                : null,
+            timetable: timetable,
+            scheduledClassId: scheduledClass?.classId,
+            onFollowTimetable: scheduledClass == null ? null : () {
+              setState(() {
+                _selectedHomeClassId = null;
+                _manualScheduleKey = null;
+              });
+            },
             onUploadTimetable: _importHomeTimetable,
             combineConsecutivePeriods: _combineConsecutivePeriods,
             onCombineConsecutivePeriodsChanged: (enabled) =>
