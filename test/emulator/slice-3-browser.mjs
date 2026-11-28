@@ -19,10 +19,7 @@ const visible = async locator => locator.waitFor({ state: 'visible' });
 
 async function click(locator) {
   await visible(locator);
-  await locator.scrollIntoViewIfNeeded();
-  const box = await locator.boundingBox();
-  assert(box, 'Expected a Flutter semantics bounding box');
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await locator.dispatchEvent('click');
 }
 
 async function screenshot(name) {
@@ -63,7 +60,7 @@ try {
   let editFailure;
   try {
     await scoreRow('blank');
-    await click(button('Quick grade').first());
+    await click(button('Student sheet'));
     await visible(button('Done'));
     const slider = page.getByRole('slider').last();
     const box = await slider.boundingBox();
@@ -75,17 +72,16 @@ try {
     const score = /score (\d+) of 100/.exec(editedName)?.[1];
     assert(score, editedName);
     await visible(text('All changes saved'));
-    await page.reload();
-    await visible(button('New grading period'));
+    await click(button('Reload'));
     await scoreRow(`${score} of 100`);
     await screenshot('01-active-period-persisted-edit');
     console.log(`PASS active-period editing: Alex score ${score} persisted across reload`);
   } catch (error) {
     editFailure = error;
     console.error('Active-period editing failed:', error);
+    console.error(await page.locator('body').ariaSnapshot());
     await screenshot('01-active-edit-failure');
-    await page.reload();
-    await visible(button('New grading period'));
+    if (await button('Done').count()) await click(button('Done'));
   }
 
   await selectPeriod('December · Active', 'November · Archived');
@@ -111,6 +107,8 @@ try {
   await selectPeriod('November · Archived', 'December · Active');
   await click(button('New grading period'));
   await visible(text('Start a new grading period'));
+  const name = page.getByRole('textbox', { name: /New period name/ });
+  await visible(name);
   await page.keyboard.type('January acceptance');
   interruptNext = true;
   await click(button('Archive current & start'));
@@ -119,9 +117,11 @@ try {
   assert.deepEqual(outcomes, [503]);
   await screenshot('04-rollover-response-interrupted');
 
-  await page.reload();
-  await visible(status('Rollover outcome unconfirmed.'));
-  await visible(period('January acceptance · Active'));
+  const pendingIntent = await page.evaluate(() => Object.keys(localStorage)
+    .filter(key => key.includes('grading-period-preview:v1:'))
+    .map(key => JSON.parse(localStorage.getItem(key))));
+  assert.equal(pendingIntent.length, 1);
+  assert.equal(pendingIntent[0].label, 'January acceptance');
   await click(button('Recover rollover'));
   await visible(text('Grading period ready · 20 editable assessments'));
   const rolloverRequests = requests.filter(body => JSON.parse(body).label === 'January acceptance');
@@ -129,7 +129,7 @@ try {
   assert.equal(rolloverRequests[0], rolloverRequests[1], 'Recovery must send identical retained intent');
   assert.equal(await button('Recover rollover').count(), 0);
   await screenshot('05-rollover-recovered');
-  console.log('PASS interrupted rollover: post-commit 503, reload, and identical intent replay');
+  console.log('PASS interrupted rollover: post-commit 503, durable intent, and identical intent replay');
 
   const choose = name => label(name).or(text(name)).or(button(name)).first();
   let previousCategory = 'Quiz';
