@@ -1,0 +1,34 @@
+name: Classroom release candidate build
+on:
+  push:
+    branches: [integration/instructos-classroom-experience-20261128]
+  pull_request:
+    branches: [integration/instructos-classroom-experience-20261128]
+permissions:
+  contents: read
+concurrency:
+  group: classroom-candidate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  full-app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.0'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter analyze
+      - run: flutter test test/native_presentation_timer_test.dart test/gradeflow_existing_project_preview_test.dart test/planner_v2_staging_safety_test.dart test/planner_v2_firebase_config_test.dart
+      - name: Build the complete authenticated preview application without deploying
+        run: flutter build web --release --no-wasm-dry-run --target lib/main.dart --base-href / --dart-define=GRADEFLOW_EXISTING_PROJECT_PREVIEW=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: instructos-full-preview-${{ github.sha }}
+          path: build/web/
+          retention-days: 7
