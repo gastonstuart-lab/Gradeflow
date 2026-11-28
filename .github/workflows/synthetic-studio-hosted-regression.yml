@@ -1,0 +1,48 @@
+name: Synthetic Studio hosted-path regression
+on:
+  push:
+    branches: [preview/classroom-experience-static-20261128]
+    paths: ['teacher-tools-preview/**', '.github/workflows/synthetic-studio-hosted-regression.yml']
+permissions:
+  contents: read
+concurrency:
+  group: synthetic-studio-hosted-regression
+  cancel-in-progress: true
+jobs:
+  hosted-path:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: teacher-tools-preview
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Reproduce hosted path and CSP using the exact preview source
+        run: |
+          set -euo pipefail
+          node scripts/serve-hosted-test.mjs &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:4174/teaching-studio/; then break; fi
+            sleep 1
+          done
+          curl --fail --silent --output /dev/null http://127.0.0.1:4174/teaching-studio/
+          GRADEFLOW_STUDIO_URL=http://127.0.0.1:4174/teaching-studio/?classId=fictional-class npx playwright test tests/pdf-review.spec.mjs --project=surface-light --project=desktop-light
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-studio-hosted-evidence
+          path: |
+            teacher-tools-preview/test-results/
+            teacher-tools-preview/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
