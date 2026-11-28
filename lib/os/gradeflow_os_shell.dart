@@ -156,9 +156,14 @@ class _GradeFlowOSShellState extends State<GradeFlowOSShell> {
     final mq = MediaQuery.of(context);
     final isPhone = mq.size.shortestSide < 600;
 
-    // Home scrolls above its floating dock while its background extends below it.
-    final homeBehindFloatingDock =
-        !widget.teachMode && controller.activeSurface == OSSurface.home;
+    // Keep the approved floating Home dock on roomy screens. On phones
+    // and short windows (including classroom projector/zoomed layouts),
+    // reserve the dock's footprint outside the scroll viewport so it cannot
+    // obscure text or intercept Home actions.
+    final homeBehindFloatingDock = !widget.teachMode &&
+        controller.activeSurface == OSSurface.home &&
+        !isPhone &&
+        mq.size.height >= 760;
     final dockBottomMargin = isPhone
         ? OSSpacing.phoneDockBottomMargin
         : OSSpacing.dockBottomMargin;
