@@ -102,6 +102,9 @@ class _WorkspaceState extends State<PeriodGradebookWorkspace> {
                 SizedBox(
                     width: 320,
                     child: DropdownButtonFormField<String>(
+                      // Bound long labels to the available width before
+                      // laying out the dropdown arrow (also at large text sizes).
+                      isExpanded: true,
                       initialValue: session.selectedId,
                       key: ValueKey('period-${session.selectedId}'),
                       decoration: const InputDecoration(

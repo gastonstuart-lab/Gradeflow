@@ -42,6 +42,7 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'desktop archive layout');
     expect(find.text('Archived period · Read only'), findsOneWidget);
     expect(find.text('Export historical Excel'), findsOneWidget);
     expect(find.text('New grading period'), findsNothing);
@@ -50,6 +51,20 @@ void main() {
     await tester.tap(find.text('Export historical Excel'));
     await tester.pumpAndSettle();
     expect(filename, 'historical_class_old.xlsx');
+    expect(downloaded, isNotNull);
+    expect(fixture.cells(downloaded!), fixture.cells(
+      HistoricalGradeExportAdapter().generateXlsx(before.periods.first,
+          ownerId: 'owner', classId: 'class'),
+    ));
+    expect((await repo.load('class'))!.toJson(), before.toJson());
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'phone archive layout');
+    expect(find.text('Archived period · Read only'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+    downloaded = null;
+    await tester.tap(find.text('Export historical Excel'));
+    await tester.pumpAndSettle();
     expect(downloaded, isNotNull);
     expect(fixture.cells(downloaded!), fixture.cells(
       HistoricalGradeExportAdapter().generateXlsx(before.periods.first,
