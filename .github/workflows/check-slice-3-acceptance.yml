@@ -51,7 +51,9 @@ jobs:
           GRADEFLOW_COORDINATOR_PROJECT: demo-gradeflow-periods
         run: |
           firebase emulators:exec --only firestore,auth --project demo-gradeflow-periods --config test/emulator/firebase.json 'bash test/emulator/slice-3-run.sh'
-          python3 test/emulator/slice-3-xlsx.py | tee -a evidence/results.txt
+      - name: Check the downloaded historical workbook
+        if: always() && hashFiles('evidence/historical.xlsx') != ''
+        run: python3 test/emulator/slice-3-xlsx.py | tee -a evidence/results.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:

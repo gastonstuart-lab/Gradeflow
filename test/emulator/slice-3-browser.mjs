@@ -60,18 +60,33 @@ try {
 
   await page.goto('http://127.0.0.1:7357/');
   await visible(button('New grading period'));
-  const field = await scoreRow('blank');
-  await click(field);
-  await page.keyboard.press('Control+A');
-  await page.keyboard.type('73');
-  await page.keyboard.press('Enter');
-  await scoreRow('73 of 100');
-  await visible(text('All changes saved').first());
-  await page.reload();
-  await visible(button('New grading period'));
-  await scoreRow('73 of 100');
-  await screenshot('01-active-period-persisted-edit');
-  console.log('PASS active-period editing: Alex score 73 persisted across reload');
+  let editFailure;
+  try {
+    await scoreRow('blank');
+    await click(button('Quick grade').first());
+    await visible(button('Done'));
+    const slider = page.getByRole('slider').last();
+    const box = await slider.boundingBox();
+    assert(box, 'Expected the quick-grade slider');
+    await page.mouse.click(box.x + box.width * 0.72, box.y + box.height / 2);
+    await click(button('Done'));
+    const edited = await scoreRow('[1-9][0-9]? of 100');
+    const editedName = await edited.ariaSnapshot();
+    const score = /score (\d+) of 100/.exec(editedName)?.[1];
+    assert(score, editedName);
+    await visible(text('All changes saved'));
+    await page.reload();
+    await visible(button('New grading period'));
+    await scoreRow(`${score} of 100`);
+    await screenshot('01-active-period-persisted-edit');
+    console.log(`PASS active-period editing: Alex score ${score} persisted across reload`);
+  } catch (error) {
+    editFailure = error;
+    console.error('Active-period editing failed:', error);
+    await screenshot('01-active-edit-failure');
+    await page.reload();
+    await visible(button('New grading period'));
+  }
 
   await selectPeriod('December · Active', 'November · Archived');
   const exportButton = button('Export historical Excel');
@@ -89,6 +104,7 @@ try {
   assert.equal(download.suggestedFilename(),
     'historical_synthetic-preview-gradebook_preview-period-1.xlsx');
   await download.saveAs('evidence/historical.xlsx');
+  console.log('Captured historical Excel download');
   await visible(text('Historical Excel exported'));
   await screenshot('03-historical-excel-export');
 
@@ -132,6 +148,7 @@ try {
     previousCategory = category;
   }
   console.log('PASS all 20 default assessments: 2 Quiz, 6 Classwork, 6 Homework, 6 Participation');
+  if (editFailure) throw editFailure;
 } catch (error) {
   await screenshot('failure').catch(() => {});
   console.error(await page.locator('body').ariaSnapshot().catch(() => 'No accessibility snapshot'));
